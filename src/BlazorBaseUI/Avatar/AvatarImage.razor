@@ -1,0 +1,121 @@
+﻿@using System.Diagnostics.CodeAnalysis
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime JSRuntime
+
+@if (imageLoadingStatus == ImageLoadingStatus.Loaded)
+{
+    <img @ref="Element"
+         src="@Src"
+         alt="@Alt"
+         referrerpolicy="@ReferrerPolicy"
+         crossorigin="@CrossOrigin"
+         @attributes="AdditionalAttributes" />
+}
+
+@code {
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+    private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
+    private bool hasRendered;
+    private string? previousSrc;
+
+    [CascadingParameter]
+    private AvatarRootContext? Context { get; set; }
+
+    [Parameter]
+    public string? Src { get; set; }
+
+    [Parameter]
+    public string? Alt { get; set; }
+
+    [Parameter]
+    public string? ReferrerPolicy { get; set; }
+
+    [Parameter]
+    public string? CrossOrigin { get; set; }
+
+    [Parameter]
+    public EventCallback<ImageLoadingStatus> OnLoadingStatusChange { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [DisallowNull]
+    public ElementReference? Element { get; protected set; }
+
+    public AvatarImage()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/BlazorBaseUI/Avatar/AvatarImage.razor.js").AsTask());
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (hasRendered && Src != previousSrc)
+        {
+            previousSrc = Src;
+            await LoadImage();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            previousSrc = Src;
+            await LoadImage();
+        }
+    }
+
+    private async Task LoadImage()
+    {
+        if (Context is null)
+        {
+            throw new InvalidOperationException(
+                "Base UI: AvatarRootContext is missing. Avatar parts must be placed within <AvatarRoot>.");
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var status = await module.InvokeAsync<string>("loadImage", Src, ReferrerPolicy, CrossOrigin);
+
+            imageLoadingStatus = status switch
+            {
+                "loaded" => ImageLoadingStatus.Loaded,
+                "error" => ImageLoadingStatus.Error,
+                _ => ImageLoadingStatus.Idle
+            };
+
+            await OnLoadingStatusChange.InvokeAsync(imageLoadingStatus);
+            Context.SetImageLoadingStatus(imageLoadingStatus);
+        }
+        catch (Exception ex) when (
+            ex is JSDisconnectedException or
+            TaskCanceledException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (
+                ex is JSDisconnectedException or
+                TaskCanceledException)
+            {
+            }
+        }
+    }
+}

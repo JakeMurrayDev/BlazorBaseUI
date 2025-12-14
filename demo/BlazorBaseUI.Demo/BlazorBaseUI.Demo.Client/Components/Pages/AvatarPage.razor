@@ -1,0 +1,167 @@
+﻿@page "/avatar/wasm"
+
+@using BlazorBaseUI.Avatar
+
+@rendermode InteractiveWebAssembly
+
+<ComponentShowcase ComponentName="Avatar"
+                   Description="An easily stylable avatar component."
+                   BaseRoute="/avatar"
+                   IsWasmMode="true">
+
+    <DemoSection Title="Basic Usage"
+                 Description="A simple avatar showcase."
+                 CodeSnippet="@CodeSnippet">
+        <div class="flex w-full max-w-2xl justify-center gap-10">
+            <AvatarRoot class="inline-flex size-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 align-middle text-base font-medium text-black select-none">
+                <AvatarImage Src="https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=128&h=128&dpr=2&q=80"
+                             width="48"
+                             height="48"
+                             class="size-full object-cover" />
+                <AvatarFallback class="flex size-full items-center justify-center text-base">
+                    LT
+                </AvatarFallback>
+            </AvatarRoot>
+            <AvatarRoot class="inline-flex size-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 align-middle text-base font-medium text-black select-none">
+                LT
+            </AvatarRoot>
+        </div>
+    </DemoSection>
+    <DemoSection Title="Multiple avatars"
+                 Description="Multiple usage of avatar components with valid image and not."
+                 CodeSnippet="@ComplexCodeSnippet">
+        <div class="w-full max-w-2xl">
+            <div class="z-10 grid grid-cols-4 gap-6">
+                @foreach (var (index, config) in Configs.Index())
+                {
+                    string[] urls = config.InvalidUrl
+                    ? Enumerable.Repeat(string.Empty, Users.Length).ToArray()
+                    : Users;
+
+                    foreach (var src in urls)
+                    {
+                        <AvatarRoot @key=@($"avatar-{Guid.NewGuid()}")
+                                    class="relative inline-flex h-10 w-10">
+                            <AvatarImage Src=@src
+                                         Alt="Avatar"
+                                         class=@($"h-full w-full object-cover {(config.IsCircle ? "rounded-full" : "rounded-sm")}") />
+                            @if (config.IsOnline)
+                            {
+                                <div class=@($"absolute bottom-0 right-0 h-2 w-2 {(config.IsCircle ? "-translate-x-1/2 -translate-y-1/2" : null)}")>
+                                    <span class="block h-2.5 w-2.5 rounded-full bg-green-400" />
+                                </div>
+                            }
+                            <AvatarFallback class=@($"flex h-full w-full items-center justify-center bg-white dark:bg-gray-800 {(config.IsCircle ? "rounded-full" : "rounded-sm")}")
+                                            Delay="600">
+                                <span class="text-sm font-medium text-gray-700 uppercase dark:text-gray-400">
+                                    @InitialGenerator.GetRandomInitials()
+                                </span>
+                            </AvatarFallback>
+                        </AvatarRoot>
+                    }
+                }
+            </div>
+        </div>
+    </DemoSection>
+</ComponentShowcase>
+
+@code {
+    private const string CodeSnippet =
+    """
+    <AvatarRoot class="inline-flex size-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 align-middle text-base font-medium text-black select-none">
+        <AvatarImage Src="https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=128&h=128&dpr=2&q=80"
+                        width="48"
+                        height="48"
+                        class="size-full object-cover" />
+        <AvatarFallback class="flex size-full items-center justify-center text-base">
+            LT
+        </AvatarFallback>
+    </AvatarRoot>
+    <AvatarRoot class="inline-flex size-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 align-middle text-base font-medium text-black select-none">
+        LT
+    </AvatarRoot>
+    """;
+
+    private const string ComplexCodeSnippet =
+    """
+    <div class="w-full max-w-2xl">
+        <div class="z-10 grid grid-cols-4 gap-6">
+            @foreach (var (index, config) in Configs.Index())
+            {
+                string[] urls = config.InvalidUrl
+                ? Enumerable.Repeat(string.Empty, Users.Length).ToArray()
+                : Users;
+
+                foreach (var src in urls)
+                {
+                    <AvatarRoot @key=@($"avatar-{Guid.NewGuid()}")
+                                class="relative inline-flex h-10 w-10">
+                        <AvatarImage Src=@src
+                                        Alt="Avatar"
+                                        class=@($"h-full w-full object-cover {(config.IsCircle ? "rounded-full" : "rounded-sm")}") />
+                        @if (config.IsOnline)
+                        {
+                            <div class=@($"absolute bottom-0 right-0 h-2 w-2 {(config.IsCircle ? "-translate-x-1/2 -translate-y-1/2" : null)}")>
+                                <span class="block h-2.5 w-2.5 rounded-full bg-green-400" />
+                            </div>
+                        }
+                        <AvatarFallback class=@($"flex h-full w-full items-center justify-center bg-white dark:bg-gray-800 {(config.IsCircle ? "rounded-full" : "rounded-sm")}")
+                                        Delay="600">
+                            <span class="text-sm font-medium text-gray-700 uppercase dark:text-gray-400">
+                                @InitialGenerator.GetRandomInitials()
+                            </span>
+                        </AvatarFallback>
+                    </AvatarRoot>
+                }
+            }
+        </div>
+    </div>
+    """;
+
+    private record AvatarConfig(bool IsCircle, bool IsOnline, bool InvalidUrl);
+
+    private static class InitialGenerator
+    {
+        private static readonly Random _random = new Random();
+
+        public static string GetRandomInitials(int length = 2)
+        {
+            const string letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            char[] initials = new char[length];
+
+            for (int i = 0; i < length; i++)
+            {
+                initials[i] = letters[_random.Next(letters.Length)];
+            }
+
+            return new string(initials);
+        }
+    }
+
+    private static readonly string[] Users = new[]
+    {
+        "https://images.unsplash.com/photo-1573607217032-18299406d100?ixlib=rb-1.2.1&auto=format&fit=crop&w=830&q=80",
+        "https://images.unsplash.com/photo-1594089426440-ab4513b4d0d0?ixlib=rb-1.2.1&auto=format&fit=crop&w=774&q=80",
+        "https://images.unsplash.com/photo-1549237511-6b64e006ce65?ixlib=rb-1.2.1&auto=format&fit=crop&w=774&q=80",
+        "https://images.unsplash.com/photo-1546456073-ea246a7bd25f?ixlib=rb-1.2.1&auto=format&fit=crop&w=774&q=80"
+    };
+
+    private static readonly AvatarConfig[] Configs = new[]
+    {
+        new AvatarConfig(IsCircle: true,  IsOnline: false, InvalidUrl: false),
+        new AvatarConfig(IsCircle: true,  IsOnline: true,  InvalidUrl: true),
+        new AvatarConfig(IsCircle: false, IsOnline: true,  InvalidUrl: false),
+        new AvatarConfig(IsCircle: false, IsOnline: true,  InvalidUrl: true)
+    };
+
+    private string GetImageClass(bool isCircle) =>
+        isCircle ? "h-full w-full object-cover rounded-full" : "h-full w-full object-cover rounded-sm";
+
+    private string GetStatusIndicatorClass(bool isCircle) =>
+        isCircle ? "absolute bottom-0 right-0 h-2 w-2 -translate-x-1/2 -translate-y-1/2" : "absolute bottom-0 right-0 h-2 w-2";
+
+    private string GetFallbackClass(bool isCircle) =>
+        isCircle
+            ? "flex h-full w-full items-center justify-center bg-white dark:bg-gray-800 rounded-full"
+            : "flex h-full w-full items-center justify-center bg-white dark:bg-gray-800 rounded-sm";
+}

@@ -1,0 +1,38 @@
+﻿@namespace BlazorBaseUI.Avatar
+@using System.Diagnostics.CodeAnalysis
+
+<CascadingValue Value="context">
+    <span @ref="Element"
+          @attributes="AdditionalAttributes">
+        @ChildContent
+    </span>
+</CascadingValue>
+
+@code {
+    private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
+    private AvatarRootContext context = null!;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [DisallowNull]
+    public ElementReference? Element { get; protected set; }
+
+    protected override void OnInitialized()
+    {
+        context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
+    }
+
+    private void SetImageLoadingStatus(ImageLoadingStatus status)
+    {
+        if (imageLoadingStatus != status)
+        {
+            imageLoadingStatus = status;
+            context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
+            StateHasChanged();
+        }
+    }
+}

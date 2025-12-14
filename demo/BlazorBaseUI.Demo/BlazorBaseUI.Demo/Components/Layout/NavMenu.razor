@@ -1,0 +1,71 @@
+﻿<div class="flex h-full flex-col bg-slate-900 text-white">
+    <div class="flex h-16 shrink-0 items-center border-b border-slate-800 px-6 text-xl font-bold tracking-wider">
+        Blazor Base-UI
+    </div>
+    <nav class="custom-scrollbar flex-1 space-y-1 overflow-y-auto px-4 py-4">
+        <NavLink class="group flex items-center rounded-md px-2 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white"
+                 ActiveClass="bg-slate-800 text-white"
+                 href="" Match="NavLinkMatch.All">
+            Overview
+        </NavLink>
+
+        <div class="mt-6 mb-2 px-2 text-xs font-semibold tracking-wider text-slate-500 uppercase">
+            Components
+        </div>
+        <div class="space-y-0.5">
+            @NavMenuLink("accordion", "Accordion")
+            @NavMenuLink("alert-dialog", "Alert Dialog")
+            @NavMenuLink("autocomplete", "Autocomplete")
+            @NavMenuLink("avatar", "Avatar")
+            @NavMenuLink("button", "Button")
+            @NavMenuLink("checkbox", "Checkbox")
+            @NavMenuLink("checkbox-group", "Checkbox Group")
+            @NavMenuLink("collapsible", "Collapsible")
+            @NavMenuLink("combobox", "Combobox")
+            @NavMenuLink("context-menu", "Context Menu")
+            @NavMenuLink("dialog", "Dialog")
+            @NavMenuLink("field", "Field")
+            @NavMenuLink("fieldset", "Fieldset")
+            @NavMenuLink("form", "Form")
+            @NavMenuLink("input", "Input")
+            @NavMenuLink("menu", "Menu")
+            @NavMenuLink("menubar", "Menubar")
+            @NavMenuLink("meter", "Meter")
+            @NavMenuLink("navigation-menu", "Navigation Menu")
+            @NavMenuLink("number-field", "Number Field")
+            @NavMenuLink("popover", "Popover")
+            @NavMenuLink("preview-card", "Preview Card")
+            @NavMenuLink("progress", "Progress")
+            @NavMenuLink("radio", "Radio")
+            @NavMenuLink("scroll-area", "Scroll Area")
+            @NavMenuLink("select", "Select")
+            @NavMenuLink("separator", "Separator")
+            @NavMenuLink("slider", "Slider")
+            @NavMenuLink("switch", "Switch")
+            @NavMenuLink("tabs", "Tabs")
+            @NavMenuLink("toast", "Toast")
+            @NavMenuLink("toggle", "Toggle")
+            @NavMenuLink("toggle-group", "Toggle Group")
+            @NavMenuLink("toolbar", "Toolbar")
+            @NavMenuLink("tooltip", "Tooltip")
+        </div>
+        <div class="mt-6 mb-2 px-2 text-xs font-semibold tracking-wider text-slate-500 uppercase">
+            Utils
+        </div>
+        <div class="space-y-0.5">
+            @NavMenuLink("direction-provider", "Direction Provider")
+        </div>
+        <div class="h-10"></div>
+    </nav>
+</div>
+
+@code {
+    private RenderFragment NavMenuLink(string href, string text) => __builder =>
+    {
+        <NavLink class="group flex items-center rounded-md px-2 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white"
+                 ActiveClass="bg-slate-800 text-white"
+                 href="@href">
+            @text
+        </NavLink>
+    };
+}
