@@ -1,5 +1,5 @@
 ﻿namespace BlazorBaseUI.Avatar;
 
-public record AvatarRootContext(
+public record AvatarContext(
     ImageLoadingStatus ImageLoadingStatus,
     Action<ImageLoadingStatus> SetImageLoadingStatus);

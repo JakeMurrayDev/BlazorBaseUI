@@ -19,7 +19,10 @@ export function loadImage(src, referrerPolicy, crossOrigin) {
         if (referrerPolicy) {
             image.referrerPolicy = referrerPolicy;
         }
-        image.crossOrigin = crossOrigin ?? null;
+        if (crossOrigin) {
+            image.crossOrigin = crossOrigin;
+        }
+        
         image.src = src;
     });
 }

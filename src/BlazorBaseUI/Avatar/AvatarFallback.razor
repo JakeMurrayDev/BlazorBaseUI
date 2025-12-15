@@ -1,10 +1,13 @@
-﻿@using System.Diagnostics.CodeAnalysis
+﻿@namespace BlazorBaseUI.Avatar
+@using System.Diagnostics.CodeAnalysis
 @implements IDisposable
 
 @if (Context?.ImageLoadingStatus != ImageLoadingStatus.Loaded && delayPassed)
 {
-    <span @ref="Element"
-          @attributes="AdditionalAttributes">
+    <span @attributes="AdditionalAttributes"
+          class="@ResolvedClass"
+          style="@ResolvedStyle"
+          @ref="Element">
         @ChildContent
     </span>
 }
@@ -14,10 +17,16 @@
     private bool delayPassed;
 
     [CascadingParameter]
-    private AvatarRootContext? Context { get; set; }
+    private AvatarContext? Context { get; set; }
 
     [Parameter]
     public int? Delay { get; set; }
+
+    [Parameter]
+    public ClassValue<ImageLoadingStatus?> ClassValue { get; set; }
+
+    [Parameter]
+    public StyleValue<ImageLoadingStatus?> StyleValue { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -27,6 +36,14 @@
 
     [DisallowNull]
     public ElementReference? Element { get; protected set; }
+
+    private string? ResolvedClass => AttributeUtilities.CombineClassNames(
+        AdditionalAttributes,
+        ClassValue.Resolve(Context?.ImageLoadingStatus));
+
+    private string? ResolvedStyle => AttributeUtilities.CombineStyles(
+        AdditionalAttributes,
+        StyleValue.Resolve(Context?.ImageLoadingStatus));
 
     protected override void OnInitialized()
     {
@@ -39,22 +56,27 @@
         delayPassed = Delay is null;
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
         if (Delay is not null && !delayPassed)
         {
-            delayCts?.Cancel();
-            delayCts = new CancellationTokenSource();
+            _ = StartDelayAsync();
+        }
+    }
 
-            try
-            {
-                await Task.Delay(Delay.Value, delayCts.Token);
-                delayPassed = true;
-                StateHasChanged();
-            }
-            catch (TaskCanceledException)
-            {
-            }
+    private async Task StartDelayAsync()
+    {
+        delayCts?.Cancel();
+        delayCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(Delay!.Value, delayCts.Token);
+            delayPassed = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (TaskCanceledException)
+        {
         }
     }
 
