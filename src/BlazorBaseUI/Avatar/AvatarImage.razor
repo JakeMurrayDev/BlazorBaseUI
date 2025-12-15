@@ -1,5 +1,5 @@
-﻿@using System.Diagnostics.CodeAnalysis
-@using Microsoft.JSInterop
+﻿@using Microsoft.JSInterop
+@using System.Diagnostics.CodeAnalysis
 
 @implements IAsyncDisposable
 
@@ -7,12 +7,10 @@
 
 @if (imageLoadingStatus == ImageLoadingStatus.Loaded)
 {
-    <img @ref="Element"
-         src="@Src"
-         alt="@Alt"
-         referrerpolicy="@ReferrerPolicy"
-         crossorigin="@CrossOrigin"
-         @attributes="AdditionalAttributes" />
+    <img @attributes="AdditionalAttributes"
+         class="@ResolvedClass"
+         style="@ResolvedStyle"
+         @ref="Element" />
 }
 
 @code {
@@ -22,28 +20,36 @@
     private string? previousSrc;
 
     [CascadingParameter]
-    private AvatarRootContext? Context { get; set; }
-
-    [Parameter]
-    public string? Src { get; set; }
-
-    [Parameter]
-    public string? Alt { get; set; }
-
-    [Parameter]
-    public string? ReferrerPolicy { get; set; }
-
-    [Parameter]
-    public string? CrossOrigin { get; set; }
+    private AvatarContext? Context { get; set; }
 
     [Parameter]
     public EventCallback<ImageLoadingStatus> OnLoadingStatusChange { get; set; }
+
+    [Parameter]
+    public ClassValue<ImageLoadingStatus?> ClassValue { get; set; }
+
+    [Parameter]
+    public StyleValue<ImageLoadingStatus?> StyleValue { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
     public ElementReference? Element { get; protected set; }
+
+    private string? Src => AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "src");
+
+    private string? ReferrerPolicy => AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "referrerpolicy");
+
+    private string? CrossOrigin => AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "crossorigin");
+
+    private string? ResolvedClass => AttributeUtilities.CombineClassNames(
+        AdditionalAttributes,
+        ClassValue.Resolve(Context?.ImageLoadingStatus));
+
+    private string? ResolvedStyle => AttributeUtilities.CombineStyles(
+        AdditionalAttributes,
+        StyleValue.Resolve(Context?.ImageLoadingStatus));
 
     public AvatarImage()
     {
@@ -53,12 +59,12 @@
                 "./_content/BlazorBaseUI/Avatar/AvatarImage.razor.js").AsTask());
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
         if (hasRendered && Src != previousSrc)
         {
             previousSrc = Src;
-            await LoadImage();
+            _ = LoadImageAsync();
         }
     }
 
@@ -68,11 +74,11 @@
         {
             hasRendered = true;
             previousSrc = Src;
-            await LoadImage();
+            await LoadImageAsync();
         }
     }
 
-    private async Task LoadImage()
+    private async Task LoadImageAsync()
     {
         if (Context is null)
         {
@@ -94,6 +100,7 @@
 
             await OnLoadingStatusChange.InvokeAsync(imageLoadingStatus);
             Context.SetImageLoadingStatus(imageLoadingStatus);
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex) when (
             ex is JSDisconnectedException or

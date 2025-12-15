@@ -1,16 +1,31 @@
-﻿@namespace BlazorBaseUI.Avatar
-@using System.Diagnostics.CodeAnalysis
+﻿@using System.Diagnostics.CodeAnalysis
 
 <CascadingValue Value="context">
-    <span @ref="Element"
-          @attributes="AdditionalAttributes">
+    <span @attributes="AdditionalAttributes"
+          class="@ResolvedClass"
+          style="@ResolvedStyle"
+          @ref="Element">
         @ChildContent
     </span>
 </CascadingValue>
 
 @code {
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
-    private AvatarRootContext context = null!;
+    private AvatarContext context = null!;
+
+    private string? ResolvedClass => AttributeUtilities.CombineClassNames(
+        AdditionalAttributes,
+        ClassValue.Resolve(context?.ImageLoadingStatus));
+
+    private string? ResolvedStyle => AttributeUtilities.CombineStyles(
+        AdditionalAttributes,
+        StyleValue.Resolve(context?.ImageLoadingStatus));
+
+    [Parameter]
+    public ClassValue<ImageLoadingStatus?> ClassValue { get; set; }
+
+    [Parameter]
+    public StyleValue<ImageLoadingStatus?> StyleValue { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -23,7 +38,7 @@
 
     protected override void OnInitialized()
     {
-        context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
+        context = new AvatarContext(imageLoadingStatus, SetImageLoadingStatus);
     }
 
     private void SetImageLoadingStatus(ImageLoadingStatus status)
@@ -31,7 +46,7 @@
         if (imageLoadingStatus != status)
         {
             imageLoadingStatus = status;
-            context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
+            context = new AvatarContext(imageLoadingStatus, SetImageLoadingStatus);
             StateHasChanged();
         }
     }
