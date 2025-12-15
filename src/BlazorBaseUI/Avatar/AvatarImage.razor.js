@@ -1,9 +1,3 @@
-const STATE_KEY = Symbol.for('BlazorBaseUI.AvatarImage.State');
-if (!window[STATE_KEY]) {
-    window[STATE_KEY] = { initialized: true };
-}
-const state = window[STATE_KEY];
-
 export function loadImage(src, referrerPolicy, crossOrigin) {
     return new Promise((resolve) => {
         if (!src) {
