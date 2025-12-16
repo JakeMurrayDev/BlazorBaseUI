@@ -1,0 +1,17 @@
+﻿@using System.Diagnostics.CodeAnalysis
+
+<button @attributes="AdditionalAttributes"
+        @ref="Element">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [DisallowNull]
+    public ElementReference? Element { get; protected set; }
+}
