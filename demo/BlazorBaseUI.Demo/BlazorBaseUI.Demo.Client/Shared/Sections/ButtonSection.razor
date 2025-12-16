@@ -1,0 +1,161 @@
+﻿@using BlazorBaseUI.Button
+
+<ComponentShowcase ComponentName="Button"
+                   Description="A button component that can be rendered as another tag or focusable when disabled."
+                   BaseRoute="/button"
+                   IsWasmMode="IsWasmMode">
+    <DemoSection Title="Basic Usage"
+                 Description="A simple button showcase."
+                 CodeSnippet="@CodeSnippet">
+        <Button class="m-0 flex h-10 items-center justify-center rounded-md border border-gray-200 bg-slate-800 px-3 text-base leading-6 font-medium text-white outline-0 select-none hover:bg-slate-900 focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 active:border-t-gray-300 active:bg-slate-900 active:shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] data-[disabled]:text-gray-700 hover:data-[disabled]:bg-slate-950 active:data-[disabled]:border-t-gray-200 active:data-[disabled]:bg-slate-950 active:data-[disabled]:shadow-none"
+                Disabled="isLoading"
+                @onclick="HandleOnClick">
+            @(isLoading ? "Submitting..." : "Submit")
+        </Button>
+    </DemoSection>
+    <DemoSection Title="Multiple types of button usage"
+                 Description="This showcases"
+                 CodeSnippet="@CodeSnippet">
+        <div class="grid grid-cols-3 gap-6 p-8">
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Default</p>
+                <Button class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                        @onclick="HandleClick">
+                    Click me
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Disabled</p>
+                <Button class="cursor-not-allowed rounded bg-gray-400 px-4 py-2 text-white"
+                        Disabled="true">
+                    Disabled
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Disabled + Focusable</p>
+                <Button class="cursor-not-allowed rounded bg-gray-400 px-4 py-2 text-white"
+                        Disabled="true"
+                        FocusableWhenDisabled="true">
+                    Tab to me
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">ClassValue (dynamic)</p>
+                <Button ClassValue="@(state => state?.Disabled == true
+                                                                    ? "cursor-not-allowed rounded bg-gray-400 px-4 py-2 text-white"
+                                                                    : "rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700")"
+                        Disabled="isClassDisabled"
+                        @onclick="() => isClassDisabled = !isClassDisabled">
+                    @(isClassDisabled ? "Disabled" : "Click to disable")
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">StyleValue (dynamic)</p>
+                <Button class="rounded px-4 py-2"
+                        StyleValue="@(state => state?.Disabled == true
+                                                                    ? "background-color: #9ca3af; color: white;"
+                                                                    : "background-color: #7c3aed; color: white;")"
+                        Disabled="isStyleDisabled"
+                        @onclick="() => isStyleDisabled = !isStyleDisabled">
+                    @(isStyleDisabled ? "Disabled" : "Click to disable")
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">TabIndex=1</p>
+                <Button class="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+                        TabIndex="1"
+                        @onclick="HandleClick">
+                    First in tab order
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Tag="div"</p>
+                <Button As="div"
+                        NativeButton="false"
+                        class="inline-block cursor-pointer rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+                        @onclick="HandleClick">
+                    I'm a div
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Tag="span"</p>
+                <Button As="span"
+                        NativeButton="false"
+                        class="inline-block cursor-pointer rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700"
+                        @onclick="HandleClick">
+                    I'm a span
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Type (component)</p>
+                <Button RenderAs="typeof(CustomButtonWrapper)"
+                        type="button"
+                        class="rounded bg-teal-600 px-4 py-2 text-white hover:bg-teal-700"
+                        @onclick="HandleClick">
+                    Custom wrapper
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Click counter</p>
+                <Button class="rounded bg-cyan-600 px-4 py-2 text-white hover:bg-cyan-700"
+                        @onclick="() => clickCount++">
+                    Clicks: @clickCount
+                </Button>
+            </div>
+
+            <div class="space-y-1">
+                <p class="text-xs text-gray-500">Non-native keyboard</p>
+                <Button As="div"
+                        NativeButton="false"
+                        class="inline-block cursor-pointer rounded bg-rose-600 px-4 py-2 text-white select-none hover:bg-rose-700"
+                        @onclick="() => keyboardClicks++">
+                    Space/Enter: @keyboardClicks
+                </Button>
+            </div>
+        </div>
+    </DemoSection>
+</ComponentShowcase>
+
+@code {
+    private const string CodeSnippet = "";
+
+    private bool isLoading;
+    private bool isClassDisabled;
+    private bool isStyleDisabled;
+    private int keyboardClicks;
+    private int clickCount;
+
+    [Parameter]
+    public bool IsWasmMode { get; set; }
+
+    private async Task HandleOnClick()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        await Task.Delay(4000);
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void HandleClick()
+    {
+        Console.WriteLine("Button clicked!");
+    }
+
+    private void IncrementCounter()
+    {
+        clickCount++;
+    }
+}

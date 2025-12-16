@@ -1,0 +1,3 @@
+﻿@import 'tailwindcss';
+@source '../BlazorBaseUI.Demo';
+@source '../BlazorBaseUI.Demo.Client';
