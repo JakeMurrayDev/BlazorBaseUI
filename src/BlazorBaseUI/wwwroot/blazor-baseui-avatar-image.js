@@ -16,7 +16,7 @@ export function loadImage(src, referrerPolicy, crossOrigin) {
         if (crossOrigin) {
             image.crossOrigin = crossOrigin;
         }
-        
+
         image.src = src;
     });
 }
