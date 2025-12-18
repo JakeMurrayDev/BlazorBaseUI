@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\" />
+    <ProjectReference Include="..\BlazorBaseUI.Utilities\BlazorBaseUI.Utilities.csproj" />
   </ItemGroup>
 
 </Project>
