@@ -208,8 +208,6 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
             {
             }
         }
-
-        GC.SuppressFinalize(this);
     }
 
     private Dictionary<string, object> BuildAttributes(FieldRootState state)
