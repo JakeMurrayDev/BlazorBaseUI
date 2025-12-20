@@ -1,0 +1,18 @@
+﻿<span class="@GetClass()">
+    <span class="@GetDotClass()"></span>
+    @Label
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    private string GetClass() =>
+        $"inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium {(IsActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500")}";
+
+    private string GetDotClass() =>
+        $"w-1.5 h-1.5 rounded-full {(IsActive ? "bg-green-500" : "bg-gray-400")}";
+}
