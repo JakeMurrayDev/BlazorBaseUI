@@ -275,6 +275,5 @@ public abstract class ControlBase<TValue> : ComponentBase, IDisposable
         }
 
         Dispose(disposing: true);
-        GC.SuppressFinalize(this);
     }
 }
