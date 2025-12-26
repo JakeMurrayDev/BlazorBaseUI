@@ -1,0 +1,476 @@
+﻿@using BlazorBaseUI.Checkbox
+@using BlazorBaseUI.Demo.Client.Shared.Icons
+@using BlazorBaseUI.Field
+@using BlazorBaseUI.Form
+
+<ComponentShowcase ComponentName="Checkbox"
+                   Description="A control that indicates whether a value is selected or not."
+                   BaseRoute="/checkbox"
+                   IsWasmMode="IsWasmMode">
+    <DemoSection Title="Basic Usage"
+                 Description="A simple checkbox showcase.">
+        <div class="min-h-screen space-y-12 bg-gray-50 p-8">
+            <header class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900">Checkbox Component Demo</h1>
+                <p class="mt-2 text-gray-600">
+                    Comprehensive demonstration of the Checkbox component features.
+                    @if (IsWasmMode)
+                    {
+                        <span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">WASM Mode</span>
+                    }
+                    else
+                    {
+                        <span class="ml-2 rounded bg-green-100 px-2 py-1 text-xs text-green-800">Server Mode</span>
+                    }
+                </p>
+            </header>
+
+            @* Section 1: Basic Checkbox *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Basic Checkbox</h2>
+                <p class="mb-4 text-sm text-gray-600">Click to toggle. Uses uncontrolled state with DefaultChecked.</p>
+
+                <div class="flex items-center gap-4">
+                    <CheckboxRoot DefaultChecked="true"
+                                  ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Notifications</span>
+                </div>
+            </section>
+
+            @* Section 2: Controlled Checkbox *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Controlled Checkbox</h2>
+                <p class="mb-4 text-sm text-gray-600">State controlled externally. Toggle via button or switch.</p>
+
+                <div class="flex items-center gap-4">
+                    <CheckboxRoot Checked="@controlledChecked"
+                                  CheckedChanged="@(value => controlledChecked = value)"
+                                  ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Checked: @(controlledChecked ? "On" : "Off")</span>
+                    <button type="button"
+                            class="rounded bg-indigo-600 px-3 py-1 text-sm text-white transition hover:bg-indigo-700"
+                            @onclick="@(() => controlledChecked = !controlledChecked)">
+                        Toggle Externally
+                    </button>
+                </div>
+            </section>
+
+            @* Section 3: Disabled State *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Disabled State</h2>
+                <p class="mb-4 text-sm text-gray-600">Uses aria-disabled. Click has no effect.</p>
+
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-3">
+                        <CheckboxRoot Disabled="true"
+                                      DefaultChecked="false"
+                                      ClassValue="@(state => CheckboxRootClass(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <span class="text-gray-500">Disabled (Off)</span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <CheckboxRoot Disabled="true"
+                                      DefaultChecked="true"
+                                      ClassValue="@(state => CheckboxRootClass(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <span class="text-gray-500">Disabled (On)</span>
+                    </div>
+                </div>
+            </section>
+
+            @* Section 4: ReadOnly State *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">ReadOnly State</h2>
+                <p class="mb-4 text-sm text-gray-600">Has aria-readonly attribute. Click does not change state.</p>
+
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-3">
+                        <CheckboxRoot ReadOnly="true"
+                                      DefaultChecked="false"
+                                      ClassValue="@(state => CheckboxRootClass(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <span class="text-gray-700">ReadOnly (Off)</span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <CheckboxRoot ReadOnly="true"
+                                      DefaultChecked="true"
+                                      ClassValue="@(state => CheckboxRootClass(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <span class="text-gray-700">ReadOnly (On)</span>
+                    </div>
+                </div>
+            </section>
+
+            @* Section 5: Indeterminate State *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Indeterminate State</h2>
+                <p class="mb-4 text-sm text-gray-600">Shows a mixed state (aria-checked="mixed").</p>
+
+                <div class="flex items-center gap-4">
+                    <CheckboxRoot Indeterminate="true"
+                                  ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                            <MinusIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Indeterminate</span>
+                </div>
+            </section>
+
+            @* Section 6: OnCheckedChange Callback *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">OnCheckedChange Callback</h2>
+                <p class="mb-4 text-sm text-gray-600">Callback fires with new checked value. Can be canceled.</p>
+
+                <div class="flex items-center gap-4">
+                    <CheckboxRoot OnCheckedChange="@HandleCheckedChange"
+                                  ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Change count: @changeCount</span>
+                </div>
+
+                <div class="mt-4 flex items-center gap-4">
+                    <CheckboxRoot OnCheckedChange="@HandleCancelableChange"
+                                  ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" @bind="preventChange" class="rounded" />
+                        <span class="text-sm text-gray-700">Prevent next change (Cancel())</span>
+                    </label>
+                </div>
+            </section>
+
+            @* Section 7: Field Integration *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Field Integration</h2>
+                <p class="mb-4 text-sm text-gray-600">
+                    Checkbox integrates with FieldRoot for labels, descriptions, and validation state.
+                </p>
+
+                <div class="space-y-6">
+                    @* Basic Field *@
+                    <FieldRoot Name="notifications">
+                        <div class="flex items-center gap-3">
+                            <CheckboxRoot ClassValue="@(state => CheckboxRootClass(state))">
+                                <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                    <CheckIcon />
+                                </CheckboxIndicator>
+                            </CheckboxRoot>
+                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                                Enable Notifications
+                            </FieldLabel>
+                        </div>
+                        <FieldDescription ClassValue="@(_ => "text-sm text-gray-500 mt-1 ml-14")">
+                            Receive push notifications for updates.
+                        </FieldDescription>
+                    </FieldRoot>
+
+                    @* Disabled via Field *@
+                    <FieldRoot Name="premium" Disabled="true">
+                        <div class="flex items-center gap-3">
+                            <CheckboxRoot ClassValue="@(state => CheckboxRootClass(state))">
+                                <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                    <CheckIcon />
+                                </CheckboxIndicator>
+                            </CheckboxRoot>
+                            <FieldLabel ClassValue="@(_ => "text-gray-500 cursor-not-allowed")">
+                                Premium Features (Disabled via Field.Root)
+                            </FieldLabel>
+                        </div>
+                    </FieldRoot>
+                </div>
+            </section>
+
+            @* Section 8: Field State Tracking *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Field State Tracking</h2>
+                <p class="mb-4 text-sm text-gray-600">
+                    Tracks touched (on blur), dirty (value changed), filled (checked), focused states.
+                </p>
+
+                <FieldRoot Name="tracking">
+                    <div class="flex items-center gap-3">
+                        <CheckboxRoot ClassValue="@(state => CheckboxRootClassWithStates(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                            Track my state
+                        </FieldLabel>
+                    </div>
+                    <FieldStateDisplay Context="fieldState">
+                        <div class="mt-3 ml-14 space-y-1 text-xs">
+                            <div class="flex gap-4">
+                                <StateIndicator Label="Touched" IsActive="@fieldState.Touched" />
+                                <StateIndicator Label="Dirty" IsActive="@fieldState.Dirty" />
+                                <StateIndicator Label="Filled" IsActive="@fieldState.Filled" />
+                                <StateIndicator Label="Focused" IsActive="@fieldState.Focused" />
+                            </div>
+                        </div>
+                    </FieldStateDisplay>
+                </FieldRoot>
+            </section>
+
+            @* Section 9: Form Submission *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Form Submission</h2>
+                <p class="mb-4 text-sm text-gray-600">
+                    Checkbox submits like native checkbox. Use UncheckedValue to submit a value when off.
+                </p>
+
+                <Form Model="@formModel" OnFormSubmit="@HandleFormSubmit">
+                    <div class="space-y-4">
+                        <FieldRoot Name="newsletter">
+                            <div class="flex items-center gap-3">
+                                <CheckboxRoot ClassValue="@(state => CheckboxRootClass(state))">
+                                    <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                        <CheckIcon />
+                                    </CheckboxIndicator>
+                                </CheckboxRoot>
+                                <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                                    Subscribe to newsletter
+                                </FieldLabel>
+                            </div>
+                        </FieldRoot>
+
+                        <FieldRoot Name="marketing">
+                            <div class="flex items-center gap-3">
+                                <CheckboxRoot UncheckedValue="no"
+                                              ClassValue="@(state => CheckboxRootClass(state))">
+                                    <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                        <CheckIcon />
+                                    </CheckboxIndicator>
+                                </CheckboxRoot>
+                                <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                                    Marketing emails (with UncheckedValue="no")
+                                </FieldLabel>
+                            </div>
+                        </FieldRoot>
+
+                        <button type="submit"
+                                class="rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                            Submit
+                        </button>
+                    </div>
+                </Form>
+
+                @if (lastSubmission is not null)
+                {
+                    <div class="mt-4 rounded bg-gray-100 p-3 text-sm">
+                        <strong>Last submission:</strong>
+                        <pre class="mt-1 text-xs">@lastSubmission</pre>
+                    </div>
+                }
+            </section>
+
+            @* Section 10: Validation *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Validation</h2>
+                <p class="mb-4 text-sm text-gray-600">
+                    Supports required validation and custom validate function. Multiple validation modes.
+                </p>
+
+                <div class="space-y-6">
+                    @* Required validation on submit *@
+                    <Form Model="@(new object())">
+                        <FieldRoot Name="terms">
+                            <div class="flex items-center gap-3">
+                                <CheckboxRoot Required="true"
+                                              ClassValue="@(state => CheckboxRootClass(state))">
+                                    <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                        <CheckIcon />
+                                    </CheckboxIndicator>
+                                </CheckboxRoot>
+                                <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                                    I accept the terms and conditions *
+                                </FieldLabel>
+                            </div>
+                            <FieldError Match="true"
+                                        MatchValidity="valueMissing"
+                                        ClassValue="@(_ => "text-red-600 text-sm mt-1 ml-14")">
+                                You must accept the terms to continue.
+                            </FieldError>
+                        </FieldRoot>
+                        <button type="submit"
+                                class="mt-3 rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                            Submit (Required)
+                        </button>
+                    </Form>
+
+                    @* Custom validation onChange *@
+                    <FieldRoot Name="agree"
+                               ValidationMode="ValidationMode.OnChange"
+                               Validate="@ValidateMustBeChecked">
+                        <div class="flex items-center gap-3">
+                            <CheckboxRoot ClassValue="@(state => CheckboxRootClass(state))">
+                                <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                    <CheckIcon />
+                                </CheckboxIndicator>
+                            </CheckboxRoot>
+                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                                I agree (validates onChange - must be checked)
+                            </FieldLabel>
+                        </div>
+                        <FieldError ClassValue="@(_ => "text-red-600 text-sm mt-1 ml-14")" />
+                    </FieldRoot>
+                </div>
+            </section>
+
+            @* Section 11: External Errors *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">External Errors</h2>
+                <p class="mb-4 text-sm text-gray-600">
+                    Errors can be set externally via Form. Cleared on change.
+                </p>
+
+                <Form Model="@(new object())" Errors="@externalErrors">
+                    <FieldRoot Name="external">
+                        <div class="flex items-center gap-3">
+                            <CheckboxRoot ClassValue="@(state => CheckboxRootClass(state))">
+                                <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                    <CheckIcon />
+                                </CheckboxIndicator>
+                            </CheckboxRoot>
+                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                                Has external error (click to clear)
+                            </FieldLabel>
+                        </div>
+                        <FieldError ClassValue="@(_ => "text-red-600 text-sm mt-1 ml-14")" />
+                    </FieldRoot>
+                </Form>
+
+                <button type="button"
+                        class="mt-3 rounded bg-red-600 px-3 py-1 text-sm text-white transition hover:bg-red-700"
+                        @onclick="@SetExternalError">
+                    Set External Error
+                </button>
+            </section>
+
+            @* Section 12: Keyboard Navigation *@
+            <section class="rounded-lg bg-white p-6 shadow">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800">Keyboard Navigation</h2>
+                <p class="mb-4 text-sm text-gray-600">
+                    Focus with Tab, toggle with Space or Enter keys.
+                    @if (!IsWasmMode)
+                    {
+                        <span class="text-amber-600">(Server mode may have slight latency)</span>
+                    }
+                </p>
+
+                <div class="flex items-center gap-4">
+                    <CheckboxRoot ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Tab here, then press Space or Enter</span>
+                </div>
+            </section>
+        </div>
+    </DemoSection>
+</ComponentShowcase>
+
+@code {
+    [Parameter]
+    public bool IsWasmMode { get; set; }
+
+    private bool controlledChecked;
+    private int changeCount;
+    private bool preventChange;
+    private object formModel = new();
+    private string? lastSubmission;
+    private Dictionary<string, string[]> externalErrors = new();
+
+    private void HandleCheckedChange(CheckboxCheckedChangeEventArgs e)
+    {
+        changeCount++;
+    }
+
+    private void HandleCancelableChange(CheckboxCheckedChangeEventArgs e)
+    {
+        if (preventChange)
+        {
+            e.Cancel();
+            preventChange = false;
+        }
+        StateHasChanged();
+    }
+
+    private void HandleFormSubmit(FormSubmitEventArgs e)
+    {
+        lastSubmission = string.Join("\n", e.Values.Select(kv => $"{kv.Key}: {kv.Value}"));
+    }
+
+    private Task<string[]?> ValidateMustBeChecked(object? value)
+    {
+        var isChecked = value is true;
+        return Task.FromResult<string[]?>(isChecked ? null : ["This must be checked"]);
+    }
+
+    private void SetExternalError()
+    {
+        externalErrors = new Dictionary<string, string[]>
+        {
+            ["external"] = ["This is an external server error"]
+        };
+    }
+
+    private static string CheckboxRootClass(CheckboxRootState state)
+    {
+        var baseClass = "relative inline-flex h-5 w-5 items-center justify-center rounded border-2 transition-all outline-none";
+        if (state.Disabled) return $"{baseClass} border-gray-200 bg-gray-50 opacity-50";
+        if (state.Valid == false) return $"{baseClass} border-red-500 bg-red-50";
+        if (state.Checked || state.Indeterminate) return $"{baseClass} border-indigo-600 bg-indigo-600";
+        return $"{baseClass} border-gray-300 bg-white hover:border-gray-400";
+    }
+
+    private static string CheckboxRootClassWithStates(CheckboxRootState state)
+    {
+        var baseClass = CheckboxRootClass(state);
+
+        if (state.Touched)
+            baseClass += " ring-2 ring-amber-300";
+
+        if (state.Focused)
+            baseClass += " ring-2 ring-blue-400";
+
+        if (state.Valid == false)
+            baseClass += " ring-2 ring-red-500";
+
+        return baseClass;
+    }
+
+    private static string CheckboxIndicatorClass(CheckboxIndicatorState state)
+    {
+        return "flex items-center justify-center text-white";
+    }
+}
