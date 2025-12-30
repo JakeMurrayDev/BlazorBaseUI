@@ -17,10 +17,3 @@ public enum CheckboxDataAttribute
     StartingStyle,
     EndingStyle
 }
-
-public enum TransitionStatus
-{
-    None,
-    Starting,
-    Ending
-}
