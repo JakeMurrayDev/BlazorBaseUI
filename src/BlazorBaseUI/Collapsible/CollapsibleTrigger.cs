@@ -1,22 +1,24 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using BlazorBaseUI.Utilities.LabelableProvider;
+using Microsoft.AspNetCore.Components.Web;
 
-namespace BlazorBaseUI.Field;
+namespace BlazorBaseUI.Collapsible;
 
-public sealed class FieldDescription : ComponentBase, IDisposable
+public sealed class CollapsibleTrigger : ComponentBase
 {
-    private const string DefaultTag = "p";
+    private const string DefaultTag = "button";
 
-    private string? defaultId;
     private ElementReference element;
 
     [CascadingParameter]
-    private FieldRootContext? FieldContext { get; set; }
+    private CollapsibleRootContext? Context { get; set; }
 
-    [CascadingParameter]
-    private LabelableContext? LabelableContext { get; set; }
+    [Parameter]
+    public bool? Disabled { get; set; }
+
+    [Parameter]
+    public bool NativeButton { get; set; } = true;
 
     [Parameter]
     public string? As { get; set; }
@@ -25,10 +27,10 @@ public sealed class FieldDescription : ComponentBase, IDisposable
     public Type? RenderAs { get; set; }
 
     [Parameter]
-    public Func<FieldRootState, string>? ClassValue { get; set; }
+    public Func<CollapsibleRootState, string>? ClassValue { get; set; }
 
     [Parameter]
-    public Func<FieldRootState, string>? StyleValue { get; set; }
+    public Func<CollapsibleRootState, string>? StyleValue { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -39,22 +41,23 @@ public sealed class FieldDescription : ComponentBase, IDisposable
     [DisallowNull]
     public ElementReference? Element => element;
 
-    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
+    private bool ResolvedDisabled => Disabled ?? Context?.Disabled ?? false;
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
-    protected override void OnInitialized()
-    {
-        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, true);
-    }
+    private CollapsibleRootState State => new(
+        Context?.Open ?? false,
+        ResolvedDisabled,
+        TransitionStatus.Undefined);
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
+        if (Context is null)
+            return;
+
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
         var attributes = BuildAttributes(state);
+
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
         if (!string.IsNullOrEmpty(resolvedStyle))
@@ -77,7 +80,7 @@ public sealed class FieldDescription : ComponentBase, IDisposable
         builder.CloseElement();
     }
 
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
+    private Dictionary<string, object> BuildAttributes(CollapsibleRootState state)
     {
         var attributes = new Dictionary<string, object>();
 
@@ -90,7 +93,18 @@ public sealed class FieldDescription : ComponentBase, IDisposable
             }
         }
 
-        attributes["id"] = ResolvedId;
+        if (NativeButton)
+            attributes["type"] = "button";
+
+        if (Context!.Open)
+            attributes["aria-controls"] = Context.PanelId;
+
+        attributes["aria-expanded"] = Context.Open;
+
+        if (ResolvedDisabled)
+            attributes["disabled"] = true;
+
+        attributes["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick);
 
         foreach (var dataAttr in state.GetDataAttributes())
             attributes[dataAttr.Key] = dataAttr.Value;
@@ -98,8 +112,11 @@ public sealed class FieldDescription : ComponentBase, IDisposable
         return attributes;
     }
 
-    public void Dispose()
+    private void HandleClick(MouseEventArgs args)
     {
-        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
+        if (ResolvedDisabled)
+            return;
+
+        Context?.HandleTrigger();
     }
 }

@@ -11,7 +11,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 {
     private const string DefaultTag = "div";
 
-    private string errorId = null!;
+    private string? defaultId;
     private ElementReference element;
     private bool wasRendered;
 
@@ -26,9 +26,6 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     [CascadingParameter]
     private FormContext? FormContext { get; set; }
-
-    [Parameter]
-    public string? Id { get; set; }
 
     [Parameter]
     public bool? Match { get; set; }
@@ -61,9 +58,10 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     private string? FieldName => FieldContext?.Name;
 
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
     protected override void OnInitialized()
     {
-        errorId = Id ?? Guid.NewGuid().ToString("N")[..8];
         FieldContext?.SubscribeFunc(this);
     }
 
@@ -74,9 +72,9 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         if (shouldRender != wasRendered)
         {
             if (shouldRender)
-                LabelableContext?.UpdateMessageIds.Invoke(errorId, true);
+                LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, true);
             else
-                LabelableContext?.UpdateMessageIds.Invoke(errorId, false);
+                LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
 
             wasRendered = shouldRender;
         }
@@ -189,11 +187,10 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
             else if (errors.Length > 1)
             {
                 builder.OpenElement(1, "ul");
-                var seq = 2;
                 foreach (var error in errors)
                 {
-                    builder.OpenElement(seq++, "li");
-                    builder.AddContent(seq++, error);
+                    builder.OpenElement(2, "li");
+                    builder.AddContent(2, error);
                     builder.CloseElement();
                 }
                 builder.CloseElement();
@@ -214,7 +211,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
             }
         }
 
-        attributes["id"] = errorId;
+        attributes["id"] = ResolvedId;
 
         foreach (var dataAttr in state.GetDataAttributes())
             attributes[dataAttr.Key] = dataAttr.Value;
@@ -225,6 +222,6 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
     public void Dispose()
     {
         FieldContext?.UnsubscribeFunc(this);
-        LabelableContext?.UpdateMessageIds.Invoke(errorId, false);
+        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
     }
 }

@@ -122,7 +122,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
 
     protected override void OnInitialized()
     {
-        fieldId = Guid.NewGuid().ToString("N")[..8];
+        fieldId = Guid.NewGuid().ToIdString();
 
         validation = new FieldValidation(
             getValidityData: () => validityData,

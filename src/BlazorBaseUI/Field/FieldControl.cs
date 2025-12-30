@@ -15,13 +15,14 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
     private const string DefaultTag = "input";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-field.js";
 
-    private readonly Lazy<Task<IJSObjectReference>> jsModuleTask;
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
+    private string? defaultId;
     private bool hasRendered;
     private ElementReference element;
 
     [Inject]
-    private IJSRuntime JsRuntime { get; set; } = null!;
+    private IJSRuntime JSRuntime { get; set; } = null!;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -31,9 +32,6 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
     [CascadingParameter]
     private FormContext? FormContext { get; set; }
-
-    [Parameter]
-    public string? Id { get; set; }
 
     [Parameter]
     public string? Name { get; set; }
@@ -60,12 +58,12 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
     private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
 
-    private string? ControlId => Id ?? LabelableContext?.ControlId;
+    private string? ControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => LabelableContext?.LabelId ?? (defaultId ??= Guid.NewGuid().ToIdString()));
 
     public FieldControl()
     {
-        jsModuleTask = new Lazy<Task<IJSObjectReference>>(() =>
-            JsRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
     protected override void OnInitialized()
@@ -185,7 +183,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
         try
         {
-            var module = await jsModuleTask.Value;
+            var module = await moduleTask.Value;
             await module.InvokeVoidAsync("focusElement", element);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -197,11 +195,11 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
     {
         FieldContext?.UnsubscribeFunc(this);
 
-        if (jsModuleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
-                var module = await jsModuleTask.Value;
+                var module = await moduleTask.Value;
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

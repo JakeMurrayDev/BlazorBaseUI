@@ -18,7 +18,7 @@ public sealed class LabelableProvider : ComponentBase
 
     protected override void OnInitialized()
     {
-        controlId = InitialControlId ?? Guid.NewGuid().ToString("N")[..8];
+        controlId = InitialControlId ?? Guid.NewGuid().ToIdString();
         context = CreateContext();
     }
 

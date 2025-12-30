@@ -21,13 +21,14 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private bool previousChecked;
     private bool previousDisabled;
     private bool previousReadOnly;
+    private string? defaultId;
     private string switchId = null!;
     private string inputId = null!;
     private ElementReference element;
     private ElementReference inputElement;
 
     [Inject]
-    private IJSRuntime JsRuntime { get; set; } = null!;
+    private IJSRuntime JSRuntime { get; set; } = null!;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -37,9 +38,6 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     [CascadingParameter]
     private LabelableContext? LabelableContext { get; set; }
-
-    [Parameter]
-    public string? Id { get; set; }
 
     [Parameter]
     public bool? Checked { get; set; }
@@ -97,7 +95,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private string? ResolvedName => Name ?? FieldContext?.Name;
 
-    private string? ControlId => Id ?? LabelableContext?.ControlId;
+    private string? ControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => LabelableContext?.LabelId ?? (defaultId ??= Guid.NewGuid().ToIdString()));
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -111,13 +109,13 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     public SwitchRoot()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
-            JsRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
     protected override void OnInitialized()
     {
-        switchId = Guid.NewGuid().ToString("N")[..8];
-        inputId = ControlId ?? Guid.NewGuid().ToString("N")[..8];
+        switchId = Guid.NewGuid().ToIdString();
+        inputId = ControlId ?? Guid.NewGuid().ToIdString();
 
         if (!IsControlled)
         {

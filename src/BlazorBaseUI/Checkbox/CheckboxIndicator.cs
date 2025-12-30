@@ -9,7 +9,7 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
     private const string DefaultTag = "span";
 
     private bool isMounted;
-    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private ElementReference element;
     private CancellationTokenSource? transitionCts;
 
@@ -129,7 +129,7 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
             await Task.Delay(1, token);
             if (!token.IsCancellationRequested)
             {
-                transitionStatus = TransitionStatus.None;
+                transitionStatus = TransitionStatus.Undefined;
                 await InvokeAsync(StateHasChanged);
             }
         }, token);
@@ -147,7 +147,7 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
             if (!token.IsCancellationRequested)
             {
                 isMounted = false;
-                transitionStatus = TransitionStatus.None;
+                transitionStatus = TransitionStatus.Undefined;
                 await InvokeAsync(StateHasChanged);
             }
         }, token);

@@ -24,12 +24,13 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private bool previousDisabled;
     private bool previousReadOnly;
     private bool previousIndeterminate;
+    private string? defaultId;
     private string checkboxId = null!;
     private string inputId = null!;
     private ElementReference element;
     private ElementReference inputElement;
 
-    [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
 
     [CascadingParameter] private FieldRootContext? FieldContext { get; set; }
 
@@ -40,8 +41,6 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     [CascadingParameter] private LabelableContext? LabelableContext { get; set; }
 
     [CascadingParameter] private CheckboxGroupContext? GroupContext { get; set; }
-
-    [Parameter] public string? Id { get; set; }
 
     [Parameter] public bool? Checked { get; set; }
 
@@ -121,7 +120,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private string? ResolvedValue => Value ?? ResolvedName;
 
-    private string? ControlId => Id ?? LabelableContext?.ControlId;
+    private string ControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => LabelableContext?.LabelId ?? (defaultId ??= Guid.NewGuid().ToIdString()));
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -136,22 +135,22 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     public CheckboxRoot()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
-            JsRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
     protected override void OnInitialized()
     {
-        checkboxId = Guid.NewGuid().ToString("N")[..8];
+        checkboxId = Guid.NewGuid().ToIdString();
 
         if (IsGroupedWithParent)
         {
             inputId = Parent
-                ? GroupContext!.Parent!.Id ?? Guid.NewGuid().ToString("N")[..8]
+                ? GroupContext!.Parent!.Id ?? Guid.NewGuid().ToIdString()
                 : $"{GroupContext!.Parent!.Id}-{ResolvedValue}";
         }
         else
         {
-            inputId = ControlId ?? Guid.NewGuid().ToString("N")[..8];
+            inputId = ControlId;
         }
 
         if (!IsControlled)
