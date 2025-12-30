@@ -55,7 +55,7 @@ public sealed class CollapsibleRoot : ComponentBase
 
     protected override void OnInitialized()
     {
-        panelId = Guid.NewGuid().ToString("N")[..8];
+        panelId = Guid.NewGuid().ToIdString();
         isOpen = DefaultOpen;
         context = CreateContext();
     }

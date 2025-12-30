@@ -6,10 +6,10 @@ namespace BlazorBaseUI;
 
 internal static class Extensions
 {
-    extension (object? value)
+    extension (Guid value)
     {
-        public string? ToInvariantString() =>
-            Convert.ToString(value, CultureInfo.InvariantCulture);
+        public string ToIdString() =>
+            value.ToString("N", CultureInfo.InvariantCulture)[..8];
     }
 
     extension(Orientation orientation)

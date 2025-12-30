@@ -12,6 +12,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
 {
     private const string DefaultTag = "div";
 
+    private string? defaultId;
     private string groupId = null!;
     private string[]? internalValue;
     private string[]? previousValue;
@@ -23,8 +24,6 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     [CascadingParameter] private FormContext? FormContext { get; set; }
 
     [CascadingParameter] private LabelableContext? LabelableContext { get; set; }
-
-    [Parameter] public string? Id { get; set; }
 
     [Parameter] public string[]? Value { get; set; }
 
@@ -65,9 +64,11 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
 
     private CheckboxGroupState State => CheckboxGroupState.FromFieldState(FieldState, ResolvedDisabled);
 
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
     protected override void OnInitialized()
     {
-        groupId = Id ?? Guid.NewGuid().ToString("N")[..8];
+        groupId = ResolvedId;
 
         if (!IsControlled)
         {

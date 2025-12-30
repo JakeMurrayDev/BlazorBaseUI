@@ -12,6 +12,7 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
+    private string? defaultId;
     private bool hasRendered;
     private bool isMounted;
     private bool previousOpen;
@@ -56,7 +57,7 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
 
     private bool CurrentOpen => Context?.Open ?? false;
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, Context!.PanelId);
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private bool IsPresent => KeepMounted || HiddenUntilFound || isMounted;
 

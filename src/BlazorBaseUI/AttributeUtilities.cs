@@ -116,7 +116,7 @@ internal static class AttributeUtilities
 
     public static string GetIdOrDefault(
         IReadOnlyDictionary<string, object>? attributes,
-        string defaultId
+        Func<string> defaultId
     )
     {
         if (
@@ -124,7 +124,7 @@ internal static class AttributeUtilities
             || !attributes.TryGetValue("id", out var idValue)
         )
         {
-            return defaultId;
+            return defaultId();
         }
 
         var idAttributeValue = Convert.ToString(
@@ -133,7 +133,7 @@ internal static class AttributeUtilities
         );
 
         return string.IsNullOrEmpty(idAttributeValue)
-            ? defaultId
+            ? defaultId()
             : idAttributeValue;
     }
 }

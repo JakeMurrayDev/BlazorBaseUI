@@ -9,7 +9,7 @@ public sealed class FieldDescription : ComponentBase, IDisposable
 {
     private const string DefaultTag = "p";
 
-    private string descriptionId = null!;
+    private string? defaultId;
     private ElementReference element;
 
     [CascadingParameter]
@@ -17,9 +17,6 @@ public sealed class FieldDescription : ComponentBase, IDisposable
 
     [CascadingParameter]
     private LabelableContext? LabelableContext { get; set; }
-
-    [Parameter]
-    public string? Id { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -44,10 +41,11 @@ public sealed class FieldDescription : ComponentBase, IDisposable
 
     private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
 
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
     protected override void OnInitialized()
     {
-        descriptionId = Id ?? Guid.NewGuid().ToString("N")[..8];
-        LabelableContext?.UpdateMessageIds.Invoke(descriptionId, true);
+        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, true);
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -92,7 +90,7 @@ public sealed class FieldDescription : ComponentBase, IDisposable
             }
         }
 
-        attributes["id"] = descriptionId;
+        attributes["id"] = ResolvedId;
 
         foreach (var dataAttr in state.GetDataAttributes())
             attributes[dataAttr.Key] = dataAttr.Value;
@@ -102,6 +100,6 @@ public sealed class FieldDescription : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        LabelableContext?.UpdateMessageIds.Invoke(descriptionId, false);
+        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
     }
 }

@@ -1,26 +1,30 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using BlazorBaseUI.Utilities.LabelableProvider;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using Microsoft.AspNetCore.Components.Web;
-using BlazorBaseUI.Utilities.LabelableProvider;
+using Microsoft.JSInterop;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldLabel : ComponentBase, IDisposable
+public sealed class FieldLabel : ComponentBase, IAsyncDisposable
 {
     private const string DefaultTag = "label";
+    private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-label.js";
 
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
+    private string? defaultId;
     private string labelId = null!;
     private ElementReference element;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = null!;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
 
     [CascadingParameter]
     private LabelableContext? LabelableContext { get; set; }
-
-    [Parameter]
-    public string? Id { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -45,10 +49,17 @@ public sealed class FieldLabel : ComponentBase, IDisposable
 
     private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
 
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    public FieldLabel()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+    }
+
     protected override void OnInitialized()
     {
-        labelId = Id ?? Guid.NewGuid().ToString("N")[..8];
-        LabelableContext?.SetLabelId(labelId);
+        LabelableContext?.SetLabelId(ResolvedId);
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -95,10 +106,8 @@ public sealed class FieldLabel : ComponentBase, IDisposable
 
         attributes["id"] = labelId;
 
-        if (LabelableContext?.ControlId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.ControlId))
             attributes["for"] = LabelableContext.ControlId;
-
-        attributes["onmousedown"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseDown);
 
         foreach (var dataAttr in state.GetDataAttributes())
             attributes[dataAttr.Key] = dataAttr.Value;
@@ -106,15 +115,40 @@ public sealed class FieldLabel : ComponentBase, IDisposable
         return attributes;
     }
 
-    private void HandleMouseDown(MouseEventArgs e)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (e.Detail > 1)
+        if (firstRender)
         {
+            try
+            {
+                var module = await moduleTask.Value;
+
+                if (module != null)
+                {
+                    await module.InvokeVoidAsync("addLabelMouseDownListener", Element);
+                }
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         LabelableContext?.SetLabelId(null);
+
+        if (moduleTask.IsValueCreated && element.Id is not null)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("removeLabelMouseDownListener", element);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
     }
 }
