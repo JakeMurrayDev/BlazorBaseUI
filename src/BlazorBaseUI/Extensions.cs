@@ -14,12 +14,25 @@ internal static class Extensions
 
     extension(Orientation orientation)
     {
-        public string ToDataAttributeString() =>
+        public string? ToDataAttributeString() =>
             orientation switch
             {
+                Orientation.Undefined => null,
                 Orientation.Horizontal => "horizontal",
                 Orientation.Vertical => "vertical",
                 _ => throw new InvalidEnumArgumentException(nameof(orientation), (int)orientation, typeof(Orientation))
+            };
+    }
+
+    extension(Direction direction)
+    {
+        public string? ToAttributeString() =>
+            direction switch
+            {
+                Direction.Undefined => null,
+                Direction.Ltr => "ltr",
+                Direction.Rtl => "rtl",
+                _ => throw new InvalidEnumArgumentException(nameof(direction), (int)direction, typeof(Direction))
             };
     }
 
