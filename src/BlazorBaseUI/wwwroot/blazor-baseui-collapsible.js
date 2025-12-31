@@ -14,80 +14,73 @@ if (!window[STATE_KEY]) {
 }
 const panelStates = window[STATE_KEY];
 
-const CSS_VAR_HEIGHT = '--collapsible-panel-height';
-const CSS_VAR_WIDTH = '--collapsible-panel-width';
+/**
+ * Helper to generate variable names based on a prefix
+ */
+function getVarNames(prefix) {
+    const p = prefix || 'collapsible-panel';
+    return {
+        height: `--${p}-height`,
+        width: `--${p}-width`
+    };
+}
 
 /**
  * @typedef {Object} PanelState
  * @property {AbortController | null} abortController
  * @property {DotNetObjectReference} dotNetRef
+ * @property {string} prefix
  */
 
-/**
- * Gets or creates state for a panel.
- * @param {HTMLElement} panel
- * @param {DotNetObjectReference} dotNetRef
- * @returns {PanelState}
- */
-function getOrCreateState(panel, dotNetRef) {
+function getOrCreateState(panel, dotNetRef, prefix) {
     let state = panelStates.get(panel);
 
     if (!state) {
         state = {
             abortController: null,
-            dotNetRef
+            dotNetRef,
+            prefix: prefix || 'collapsible-panel'
         };
         panelStates.set(panel, state);
     } else {
         state.dotNetRef = dotNetRef;
+        if (prefix) state.prefix = prefix;
     }
 
     return state;
 }
 
-/**
- * Initializes a collapsible panel.
- * @param {HTMLElement} panel
- * @param {DotNetObjectReference} dotNetRef
- * @param {boolean} initialOpen
- */
-export function initialize(panel, dotNetRef, initialOpen) {
+export function initialize(panel, dotNetRef, initialOpen, prefix) {
     if (!panel) return;
 
-    getOrCreateState(panel, dotNetRef);
+    const state = getOrCreateState(panel, dotNetRef, prefix);
+    const vars = getVarNames(state.prefix);
 
     if (initialOpen) {
         const dims = measureDimensions(panel);
         setCssVariables(panel, {
-            [CSS_VAR_HEIGHT]: dims.height === 0 ? 'auto' : `${dims.height}px`,
-            [CSS_VAR_WIDTH]: dims.width === 0 ? 'auto' : `${dims.width}px`
+            [vars.height]: dims.height === 0 ? 'auto' : `${dims.height}px`,
+            [vars.width]: dims.width === 0 ? 'auto' : `${dims.width}px`
         });
     }
 }
 
-/**
- * Handles the opening animation of a collapsible panel.
- * @param {HTMLElement} panel
- * @param {boolean} skipAnimation
- * @returns {Promise<void>}
- */
 export async function open(panel, skipAnimation) {
     const state = panelStates.get(panel);
-    if (!state) {
-        console.warn('[Collapsible] Panel not initialized');
-        return;
-    }
+    if (!state) return;
 
     if (state.abortController) {
         state.abortController.abort();
         state.abortController = null;
     }
 
+    const vars = getVarNames(state.prefix);
+
     setDataAttribute(panel, 'ending-style', false);
     setDataAttribute(panel, 'starting-style', false);
 
-    panel.style.removeProperty('--collapsible-panel-height');
-    panel.style.removeProperty('--collapsible-panel-width');
+    panel.style.removeProperty(vars.height);
+    panel.style.removeProperty(vars.width);
 
     await new Promise(resolve => requestAnimationFrame(resolve));
 
@@ -95,14 +88,14 @@ export async function open(panel, skipAnimation) {
     const dims = measureDimensions(panel);
 
     setCssVariables(panel, {
-        [CSS_VAR_HEIGHT]: `${dims.height}px`,
-        [CSS_VAR_WIDTH]: `${dims.width}px`
+        [vars.height]: `${dims.height}px`,
+        [vars.width]: `${dims.width}px`
     });
 
     if (skipAnimation || animationType === 'none') {
         setCssVariables(panel, {
-            [CSS_VAR_HEIGHT]: 'auto',
-            [CSS_VAR_WIDTH]: 'auto'
+            [vars.height]: 'auto',
+            [vars.width]: 'auto'
         });
         invokeCallback(state.dotNetRef, 'OnOpenAnimationComplete');
         return;
@@ -127,30 +120,23 @@ export async function open(panel, skipAnimation) {
     }
 
     setCssVariables(panel, {
-        [CSS_VAR_HEIGHT]: 'auto',
-        [CSS_VAR_WIDTH]: 'auto'
+        [vars.height]: 'auto',
+        [vars.width]: 'auto'
     });
 
     invokeCallback(state.dotNetRef, 'OnOpenAnimationComplete');
 }
 
-/**
- * Handles the closing animation of a collapsible panel.
- * @param {HTMLElement} panel
- * @returns {Promise<void>}
- */
 export async function close(panel) {
     const state = panelStates.get(panel);
-    if (!state) {
-        console.warn('[Collapsible] Panel not initialized');
-        return;
-    }
+    if (!state) return;
 
     if (state.abortController) {
         state.abortController.abort();
         state.abortController = null;
     }
 
+    const vars = getVarNames(state.prefix);
     setDataAttribute(panel, 'starting-style', false);
 
     const dims = measureDimensions(panel);
@@ -160,16 +146,16 @@ export async function close(panel) {
     }
 
     setCssVariables(panel, {
-        [CSS_VAR_HEIGHT]: `${dims.height}px`,
-        [CSS_VAR_WIDTH]: `${dims.width}px`
+        [vars.height]: `${dims.height}px`,
+        [vars.width]: `${dims.width}px`
     });
 
     const animationType = detectAnimationType(panel);
 
     if (animationType === 'none') {
         setCssVariables(panel, {
-            [CSS_VAR_HEIGHT]: '0px',
-            [CSS_VAR_WIDTH]: '0px'
+            [vars.height]: '0px',
+            [vars.width]: '0px'
         });
         invokeCallback(state.dotNetRef, 'OnCloseAnimationComplete');
         return;
@@ -189,7 +175,6 @@ export async function close(panel) {
     setDataAttribute(panel, 'ending-style', true);
 
     const completed = await waitForAnimationsToFinish(panel, signal);
-
     setDataAttribute(panel, 'ending-style', false);
 
     if (!completed) return;
@@ -199,52 +184,39 @@ export async function close(panel) {
     }
 
     setCssVariables(panel, {
-        [CSS_VAR_HEIGHT]: '0px',
-        [CSS_VAR_WIDTH]: '0px'
+        [vars.height]: '0px',
+        [vars.width]: '0px'
     });
 
     invokeCallback(state.dotNetRef, 'OnCloseAnimationComplete');
 }
 
-/**
- * Updates dimensions when content changes while open.
- * @param {HTMLElement} panel
- */
 export function updateDimensions(panel) {
     if (!panel) return;
+    const state = panelStates.get(panel);
+    if (!state) return;
 
+    const vars = getVarNames(state.prefix);
     const dims = measureDimensions(panel);
     setCssVariables(panel, {
-        [CSS_VAR_HEIGHT]: dims.height === 0 ? 'auto' : `${dims.height}px`,
-        [CSS_VAR_WIDTH]: dims.width === 0 ? 'auto' : `${dims.width}px`
+        [vars.height]: dims.height === 0 ? 'auto' : `${dims.height}px`,
+        [vars.width]: dims.width === 0 ? 'auto' : `${dims.width}px`
     });
 }
 
-/**
- * Disposes of a collapsible panel's state.
- * @param {HTMLElement} panel
- */
 export function dispose(panel) {
     const state = panelStates.get(panel);
     if (!state) return;
 
     if (state.abortController) {
         state.abortController.abort();
-        state.abortController = null;
     }
 
     panelStates.delete(panel);
 }
 
-/**
- * Safely invokes a .NET callback.
- * @param {DotNetObjectReference} dotNetRef
- * @param {string} methodName
- */
 function invokeCallback(dotNetRef, methodName) {
     try {
         dotNetRef.invokeMethodAsync(methodName);
-    } catch (e) {
-        // Ignore disconnection errors
-    }
+    } catch (e) { }
 }
