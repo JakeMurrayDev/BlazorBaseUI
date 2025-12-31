@@ -1,0 +1,576 @@
+﻿@using BlazorBaseUI.Accordion
+@using BlazorBaseUI.DirectionProvider
+@using BlazorBaseUI.Demo.Client.Shared.Icons
+
+<ComponentShowcase ComponentName="Accordion"
+                   Description="A vertically stacked set of interactive headings that reveal or hide associated content."
+                   BaseRoute="/accordion"
+                   IsWasmMode="IsWasmMode">
+
+    <DemoSection Title="Basic Usage"
+                 Description="An uncontrolled accordion with smooth height transitions."
+                 CodeSnippet="@BasicCodeSnippet">
+        <AccordionRoot ClassValue="@RootClass">
+            <AccordionItem ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        What is Base UI?
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Base UI is a library of high-quality unstyled React components for design systems and web apps.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        How do I get started?
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Head to the "Quick start" guide in the docs. If you've used unstyled libraries before, you'll feel at home.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Can I use it for my project?
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Of course! Base UI is free and open source.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Default Value"
+                 Description="An accordion with an initially open item using DefaultValue."
+                 CodeSnippet="@DefaultValueCodeSnippet">
+        <AccordionRoot TValue="string" DefaultValue="@(["first"])" ClassValue="@RootClass">
+            <AccordionItem Value=@("first") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Initially Open
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This panel is open by default when the component mounts.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("second") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Initially Closed
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This panel starts closed.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Controlled"
+                 Description="An accordion controlled by external state."
+                 CodeSnippet="@ControlledCodeSnippet">
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-wrap gap-2">
+                <button class="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                        @onclick="@(() => ToggleControlledItem("one"))">
+                    Toggle Item 1
+                </button>
+                <button class="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                        @onclick="@(() => ToggleControlledItem("two"))">
+                    Toggle Item 2
+                </button>
+                <span class="self-center text-sm text-gray-600">
+                    Open: <strong>@(controlledValue.Length > 0 ? string.Join(", ", controlledValue) : "none")</strong>
+                </span>
+            </div>
+            <AccordionRoot TValue="string"
+                           Value="@controlledValue"
+                           ValueChanged="@(v => controlledValue = v)"
+                           Multiple="true"
+                           ClassValue="@RootClass">
+                <AccordionItem Value=@("one") ClassValue="@ItemClass">
+                    <AccordionHeader>
+                        <AccordionTrigger ClassValue="@TriggerClass">
+                            Controlled Item 1
+                            <PlusIcon class=@IconClass />
+                        </AccordionTrigger>
+                    </AccordionHeader>
+                    <AccordionPanel ClassValue="@PanelClass">
+                        <div class="p-3">
+                            This accordion is controlled externally.
+                        </div>
+                    </AccordionPanel>
+                </AccordionItem>
+                <AccordionItem Value=@("two") ClassValue="@ItemClass">
+                    <AccordionHeader>
+                        <AccordionTrigger ClassValue="@TriggerClass">
+                            Controlled Item 2
+                            <PlusIcon class=@IconClass />
+                        </AccordionTrigger>
+                    </AccordionHeader>
+                    <AccordionPanel ClassValue="@PanelClass">
+                        <div class="p-3">
+                            Both external buttons and triggers can toggle items.
+                        </div>
+                    </AccordionPanel>
+                </AccordionItem>
+            </AccordionRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Multiple Selection"
+                 Description="Allow multiple panels to be open simultaneously."
+                 CodeSnippet="@MultipleCodeSnippet">
+        <AccordionRoot TValue="string" Multiple="true" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Section 1
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Multiple panels can be open at once. Try opening this and the others.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-2") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Section 2
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This can stay open while other sections are also open.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-3") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Section 3
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        All three sections can be expanded simultaneously.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Disabled Accordion"
+                 Description="A completely disabled accordion that cannot be interacted with."
+                 CodeSnippet="@DisabledCodeSnippet">
+        <AccordionRoot TValue="string" DefaultValue="@(["item-1"])" Disabled="true" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@DisabledTriggerClass">
+                        Disabled Item 1 (Open)
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This panel is visible but the accordion cannot be interacted with.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-2") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@DisabledTriggerClass">
+                        Disabled Item 2
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This content cannot be revealed.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Disabled Item"
+                 Description="Individual accordion items can be disabled."
+                 CodeSnippet="@DisabledItemCodeSnippet">
+        <AccordionRoot TValue="string" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Enabled Item 1
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This item works normally.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-2") Disabled="true" ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@DisabledTriggerClass">
+                        Disabled Item 2
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This content cannot be revealed.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-3") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Enabled Item 3
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Keyboard navigation skips the disabled item.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Keep Mounted"
+                 Description="Panels stay in the DOM when closed (inspect elements to verify)."
+                 CodeSnippet="@KeepMountedCodeSnippet">
+        <AccordionRoot TValue="string" KeepMounted="true" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Keep Mounted Item 1
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        This panel remains in the DOM even when closed.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-2") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Keep Mounted Item 2
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Useful for SEO or preserving form state.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Horizontal Orientation"
+                 Description="Horizontal accordion with left/right arrow key navigation."
+                 CodeSnippet="@HorizontalCodeSnippet">
+        <AccordionRoot TValue="string" Orientation="Orientation.Horizontal" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Horizontal 1
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Use ArrowLeft/ArrowRight to navigate between triggers.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-2") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Horizontal 2
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Home/End keys also work to jump to first/last trigger.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="RTL Support"
+                 Description="Right-to-left support with reversed arrow key navigation."
+                 CodeSnippet="@RtlCodeSnippet">
+        <DirectionProvider Direction="Direction.Rtl">
+            <AccordionRoot TValue="string" Orientation="Orientation.Horizontal" ClassValue="@RootClass">
+                <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                    <AccordionHeader>
+                        <AccordionTrigger ClassValue="@TriggerClass">
+                            RTL Item 1
+                            <PlusIcon class=@IconClass />
+                        </AccordionTrigger>
+                    </AccordionHeader>
+                    <AccordionPanel ClassValue="@PanelClass">
+                        <div class="p-3">
+                            In RTL mode, ArrowLeft moves forward, ArrowRight moves backward.
+                        </div>
+                    </AccordionPanel>
+                </AccordionItem>
+                <AccordionItem Value=@("item-2") ClassValue="@ItemClass">
+                    <AccordionHeader>
+                        <AccordionTrigger ClassValue="@TriggerClass">
+                            RTL Item 2
+                            <PlusIcon class=@IconClass />
+                        </AccordionTrigger>
+                    </AccordionHeader>
+                    <AccordionPanel ClassValue="@PanelClass">
+                        <div class="p-3">
+                            Navigation is reversed for right-to-left languages.
+                        </div>
+                    </AccordionPanel>
+                </AccordionItem>
+            </AccordionRoot>
+        </DirectionProvider>
+    </DemoSection>
+
+    <DemoSection Title="Loop Focus Disabled"
+                 Description="Keyboard navigation stops at the first and last items."
+                 CodeSnippet="@LoopFocusCodeSnippet">
+        <AccordionRoot TValue="string" LoopFocus="false" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        First Item
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        ArrowUp here won't loop to the last item.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("item-2") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Last Item
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        ArrowDown here won't loop to the first item.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Event Callback"
+                 Description="Track value changes with OnValueChange."
+                 CodeSnippet="@EventCallbackCodeSnippet">
+        <div class="flex flex-col gap-4">
+            <AccordionRoot TValue="string" OnValueChange="@HandleValueChange" Multiple="true" ClassValue="@RootClass">
+                <AccordionItem Value=@("one") ClassValue="@ItemClass">
+                    <AccordionHeader>
+                        <AccordionTrigger ClassValue="@TriggerClass">
+                            Event Tracking 1
+                            <PlusIcon class=@IconClass />
+                        </AccordionTrigger>
+                    </AccordionHeader>
+                    <AccordionPanel ClassValue="@PanelClass">
+                        <div class="p-3">
+                            Toggle this panel to see event details below.
+                        </div>
+                    </AccordionPanel>
+                </AccordionItem>
+                <AccordionItem Value=@("two") ClassValue="@ItemClass">
+                    <AccordionHeader>
+                        <AccordionTrigger ClassValue="@TriggerClass">
+                            Event Tracking 2
+                            <PlusIcon class=@IconClass />
+                        </AccordionTrigger>
+                    </AccordionHeader>
+                    <AccordionPanel ClassValue="@PanelClass">
+                        <div class="p-3">
+                            Toggle to add/remove from the open values.
+                        </div>
+                    </AccordionPanel>
+                </AccordionItem>
+            </AccordionRoot>
+            <div class="rounded border border-gray-200 bg-gray-50 p-3 font-mono text-xs">
+                <p><strong>Last Event:</strong></p>
+                <p class="mt-1">Open Values: [@lastEventValues]</p>
+                <p>Time: @lastEventTime</p>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Custom Panel ID"
+                 Description="Panel with a custom ID referenced by aria-controls."
+                 CodeSnippet="@CustomIdCodeSnippet">
+        <AccordionRoot TValue="string" DefaultValue="@(["item-1"])" ClassValue="@RootClass">
+            <AccordionItem Value=@("item-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Custom ID Panel
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel id="my-custom-accordion-panel-id" ClassValue="@PanelClass">
+                    <div class="p-3">
+                        <p>This panel has <code class="rounded bg-gray-100 px-1">id="my-custom-accordion-panel-id"</code></p>
+                        <p class="mt-1 text-xs text-gray-500">The trigger's aria-controls references this ID.</p>
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+    <DemoSection Title="Nested Accordions"
+                 Description="Accordions can be nested within each other."
+                 CodeSnippet="@NestedCodeSnippet">
+        <AccordionRoot TValue="string" DefaultValue="@(["outer-1"])" ClassValue="@RootClass">
+            <AccordionItem Value=@("outer-1") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Outer Item 1
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        <p class="mb-3">This panel contains a nested accordion:</p>
+                        <AccordionRoot TValue="string" LoopFocus="false" ClassValue="@(_ => "flex w-full flex-col justify-center text-gray-900")">
+                            <AccordionItem Value=@("inner-1") ClassValue="@ItemClass">
+                                <AccordionHeader>
+                                    <AccordionTrigger ClassValue="@TriggerClass">
+                                        Inner Item 1
+                                        <PlusIcon class=@IconClass />
+                                    </AccordionTrigger>
+                                </AccordionHeader>
+                                <AccordionPanel ClassValue="@PanelClass">
+                                    <div class="p-3">
+                                        Nested accordion content.
+                                    </div>
+                                </AccordionPanel>
+                            </AccordionItem>
+                            <AccordionItem Value=@("inner-2") ClassValue="@ItemClass">
+                                <AccordionHeader>
+                                    <AccordionTrigger ClassValue="@TriggerClass">
+                                        Inner Item 2
+                                        <PlusIcon class=@IconClass />
+                                    </AccordionTrigger>
+                                </AccordionHeader>
+                                <AccordionPanel ClassValue="@PanelClass">
+                                    <div class="p-3">
+                                        More nested content.
+                                    </div>
+                                </AccordionPanel>
+                            </AccordionItem>
+                        </AccordionRoot>
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem Value=@("outer-2") ClassValue="@ItemClass">
+                <AccordionHeader>
+                    <AccordionTrigger ClassValue="@TriggerClass">
+                        Outer Item 2
+                        <PlusIcon class=@IconClass />
+                    </AccordionTrigger>
+                </AccordionHeader>
+                <AccordionPanel ClassValue="@PanelClass">
+                    <div class="p-3">
+                        Regular outer content.
+                    </div>
+                </AccordionPanel>
+            </AccordionItem>
+        </AccordionRoot>
+    </DemoSection>
+
+</ComponentShowcase>
+
+@code {
+    private string[] controlledValue = [];
+    private string lastEventValues = "-";
+    private string lastEventTime = "-";
+
+    [Parameter]
+    public bool IsWasmMode { get; set; }
+
+    private void ToggleControlledItem(string item)
+    {
+        if (controlledValue.Contains(item))
+            controlledValue = controlledValue.Where(v => v != item).ToArray();
+        else
+            controlledValue = [.. controlledValue, item];
+    }
+
+    private void HandleValueChange(AccordionValueChangeEventArgs<string> args)
+    {
+        lastEventValues = args.Value.Length > 0 ? string.Join(", ", args.Value) : "none";
+        lastEventTime = DateTime.Now.ToString("HH:mm:ss.fff");
+    }
+
+    private const string IconClass = "mr-2 size-3 shrink-0 transition-all ease-out group-data-[panel-open]:scale-110 group-data-[panel-open]:rotate-45";
+
+    private Func<AccordionRootState<string>, string> RootClass => _ =>
+        "flex w-96 max-w-[calc(100vw-8rem)] flex-col justify-center text-gray-900";
+
+    private Func<AccordionItemState<string>, string> ItemClass => _ =>
+        "border-b border-gray-200";
+
+    private Func<AccordionTriggerState, string> TriggerClass => _ =>
+        "group relative flex w-full items-baseline justify-between gap-4 bg-gray-50 py-2 pr-1 pl-3 text-left font-medium hover:bg-gray-100 focus-visible:z-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800";
+
+    private Func<AccordionTriggerState, string> DisabledTriggerClass => _ =>
+        "group relative flex w-full cursor-not-allowed items-baseline justify-between gap-4 bg-gray-100 py-2 pr-1 pl-3 text-left font-medium text-gray-400";
+
+    private Func<AccordionPanelState, string> PanelClass => _ =>
+        "h-[var(--accordion-panel-height)] overflow-hidden text-base text-gray-600 transition-[height] ease-out data-[ending-style]:h-0 data-[starting-style]:h-0";
+
+    private const string BasicCodeSnippet = "";
+    private const string DefaultValueCodeSnippet = "";
+    private const string ControlledCodeSnippet = "";
+    private const string MultipleCodeSnippet = "";
+    private const string DisabledCodeSnippet = "";
+    private const string DisabledItemCodeSnippet = "";
+    private const string KeepMountedCodeSnippet = "";
+    private const string HorizontalCodeSnippet = "";
+    private const string RtlCodeSnippet = "";
+    private const string LoopFocusCodeSnippet = "";
+    private const string EventCallbackCodeSnippet = "";
+    private const string CustomIdCodeSnippet = "";
+    private const string NestedCodeSnippet = "";
+}
