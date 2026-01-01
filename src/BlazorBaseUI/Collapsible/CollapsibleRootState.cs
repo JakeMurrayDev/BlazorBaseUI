@@ -12,7 +12,7 @@ public record CollapsibleRootState(
         var attributes = new Dictionary<string, object>();
 
         if (Open)
-            attributes[CollapsibleDataAttribute.Open.ToDataAttributeString()] = string.Empty;
+            attributes["data-panel-open"] = string.Empty;
         else
             attributes[CollapsibleDataAttribute.Closed.ToDataAttributeString()] = string.Empty;
 

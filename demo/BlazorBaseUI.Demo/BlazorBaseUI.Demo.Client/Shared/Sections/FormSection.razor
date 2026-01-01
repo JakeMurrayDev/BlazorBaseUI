@@ -7,356 +7,343 @@
                    Description="A native form element with consolidated error handling."
                    BaseRoute="/form"
                    IsWasmMode="IsWasmMode">
-    <DemoSection Title="Basic Usage"
-                 Description="A simple form showcase."
-                 CodeSnippet="@CodeSnippet">
-        <div class="space-y-8">
-            <h2 class="text-2xl font-bold text-gray-900">Form Component Tests</h2>
-
-            <!-- Basic Form Submission -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">Basic Form Submission</h3>
-                <p class="text-sm text-gray-600">Form with OnValidSubmit callback</p>
-                <Form Model="@basicModel" OnValidSubmit="HandleBasicSubmit">
-                    <FieldRoot Name="username" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Username
-                        </FieldLabel>
-                        <FieldControl @bind-Value="basicModel.Username"
-                                      ClassValue="@(_ => "mt-1 block w-full rounded border p-2 border-gray-300")" />
-                    </FieldRoot>
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit
-                    </button>
-                </Form>
-                @if (!string.IsNullOrEmpty(basicSubmitResult))
-                {
-                    <div class="mt-2 rounded bg-green-100 p-2 text-sm text-green-800">
-                        @basicSubmitResult
-                    </div>
-                }
-            </section>
-
-            <!-- Form with Validation Errors -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">Form with Validation</h3>
-                <p class="text-sm text-gray-600">Form does not submit if there are validation errors</p>
-                <Form Model="@validationModel" OnValidSubmit="HandleValidationSubmit">
-                    <FieldRoot Name="email"
-                               Validate="ValidateRequired"
-                               ClassValue="@(s => "mb-4 " + (s.Valid == false ? "text-red-600" : ""))">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Email (required)
-                        </FieldLabel>
-                        <FieldControl @bind-Value="validationModel.Email"
-                                      type="email"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit
-                    </button>
-                </Form>
-                <p class="text-xs text-gray-500">Submit attempts: @validationSubmitAttempts</p>
-            </section>
-
-            <!-- External Errors Prop -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">External Errors (Server-side)</h3>
-                <p class="text-sm text-gray-600">Simulates server-side validation errors via Errors prop</p>
-                <div class="mb-2 flex gap-2">
-                    <button @onclick="SetServerError"
-                            class="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700">
-                        Set Server Error
-                    </button>
-                    <button @onclick="ClearServerError"
-                            class="rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700">
-                        Clear Error
-                    </button>
+    <DemoSection Title="Basic Form Submission"
+                 Description="Form with OnValidSubmit callback">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <Form Model="@basicModel" OnValidSubmit="HandleBasicSubmit">
+                <FieldRoot Name="username" ClassValue="@(_ => "mb-5")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Username
+                    </FieldLabel>
+                    <FieldControl @bind-Value="basicModel.Username"
+                                  placeholder="Enter your username"
+                                  ClassValue="@(_ => "w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none")" />
+                </FieldRoot>
+                <button type="submit"
+                        class="w-full rounded-lg bg-blue-600 py-2.5 font-semibold text-white transition duration-200 hover:bg-blue-700">
+                    Submit
+                </button>
+            </Form>
+            @if (!string.IsNullOrEmpty(basicSubmitResult))
+            {
+                <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                    ✓ @basicSubmitResult
                 </div>
-                <Form Model="@serverErrorModel" Errors="@serverErrors">
-                    <FieldRoot Name="username" ClassValue="@(s => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Username
-                        </FieldLabel>
-                        <FieldControl @bind-Value="serverErrorModel.Username"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-                </Form>
-            </section>
+            }
+        </div>
+    </DemoSection>
 
-            <!-- OnFormSubmit Callback -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">OnFormSubmit Callback</h3>
-                <p class="text-sm text-gray-600">Receives typed form values on submit</p>
-                <Form Model="@formSubmitModel" OnFormSubmit="HandleFormSubmit">
-                    <FieldRoot Name="name" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Name
-                        </FieldLabel>
-                        <FieldControl @bind-Value="formSubmitModel.Name"
-                                      ClassValue="@(_ => "mt-1 block w-full rounded border p-2 border-gray-300")" />
-                    </FieldRoot>
-                    <FieldRoot Name="age" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Age
-                        </FieldLabel>
-                        <FieldControl @bind-Value="formSubmitModel.Age"
-                                      type="number"
-                                      ClassValue="@(_ => "mt-1 block w-full rounded border p-2 border-gray-300")" />
-                    </FieldRoot>
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit
-                    </button>
-                </Form>
-                @if (formSubmitValues is not null)
-                {
-                    <div class="mt-2 rounded bg-gray-100 p-2 font-mono text-sm">
-                        <div>Received values:</div>
+    <DemoSection Title="Form with Validation"
+                 Description="Form does not submit if there are validation errors">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <Form Model="@validationModel" OnValidSubmit="HandleValidationSubmit">
+                <FieldRoot Name="email"
+                           Validate="ValidateRequired"
+                           ClassValue="@(s => "mb-5")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Email (required)
+                    </FieldLabel>
+                    <FieldControl @bind-Value="validationModel.Email"
+                                  type="email"
+                                  placeholder="you@example.com"
+                                  ClassValue="@(s => "w-full px-4 py-2.5 rounded-lg border transition outline-none " + (s.Valid == false ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200" : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"))" />
+                    <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-2 font-medium")" />
+                </FieldRoot>
+                <button type="submit"
+                        class="w-full rounded-lg bg-blue-600 py-2.5 font-semibold text-white transition duration-200 hover:bg-blue-700">
+                    Submit
+                </button>
+            </Form>
+            <p class="mt-4 text-center text-xs text-gray-500">Attempts: <span class="font-semibold text-gray-700">@validationSubmitAttempts</span></p>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="External Errors (Server-side)"
+                 Description="Simulates server-side validation errors via Errors prop">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div class="mb-4 flex gap-2">
+                <button @onclick="SetServerError"
+                        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:bg-red-700">
+                    Set Server Error
+                </button>
+                <button @onclick="ClearServerError"
+                        class="rounded-lg bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 transition duration-200 hover:bg-gray-400">
+                    Clear Error
+                </button>
+            </div>
+            <Form Model="@serverErrorModel" Errors="@serverErrors">
+                <FieldRoot Name="username" ClassValue="@(s => "mb-4")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Username
+                    </FieldLabel>
+                    <FieldControl @bind-Value="serverErrorModel.Username"
+                                  placeholder="Enter username"
+                                  ClassValue="@(s => "w-full px-4 py-2.5 rounded-lg border transition outline-none " + (s.Valid == false ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200" : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"))" />
+                    <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-2 font-medium")" />
+                </FieldRoot>
+            </Form>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="OnFormSubmit Callback"
+                 Description="Receives typed form values on submit">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <Form Model="@formSubmitModel" OnFormSubmit="HandleFormSubmit">
+                <FieldRoot Name="name" ClassValue="@(_ => "mb-5")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Name
+                    </FieldLabel>
+                    <FieldControl @bind-Value="formSubmitModel.Name"
+                                  placeholder="Enter your name"
+                                  ClassValue="@(_ => "w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none")" />
+                </FieldRoot>
+                <FieldRoot Name="age" ClassValue="@(_ => "mb-5")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Age
+                    </FieldLabel>
+                    <FieldControl @bind-Value="formSubmitModel.Age"
+                                  type="number"
+                                  placeholder="Enter your age"
+                                  ClassValue="@(_ => "w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none")" />
+                </FieldRoot>
+                <button type="submit"
+                        class="w-full rounded-lg bg-blue-600 py-2.5 font-semibold text-white transition duration-200 hover:bg-blue-700">
+                    Submit
+                </button>
+            </Form>
+            @if (formSubmitValues is not null)
+            {
+                <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <p class="mb-3 text-sm font-semibold text-gray-800">Received values:</p>
+                    <div class="space-y-2">
                         @foreach (var kvp in formSubmitValues)
                         {
-                            <div>@kvp.Key: @kvp.Value</div>
+                            <div class="flex justify-between text-sm text-gray-700">
+                                <span class="font-medium">@kvp.Key:</span>
+                                <span class="text-gray-600">@kvp.Value</span>
+                            </div>
                         }
                     </div>
-                }
-            </section>
+                </div>
+            }
+        </div>
+    </DemoSection>
 
-            <!-- Unmounted Fields -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">Unmounted Fields</h3>
-                <p class="text-sm text-gray-600">Unmounted fields should be removed from form validation</p>
-                <label class="mb-2 flex items-center gap-2">
-                    <input type="checkbox" @bind="showConditionalField" class="rounded" />
-                    <span class="text-sm">Show email field (required)</span>
-                </label>
-                <Form Model="@unmountModel" OnValidSubmit="HandleUnmountSubmit" OnInvalidSubmit="HandleUnmountInvalid">
-                    <FieldRoot Name="name" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Name
-                        </FieldLabel>
-                        <FieldControl @bind-Value="unmountModel.Name"
-                                      ClassValue="@(_ => "mt-1 block w-full rounded border p-2 border-gray-300")" />
-                    </FieldRoot>
-                    @if (showConditionalField)
-                    {
-                        <FieldRoot Name="email"
-                                   Validate="ValidateRequired"
-                                   ClassValue="@(_ => "mb-4")">
-                            <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                                Email (required, conditional)
-                            </FieldLabel>
-                            <FieldControl @bind-Value="unmountModel.Email"
-                                          ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                            <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                        </FieldRoot>
-                    }
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit
-                    </button>
-                </Form>
-                <p class="text-xs text-gray-500">@unmountStatus</p>
-            </section>
-
-            <!-- Focus First Invalid Field -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">Focus First Invalid Field</h3>
-                <p class="text-sm text-gray-600">On submit, focus moves to first invalid field</p>
-                <Form Model="@focusModel" OnValidSubmit="HandleFocusSubmit">
-                    <FieldRoot Name="firstName"
-                               Validate="ValidateRequired"
-                               ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            First Name (required)
-                        </FieldLabel>
-                        <FieldControl @bind-Value="focusModel.FirstName"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-                    <FieldRoot Name="lastName"
-                               Validate="ValidateRequired"
-                               ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Last Name (required)
-                        </FieldLabel>
-                        <FieldControl @bind-Value="focusModel.LastName"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
+    <DemoSection Title="Unmounted Fields"
+                 Description="Unmounted fields should be removed from form validation">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <label class="mb-4 flex cursor-pointer items-center gap-3">
+                <input type="checkbox" @bind="showConditionalField" class="h-5 w-5 rounded border-gray-300 text-blue-600" />
+                <span class="text-sm font-medium text-gray-700">Show email field (required)</span>
+            </label>
+            <Form Model="@unmountModel" OnValidSubmit="HandleUnmountSubmit" OnInvalidSubmit="HandleUnmountInvalid">
+                <FieldRoot Name="name" ClassValue="@(_ => "mb-5")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Name
+                    </FieldLabel>
+                    <FieldControl @bind-Value="unmountModel.Name"
+                                  placeholder="Enter your name"
+                                  ClassValue="@(_ => "w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none")" />
+                </FieldRoot>
+                @if (showConditionalField)
+                {
                     <FieldRoot Name="email"
                                Validate="ValidateRequired"
-                               ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Email (required)
+                               ClassValue="@(_ => "mb-5")">
+                        <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                            Email (required, conditional)
                         </FieldLabel>
-                        <FieldControl @bind-Value="focusModel.Email"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+                        <FieldControl @bind-Value="unmountModel.Email"
+                                      placeholder="you@example.com"
+                                      ClassValue="@(s => "w-full px-4 py-2.5 rounded-lg border transition outline-none " + (s.Valid == false ? "border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200" : "border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"))" />
+                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-2 font-medium")" />
                     </FieldRoot>
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit
-                    </button>
-                </Form>
-            </section>
-
-            <!-- Validation Modes -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">Validation Modes</h3>
-                <p class="text-sm text-gray-600">Compare different validation modes in Form context</p>
-
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <!-- OnSubmit -->
-                    <div class="rounded border p-4">
-                        <h4 class="mb-2 font-medium">OnSubmit (default)</h4>
-                        <Form Model="@onSubmitModel" ValidationMode="ValidationMode.OnSubmit">
-                            <FieldRoot Name="value"
-                                       Validate="ValidateMinLength"
-                                       ClassValue="@(_ => "mb-2")">
-                                <FieldControl @bind-Value="onSubmitModel.Value"
-                                              placeholder="Min 3 chars"
-                                              ClassValue="@(s => "block w-full rounded border p-2 text-sm " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                                <FieldError ClassValue="@(_ => "text-xs text-red-600 mt-1")" />
-                            </FieldRoot>
-                            <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm text-white">
-                                Submit
-                            </button>
-                        </Form>
-                    </div>
-                    <!-- OnBlur -->
-                    <div class="rounded border p-4">
-                        <h4 class="mb-2 font-medium">OnBlur</h4>
-                        <Form Model="@onBlurModel" ValidationMode="ValidationMode.OnBlur">
-                            <FieldRoot Name="value"
-                                       Validate="ValidateMinLength"
-                                       ClassValue="@(_ => "mb-2")">
-                                <FieldControl @bind-Value="onBlurModel.Value"
-                                              placeholder="Min 3 chars"
-                                              ClassValue="@(s => "block w-full rounded border p-2 text-sm " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                                <FieldError ClassValue="@(_ => "text-xs text-red-600 mt-1")" />
-                            </FieldRoot>
-                            <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm text-white">
-                                Submit
-                            </button>
-                        </Form>
-                    </div>
-
-                    <!-- OnChange -->
-                    <div class="rounded border p-4">
-                        <h4 class="mb-2 font-medium">OnChange</h4>
-                        <Form Model="@onChangeModel" ValidationMode="ValidationMode.OnChange">
-                            <FieldRoot Name="value"
-                                       Validate="ValidateMinLength"
-                                       ClassValue="@(_ => "mb-2")">
-                                <FieldControl @bind-Value="onChangeModel.Value"
-                                              placeholder="Min 3 chars"
-                                              ClassValue="@(s => "block w-full rounded border p-2 text-sm " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                                <FieldError ClassValue="@(_ => "text-xs text-red-600 mt-1")" />
-                            </FieldRoot>
-                            <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm text-white">
-                                Submit
-                            </button>
-                        </Form>
-                    </div>
-                </div>
-            </section>
-
-            <!-- With DataAnnotationsValidator -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">With DataAnnotationsValidator</h3>
-                <p class="text-sm text-gray-600">Form works with Blazor's built-in validators</p>
-                <Form Model="annotatedModel"
-                      OnValidSubmit="HandleAnnotatedSubmit">
-                    <DataAnnotationsValidator />
-
-                    <FieldRoot Name="@nameof(annotatedModel.RequiredField)"
-                               ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Required Field
-                        </FieldLabel>
-                        <FieldControl @bind-Value="annotatedModel.RequiredField"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-
-                    <FieldRoot Name="@nameof(annotatedModel.EmailField)" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Email Field
-                        </FieldLabel>
-                        <FieldControl @bind-Value="annotatedModel.EmailField"
-                                      type="email"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-
-                    <FieldRoot Name="@nameof(annotatedModel.RangeField)" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Age (1-120)
-                        </FieldLabel>
-                        <FieldControl @bind-Value="annotatedModel.RangeField"
-                                      type="number"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit
-                    </button>
-                </Form>
-                @if (annotatedSubmitSuccess)
-                {
-                    <div class="mt-2 rounded bg-green-100 p-2 text-sm text-green-800">
-                        Form submitted successfully!
-                    </div>
                 }
-            </section>
+                <button type="submit"
+                        class="w-full rounded-lg bg-blue-600 py-2.5 font-semibold text-white transition duration-200 hover:bg-blue-700">
+                    Submit
+                </button>
+            </Form>
+            <p class="mt-4 text-center text-xs text-gray-600 italic">@unmountStatus</p>
+        </div>
+    </DemoSection>
 
-            <!-- Clearing Errors on Change -->
-            <section class="space-y-4">
-                <h3 class="text-lg font-semibold">Errors Clear on Change</h3>
-                <p class="text-sm text-gray-600">External errors should clear when field value changes</p>
-                <Form Model="@clearErrorModel"
-                      Errors="@clearErrors"
-                      OnSubmit="HandleClearErrorSubmit">
-                    <FieldRoot Name="field1" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Field 1
-                        </FieldLabel>
-                        <FieldControl @bind-Value="clearErrorModel.Field1"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+    <DemoSection Title="Focus First Invalid Field"
+                 Description="On submit, focus moves to first invalid field">
+        <Form Model="@focusModel" OnValidSubmit="HandleFocusSubmit">
+            <FieldRoot Name="firstName"
+                       Validate="ValidateRequired"
+                       ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    First Name (required)
+                </FieldLabel>
+                <FieldControl @bind-Value="focusModel.FirstName"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+            <FieldRoot Name="lastName"
+                       Validate="ValidateRequired"
+                       ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Last Name (required)
+                </FieldLabel>
+                <FieldControl @bind-Value="focusModel.LastName"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+            <FieldRoot Name="email"
+                       Validate="ValidateRequired"
+                       ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Email (required)
+                </FieldLabel>
+                <FieldControl @bind-Value="focusModel.Email"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+            <button type="submit"
+                    class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                Submit
+            </button>
+        </Form>
+    </DemoSection>
+
+    <DemoSection Title="Validation Modes"
+                 Description="Compare different validation modes in Form context">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="rounded border p-4">
+                <h4 class="mb-2 font-medium">OnSubmit (default)</h4>
+                <Form Model="@onSubmitModel" ValidationMode="ValidationMode.OnSubmit">
+                    <FieldRoot Name="value"
+                               Validate="ValidateMinLength"
+                               ClassValue="@(_ => "mb-2")">
+                        <FieldControl @bind-Value="onSubmitModel.Value"
+                                      placeholder="Min 3 chars"
+                                      ClassValue="@(s => "block w-full rounded border p-2 text-sm " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                        <FieldError ClassValue="@(_ => "text-xs text-red-600 mt-1")" />
                     </FieldRoot>
-                    <FieldRoot Name="field2" ClassValue="@(_ => "mb-4")">
-                        <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
-                            Field 2
-                        </FieldLabel>
-                        <FieldControl @bind-Value="clearErrorModel.Field2"
-                                      ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
-                        <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
-                    </FieldRoot>
-                    <button type="submit"
-                            class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                        Submit (sets errors if empty)
+                    <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm text-white">
+                        Submit
                     </button>
                 </Form>
-            </section>
+            </div>
+            <div class="rounded border p-4">
+                <h4 class="mb-2 font-medium">OnBlur</h4>
+                <Form Model="@onBlurModel" ValidationMode="ValidationMode.OnBlur">
+                    <FieldRoot Name="value"
+                               Validate="ValidateMinLength"
+                               ClassValue="@(_ => "mb-2")">
+                        <FieldControl @bind-Value="onBlurModel.Value"
+                                      placeholder="Min 3 chars"
+                                      ClassValue="@(s => "block w-full rounded border p-2 text-sm " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                        <FieldError ClassValue="@(_ => "text-xs text-red-600 mt-1")" />
+                    </FieldRoot>
+                    <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm text-white">
+                        Submit
+                    </button>
+                </Form>
+            </div>
+            <div class="rounded border p-4">
+                <h4 class="mb-2 font-medium">OnChange</h4>
+                <Form Model="@onChangeModel" ValidationMode="ValidationMode.OnChange">
+                    <FieldRoot Name="value"
+                               Validate="ValidateMinLength"
+                               ClassValue="@(_ => "mb-2")">
+                        <FieldControl @bind-Value="onChangeModel.Value"
+                                      placeholder="Min 3 chars"
+                                      ClassValue="@(s => "block w-full rounded border p-2 text-sm " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                        <FieldError ClassValue="@(_ => "text-xs text-red-600 mt-1")" />
+                    </FieldRoot>
+                    <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm text-white">
+                        Submit
+                    </button>
+                </Form>
+            </div>
         </div>
+    </DemoSection>
 
+    <DemoSection Title="With DataAnnotationsValidator"
+                 Description="Form works with Blazor's built-in validators">
+        <Form Model="annotatedModel"
+              OnValidSubmit="HandleAnnotatedSubmit">
+            <DataAnnotationsValidator />
+
+            <FieldRoot Name="@nameof(annotatedModel.RequiredField)"
+                       ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Required Field
+                </FieldLabel>
+                <FieldControl @bind-Value="annotatedModel.RequiredField"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+
+            <FieldRoot Name="@nameof(annotatedModel.EmailField)" ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Email Field
+                </FieldLabel>
+                <FieldControl @bind-Value="annotatedModel.EmailField"
+                              type="email"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+
+            <FieldRoot Name="@nameof(annotatedModel.RangeField)" ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Age (1-120)
+                </FieldLabel>
+                <FieldControl @bind-Value="annotatedModel.RangeField"
+                              type="number"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+
+            <button type="submit"
+                    class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                Submit
+            </button>
+        </Form>
+        @if (annotatedSubmitSuccess)
+        {
+            <div class="mt-2 rounded bg-green-100 p-2 text-sm text-green-800">
+                Form submitted successfully!
+            </div>
+        }
+    </DemoSection>
+
+    <DemoSection Title="Errors Clear on Change"
+                 Description="External errors should clear when field value changes">
+        <Form Model="@clearErrorModel"
+              Errors="@clearErrors"
+              OnSubmit="HandleClearErrorSubmit">
+            <FieldRoot Name="field1" ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Field 1
+                </FieldLabel>
+                <FieldControl @bind-Value="clearErrorModel.Field1"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+            <FieldRoot Name="field2" ClassValue="@(_ => "mb-4")">
+                <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                    Field 2
+                </FieldLabel>
+                <FieldControl @bind-Value="clearErrorModel.Field2"
+                              ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))" />
+                <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+            </FieldRoot>
+            <button type="submit"
+                    class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                Submit (sets errors if empty)
+            </button>
+        </Form>
     </DemoSection>
 </ComponentShowcase>
 
 @code {
-    private const string CodeSnippet = "";
-
     [Parameter]
     public bool IsWasmMode { get; set; }
 
-    // Basic Form
     private BasicModel basicModel = new();
     private string? basicSubmitResult;
 
@@ -366,7 +353,6 @@
         return Task.CompletedTask;
     }
 
-    // Validation Form
     private ValidationModel validationModel = new();
     private int validationSubmitAttempts;
 
@@ -376,7 +362,6 @@
         return Task.CompletedTask;
     }
 
-    // Server Error Form
     private ServerErrorModel serverErrorModel = new() { Username = "admin" };
     private Dictionary<string, string[]> serverErrors = new();
 
@@ -393,7 +378,6 @@
         serverErrors = new();
     }
 
-    // Form Submit
     private FormSubmitModel formSubmitModel = new() { Name = "Alice", Age = "30" };
     private IReadOnlyDictionary<string, object?>? formSubmitValues;
 
@@ -403,7 +387,6 @@
         return Task.CompletedTask;
     }
 
-    // Unmount Form
     private UnmountModel unmountModel = new() { Name = "Test" };
     private bool showConditionalField = true;
     private string unmountStatus = "Try submitting with/without the email field";
@@ -420,7 +403,6 @@
         return Task.CompletedTask;
     }
 
-    // Focus Form
     private FocusModel focusModel = new();
 
     private Task HandleFocusSubmit(EditContext context)
@@ -428,12 +410,10 @@
         return Task.CompletedTask;
     }
 
-    // Validation Mode Forms
     private ValueModel onSubmitModel = new();
     private ValueModel onBlurModel = new();
     private ValueModel onChangeModel = new();
 
-    // Annotated Model
     private AnnotatedModel annotatedModel = new();
     private bool annotatedSubmitSuccess;
 
@@ -443,7 +423,6 @@
         return Task.CompletedTask;
     }
 
-    // Clear Error Form
     private ClearErrorModel clearErrorModel = new();
     private Dictionary<string, string[]> clearErrors = new();
 
@@ -458,7 +437,6 @@
         return Task.CompletedTask;
     }
 
-    // Validation Functions
     private Task<string[]?> ValidateRequired(object? value)
     {
         var str = value?.ToString() ?? string.Empty;
@@ -477,7 +455,6 @@
         return Task.FromResult<string[]?>(null);
     }
 
-    // Models
     private class BasicModel
     {
         public string Username { get; set; } = string.Empty;

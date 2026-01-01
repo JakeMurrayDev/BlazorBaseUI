@@ -25,6 +25,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private bool previousReadOnly;
     private bool previousIndeterminate;
     private string? defaultId;
+    private string resolvedControlId = null!;
     private string checkboxId = null!;
     private string inputId = null!;
     private ElementReference element;
@@ -120,7 +121,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private string? ResolvedValue => Value ?? ResolvedName;
 
-    private string ControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => LabelableContext?.LabelId ?? (defaultId ??= Guid.NewGuid().ToIdString()));
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -141,6 +142,8 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     protected override void OnInitialized()
     {
         checkboxId = Guid.NewGuid().ToIdString();
+        resolvedControlId = ResolvedControlId;
+        LabelableContext?.SetControlId(resolvedControlId);
 
         if (IsGroupedWithParent)
         {
@@ -150,7 +153,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         }
         else
         {
-            inputId = ControlId;
+            inputId = resolvedControlId;
         }
 
         if (!IsControlled)
@@ -189,6 +192,17 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     protected override async Task OnParametersSetAsync()
     {
+        var newResolvedId = ResolvedControlId;
+        if (newResolvedId != resolvedControlId)
+        {
+            resolvedControlId = newResolvedId;
+            if (!IsGroupedWithParent)
+            {
+                inputId = resolvedControlId;
+            }
+            LabelableContext?.SetControlId(resolvedControlId);
+        }
+
         if (IsGroupedWithParent && !Parent && ResolvedValue is not null)
         {
             GroupContext!.Parent!.SetDisabledState(ResolvedValue, ResolvedDisabled);
@@ -222,7 +236,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         builder.OpenComponent<CascadingValue<CheckboxRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment) (contextBuilder =>
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
             RenderCheckbox(contextBuilder, state);
             RenderHiddenInput(contextBuilder);
@@ -242,6 +256,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     public async ValueTask DisposeAsync()
     {
+        LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
         if (moduleTask.IsValueCreated && element.Id is not null)
@@ -258,7 +273,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         }
     }
 
-    public void OnStateChanged()
+    public void NotifyStateChanged()
     {
         _ = InvokeAsync(StateHasChanged);
     }

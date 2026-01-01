@@ -273,7 +273,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
 
         foreach (var subscriber in subscribers)
         {
-            subscriber.OnStateChanged();
+            subscriber.NotifyStateChanged();
         }
     }
 

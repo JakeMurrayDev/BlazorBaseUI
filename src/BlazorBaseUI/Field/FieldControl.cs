@@ -18,6 +18,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private string? defaultId;
+    private string resolvedControlId = null!;
     private bool hasRendered;
     private ElementReference element;
 
@@ -58,7 +59,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
     private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
 
-    private string? ControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => LabelableContext?.LabelId ?? (defaultId ??= Guid.NewGuid().ToIdString()));
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
 
     public FieldControl()
     {
@@ -68,6 +69,9 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
     protected override void OnInitialized()
     {
+        resolvedControlId = ResolvedControlId;
+        LabelableContext?.SetControlId(resolvedControlId);
+
         var initialValue = IsControlled ? Value : DefaultValue;
         FieldContext?.Validation.SetInitialValue(initialValue);
 
@@ -76,6 +80,16 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
         FieldContext?.RegisterFocusHandlerFunc(FocusAsync);
         FieldContext?.SubscribeFunc(this);
+    }
+
+    protected override void OnParametersSet()
+    {
+        var newResolvedId = ResolvedControlId;
+        if (newResolvedId != resolvedControlId)
+        {
+            resolvedControlId = newResolvedId;
+            LabelableContext?.SetControlId(resolvedControlId);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -171,7 +185,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
         };
     }
 
-    void IFieldStateSubscriber.OnStateChanged()
+    void IFieldStateSubscriber.NotifyStateChanged()
     {
         _ = InvokeAsync(StateHasChanged);
     }
@@ -193,6 +207,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
 
     public async ValueTask DisposeAsync()
     {
+        LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
         if (moduleTask.IsValueCreated)
@@ -221,8 +236,8 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
             }
         }
 
-        if (ControlId is not null)
-            attributes["id"] = ControlId;
+        if (resolvedControlId is not null)
+            attributes["id"] = resolvedControlId;
 
         if (ResolvedName is not null)
             attributes["name"] = ResolvedName;

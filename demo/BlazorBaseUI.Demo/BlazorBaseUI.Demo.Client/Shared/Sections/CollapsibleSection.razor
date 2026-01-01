@@ -9,15 +9,14 @@
     <DemoSection Title="Basic Usage"
                  Description="An uncontrolled collapsible with smooth height transition."
                  CodeSnippet="@BasicCodeSnippet">
-        <CollapsibleRoot ClassValue="@(_ => "w-80")">
+        <CollapsibleRoot ClassValue="@RootClass">
             <CollapsibleTrigger ClassValue="@TriggerClass">
-                <span>Toggle Content</span>
-                <ChevronIcon />
+                <span>What is Base UI?</span>
+                <ChevronIcon class="size-4 text-gray-500 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
             </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@PanelClass"
-                              StyleValue="@PanelStyle">
-                <div class="p-4 text-sm text-gray-700">
-                    This is the collapsible panel content. Click the trigger above to show or hide this content with a smooth animation.
+            <CollapsiblePanel ClassValue="@PanelClass">
+                <div class="px-4 pb-4 text-sm leading-relaxed text-gray-600">
+                    Base UI is a library of high-quality unstyled React components for design systems and web apps. BlazorBaseUI ports these components to Blazor.
                 </div>
             </CollapsiblePanel>
         </CollapsibleRoot>
@@ -26,15 +25,14 @@
     <DemoSection Title="Default Open"
                  Description="A collapsible that starts in an open state."
                  CodeSnippet="@DefaultOpenCodeSnippet">
-        <CollapsibleRoot DefaultOpen="true" ClassValue="@(_ => "w-80")">
+        <CollapsibleRoot DefaultOpen="true" ClassValue="@RootClass">
             <CollapsibleTrigger ClassValue="@TriggerClass">
-                <span>Initially Open</span>
-                <ChevronIcon />
+                <span>How do I get started?</span>
+                <ChevronIcon class="size-4 text-gray-500 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
             </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@PanelClass"
-                              StyleValue="@PanelStyle">
-                <div class="p-4 text-sm text-gray-700">
-                    This panel is open by default when the component mounts.
+            <CollapsiblePanel ClassValue="@PanelClass">
+                <div class="px-4 pb-4 text-sm leading-relaxed text-gray-600">
+                    Head to the "Quick start" guide in the docs. If you've used unstyled libraries before, you'll feel right at home.
                 </div>
             </CollapsiblePanel>
         </CollapsibleRoot>
@@ -44,26 +42,25 @@
                  Description="A collapsible controlled by external state."
                  CodeSnippet="@ControlledCodeSnippet">
         <div class="flex flex-col gap-4">
-            <div class="flex gap-2">
-                <button class="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+            <div class="flex items-center gap-3">
+                <button class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
                         @onclick="@(() => controlledOpen = !controlledOpen)">
-                    External Toggle
+                    @(controlledOpen ? "Close" : "Open") Panel
                 </button>
-                <span class="self-center text-sm text-gray-600">
-                    State: <strong>@(controlledOpen ? "Open" : "Closed")</strong>
+                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                    @(controlledOpen ? "Expanded" : "Collapsed")
                 </span>
             </div>
             <CollapsibleRoot Open="@controlledOpen"
                              OpenChanged="@(e => controlledOpen = e)"
-                             ClassValue="@(_ => "w-80")">
+                             ClassValue="@RootClass">
                 <CollapsibleTrigger ClassValue="@TriggerClass">
-                    <span>Controlled Collapsible</span>
-                    <ChevronIcon />
+                    <span>Can I use it for my project?</span>
+                    <ChevronIcon class="size-4 text-gray-500 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
                 </CollapsibleTrigger>
-                <CollapsiblePanel ClassValue="@PanelClass"
-                                  StyleValue="@PanelStyle">
-                    <div class="p-4 text-sm text-gray-700">
-                        This collapsible is controlled externally. Both the external button and the trigger can toggle it.
+                <CollapsiblePanel ClassValue="@PanelClass">
+                    <div class="px-4 pb-4 text-sm leading-relaxed text-gray-600">
+                        Of course! Base UI is free and open source. Use it in personal projects, commercial apps, or anywhere you need solid accessible components.
                     </div>
                 </CollapsiblePanel>
             </CollapsibleRoot>
@@ -73,15 +70,14 @@
     <DemoSection Title="Disabled"
                  Description="A disabled collapsible that cannot be toggled."
                  CodeSnippet="@DisabledCodeSnippet">
-        <CollapsibleRoot Disabled="true" ClassValue="@(_ => "w-80")">
-            <CollapsibleTrigger ClassValue="@(_ => "flex w-full cursor-not-allowed items-center justify-between rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 text-left text-sm font-medium text-gray-400")">
-                <span>Disabled Collapsible</span>
-                <ChevronIcon />
+        <CollapsibleRoot Disabled="true" ClassValue="@RootClass">
+            <CollapsibleTrigger ClassValue="@DisabledTriggerClass">
+                <span>This section is locked</span>
+                <ChevronIcon class="size-4 text-gray-300" />
             </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@PanelClass"
-                              StyleValue="@PanelStyle">
-                <div class="p-4 text-sm text-gray-700">
-                    This content cannot be revealed because the collapsible is disabled.
+            <CollapsiblePanel ClassValue="@PanelClass">
+                <div class="px-4 pb-4 text-sm text-gray-400">
+                    This content is not accessible.
                 </div>
             </CollapsiblePanel>
         </CollapsibleRoot>
@@ -90,48 +86,16 @@
     <DemoSection Title="Keep Mounted"
                  Description="Panel stays in DOM when closed (inspect elements to verify)."
                  CodeSnippet="@KeepMountedCodeSnippet">
-        <CollapsibleRoot ClassValue="@(_ => "flex min-h-36 w-56 flex-col justify-center text-gray-900")">
-            <CollapsibleTrigger ClassValue="@(_ => "group flex items-center gap-2 rounded-sm bg-gray-100 px-2 py-1 text-sm font-medium hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800 active:bg-gray-200")">
-                <ChevronIcon class="size-3 transition-all ease-out group-data-[panel-open]:rotate-90" />
-                Recovery keys
-            </CollapsibleTrigger>
-            <CollapsiblePanel KeepMounted ClassValue="@(_ => "flex [&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] flex-col justify-end overflow-hidden text-sm transition-all ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 duration-150")">
-                <div class="mt-1 flex cursor-text flex-col gap-2 rounded-sm bg-gray-100 py-2 pl-7">
-                    <div>alien-bean-pasta</div>
-                    <div>wild-irish-burrito</div>
-                    <div>horse-battery-staple</div>
-                </div>
-            </CollapsiblePanel>
-        </CollapsibleRoot>
-        <CollapsibleRoot @bind-Open="open" ClassValue="@(_ => "flex min-h-36 w-56 flex-col justify-center text-gray-900")">
-            <CollapsibleTrigger ClassValue="@(_ => "group flex items-center gap-2 rounded-sm bg-gray-100 px-2 py-1 text-sm font-medium hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800 active:bg-gray-200")">
-                <ChevronIcon class="size-3 transition-all ease-out group-data-[panel-open]:rotate-90" />
-                Recovery keys
-            </CollapsibleTrigger>
-            <CollapsiblePanel KeepMounted ClassValue="@(_ => "flex [&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] flex-col justify-end overflow-hidden text-sm transition-all ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 duration-150")">
-                <div class="mt-1 flex cursor-text flex-col gap-2 rounded-sm bg-gray-100 py-2 pl-7">
-                    <div>alien-bean-pasta</div>
-                    <div>wild-irish-burrito</div>
-                    <div>horse-battery-staple</div>
-                </div>
-            </CollapsiblePanel>
-        </CollapsibleRoot>
-    </DemoSection>
-
-    <DemoSection Title="Custom Panel ID"
-                 Description="Panel with a custom ID referenced by aria-controls."
-                 CodeSnippet="@CustomIdCodeSnippet">
-        <CollapsibleRoot DefaultOpen="true" ClassValue="@(_ => "w-80")">
+        <CollapsibleRoot ClassValue="@RootClass">
             <CollapsibleTrigger ClassValue="@TriggerClass">
-                <span>Custom ID Panel</span>
-                <ChevronIcon />
+                <span>Recovery keys</span>
+                <ChevronIcon class="size-4 text-gray-500 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
             </CollapsibleTrigger>
-            <CollapsiblePanel id="my-custom-panel-id"
-                              ClassValue="@PanelClass"
-                              StyleValue="@PanelStyle">
-                <div class="p-4 text-sm text-gray-700">
-                    <p>This panel has <code class="rounded bg-gray-100 px-1">id="my-custom-panel-id"</code></p>
-                    <p class="mt-1 text-xs text-gray-500">The trigger's aria-controls references this ID.</p>
+            <CollapsiblePanel KeepMounted ClassValue="@PanelClass">
+                <div class="flex flex-col gap-1 px-4 pb-4">
+                    <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700">alien-bean-pasta</code>
+                    <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700">wild-irish-burrito</code>
+                    <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700">horse-battery-staple</code>
                 </div>
             </CollapsiblePanel>
         </CollapsibleRoot>
@@ -141,102 +105,59 @@
                  Description="Track open/close events with OpenChanged."
                  CodeSnippet="@EventCallbackCodeSnippet">
         <div class="flex flex-col gap-4">
-            <CollapsibleRoot OpenChanged="@HandleOpenChange" ClassValue="@(_ => "w-80")">
+            <CollapsibleRoot OpenChanged="@HandleOpenChange" ClassValue="@RootClass">
                 <CollapsibleTrigger ClassValue="@TriggerClass">
-                    <span>Event Tracking</span>
-                    <ChevronIcon />
+                    <span>Toggle to fire events</span>
+                    <ChevronIcon class="size-4 text-gray-500 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
                 </CollapsibleTrigger>
-                <CollapsiblePanel ClassValue="@PanelClass"
-                                  StyleValue="@PanelStyle">
-                    <div class="p-4 text-sm text-gray-700">
-                        Toggle this panel to see event details below.
+                <CollapsiblePanel ClassValue="@PanelClass">
+                    <div class="px-4 pb-4 text-sm leading-relaxed text-gray-600">
+                        Each toggle fires the OpenChanged callback with the new state.
                     </div>
                 </CollapsiblePanel>
             </CollapsibleRoot>
-            <div class="rounded border border-gray-200 bg-gray-50 p-3 font-mono text-xs">
-                <p><strong>Last Event:</strong></p>
-                <p class="mt-1">Open: @lastEventOpen</p>
-                <p>Time: @lastEventTime</p>
+            <div class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                <div class="border-b border-gray-200 bg-white px-3 py-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                    Event Log
+                </div>
+                <div class="space-y-1 p-3 font-mono text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Open:</span>
+                        <span class="font-medium text-gray-900">@lastEventOpen</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">Time:</span>
+                        <span class="font-medium text-gray-900">@lastEventTime</span>
+                    </div>
+                </div>
             </div>
         </div>
-    </DemoSection>
-
-    <DemoSection Title="CSS Transition (Height)"
-                 Description="Using CSS transitions with height and CSS variables."
-                 CodeSnippet="@CssTransitionCodeSnippet">
-        <CollapsibleRoot ClassValue="@(_ => "w-80")">
-            <CollapsibleTrigger ClassValue="@TriggerClass">
-                <span>CSS Transition</span>
-                <ChevronIcon />
-            </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@(_ => "overflow-hidden rounded-b-lg border border-t-0 border-gray-200 bg-white transition-[height] duration-300 ease-out")"
-                              StyleValue="@(s => $"height: {(s.Open ? "var(--collapsible-panel-height)" : "0px")}")">
-                <div class="p-4 text-sm text-gray-700">
-                    This panel uses CSS transitions with the height property and --collapsible-panel-height CSS variable.
-                </div>
-            </CollapsiblePanel>
-        </CollapsibleRoot>
-    </DemoSection>
-
-    <DemoSection Title="CSS Animation (Keyframes)"
-                 Description="Using CSS keyframe animations with grid-template-rows for smooth animation."
-                 CodeSnippet="@CssAnimationCodeSnippet">
-        <CollapsibleRoot ClassValue="@(_ => "flex min-h-36 w-56 flex-col justify-center text-gray-900")">
-            <CollapsibleTrigger ClassValue="@(_ => "group flex items-center gap-2 rounded-sm bg-gray-100 px-2 py-1 text-sm font-medium hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800 active:bg-gray-200")">
-                <ChevronIcon class="size-3 transition-all ease-out group-data-[panel-open]:rotate-90" />
-                Recovery keys
-            </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@(_ => "flex [&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] flex-col justify-end overflow-hidden text-sm transition-all ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 duration-150")">
-                <div class="mt-1 flex cursor-text flex-col gap-2 rounded-sm bg-gray-100 py-2 pl-7">
-                    <div>alien-bean-pasta</div>
-                    <div>wild-irish-burrito</div>
-                    <div>horse-battery-staple</div>
-                </div>
-            </CollapsiblePanel>
-        </CollapsibleRoot>
-        <CollapsibleRoot @bind-Open="open" ClassValue="@(_ => "flex min-h-36 w-56 flex-col justify-center text-gray-900")">
-            <CollapsibleTrigger ClassValue="@(_ => "group flex items-center gap-2 rounded-sm bg-gray-100 px-2 py-1 text-sm font-medium hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800 active:bg-gray-200")">
-                <ChevronIcon class="size-3 transition-all ease-out group-data-[panel-open]:rotate-90" />
-                Recovery keys
-            </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@(_ => "flex [&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] flex-col justify-end overflow-hidden text-sm transition-all ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 duration-150")">
-                <div class="mt-1 flex cursor-text flex-col gap-2 rounded-sm bg-gray-100 py-2 pl-7">
-                    <div>alien-bean-pasta</div>
-                    <div>wild-irish-burrito</div>
-                    <div>horse-battery-staple</div>
-                </div>
-            </CollapsiblePanel>
-        </CollapsibleRoot>
     </DemoSection>
 
     <DemoSection Title="Nested Collapsibles"
                  Description="Collapsibles can be nested within each other."
                  CodeSnippet="@NestedCodeSnippet">
-        <CollapsibleRoot DefaultOpen ClassValue="@(_ => "flex min-h-36 w-56 flex-col justify-center text-gray-900")">
-            <CollapsibleTrigger ClassValue="@(_ => "group flex items-center gap-2 rounded-sm bg-gray-100 px-2 py-1 text-sm font-medium hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800 active:bg-gray-200")">
-                <ChevronIcon class="size-3 transition-all ease-out group-data-[panel-open]:rotate-90" />
-                Recovery keys
+        <CollapsibleRoot DefaultOpen ClassValue="@RootClass">
+            <CollapsibleTrigger ClassValue="@TriggerClass">
+                <span>Project Settings</span>
+                <ChevronIcon class="size-4 text-gray-500 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
             </CollapsibleTrigger>
-            <CollapsiblePanel ClassValue="@(_ => "flex [&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] flex-col justify-end overflow-hidden text-sm transition-all ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 duration-150")">
-                <div class="mt-1 flex cursor-text flex-col gap-2 rounded-sm bg-gray-100 py-2 pl-7">
-                    <div>alien-bean-pasta</div>
-                    <div>wild-irish-burrito</div>
-                    <div>horse-battery-staple</div>
-                    <div>
-                        <CollapsibleRoot ClassValue="@(_ => "flex min-h-36 w-56 flex-col justify-center text-gray-900")">
-                            <CollapsibleTrigger ClassValue="@(_ => "group flex items-center gap-2 rounded-sm bg-gray-100 px-2 py-1 text-sm font-medium hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-800 active:bg-gray-200")">
-                                <ChevronIcon class="size-3 transition-all ease-out group-data-[panel-open]:rotate-90" />
-                                Recovery keys
-                            </CollapsibleTrigger>
-                            <CollapsiblePanel ClassValue="@(_ => "flex [&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] flex-col justify-end overflow-hidden text-sm transition-all ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 duration-150")">
-                                <div class="mt-1 flex cursor-text flex-col gap-2 rounded-sm bg-gray-100 py-2 pl-7">
-                                    <div>alien-bean-pasta</div>
-                                    <div>wild-irish-burrito</div>
-                                    <div>horse-battery-staple</div>
-                                </div>
-                            </CollapsiblePanel>
-                        </CollapsibleRoot>
-                    </div>
+            <CollapsiblePanel ClassValue="@PanelClass">
+                <div class="flex flex-col gap-3 px-4 pb-4">
+                    <div class="text-sm text-gray-600">Configure your project preferences below.</div>
+                    <CollapsibleRoot ClassValue="@NestedRootClass">
+                        <CollapsibleTrigger ClassValue="@NestedTriggerClass">
+                            <span>Advanced Options</span>
+                            <ChevronIcon class="size-3.5 text-gray-400 transition-transform duration-200 ease-out group-data-[panel-open]:rotate-90" />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel ClassValue="@NestedPanelClass">
+                            <div class="space-y-2 px-3 pb-3 text-xs text-gray-500">
+                                <div>Enable experimental features</div>
+                                <div>Configure build pipeline</div>
+                                <div>Set deployment targets</div>
+                            </div>
+                        </CollapsiblePanel>
+                    </CollapsibleRoot>
                 </div>
             </CollapsiblePanel>
         </CollapsibleRoot>
@@ -245,7 +166,6 @@
 </ComponentShowcase>
 
 @code {
-    private bool open;
     private bool controlledOpen;
     private string lastEventOpen = "-";
     private string lastEventTime = "-";
@@ -259,26 +179,104 @@
         lastEventTime = DateTime.Now.ToString("HH:mm:ss.fff");
     }
 
-    private Func<CollapsibleRootState, string> TriggerClass => s =>
-        $"flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-sm font-medium text-gray-900 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 {(s.Open ? "rounded-b-none border-b-0" : "")}";
+    private Func<CollapsibleRootState, string> RootClass => _ =>
+        "w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm";
 
-    private Func<CollapsibleRootState, string> AnimationTriggerClass => s =>
-        $"flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-sm font-medium text-gray-900 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 {(s.Open ? "rounded-b-none border-b-0" : "")}";
+    private Func<CollapsibleRootState, string> TriggerClass => _ =>
+        "group flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500";
+
+    private Func<CollapsibleRootState, string> DisabledTriggerClass => _ =>
+        "group flex w-full cursor-not-allowed items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-400";
 
     private Func<CollapsiblePanelState, string> PanelClass => _ =>
-        "overflow-hidden rounded-b-lg border border-t-0 border-gray-200 bg-white transition-[height] duration-200 ease-out";
+        "[&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] overflow-hidden border-t border-gray-100 bg-gray-50/50 transition-all duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0";
 
-    private Func<CollapsiblePanelState, string> PanelStyle => s =>
-        $"height: {(s.Open ? "var(--collapsible-panel-height)" : "0px")}";
+    private Func<CollapsibleRootState, string> NestedRootClass => _ =>
+        "overflow-hidden rounded-md border border-gray-200 bg-white";
 
-    private const string BasicCodeSnippet = "";
-    private const string DefaultOpenCodeSnippet = "";
-    private const string ControlledCodeSnippet = "";
-    private const string DisabledCodeSnippet = "";
-    private const string KeepMountedCodeSnippet = "";
-    private const string CustomIdCodeSnippet = "";
-    private const string EventCallbackCodeSnippet = "";
-    private const string CssTransitionCodeSnippet = "";
-    private const string CssAnimationCodeSnippet = "";
-    private const string NestedCodeSnippet = "";
+    private Func<CollapsibleRootState, string> NestedTriggerClass => _ =>
+        "group flex w-full items-center justify-between px-3 py-2 text-left text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500";
+
+    private Func<CollapsiblePanelState, string> NestedPanelClass => _ =>
+        "[&[hidden]:not([hidden='until-found'])]:hidden h-[var(--collapsible-panel-height)] overflow-hidden border-t border-gray-100 bg-gray-50 transition-all duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0";
+
+    private const string BasicCodeSnippet = @"<CollapsibleRoot>
+    <CollapsibleTrigger>
+        <span>What is Base UI?</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+        <div>Panel content here...</div>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
+
+    private const string DefaultOpenCodeSnippet = @"<CollapsibleRoot DefaultOpen=""true"">
+    <CollapsibleTrigger>
+        <span>How do I get started?</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+        <div>Content...</div>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
+
+    private const string ControlledCodeSnippet = @"<CollapsibleRoot Open=""@isOpen"" OpenChanged=""@(e => isOpen = e)"">
+    <CollapsibleTrigger>
+        <span>Can I use it for my project?</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+        <div>Content...</div>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
+
+    private const string DisabledCodeSnippet = @"<CollapsibleRoot Disabled=""true"">
+    <CollapsibleTrigger>
+        <span>This section is locked</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+        <div>Cannot access</div>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
+
+    private const string KeepMountedCodeSnippet = @"<CollapsibleRoot>
+    <CollapsibleTrigger>
+        <span>Recovery keys</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel KeepMounted>
+        <code>alien-bean-pasta</code>
+        <code>wild-irish-burrito</code>
+        <code>horse-battery-staple</code>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
+
+    private const string EventCallbackCodeSnippet = @"<CollapsibleRoot OpenChanged=""@HandleOpenChange"">
+    <CollapsibleTrigger>
+        <span>Toggle to fire events</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+        <div>Content...</div>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
+
+    private const string NestedCodeSnippet = @"<CollapsibleRoot DefaultOpen>
+    <CollapsibleTrigger>
+        <span>Project Settings</span>
+        <ChevronIcon />
+    </CollapsibleTrigger>
+    <CollapsiblePanel>
+        <CollapsibleRoot>
+            <CollapsibleTrigger>
+                <span>Advanced Options</span>
+                <ChevronIcon />
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+                <div>Nested content...</div>
+            </CollapsiblePanel>
+        </CollapsibleRoot>
+    </CollapsiblePanel>
+</CollapsibleRoot>";
 }

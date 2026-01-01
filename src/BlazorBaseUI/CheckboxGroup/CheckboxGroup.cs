@@ -105,7 +105,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
         builder.CloseComponent();
     }
 
-    public void OnStateChanged()
+    public void NotifyStateChanged()
     {
         _ = InvokeAsync(StateHasChanged);
     }

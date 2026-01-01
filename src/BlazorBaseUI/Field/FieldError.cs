@@ -112,7 +112,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         builder.CloseElement();
     }
 
-    void IFieldStateSubscriber.OnStateChanged()
+    void IFieldStateSubscriber.NotifyStateChanged()
     {
         _ = InvokeAsync(StateHasChanged);
     }

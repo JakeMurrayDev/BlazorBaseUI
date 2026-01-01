@@ -4,7 +4,7 @@ namespace BlazorBaseUI.Field;
 
 public interface IFieldStateSubscriber
 {
-    void OnStateChanged();
+    void NotifyStateChanged();
 }
 
 public interface IFieldRootContext

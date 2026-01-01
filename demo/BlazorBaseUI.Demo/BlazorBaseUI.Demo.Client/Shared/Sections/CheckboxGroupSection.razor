@@ -8,320 +8,263 @@
                    Description="A container that groups multiple checkboxes and manages their collective state."
                    BaseRoute="/checkbox-group"
                    IsWasmMode="IsWasmMode">
-    <DemoSection Title="Basic Usage"
-                 Description="A simple checkbox group showcase.">
-        <div class="min-h-screen space-y-12 bg-gray-50 p-8">
-            <header class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900">CheckboxGroup Component Demo</h1>
-                <p class="mt-2 text-gray-600">
-                    Comprehensive demonstration of the CheckboxGroup component features.
-                    @if (IsWasmMode)
-                    {
-                        <span class="ml-2 rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">WASM Mode</span>
-                    }
-                    else
-                    {
-                        <span class="ml-2 rounded bg-green-100 px-2 py-1 text-xs text-green-800">Server Mode</span>
-                    }
-                </p>
-            </header>
+    <DemoSection Title="Basic Group"
+                 Description="Click to toggle. Uses uncontrolled state with DefaultValue.">
+        <CheckboxGroup DefaultValue="@(["red"])"
+                       ClassValue="@(_ => "space-y-3")">
+            <div class="flex items-center gap-3">
+                <CheckboxRoot Value="red" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        <CheckIcon />
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="text-gray-700">Red</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <CheckboxRoot Value="green" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        <CheckIcon />
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="text-gray-700">Green</span>
+            </div>
+        </CheckboxGroup>
+    </DemoSection>
 
-            @* Section 1: Basic Group *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Basic Group</h2>
-                <p class="mb-4 text-sm text-gray-600">Click to toggle. Uses uncontrolled state with DefaultValue.</p>
-
-                <CheckboxGroup DefaultValue="@(["red"])"
-                               ClassValue="@(_ => "space-y-3")">
-                    <div class="flex items-center gap-3">
-                        <CheckboxRoot Value="red" ClassValue="@(state => CheckboxRootClass(state))">
-                            <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                <CheckIcon />
-                            </CheckboxIndicator>
-                        </CheckboxRoot>
-                        <span class="text-gray-700">Red</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <CheckboxRoot Value="green" ClassValue="@(state => CheckboxRootClass(state))">
-                            <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                <CheckIcon />
-                            </CheckboxIndicator>
-                        </CheckboxRoot>
-                        <span class="text-gray-700">Green</span>
-                    </div>
-                </CheckboxGroup>
-            </section>
-
-            @* Section 2: Controlled Group *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Controlled Group</h2>
-                <p class="mb-4 text-sm text-gray-600">State controlled externally via Value/ValueChanged.</p>
-
-                <div class="flex items-center gap-4">
-                    <CheckboxGroup Value="@controlledGroupValue"
-                                   ValueChanged="@(v => controlledGroupValue = v)"
-                                   ClassValue="@(_ => "space-y-3")">
-                        <div class="flex items-center gap-3">
-                            <CheckboxRoot Value="red" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <span class="text-gray-700">Red</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <CheckboxRoot Value="green" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <span class="text-gray-700">Green</span>
-                        </div>
-                    </CheckboxGroup>
+    <DemoSection Title="Controlled Group"
+                 Description="State controlled externally via Value/ValueChanged.">
+        <div class="flex items-center gap-4">
+            <CheckboxGroup Value="@controlledGroupValue"
+                           ValueChanged="@(v => controlledGroupValue = v)"
+                           ClassValue="@(_ => "space-y-3")">
+                <div class="flex items-center gap-3">
+                    <CheckboxRoot Value="red" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Red</span>
                 </div>
-                <div class="mt-4 text-sm text-gray-600">Selected: @string.Join(", ", controlledGroupValue ?? [])</div>
-            </section>
-
-            @* Section 3: Disabled Group *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Disabled Group</h2>
-                <p class="mb-4 text-sm text-gray-600">All checkboxes disabled via group. Takes precedence over individual disabled props.</p>
-
-                <CheckboxGroup Disabled="true"
-                               DefaultValue="@(["opt1"])"
-                               ClassValue="@(_ => "space-y-3")">
-                    <div class="flex items-center gap-3">
-                        <CheckboxRoot Value="opt1" ClassValue="@(state => CheckboxRootClass(state))">
-                            <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                <CheckIcon />
-                            </CheckboxIndicator>
-                        </CheckboxRoot>
-                        <span class="text-gray-500">Option 1 (checked)</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <CheckboxRoot Value="opt2" Disabled="false" ClassValue="@(state => CheckboxRootClass(state))">
-                            <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                <CheckIcon />
-                            </CheckboxIndicator>
-                        </CheckboxRoot>
-                        <span class="text-gray-500">Option 2 (disabled=false ignored)</span>
-                    </div>
-                </CheckboxGroup>
-            </section>
-
-            @* Section 4: Parent Checkbox (Select All) *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Parent Checkbox (Select All)</h2>
-                <p class="mb-4 text-sm text-gray-600">
-                    Parent checkbox controls all children. Shows indeterminate when partially selected.
-                </p>
-
-                <CheckboxGroup Value="@parentGroupValue"
-                               ValueChanged="@(v => parentGroupValue = v)"
-                               AllValues="@allColors"
-                               ClassValue="@(_ => "space-y-3")">
-                    <div class="flex items-center gap-3 border-b border-gray-200 pb-3">
-                        <CheckboxRoot Parent="true" ClassValue="@(state => CheckboxRootClass(state))">
-                            <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                @if (IsIndeterminate(parentGroupValue, allColors))
-                                {
-                                    <MinusIcon />
-                                }
-                                else
-                                {
-                                    <CheckIcon />
-                                }
-                            </CheckboxIndicator>
-                        </CheckboxRoot>
-                        <span class="font-medium text-gray-800">Select All Colors</span>
-                    </div>
-                    <div class="space-y-3 pl-6">
-                        <div class="flex items-center gap-3">
-                            <CheckboxRoot Value="red" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <span class="text-gray-700">Red</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <CheckboxRoot Value="green" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <span class="text-gray-700">Green</span>
-                        </div>
-                    </div>
-                </CheckboxGroup>
-
-                <div class="mt-4 rounded bg-gray-100 p-3 text-sm">
-                    <strong>Selected:</strong> @string.Join(", ", parentGroupValue ?? [])
+                <div class="flex items-center gap-3">
+                    <CheckboxRoot Value="green" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Green</span>
                 </div>
-            </section>
+            </CheckboxGroup>
+        </div>
+        <div class="mt-4 text-sm text-gray-600">Selected: @string.Join(", ", controlledGroupValue ?? [])</div>
+    </DemoSection>
 
-            @* Section 5: OnValueChange Callback *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">OnValueChange Callback</h2>
-                <p class="mb-4 text-sm text-gray-600">Callback fires when any checkbox in the group changes.</p>
+    <DemoSection Title="Disabled Group"
+                 Description="All checkboxes disabled via group. Takes precedence over individual disabled props.">
+        <CheckboxGroup Disabled="true"
+                       DefaultValue="@(["opt1"])"
+                       ClassValue="@(_ => "space-y-3")">
+            <div class="flex items-center gap-3">
+                <CheckboxRoot Value="opt1" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        <CheckIcon />
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="text-gray-500">Option 1 (checked)</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <CheckboxRoot Value="opt2" Disabled="false" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        <CheckIcon />
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="text-gray-500">Option 2 (disabled=false ignored)</span>
+            </div>
+        </CheckboxGroup>
+    </DemoSection>
 
-                <CheckboxGroup OnValueChange="@HandleValueChange"
+    <DemoSection Title="Parent Checkbox (Select All)"
+                 Description="Parent checkbox controls all children. Shows indeterminate when partially selected.">
+        <CheckboxGroup Value="@parentGroupValue"
+                       ValueChanged="@(v => parentGroupValue = v)"
+                       AllValues="@allColors"
+                       ClassValue="@(_ => "space-y-3")">
+            <div class="flex items-center gap-3 border-b border-gray-200 pb-3">
+                <CheckboxRoot Parent="true" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        @if (IsIndeterminate(parentGroupValue, allColors))
+                        {
+                            <MinusIcon />
+                        }
+                        else
+                        {
+                            <CheckIcon />
+                        }
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="font-medium text-gray-800">Select All Colors</span>
+            </div>
+            <div class="space-y-3 pl-6">
+                <div class="flex items-center gap-3">
+                    <CheckboxRoot Value="red" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Red</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <CheckboxRoot Value="green" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <span class="text-gray-700">Green</span>
+                </div>
+            </div>
+        </CheckboxGroup>
+
+        <div class="mt-4 rounded bg-gray-100 p-3 text-sm">
+            <strong>Selected:</strong> @string.Join(", ", parentGroupValue ?? [])
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="OnValueChange Callback"
+                 Description="Callback fires when any checkbox in the group changes.">
+        <CheckboxGroup OnValueChange="@HandleValueChange"
+                       ClassValue="@(_ => "space-y-3")">
+            <div class="flex items-center gap-3">
+                <CheckboxRoot Value="one" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        <CheckIcon />
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="text-gray-700">Option 1</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <CheckboxRoot Value="two" ClassValue="@(state => CheckboxRootClass(state))">
+                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                        <CheckIcon />
+                    </CheckboxIndicator>
+                </CheckboxRoot>
+                <span class="text-gray-700">Option 2</span>
+            </div>
+        </CheckboxGroup>
+
+        <div class="mt-4 text-sm text-gray-600">Change count: @groupChangeCount</div>
+    </DemoSection>
+
+    <DemoSection Title="Field Integration"
+                 Description="Field.Item provides LabelableContext for proper label association.">
+        <FieldRoot Name="fruits">
+            <FieldLabel ClassValue="@(_ => "block text-gray-800 font-medium mb-2")">
+                Select your favorite fruits
+            </FieldLabel>
+            <CheckboxGroup DefaultValue="@(["apple"])"
+                           ClassValue="@(_ => "space-y-3")">
+                <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
+                    <CheckboxRoot Value="apple" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Apple</FieldLabel>
+                </FieldItem>
+                <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
+                    <CheckboxRoot Value="banana" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Banana</FieldLabel>
+                </FieldItem>
+            </CheckboxGroup>
+        </FieldRoot>
+    </DemoSection>
+
+    <DemoSection Title="Field State Tracking"
+                 Description="Tracks touched, dirty, filled, focused states for the group.">
+        <FieldRoot Name="tracking">
+            <CheckboxGroup DefaultValue="@(["A"])" ClassValue="@(_ => "space-y-3")">
+                <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
+                    <CheckboxRoot Value="A" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Option A</FieldLabel>
+                </FieldItem>
+                <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
+                    <CheckboxRoot Value="B" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Option B</FieldLabel>
+                </FieldItem>
+            </CheckboxGroup>
+            <FieldStateDisplay Context="fieldState">
+                <div class="mt-3 space-y-1 text-xs">
+                    <div class="flex gap-4">
+                        <StateIndicator Label="Touched" IsActive="@fieldState.Touched" />
+                        <StateIndicator Label="Dirty" IsActive="@fieldState.Dirty" />
+                        <StateIndicator Label="Filled" IsActive="@fieldState.Filled" />
+                    </div>
+                </div>
+            </FieldStateDisplay>
+        </FieldRoot>
+    </DemoSection>
+
+    <DemoSection Title="Validation"
+                 Description="Supports required validation and custom validate function.">
+        <FieldRoot Name="features"
+                   ValidationMode="ValidationMode.OnChange"
+                   Validate="@ValidateNoExperimental">
+            <CheckboxGroup ClassValue="@(_ => "space-y-3")">
+                <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
+                    <CheckboxRoot Value="stable" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Stable Feature</FieldLabel>
+                </FieldItem>
+                <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
+                    <CheckboxRoot Value="experimental" ClassValue="@(state => CheckboxRootClass(state))">
+                        <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
+                            <CheckIcon />
+                        </CheckboxIndicator>
+                    </CheckboxRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Experimental Feature</FieldLabel>
+                </FieldItem>
+            </CheckboxGroup>
+            <FieldError ClassValue="@(_ => "text-red-600 text-sm mt-2")" />
+        </FieldRoot>
+    </DemoSection>
+
+    <DemoSection Title="External Errors"
+                 Description="Errors can be set externally via Form. Cleared on change.">
+        <Form Model="@(new object())" Errors="@externalGroupErrors">
+            <FieldRoot Name="group">
+                <CheckboxGroup DefaultValue="@(["one"])"
                                ClassValue="@(_ => "space-y-3")">
-                    <div class="flex items-center gap-3">
+                    <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
                         <CheckboxRoot Value="one" ClassValue="@(state => CheckboxRootClass(state))">
                             <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
                                 <CheckIcon />
                             </CheckboxIndicator>
                         </CheckboxRoot>
-                        <span class="text-gray-700">Option 1</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <CheckboxRoot Value="two" ClassValue="@(state => CheckboxRootClass(state))">
-                            <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                <CheckIcon />
-                            </CheckboxIndicator>
-                        </CheckboxRoot>
-                        <span class="text-gray-700">Option 2</span>
-                    </div>
+                        <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">One</FieldLabel>
+                    </FieldItem>
                 </CheckboxGroup>
+                <FieldError ClassValue="@(_ => "text-red-600 text-sm mt-2")" />
+            </FieldRoot>
+        </Form>
 
-                <div class="mt-4 text-sm text-gray-600">Change count: @groupChangeCount</div>
-            </section>
-
-            @* Section 6: Field Integration *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Field Integration</h2>
-                <p class="mb-4 text-sm text-gray-600">
-                    Field.Item provides LabelableContext for proper label association.
-                </p>
-
-                <FieldRoot Name="fruits">
-                    <FieldLabel ClassValue="@(_ => "block text-gray-800 font-medium mb-2")">
-                        Select your favorite fruits
-                    </FieldLabel>
-                    <CheckboxGroup DefaultValue="@(["apple"])"
-                                   ClassValue="@(_ => "space-y-3")">
-                        <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                            <CheckboxRoot Value="apple" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Apple</FieldLabel>
-                        </FieldItem>
-                        <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                            <CheckboxRoot Value="banana" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Banana</FieldLabel>
-                        </FieldItem>
-                    </CheckboxGroup>
-                </FieldRoot>
-            </section>
-
-            @* Section 7: Field State Tracking *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Field State Tracking</h2>
-                <p class="mb-4 text-sm text-gray-600">
-                    Tracks touched, dirty, filled, focused states for the group.
-                </p>
-
-                <FieldRoot Name="tracking">
-                    <CheckboxGroup DefaultValue="@(["A"])" ClassValue="@(_ => "space-y-3")">
-                        <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                            <CheckboxRoot Value="A" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Option A</FieldLabel>
-                        </FieldItem>
-                        <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                            <CheckboxRoot Value="B" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Option B</FieldLabel>
-                        </FieldItem>
-                    </CheckboxGroup>
-                    <FieldStateDisplay Context="fieldState">
-                        <div class="mt-3 space-y-1 text-xs">
-                            <div class="flex gap-4">
-                                <StateIndicator Label="Touched" IsActive="@fieldState.Touched" />
-                                <StateIndicator Label="Dirty" IsActive="@fieldState.Dirty" />
-                                <StateIndicator Label="Filled" IsActive="@fieldState.Filled" />
-                            </div>
-                        </div>
-                    </FieldStateDisplay>
-                </FieldRoot>
-            </section>
-
-            @* Section 8: Validation *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">Validation</h2>
-                <p class="mb-4 text-sm text-gray-600">
-                    Supports required validation and custom validate function.
-                </p>
-
-                <FieldRoot Name="features"
-                           ValidationMode="ValidationMode.OnChange"
-                           Validate="@ValidateNoExperimental">
-                    <CheckboxGroup ClassValue="@(_ => "space-y-3")">
-                        <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                            <CheckboxRoot Value="stable" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Stable Feature</FieldLabel>
-                        </FieldItem>
-                        <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                            <CheckboxRoot Value="experimental" ClassValue="@(state => CheckboxRootClass(state))">
-                                <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                    <CheckIcon />
-                                </CheckboxIndicator>
-                            </CheckboxRoot>
-                            <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">Experimental Feature</FieldLabel>
-                        </FieldItem>
-                    </CheckboxGroup>
-                    <FieldError ClassValue="@(_ => "text-red-600 text-sm mt-2")" />
-                </FieldRoot>
-            </section>
-
-            @* Section 9: External Errors *@
-            <section class="rounded-lg bg-white p-6 shadow">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800">External Errors</h2>
-                <p class="mb-4 text-sm text-gray-600">
-                    Errors can be set externally via Form. Cleared on change.
-                </p>
-
-                <Form Model="@(new object())" Errors="@externalGroupErrors">
-                    <FieldRoot Name="group">
-                        <CheckboxGroup DefaultValue="@(["one"])"
-                                       ClassValue="@(_ => "space-y-3")">
-                            <FieldItem ClassValue="@(_ => "flex items-center gap-3")">
-                                <CheckboxRoot Value="one" ClassValue="@(state => CheckboxRootClass(state))">
-                                    <CheckboxIndicator ClassValue="@(state => CheckboxIndicatorClass(state))">
-                                        <CheckIcon />
-                                    </CheckboxIndicator>
-                                </CheckboxRoot>
-                                <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">One</FieldLabel>
-                            </FieldItem>
-                        </CheckboxGroup>
-                        <FieldError ClassValue="@(_ => "text-red-600 text-sm mt-2")" />
-                    </FieldRoot>
-                </Form>
-
-                <button type="button"
-                        class="mt-3 rounded bg-red-600 px-3 py-1 text-sm text-white transition hover:bg-red-700"
-                        @onclick="@SetExternalGroupError">
-                    Set External Error
-                </button>
-            </section>
-        </div>
+        <button type="button"
+                class="mt-3 rounded bg-red-600 px-3 py-1 text-sm text-white transition hover:bg-red-700"
+                @onclick="@SetExternalGroupError">
+            Set External Error
+        </button>
     </DemoSection>
 </ComponentShowcase>
 
