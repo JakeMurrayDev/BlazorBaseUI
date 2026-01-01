@@ -22,6 +22,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private bool previousDisabled;
     private bool previousReadOnly;
     private string? defaultId;
+    private string resolvedControlId = null!;
     private string switchId = null!;
     private string inputId = null!;
     private ElementReference element;
@@ -95,7 +96,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private string? ResolvedName => Name ?? FieldContext?.Name;
 
-    private string? ControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => LabelableContext?.LabelId ?? (defaultId ??= Guid.NewGuid().ToIdString()));
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -115,7 +116,9 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     protected override void OnInitialized()
     {
         switchId = Guid.NewGuid().ToIdString();
-        inputId = ControlId ?? Guid.NewGuid().ToIdString();
+        resolvedControlId = ResolvedControlId;
+        LabelableContext?.SetControlId(resolvedControlId);
+        inputId = resolvedControlId;
 
         if (!IsControlled)
         {
@@ -135,6 +138,13 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     protected override void OnParametersSet()
     {
+        var newResolvedId = ResolvedControlId;
+        if (newResolvedId != resolvedControlId)
+        {
+            resolvedControlId = newResolvedId;
+            LabelableContext?.SetControlId(resolvedControlId);
+        }
+
         if (hasRendered)
         {
             if (CurrentChecked != previousChecked)
@@ -180,6 +190,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     public async ValueTask DisposeAsync()
     {
+        LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
         if (moduleTask.IsValueCreated && element.Id is not null)
@@ -196,7 +207,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         }
     }
 
-    public void OnStateChanged()
+    public void NotifyStateChanged()
     {
         _ = InvokeAsync(StateHasChanged);
     }
