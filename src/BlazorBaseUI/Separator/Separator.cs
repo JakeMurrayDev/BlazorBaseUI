@@ -83,8 +83,8 @@ public sealed class Separator : ComponentBase
         }
 
         attributes["role"] = "separator";
-        attributes["aria-orientation"] = Orientation.ToDataAttributeString();
-        attributes["data-orientation"] = Orientation.ToDataAttributeString();
+        attributes["aria-orientation"] = Orientation.ToDataAttributeString()!;
+        attributes["data-orientation"] = Orientation.ToDataAttributeString()!;
 
         return attributes;
     }
