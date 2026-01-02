@@ -37,6 +37,10 @@ public sealed class FieldValidation : IDisposable
 
         if (revalidateOnly && currentData.State.Valid != false)
         {
+            if (!ReferenceEquals(currentData.Value, value))
+            {
+                setValidityData(currentData with { Value = value });
+            }
             return;
         }
 
