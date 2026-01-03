@@ -24,14 +24,18 @@ public interface IRadioGroupContext<TValue> : IRadioGroupContext
     RadioRegistration<TValue>? GetFirstEnabledRadio();
 }
 
-public sealed record RadioRegistration<TValue>(
+public sealed class RadioRegistration<TValue>(
     object Radio,
     ElementReference Element,
     TValue Value,
     Func<bool> IsDisabled,
     Func<ValueTask> Focus)
 {
+    public object Radio { get; } = Radio;
     public ElementReference Element { get; set; } = Element;
+    public TValue Value { get; } = Value;
+    public Func<bool> IsDisabled { get; } = IsDisabled;
+    public Func<ValueTask> Focus { get; } = Focus;
 }
 
 public sealed record RadioGroupContext<TValue>(
@@ -43,7 +47,9 @@ public sealed record RadioGroupContext<TValue>(
     Func<TValue?> GetCheckedValue,
     Func<TValue, Task> SetCheckedValue) : IRadioGroupContext<TValue>
 {
-    private readonly List<RadioRegistration<TValue>> registeredRadios = [];
+    private readonly Dictionary<object, RadioRegistration<TValue>> radiosByInstance = [];
+    private readonly List<object> registrationOrder = [];
+    private RadioRegistration<TValue>[]? orderedRadiosCache;
 
     public TValue? CheckedValue => GetCheckedValue();
 
@@ -54,53 +60,76 @@ public sealed record RadioGroupContext<TValue>(
 
     public void RegisterRadio(object radio, ElementReference element, TValue value, Func<bool> isDisabled, Func<ValueTask> focus)
     {
-        var existing = registeredRadios.FindIndex(r => ReferenceEquals(r.Radio, radio));
-        if (existing >= 0)
+        if (radiosByInstance.TryGetValue(radio, out var existing))
         {
-            registeredRadios[existing].Element = element;
+            existing.Element = element;
         }
         else
         {
-            registeredRadios.Add(new RadioRegistration<TValue>(radio, element, value, isDisabled, focus));
+            radiosByInstance[radio] = new RadioRegistration<TValue>(radio, element, value, isDisabled, focus);
+            registrationOrder.Add(radio);
         }
+        orderedRadiosCache = null;
     }
 
     public void UnregisterRadio(object radio)
     {
-        registeredRadios.RemoveAll(r => ReferenceEquals(r.Radio, radio));
+        if (radiosByInstance.Remove(radio))
+        {
+            registrationOrder.Remove(radio);
+            orderedRadiosCache = null;
+        }
     }
 
     public bool IsFirstEnabledRadio(object radio)
     {
-        var firstEnabled = registeredRadios.FirstOrDefault(r => !r.IsDisabled() && !Disabled);
-        return firstEnabled is not null && ReferenceEquals(firstEnabled.Radio, radio);
+        var ordered = GetOrderedRadios();
+        for (var i = 0; i < ordered.Length; i++)
+        {
+            var r = ordered[i];
+            if (!r.IsDisabled() && !Disabled)
+            {
+                return ReferenceEquals(r.Radio, radio);
+            }
+        }
+        return false;
     }
 
     public RadioRegistration<TValue>? GetFirstEnabledRadio()
     {
-        return registeredRadios.FirstOrDefault(r => !r.IsDisabled() && !Disabled);
+        var ordered = GetOrderedRadios();
+        for (var i = 0; i < ordered.Length; i++)
+        {
+            var r = ordered[i];
+            if (!r.IsDisabled() && !Disabled)
+            {
+                return r;
+            }
+        }
+        return null;
     }
 
     public async Task<bool> NavigateToPreviousAsync(object currentRadio)
     {
-        var currentIndex = registeredRadios.FindIndex(r => ReferenceEquals(r.Radio, currentRadio));
+        var ordered = GetOrderedRadios();
+        var currentIndex = FindRadioIndex(ordered, currentRadio);
         if (currentIndex < 0)
             return false;
 
         for (var i = currentIndex - 1; i >= 0; i--)
         {
-            if (!registeredRadios[i].IsDisabled() && !Disabled)
+            if (!ordered[i].IsDisabled() && !Disabled)
             {
-                await FocusAndSelectRadioAsync(i);
+                await FocusAndSelectRadioAsync(ordered[i]);
                 return true;
             }
         }
 
-        for (var i = registeredRadios.Count - 1; i > currentIndex; i--)
+        for (var i = ordered.Length - 1; i > currentIndex; i--)
         {
-            if (!registeredRadios[i].IsDisabled() && !Disabled)
+            if (!ordered[i].IsDisabled() && !Disabled)
             {
-                await FocusAndSelectRadioAsync(i);
+                await FocusAndSelectRadioAsync(ordered[i]);
                 return true;
             }
         }
@@ -110,24 +139,25 @@ public sealed record RadioGroupContext<TValue>(
 
     public async Task<bool> NavigateToNextAsync(object currentRadio)
     {
-        var currentIndex = registeredRadios.FindIndex(r => ReferenceEquals(r.Radio, currentRadio));
+        var ordered = GetOrderedRadios();
+        var currentIndex = FindRadioIndex(ordered, currentRadio);
         if (currentIndex < 0)
             return false;
 
-        for (var i = currentIndex + 1; i < registeredRadios.Count; i++)
+        for (var i = currentIndex + 1; i < ordered.Length; i++)
         {
-            if (!registeredRadios[i].IsDisabled() && !Disabled)
+            if (!ordered[i].IsDisabled() && !Disabled)
             {
-                await FocusAndSelectRadioAsync(i);
+                await FocusAndSelectRadioAsync(ordered[i]);
                 return true;
             }
         }
 
         for (var i = 0; i < currentIndex; i++)
         {
-            if (!registeredRadios[i].IsDisabled() && !Disabled)
+            if (!ordered[i].IsDisabled() && !Disabled)
             {
-                await FocusAndSelectRadioAsync(i);
+                await FocusAndSelectRadioAsync(ordered[i]);
                 return true;
             }
         }
@@ -135,9 +165,32 @@ public sealed record RadioGroupContext<TValue>(
         return false;
     }
 
-    private async Task FocusAndSelectRadioAsync(int index)
+    private RadioRegistration<TValue>[] GetOrderedRadios()
     {
-        var registration = registeredRadios[index];
+        if (orderedRadiosCache is not null)
+            return orderedRadiosCache;
+
+        var result = new RadioRegistration<TValue>[registrationOrder.Count];
+        for (var i = 0; i < registrationOrder.Count; i++)
+        {
+            result[i] = radiosByInstance[registrationOrder[i]];
+        }
+        orderedRadiosCache = result;
+        return result;
+    }
+
+    private static int FindRadioIndex(RadioRegistration<TValue>[] ordered, object radio)
+    {
+        for (var i = 0; i < ordered.Length; i++)
+        {
+            if (ReferenceEquals(ordered[i].Radio, radio))
+                return i;
+        }
+        return -1;
+    }
+
+    private async Task FocusAndSelectRadioAsync(RadioRegistration<TValue> registration)
+    {
         await registration.Focus();
         await SetCheckedValue(registration.Value);
     }

@@ -24,6 +24,21 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     private TValue? previousValue;
     private RadioGroupContext<TValue>? groupContext;
 
+    private RadioGroupState? cachedState;
+    private bool stateDirty = true;
+
+    private bool contextDisabled;
+    private bool contextReadOnly;
+    private bool contextRequired;
+    private string? contextName;
+    private FieldValidation? contextValidation;
+
+    private EventCallback<FocusEventArgs> cachedFocusCallback;
+    private EventCallback<FocusEventArgs> cachedBlurCallback;
+    private EventCallback<KeyboardEventArgs> cachedKeyDownCaptureCallback;
+    private EventCallback<ChangeEventArgs> cachedHiddenInputChangeCallback;
+    private EventCallback<FocusEventArgs> cachedHiddenInputFocusCallback;
+
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -94,7 +109,18 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
-    private RadioGroupState State => RadioGroupState.FromFieldState(FieldState, ResolvedDisabled, ReadOnly, Required);
+    private RadioGroupState State
+    {
+        get
+        {
+            if (stateDirty || cachedState is null)
+            {
+                cachedState = RadioGroupState.FromFieldState(FieldState, ResolvedDisabled, ReadOnly, Required);
+                stateDirty = false;
+            }
+            return cachedState;
+        }
+    }
 
     private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
@@ -112,47 +138,85 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
         var initialValue = CurrentValue;
         FieldContext?.Validation.SetInitialValue(initialValue);
-        
+
         if (FieldContext is not null && initialValue is not null)
         {
             var currentValidityData = FieldContext.ValidityData;
             FieldContext.SetValidityData(currentValidityData with { Value = initialValue });
         }
-        
+
         FieldContext?.SetFilled(initialValue is not null);
         FieldContext?.SubscribeFunc(this);
 
         previousValue = CurrentValue;
 
+        contextDisabled = ResolvedDisabled;
+        contextReadOnly = ReadOnly;
+        contextRequired = Required;
+        contextName = ResolvedName;
+        contextValidation = FieldContext?.Validation;
+
         groupContext = CreateContext();
+
+        cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
+        cachedBlurCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
+        cachedKeyDownCaptureCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture);
+        cachedHiddenInputChangeCallback = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange);
+        cachedHiddenInputFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus);
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
+        var currentDisabled = ResolvedDisabled;
+        var currentReadOnly = ReadOnly;
+        var currentRequired = Required;
+
+        if (currentDisabled != contextDisabled ||
+            currentReadOnly != contextReadOnly ||
+            currentRequired != contextRequired)
+        {
+            stateDirty = true;
+        }
+
         if (!EqualityComparer<TValue>.Default.Equals(CurrentValue, previousValue))
         {
             previousValue = CurrentValue;
-            await HandleValueChangedAsync();
+            _ = HandleValueChangedAsync();
         }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        if (groupContext is not null)
+        var needsContextUpdate = groupContext is null ||
+            contextDisabled != ResolvedDisabled ||
+            contextReadOnly != ReadOnly ||
+            contextRequired != Required ||
+            contextName != ResolvedName ||
+            !ReferenceEquals(contextValidation, FieldContext?.Validation);
+
+        if (needsContextUpdate)
         {
-            groupContext = groupContext with
-            {
-                Disabled = ResolvedDisabled,
-                ReadOnly = ReadOnly,
-                Required = Required,
-                Name = ResolvedName,
-                Validation = FieldContext?.Validation
-            };
+            contextDisabled = ResolvedDisabled;
+            contextReadOnly = ReadOnly;
+            contextRequired = Required;
+            contextName = ResolvedName;
+            contextValidation = FieldContext?.Validation;
+
+            groupContext = groupContext is null
+                ? CreateContext()
+                : groupContext with
+                {
+                    Disabled = contextDisabled,
+                    ReadOnly = contextReadOnly,
+                    Required = contextRequired,
+                    Name = contextName,
+                    Validation = contextValidation
+                };
         }
 
         builder.OpenComponent<CascadingValue<IRadioGroupContext<TValue>>>(0);
         builder.AddComponentParameter(1, "Value", groupContext);
-        builder.AddComponentParameter(2, "IsFixed", false);
+        builder.AddComponentParameter(2, "IsFixed", true);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
             RenderGroup(contextBuilder);
@@ -194,24 +258,20 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     public void NotifyStateChanged()
     {
+        stateDirty = true;
         _ = InvokeAsync(StateHasChanged);
     }
 
     private void RenderGroup(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
+        var state = State;
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
         if (RenderAs is not null)
         {
             builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
+            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
             builder.AddComponentParameter(2, "ChildContent", ChildContent);
             builder.CloseComponent();
             return;
@@ -219,7 +279,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
+        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
         builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
@@ -227,8 +287,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     private void RenderHiddenInput(RenderTreeBuilder builder)
     {
-        // Matches Radix UI's hidden input pattern for form submission
-        // This is a visually hidden native radio input that syncs with the custom radio UI
         var serializedValue = SerializeValue(CurrentValue);
 
         builder.OpenElement(7, "input");
@@ -239,18 +297,16 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         builder.AddAttribute(12, "style",
             "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
-        // Always set name so the field is always submitted
         if (ResolvedName is not null)
             builder.AddAttribute(13, "name", ResolvedName);
 
-        builder.AddAttribute(14, "Value", serializedValue ?? string.Empty);
+        builder.AddAttribute(14, "value", serializedValue ?? string.Empty);
 
-        // checked attribute for native radio behavior
         if (CurrentValue is not null)
             builder.AddAttribute(15, "checked", true);
 
         if (ResolvedDisabled)
-            builder.AddAttribute(16, "Disabled", true);
+            builder.AddAttribute(16, "disabled", true);
 
         if (Required)
             builder.AddAttribute(17, "required", true);
@@ -258,14 +314,13 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         if (ReadOnly)
             builder.AddAttribute(18, "readonly", true);
 
-        builder.AddAttribute(19, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange));
-        builder.AddAttribute(20, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus));
+        builder.AddAttribute(19, "onchange", cachedHiddenInputChangeCallback);
+        builder.AddAttribute(20, "onfocus", cachedHiddenInputFocusCallback);
         builder.CloseElement();
     }
 
-    private async Task HandleHiddenInputChange(ChangeEventArgs e)
+    private void HandleHiddenInputChange(ChangeEventArgs e)
     {
-        // Matches Radix onChange handler behavior
         if (ResolvedDisabled || ReadOnly)
             return;
 
@@ -279,12 +334,10 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
         FieldContext?.SetDirty(isDirty);
         FieldContext?.SetFilled(currentValue is not null);
-        await Task.CompletedTask;
     }
 
     private void HandleHiddenInputFocus(FocusEventArgs e)
     {
-        // Redirect focus to the custom radio element
         _ = FocusFirstRadioAsync();
     }
 
@@ -300,7 +353,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         }
     }
 
-    private Dictionary<string, object> BuildAttributes(RadioGroupState state)
+    private Dictionary<string, object> BuildAttributes(RadioGroupState state, string? resolvedClass, string? resolvedStyle)
     {
         var attributes = new Dictionary<string, object>();
 
@@ -319,7 +372,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
             attributes["aria-required"] = true;
 
         if (ResolvedDisabled)
-            attributes["aria-Disabled"] = true;
+            attributes["aria-disabled"] = true;
 
         if (ReadOnly)
             attributes["aria-readonly"] = true;
@@ -332,12 +385,16 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         if (describedBy is not null)
             attributes["aria-describedby"] = describedBy;
 
-        attributes["onfocus"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        attributes["onblur"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync);
-        attributes["onkeydowncapture"] = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture);
+        attributes["onfocus"] = cachedFocusCallback;
+        attributes["onblur"] = cachedBlurCallback;
+        attributes["onkeydowncapture"] = cachedKeyDownCaptureCallback;
 
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
+        state.WriteDataAttributes(attributes);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+            attributes["class"] = resolvedClass;
+        if (!string.IsNullOrEmpty(resolvedStyle))
+            attributes["style"] = resolvedStyle;
 
         return attributes;
     }
@@ -371,10 +428,9 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         FieldContext?.SetFocused(true);
     }
 
-    private async Task HandleBlurAsync(FocusEventArgs e)
+    private void HandleBlur(FocusEventArgs e)
     {
         _ = HandleBlurInternalAsync();
-        await Task.CompletedTask;
     }
 
     private async Task HandleBlurInternalAsync()
