@@ -57,7 +57,7 @@ export function focus(element) {
         return;
     }
 
-    element.focus();
+    element.focus({ preventScroll: true });
 }
 
 export function blur(element) {
