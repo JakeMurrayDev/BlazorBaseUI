@@ -11,7 +11,6 @@ public sealed class AvatarRoot : ComponentBase
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
     private AvatarRootContext context = null!;
     private AvatarRootState state = null!;
-    private ElementReference element;
 
     [Parameter]
     public string? As { get; set; }
@@ -32,7 +31,7 @@ public sealed class AvatarRoot : ComponentBase
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     protected override void OnInitialized()
     {
@@ -57,18 +56,17 @@ public sealed class AvatarRoot : ComponentBase
                 cascadingBuilder.AddAttribute(7, "style", resolvedStyle);
                 cascadingBuilder.AddMultipleAttributes(8, AdditionalAttributes);
                 cascadingBuilder.AddAttribute(9, "ChildContent", ChildContent);
-                cascadingBuilder.AddComponentReferenceCapture(10, obj => { });
                 cascadingBuilder.CloseComponent();
             }
             else
             {
                 var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-                cascadingBuilder.OpenElement(11, tag);
-                cascadingBuilder.AddAttribute(12, "class", resolvedClass);
-                cascadingBuilder.AddAttribute(13, "style", resolvedStyle);
-                cascadingBuilder.AddMultipleAttributes(14, AdditionalAttributes);
-                cascadingBuilder.AddElementReferenceCapture(15, e => element = e);
-                cascadingBuilder.AddContent(16, ChildContent);
+                cascadingBuilder.OpenElement(10, tag);
+                cascadingBuilder.AddAttribute(11, "class", resolvedClass);
+                cascadingBuilder.AddAttribute(12, "style", resolvedStyle);
+                cascadingBuilder.AddMultipleAttributes(13, AdditionalAttributes);
+                cascadingBuilder.AddElementReferenceCapture(14, e => Element = e);
+                cascadingBuilder.AddContent(15, ChildContent);
                 cascadingBuilder.CloseElement();
             }
         }));

@@ -1,6 +1,6 @@
 ﻿namespace BlazorBaseUI.Collapsible;
 
-public record CollapsibleRootContext(
+public sealed record CollapsibleRootContext(
     bool Open,
     bool Disabled,
     string PanelId,

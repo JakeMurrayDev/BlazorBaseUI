@@ -1,6 +1,6 @@
 ﻿namespace BlazorBaseUI.Field;
 
-public record FieldValidityData(
+public sealed record FieldValidityData(
     FieldValidityState State,
     string[] Errors,
     string Error,

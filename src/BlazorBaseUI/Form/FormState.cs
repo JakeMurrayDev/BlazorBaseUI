@@ -1,3 +1,3 @@
 ﻿namespace BlazorBaseUI.Form;
 
-public record FormState;
+public sealed record FormState;

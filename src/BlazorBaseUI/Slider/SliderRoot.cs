@@ -26,10 +26,8 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private double? indicatorStart;
     private double? indicatorEnd;
     private string? defaultId;
-    private ElementReference element;
-    private ElementReference controlElement;
+    private ElementReference? controlElement;
     private ElementReference? indicatorElement;
-    private SliderRootContext? cachedContext;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -59,7 +57,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     public double[]? DefaultValues { get; set; }
 
     [Parameter]
-    public double Min { get; set; } = 0;
+    public double Min { get; set; }
 
     [Parameter]
     public double Max { get; set; } = 100;
@@ -71,7 +69,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     public double LargeStep { get; set; } = 10;
 
     [Parameter]
-    public int MinStepsBetweenValues { get; set; } = 0;
+    public int MinStepsBetweenValues { get; set; }
 
     [Parameter]
     public Orientation Orientation { get; set; } = Orientation.Horizontal;
@@ -137,7 +135,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value.HasValue || Values is not null;
 
@@ -147,7 +145,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private string? ResolvedName => Name ?? FieldContext?.Name;
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -174,10 +172,11 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     protected override void OnInitialized()
     {
         InitializeValues();
-
+        
         var initialValue = IsRange ? (object)currentValues : currentValues[0];
+        const double epsilon = 1e-7;
         FieldContext?.Validation.SetInitialValue(initialValue);
-        FieldContext?.SetFilled(currentValues.Any(v => v != Min));
+        FieldContext?.SetFilled(currentValues.Any(v => Math.Abs(v - Min) > epsilon));
         FieldContext?.RegisterFocusHandlerFunc(FocusFirstThumbAsync);
         FieldContext?.SubscribeFunc(this);
 
@@ -204,16 +203,14 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var context = CreateContext(state);
-        cachedContext = context;
+        var context = CreateContext(State);
 
         builder.OpenComponent<CascadingValue<ISliderRootContext>>(0);
-        builder.AddComponentParameter(1, "Value", (ISliderRootContext)context);
+        builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
-            RenderSlider(contextBuilder, state);
+            RenderSlider(contextBuilder, State);
         }));
         builder.CloseComponent();
     }
@@ -232,12 +229,15 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated && controlElement.Id is not null)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", controlElement);
+                if (controlElement.HasValue)
+                {
+                    await module.InvokeVoidAsync("dispose", controlElement.Value);
+                }
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -300,8 +300,8 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private void RenderSlider(RenderTreeBuilder builder, SliderRootState state)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
         var attributes = BuildSliderAttributes(state);
 
         if (!string.IsNullOrEmpty(resolvedClass))
@@ -321,7 +321,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -577,7 +577,8 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         }
         else
         {
-            isDirty = initialValue is double initial ? Math.Abs(currentValues[0] - initial) > 1e-10 : currentValues[0] != Min;
+            const double epsilon = 1e-7;
+            isDirty = initialValue is double initial ? Math.Abs(currentValues[0] - initial) > 1e-10 : Math.Abs(currentValues[0] - Min) > epsilon;
         }
 
         FieldContext?.SetDirty(isDirty);
@@ -597,14 +598,14 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private async Task InitializeJsAsync()
     {
-        if (controlElement.Id is null)
+        if (!controlElement.HasValue)
             return;
 
         try
         {
             var module = await moduleTask.Value;
             var orientationStr = Orientation.ToDataAttributeString() ?? "horizontal";
-            await module.InvokeVoidAsync("initialize", controlElement, null, ResolvedDisabled, ReadOnly, orientationStr);
+            await module.InvokeVoidAsync("initialize", controlElement.Value, null, ResolvedDisabled, ReadOnly, orientationStr);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

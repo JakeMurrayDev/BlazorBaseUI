@@ -1,3 +1,3 @@
 ﻿namespace BlazorBaseUI.Form;
 
-public record FormSubmitEventArgs(IReadOnlyDictionary<string, object?> Values);
+public sealed record FormSubmitEventArgs(IReadOnlyDictionary<string, object?> Values);

@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
-using BlazorBaseUI.Collapsible;
 
 namespace BlazorBaseUI.Accordion;
 
@@ -22,7 +21,6 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
     private bool pendingClose;
     private bool jsInitialized;
     private DotNetObjectReference<AccordionPanel>? dotNetRef;
-    private ElementReference element;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -58,7 +56,7 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool CurrentOpen => ItemContext?.Open ?? false;
 
@@ -123,7 +121,11 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
                 try
                 {
                     var module = await moduleTask.Value;
-                    await module.InvokeVoidAsync("initialize", element, dotNetRef, CurrentOpen, CssVarPrefix);
+                    if (Element.HasValue)
+                    {
+                        await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, CurrentOpen, CssVarPrefix);
+                    }
+
                     jsInitialized = true;
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -169,11 +171,10 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
     {
         if (!IsPresent)
             return;
-
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = BuildStyle(state);
-        var attributes = BuildAttributes(state);
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = BuildStyle(State);
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -192,7 +193,7 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -254,13 +255,16 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
 
             dotNetRef ??= DotNetObjectReference.Create(this);
 
-            if (!jsInitialized)
+            if (Element.HasValue)
             {
-                await module.InvokeVoidAsync("initialize", element, dotNetRef, false, CssVarPrefix);
-                jsInitialized = true;
-            }
+                if (!jsInitialized)
+                {
+                    await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, false, CssVarPrefix);
+                    jsInitialized = true;
+                }
 
-            await module.InvokeVoidAsync("open", element, false);
+                await module.InvokeVoidAsync("open", Element.Value, false);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -275,7 +279,10 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("close", element);
+            if (Element.HasValue)
+            {
+                await module.InvokeVoidAsync("close", Element.Value);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -289,7 +296,10 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", element);
+                if (Element.HasValue)
+                {
+                    await module.InvokeVoidAsync("dispose", Element.Value);
+                }
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -298,30 +308,5 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
         }
 
         dotNetRef?.Dispose();
-    }
-}
-
-public record AccordionPanelState(
-    bool Open,
-    bool Disabled,
-    int Index,
-    Orientation Orientation,
-    TransitionStatus TransitionStatus)
-{
-    public Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>
-        {
-            [AccordionPanelDataAttribute.Index.ToDataAttributeString()] = Index.ToString(),
-            [AccordionPanelDataAttribute.Orientation.ToDataAttributeString()] = Orientation.ToDataAttributeString()!
-        };
-
-        if (Open)
-            attributes[AccordionPanelDataAttribute.Open.ToDataAttributeString()] = string.Empty;
-
-        if (Disabled)
-            attributes[AccordionPanelDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
     }
 }

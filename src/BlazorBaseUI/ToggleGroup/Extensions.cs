@@ -9,8 +9,8 @@ internal static class Extensions
         public string ToDataAttributeString() =>
             attribute switch
             {
-                ToggleGroupDataAttribute.Disabled => "data-disabled",
-                ToggleGroupDataAttribute.Orientation => "data-orientation",
+                ToggleGroupDataAttribute.Disabled => "data-Disabled",
+                ToggleGroupDataAttribute.Orientation => "data-Orientation",
                 ToggleGroupDataAttribute.Multiple => "data-multiple",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(ToggleGroupDataAttribute))
             };

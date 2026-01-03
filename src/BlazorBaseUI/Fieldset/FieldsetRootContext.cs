@@ -7,7 +7,7 @@ public interface IFieldsetRootContext
     void SetLegendId(string? id);
 }
 
-public record FieldsetRootContext(
+public sealed record FieldsetRootContext(
     string? LegendId,
     Action<string?> SetLegendId,
     bool Disabled) : IFieldsetRootContext

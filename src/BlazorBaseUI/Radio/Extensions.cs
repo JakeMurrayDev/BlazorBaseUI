@@ -11,7 +11,7 @@ internal static class Extensions
             {
                 RadioDataAttribute.Checked => "data-checked",
                 RadioDataAttribute.Unchecked => "data-unchecked",
-                RadioDataAttribute.Disabled => "data-disabled",
+                RadioDataAttribute.Disabled => "data-Disabled",
                 RadioDataAttribute.ReadOnly => "data-readonly",
                 RadioDataAttribute.Required => "data-required",
                 RadioDataAttribute.Valid => "data-valid",

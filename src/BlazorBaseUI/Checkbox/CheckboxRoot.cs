@@ -28,7 +28,6 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private string resolvedControlId = null!;
     private string checkboxId = null!;
     private string inputId = null!;
-    private ElementReference element;
     private ElementReference inputElement;
 
     [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
@@ -80,7 +79,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull] public ElementReference? Element => element;
+    [DisallowNull] public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Checked.HasValue;
 
@@ -121,7 +120,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private string? ResolvedValue => Value ?? ResolvedName;
 
-    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -230,15 +229,14 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var context = CreateContext(state);
+        var context = CreateContext(State);
 
         builder.OpenComponent<CascadingValue<CheckboxRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
-            RenderCheckbox(contextBuilder, state);
+            RenderCheckbox(contextBuilder, State);
             RenderHiddenInput(contextBuilder);
             RenderCheckboxInput(contextBuilder);
         }));
@@ -259,12 +257,12 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", element);
+                await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -280,8 +278,8 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private void RenderCheckbox(RenderTreeBuilder builder, CheckboxRootState state)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
         var attributes = BuildCheckboxAttributes(state);
 
         if (!string.IsNullOrEmpty(resolvedClass))
@@ -301,7 +299,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -314,7 +312,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         builder.OpenElement(7, "input");
         builder.AddAttribute(8, "type", "hidden");
         builder.AddAttribute(9, "name", ResolvedName);
-        builder.AddAttribute(10, "value", UncheckedValue);
+        builder.AddAttribute(10, "Value", UncheckedValue);
         builder.CloseElement();
     }
 
@@ -324,7 +322,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         builder.AddAttribute(12, "type", "checkbox");
         builder.AddAttribute(13, "id", inputId);
         builder.AddAttribute(14, "checked", CurrentChecked);
-        builder.AddAttribute(15, "disabled", ResolvedDisabled);
+        builder.AddAttribute(15, "Disabled", ResolvedDisabled);
         builder.AddAttribute(16, "required", Required);
         builder.AddAttribute(17, "aria-hidden", true);
         builder.AddAttribute(18, "tabindex", -1);
@@ -336,8 +334,8 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
         if (ResolvedValue is not null)
         {
-            var inputValue = GroupContext is not null && CurrentChecked ? ResolvedValue : ResolvedValue;
-            builder.AddAttribute(21, "value", inputValue);
+            var inputValue = ResolvedValue;
+            builder.AddAttribute(21, "Value", inputValue);
         }
 
         builder.AddAttribute(22, "onchange",
@@ -409,7 +407,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", element, inputElement, ResolvedDisabled, ReadOnly,
+            await module.InvokeVoidAsync("initialize", Element, inputElement, ResolvedDisabled, ReadOnly,
                 CurrentIndeterminate);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -425,7 +423,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", element, inputElement, ResolvedDisabled, ReadOnly,
+            await module.InvokeVoidAsync("updateState", Element, inputElement, ResolvedDisabled, ReadOnly,
                 CurrentIndeterminate);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -580,7 +578,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", element);
+            await module.InvokeVoidAsync("focus", Element);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

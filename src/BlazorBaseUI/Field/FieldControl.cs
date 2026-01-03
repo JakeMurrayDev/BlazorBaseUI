@@ -10,7 +10,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.Field;
 
-public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, IAsyncDisposable
+public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "input";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-field.js";
@@ -20,7 +20,6 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
     private string? defaultId;
     private string resolvedControlId = null!;
     private bool hasRendered;
-    private ElementReference element;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -53,13 +52,13 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
     public Func<FieldRootState, string>? StyleValue { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
-    private string? ResolvedName => Name ?? FieldContext?.Name ?? NameAttributeValue;
+    private string ResolvedName => Name ?? FieldContext?.Name ?? NameAttributeValue;
 
     private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
 
-    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     public FieldControl()
     {
@@ -127,7 +126,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(2, tag);
         builder.AddMultipleAttributes(3, attributes);
-        builder.AddElementReferenceCapture(4, e => element = e);
+        builder.AddElementReferenceCapture(4, e => Element = e);
         builder.CloseElement();
     }
 
@@ -164,7 +163,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
             catch (Exception ex) when (ex is FormatException or InvalidCastException or ArgumentException)
             {
                 result = default;
-                validationErrorMessage = $"The value '{value}' is not valid for {DisplayName ?? "this field"}.";
+                validationErrorMessage = $"The Value '{value}' is not valid for {DisplayName ?? "this field"}.";
                 return false;
             }
         }
@@ -198,7 +197,7 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focusElement", element);
+            await module.InvokeVoidAsync("focusElement", Element);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -231,21 +230,19 @@ public class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, 
         {
             foreach (var attr in AdditionalAttributes)
             {
-                if (attr.Key is not "class" and not "style" and not "value" and not "defaultValue")
+                if (attr.Key is not "class" and not "style" and not "Value" and not "DefaultValue")
                     attributes[attr.Key] = attr.Value;
             }
         }
 
-        if (resolvedControlId is not null)
-            attributes["id"] = resolvedControlId;
+        attributes["id"] = resolvedControlId;
 
-        if (ResolvedName is not null)
-            attributes["name"] = ResolvedName;
+        attributes["name"] = ResolvedName;
 
         if (ResolvedDisabled)
-            attributes["disabled"] = true;
+            attributes["Disabled"] = true;
 
-        attributes["value"] = CurrentValueAsString ?? string.Empty;
+        attributes["Value"] = CurrentValueAsString ?? string.Empty;
 
         if (LabelableContext?.LabelId is not null)
             attributes["aria-labelledby"] = LabelableContext.LabelId;

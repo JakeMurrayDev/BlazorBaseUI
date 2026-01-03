@@ -1,6 +1,6 @@
 ﻿namespace BlazorBaseUI.Checkbox;
 
-public record CheckboxIndicatorState(
+public sealed record CheckboxIndicatorState(
     bool Checked,
     bool Disabled,
     bool ReadOnly,
@@ -13,7 +13,7 @@ public record CheckboxIndicatorState(
     bool Focused,
     TransitionStatus TransitionStatus)
 {
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

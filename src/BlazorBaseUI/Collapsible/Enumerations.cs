@@ -16,7 +16,7 @@ public enum CollapsibleDataAttribute
     Closed,
 
     /// <summary>
-    /// Present when the collapsible is disabled.
+    /// Present when the collapsible is Disabled.
     /// </summary>
     Disabled,
 

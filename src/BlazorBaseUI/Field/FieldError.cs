@@ -12,7 +12,6 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
     private const string DefaultTag = "div";
 
     private string? defaultId;
-    private ElementReference element;
     private bool wasRendered;
 
     [CascadingParameter]
@@ -52,7 +51,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
 
@@ -84,12 +83,11 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
     {
         if (!ShouldRenderError())
             return;
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
 
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
-        var attributes = BuildAttributes(state);
+        var attributes = BuildAttributes(State);
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
         if (!string.IsNullOrEmpty(resolvedStyle))
@@ -107,7 +105,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, GetErrorContent());
         builder.CloseElement();
     }

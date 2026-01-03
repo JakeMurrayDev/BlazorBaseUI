@@ -20,7 +20,6 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
     private bool pendingClose;
     private bool jsInitialized;
     private DotNetObjectReference<CollapsiblePanel>? dotNetRef;
-    private ElementReference element;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -53,7 +52,7 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool CurrentOpen => Context?.Open ?? false;
 
@@ -112,7 +111,10 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
                 try
                 {
                     var module = await moduleTask.Value;
-                    await module.InvokeVoidAsync("initialize", element, dotNetRef, CurrentOpen);
+                    if (Element.HasValue)
+                    {
+                        await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, CurrentOpen);
+                    }
                     jsInitialized = true;
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -158,11 +160,10 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
     {
         if (!IsPresent)
             return;
-
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = BuildStyle(state);
-        var attributes = BuildAttributes(state);
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = BuildStyle();
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -181,14 +182,14 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
 
-    private string? BuildStyle(CollapsiblePanelState state)
+    private string? BuildStyle()
     {
-        var userStyle = StyleValue?.Invoke(state);
+        var userStyle = StyleValue?.Invoke(State);
 
         if (!jsInitialized && (KeepMounted || HiddenUntilFound) && !CurrentOpen)
         {
@@ -239,14 +240,16 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
             var module = await moduleTask.Value;
 
             dotNetRef ??= DotNetObjectReference.Create(this);
-
-            if (!jsInitialized)
+            if (Element.HasValue)
             {
-                await module.InvokeVoidAsync("initialize", element, dotNetRef, false);
-                jsInitialized = true;
-            }
+                if (!jsInitialized)
+                {
+                    await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, false);
+                    jsInitialized = true;
+                }
 
-            await module.InvokeVoidAsync("open", element, false);
+                await module.InvokeVoidAsync("open", Element.Value, false);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -261,7 +264,10 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("close", element);
+            if (Element.HasValue)
+            {
+                await module.InvokeVoidAsync("close", Element.Value);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -275,7 +281,11 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", element);
+                if (Element.HasValue)
+                {
+                    await module.InvokeVoidAsync("dispose", Element.Value);
+                }
+
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

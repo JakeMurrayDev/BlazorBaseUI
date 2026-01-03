@@ -22,7 +22,6 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private FieldValidation validation = null!;
     private FieldRootContext context = null!;
     private string fieldId = null!;
-    private ElementReference element;
     private EditContext? previousEditContext;
     private Func<ValueTask>? focusHandler;
 
@@ -75,7 +74,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private ValidationMode ResolvedValidationMode =>
         ValidationMode ?? FormContext?.ValidationMode ?? FormValidationMode.OnSubmit;
@@ -181,7 +180,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
                     var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
                     contextBuilder.OpenElement(10, tag);
                     contextBuilder.AddMultipleAttributes(11, attributes);
-                    contextBuilder.AddElementReferenceCapture(12, e => element = e);
+                    contextBuilder.AddElementReferenceCapture(12, e => Element = e);
                     contextBuilder.AddContent(13, ChildContent);
                     contextBuilder.CloseElement();
                 }

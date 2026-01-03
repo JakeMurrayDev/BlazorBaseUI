@@ -1,6 +1,6 @@
 ﻿namespace BlazorBaseUI.Field;
 
-public record FieldValidityState(
+public sealed record FieldValidityState(
     bool BadInput = false,
     bool CustomError = false,
     bool PatternMismatch = false,

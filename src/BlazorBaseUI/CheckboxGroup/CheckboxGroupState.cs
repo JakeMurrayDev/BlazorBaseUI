@@ -2,7 +2,7 @@
 
 namespace BlazorBaseUI.CheckboxGroup;
 
-public record CheckboxGroupState(
+public sealed record CheckboxGroupState(
     bool Disabled,
     bool? Valid,
     bool Touched,
@@ -28,7 +28,7 @@ public record CheckboxGroupState(
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

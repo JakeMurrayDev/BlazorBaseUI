@@ -8,8 +8,6 @@ public sealed class Separator : ComponentBase
 {
     private const string DefaultTag = "div";
 
-    private ElementReference element;
-
     [Parameter]
     public Orientation Orientation { get; set; } = Orientation.Horizontal;
 
@@ -32,7 +30,7 @@ public sealed class Separator : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
@@ -62,7 +60,7 @@ public sealed class Separator : ComponentBase
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -83,8 +81,8 @@ public sealed class Separator : ComponentBase
         }
 
         attributes["role"] = "separator";
-        attributes["aria-orientation"] = Orientation.ToDataAttributeString()!;
-        attributes["data-orientation"] = Orientation.ToDataAttributeString()!;
+        attributes["aria-Orientation"] = Orientation.ToDataAttributeString()!;
+        attributes["data-Orientation"] = Orientation.ToDataAttributeString()!;
 
         return attributes;
     }

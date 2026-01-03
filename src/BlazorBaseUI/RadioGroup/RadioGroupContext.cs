@@ -24,76 +24,32 @@ public interface IRadioGroupContext<TValue> : IRadioGroupContext
     RadioRegistration<TValue>? GetFirstEnabledRadio();
 }
 
-public sealed class RadioRegistration<TValue>
+public sealed record RadioRegistration<TValue>(
+    object Radio,
+    ElementReference Element,
+    TValue Value,
+    Func<bool> IsDisabled,
+    Func<ValueTask> Focus)
 {
-    public object Radio { get; }
-    public ElementReference Element { get; set; }
-    public TValue Value { get; }
-    public Func<bool> IsDisabled { get; }
-    public Func<ValueTask> Focus { get; }
-
-    public RadioRegistration(object radio, ElementReference element, TValue value, Func<bool> isDisabled, Func<ValueTask> focus)
-    {
-        Radio = radio;
-        Element = element;
-        Value = value;
-        IsDisabled = isDisabled;
-        Focus = focus;
-    }
+    public ElementReference Element { get; set; } = Element;
 }
 
-public sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
+public sealed record RadioGroupContext<TValue>(
+    bool Disabled,
+    bool ReadOnly,
+    bool Required,
+    string? Name,
+    FieldValidation? Validation,
+    Func<TValue?> GetCheckedValue,
+    Func<TValue, Task> SetCheckedValue) : IRadioGroupContext<TValue>
 {
     private readonly List<RadioRegistration<TValue>> registeredRadios = [];
-    private readonly Func<TValue?> getCheckedValue;
-    private readonly Func<TValue, Task> setCheckedValue;
 
-    public bool Disabled { get; private set; }
-    public bool ReadOnly { get; private set; }
-    public bool Required { get; private set; }
-    public string? Name { get; private set; }
-    public FieldValidation? Validation { get; private set; }
-
-    public TValue? CheckedValue => getCheckedValue();
-
-    public RadioGroupContext(
-        bool disabled,
-        bool readOnly,
-        bool required,
-        string? name,
-        FieldValidation? validation,
-        Func<TValue?> getCheckedValue,
-        Func<TValue, Task> setCheckedValue)
-    {
-        Disabled = disabled;
-        ReadOnly = readOnly;
-        Required = required;
-        Name = name;
-        Validation = validation;
-        this.getCheckedValue = getCheckedValue;
-        this.setCheckedValue = setCheckedValue;
-    }
-
-    /// <summary>
-    /// Updates the context properties without losing registered radios.
-    /// </summary>
-    public void UpdateProperties(
-        bool disabled,
-        bool readOnly,
-        bool required,
-        string? name,
-        FieldValidation? validation)
-    {
-        Disabled = disabled;
-        ReadOnly = readOnly;
-        Required = required;
-        Name = name;
-        Validation = validation;
-    }
+    public TValue? CheckedValue => GetCheckedValue();
 
     public async Task SetCheckedValueAsync(TValue value)
     {
-        await setCheckedValue(value);
+        await SetCheckedValue(value);
     }
 
     public void RegisterRadio(object radio, ElementReference element, TValue value, Func<bool> isDisabled, Func<ValueTask> focus)
@@ -183,6 +139,6 @@ public sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
     {
         var registration = registeredRadios[index];
         await registration.Focus();
-        await setCheckedValue(registration.Value);
+        await SetCheckedValue(registration.Value);
     }
 }

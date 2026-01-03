@@ -10,7 +10,6 @@ public sealed class FieldDescription : ComponentBase, IDisposable
     private const string DefaultTag = "p";
 
     private string? defaultId;
-    private ElementReference element;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -37,7 +36,7 @@ public sealed class FieldDescription : ComponentBase, IDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
 
@@ -50,11 +49,10 @@ public sealed class FieldDescription : ComponentBase, IDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
 
-        var attributes = BuildAttributes(state);
+        var attributes = BuildAttributes(State);
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
         if (!string.IsNullOrEmpty(resolvedStyle))
@@ -72,7 +70,7 @@ public sealed class FieldDescription : ComponentBase, IDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }

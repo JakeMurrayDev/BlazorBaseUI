@@ -8,8 +8,6 @@ public sealed class AccordionHeader : ComponentBase
 {
     private const string DefaultTag = "h3";
 
-    private ElementReference element;
-
     [CascadingParameter]
     private IAccordionItemContext? ItemContext { get; set; }
 
@@ -32,7 +30,7 @@ public sealed class AccordionHeader : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private AccordionHeaderState State => new(
         ItemContext?.Index ?? 0,
@@ -45,10 +43,10 @@ public sealed class AccordionHeader : ComponentBase
         if (ItemContext is null)
             return;
 
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -67,7 +65,7 @@ public sealed class AccordionHeader : ComponentBase
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -87,28 +85,6 @@ public sealed class AccordionHeader : ComponentBase
 
         foreach (var dataAttr in state.GetDataAttributes())
             attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-}
-
-public record AccordionHeaderState(int Index, Orientation Orientation, bool Disabled, bool Open)
-{
-    public Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>
-        {
-            [AccordionHeaderDataAttribute.Index.ToDataAttributeString()] = Index.ToString(),
-            [AccordionHeaderDataAttribute.Orientation.ToDataAttributeString()] = Orientation.ToDataAttributeString()!
-        };
-
-        if (Open)
-            attributes[AccordionHeaderDataAttribute.Open.ToDataAttributeString()] = string.Empty;
-        else
-            attributes[AccordionHeaderDataAttribute.Closed.ToDataAttributeString()] = string.Empty;
-
-        if (Disabled)
-            attributes[AccordionHeaderDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
 
         return attributes;
     }

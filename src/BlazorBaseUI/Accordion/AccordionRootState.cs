@@ -1,11 +1,11 @@
 ﻿namespace BlazorBaseUI.Accordion;
 
-public record AccordionRootState<TValue>(
+public sealed record AccordionRootState<TValue>(
     TValue[] Value,
     bool Disabled,
     Orientation Orientation)
 {
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>
         {

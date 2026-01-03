@@ -1,13 +1,13 @@
 ﻿namespace BlazorBaseUI.Collapsible;
 
-public record CollapsiblePanelState(
+public sealed record CollapsiblePanelState(
     bool Open,
     bool Disabled,
     TransitionStatus TransitionStatus)
 {
     public static CollapsiblePanelState Default => new(false, false, TransitionStatus.Undefined);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

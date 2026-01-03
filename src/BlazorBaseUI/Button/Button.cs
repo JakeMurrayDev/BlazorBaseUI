@@ -48,7 +48,7 @@ public class Button : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element { get; protected set; }
+    public ElementReference? Element { get; private set; }
 
     private ButtonState State => new(Disabled);
 
@@ -75,10 +75,9 @@ public class Button : ComponentBase, IAsyncDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var resolvedClass = ResolveClass(state);
-        var resolvedStyle = ResolveStyle(state);
-        var attributes = BuildAttributes(state);
+        var resolvedClass = ResolveClass(State);
+        var resolvedStyle = ResolveStyle(State);
+        var attributes = BuildAttributes();
 
         var attributesWithClassAndStyle = new Dictionary<string, object>(attributes);
         if (!string.IsNullOrEmpty(resolvedClass))
@@ -132,7 +131,7 @@ public class Button : ComponentBase, IAsyncDisposable
         return AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
     }
 
-    private Dictionary<string, object> BuildAttributes(ButtonState state)
+    private Dictionary<string, object> BuildAttributes()
     {
         var attributes = new Dictionary<string, object>();
 
@@ -153,12 +152,12 @@ public class Button : ComponentBase, IAsyncDisposable
 
             if (FocusableWhenDisabled)
             {
-                attributes["aria-disabled"] = Disabled;
+                attributes["aria-Disabled"] = Disabled;
                 attributes["tabindex"] = TabIndex;
             }
             else if (Disabled)
             {
-                attributes["disabled"] = true;
+                attributes["Disabled"] = true;
             }
             else
             {
@@ -171,7 +170,7 @@ public class Button : ComponentBase, IAsyncDisposable
 
             if (Disabled)
             {
-                attributes["aria-disabled"] = true;
+                attributes["aria-Disabled"] = true;
                 attributes["tabindex"] = FocusableWhenDisabled ? TabIndex : -1;
             }
             else
@@ -183,9 +182,9 @@ public class Button : ComponentBase, IAsyncDisposable
         return attributes;
     }
 
-    private void SetElementReference(ElementReference ElementReference)
+    private void SetElementReference(ElementReference elementReference)
     {
-        Element = ElementReference;
+        Element = elementReference;
     }
 
     private async Task InitializeJsAsync()

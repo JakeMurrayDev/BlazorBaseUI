@@ -13,45 +13,28 @@ public interface IAccordionItemContext
     void HandleTrigger();
 }
 
-public sealed class AccordionItemContext<TValue> : IAccordionItemContext
+public sealed record AccordionItemContext<TValue>(
+    AccordionRootContext<TValue> RootContext,
+    TValue Value,
+    int Index,
+    bool Disabled,
+    string PanelId,
+    Action TriggerHandler)
+    : IAccordionItemContext
 {
-    private readonly AccordionRootContext<TValue> rootContext;
-    private readonly TValue value;
-    private readonly Action triggerHandler;
-
-    public AccordionItemContext(
-        AccordionRootContext<TValue> rootContext,
-        TValue value,
-        int index,
-        bool disabled,
-        string panelId,
-        Action triggerHandler)
-    {
-        this.rootContext = rootContext;
-        this.value = value;
-        this.triggerHandler = triggerHandler;
-        Index = index;
-        Disabled = disabled;
-        PanelId = panelId;
-        StringValue = value?.ToString() ?? string.Empty;
-    }
-
-    public bool Open => rootContext.IsValueOpen(value!);
-    public bool Disabled { get; }
-    public int Index { get; }
-    public string PanelId { get; }
+    public bool Open => RootContext.IsValueOpen(Value!);
     public string? TriggerId { get; private set; }
-    public string StringValue { get; }
-    public Orientation Orientation => rootContext.Orientation;
+    public string StringValue { get; } = Value?.ToString() ?? string.Empty;
+    public Orientation Orientation => RootContext.Orientation;
 
     public void SetTriggerId(string? id) => TriggerId = id;
 
-    public void HandleTrigger() => triggerHandler();
+    public void HandleTrigger() => TriggerHandler();
 
     public AccordionItemState<TValue> GetState() => new(
-        rootContext.Value,
+        RootContext.Value,
         Disabled,
-        rootContext.Orientation,
+        RootContext.Orientation,
         Index,
         Open);
 }

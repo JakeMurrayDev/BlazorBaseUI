@@ -18,49 +18,30 @@ public interface IToggleGroupContext
     Task NavigateToLastAsync();
 }
 
-public sealed class ToggleRegistration
+public sealed record ToggleRegistration(
+    object Toggle,
+    ElementReference Element,
+    string Value,
+    Func<bool> IsDisabled,
+    Func<ValueTask> Focus)
 {
-    public object Toggle { get; }
-    public ElementReference Element { get; set; }
-    public string Value { get; }
-    public Func<bool> IsDisabled { get; }
-    public Func<ValueTask> Focus { get; }
-
-    public ToggleRegistration(object toggle, ElementReference element, string value, Func<bool> isDisabled, Func<ValueTask> focus)
-    {
-        Toggle = toggle;
-        Element = element;
-        Value = value;
-        IsDisabled = isDisabled;
-        Focus = focus;
-    }
+    public ElementReference Element { get; set; } = Element;
 }
 
-public sealed class ToggleGroupContext : IToggleGroupContext
+public sealed record ToggleGroupContext(
+    bool Disabled,
+    Orientation Orientation,
+    bool LoopFocus,
+    Func<IReadOnlyList<string>> GetValue,
+    Func<string, bool, Task> SetGroupValue) : IToggleGroupContext
 {
     private readonly List<ToggleRegistration> registeredToggles = [];
-    private readonly Func<IReadOnlyList<string>> getValue;
-    private readonly Func<string, bool, Task> setGroupValue;
 
-    public bool Disabled { get; private set; }
-    public Orientation Orientation { get; private set; }
-    public bool LoopFocus { get; private set; }
+    public bool Disabled { get; private set; } = Disabled;
+    public Orientation Orientation { get; private set; } = Orientation;
+    public bool LoopFocus { get; private set; } = LoopFocus;
 
-    public IReadOnlyList<string> Value => getValue();
-
-    public ToggleGroupContext(
-        bool disabled,
-        Orientation orientation,
-        bool loopFocus,
-        Func<IReadOnlyList<string>> getValue,
-        Func<string, bool, Task> setGroupValue)
-    {
-        Disabled = disabled;
-        Orientation = orientation;
-        LoopFocus = loopFocus;
-        this.getValue = getValue;
-        this.setGroupValue = setGroupValue;
-    }
+    public IReadOnlyList<string> Value => GetValue();
 
     public void UpdateProperties(bool disabled, Orientation orientation, bool loopFocus)
     {
@@ -71,7 +52,7 @@ public sealed class ToggleGroupContext : IToggleGroupContext
 
     public async Task SetGroupValueAsync(string toggleValue, bool nextPressed)
     {
-        await setGroupValue(toggleValue, nextPressed);
+        await SetGroupValue(toggleValue, nextPressed);
     }
 
     public void RegisterToggle(object toggle, ElementReference element, string value, Func<bool> isDisabled, Func<ValueTask> focus)

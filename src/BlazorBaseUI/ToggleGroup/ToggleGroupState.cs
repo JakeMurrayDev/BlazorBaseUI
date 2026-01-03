@@ -1,13 +1,13 @@
 namespace BlazorBaseUI.ToggleGroup;
 
-public record ToggleGroupState(bool Disabled, bool Multiple, Orientation Orientation)
+public sealed record ToggleGroupState(bool Disabled, bool Multiple, Orientation Orientation)
 {
     public static ToggleGroupState Default { get; } = new(
         Disabled: false,
         Multiple: false,
         Orientation: Orientation.Horizontal);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

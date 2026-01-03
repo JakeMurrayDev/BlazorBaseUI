@@ -1,6 +1,6 @@
 namespace BlazorBaseUI.Slider;
 
-public record SliderThumbState(
+public sealed record SliderThumbState(
     int Index,
     bool Disabled,
     bool Dragging,
@@ -36,7 +36,7 @@ public record SliderThumbState(
         Dirty: rootState.Dirty,
         Focused: isActive);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>
         {

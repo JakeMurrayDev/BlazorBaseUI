@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -48,13 +47,11 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsVertical => Context?.Orientation == Orientation.Vertical;
 
     private bool IsRtl => DirectionContext?.Direction == Direction.Rtl;
-
-    private bool IsRange => Context?.Values.Length > 1;
 
     public SliderControl()
     {
@@ -77,7 +74,7 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
             attributes["style"] = CombineStyles(
-                attributes.TryGetValue("style", out var existingStyle) ? existingStyle?.ToString() : null,
+                attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
                 resolvedStyle);
         }
 
@@ -135,7 +132,6 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
         if (Context is null)
             return;
 
-        // Update values through the full SetValue path to trigger ValueChanged callbacks
         Context.SetValue(values, SliderChangeReason.Drag, thumbIndex);
         Context.CommitValue(values, SliderChangeReason.Drag);
         Context.SetDragging(false);
@@ -157,7 +153,7 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
 
         attributes["tabindex"] = -1;
         attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle?.ToString() : null,
+            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
             "touch-action: none;");
         attributes["onpointerdown"] = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown);
 
@@ -188,21 +184,7 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
                 .Select(kvp => kvp.Value.ThumbElement)
                 .ToArray();
 
-            var config = new SliderDragConfig
-            {
-                min = Context.Min,
-                max = Context.Max,
-                step = Context.Step,
-                minStepsBetweenValues = Context.MinStepsBetweenValues,
-                orientation = Context.Orientation.ToDataAttributeString() ?? "horizontal",
-                direction = IsRtl ? "rtl" : "ltr",
-                collisionBehavior = Context.ThumbCollisionBehavior.ToDataAttributeString() ?? "push",
-                thumbAlignment = Context.ThumbAlignment.ToDataAttributeString() ?? "center",
-                values = Context.Values,
-                disabled = Context.Disabled,
-                readOnly = Context.ReadOnly,
-                insetOffset = Context.ThumbAlignment == ThumbAlignment.Edge ? await GetInsetOffsetAsync() : 0
-            };
+            var config = new SliderDragConfig(Context.Min, Context.Max, Context.Step, Context.MinStepsBetweenValues, Context.Orientation.ToDataAttributeString() ?? "horizontal", IsRtl ? "rtl" : "ltr", Context.ThumbCollisionBehavior.ToDataAttributeString(), Context.ThumbAlignment.ToDataAttributeString(), Context.Values, Context.Disabled, Context.ReadOnly, Context.ThumbAlignment == ThumbAlignment.Edge ? await GetInsetOffsetAsync() : 0);
 
             try
             {
@@ -222,14 +204,11 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
 
                 if (result is not null)
                 {
-                    // Sync values and set dragging state without triggering re-renders
-                    // JS controls the DOM directly during drag - Blazor re-renders would
-                    // overwrite JS DOM updates and cause visible delays
-                    Context.SetValueSilent(result.values);
-                    Context.SetDragging(true);  // Set dragging first so SetActiveThumbIndex won't re-render
-                    Context.SetActiveThumbIndex(result.thumbIndex);
+                    Context.SetValueSilent(result.Values);
+                    Context.SetDragging(true);
+                    Context.SetActiveThumbIndex(result.ThumbIndex);
 
-                    await FocusThumbAsync(result.thumbIndex);
+                    await FocusThumbAsync(result.ThumbIndex);
                 }
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -258,7 +237,7 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
             if (thumbRect is null)
                 return 0;
 
-            return IsVertical ? thumbRect.height / 2 : thumbRect.width / 2;
+            return IsVertical ? thumbRect.Height / 2 : thumbRect.Width / 2;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -283,40 +262,6 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
         }
-    }
-
-    private sealed class ThumbRect
-    {
-        public double left { get; set; }
-        public double right { get; set; }
-        public double top { get; set; }
-        public double bottom { get; set; }
-        public double width { get; set; }
-        public double height { get; set; }
-        public double midX { get; set; }
-        public double midY { get; set; }
-    }
-
-    private sealed class StartDragResult
-    {
-        public int thumbIndex { get; set; }
-        public double[] values { get; set; } = [];
-    }
-
-    private sealed class SliderDragConfig
-    {
-        public double min { get; init; }
-        public double max { get; init; }
-        public double step { get; init; }
-        public int minStepsBetweenValues { get; init; }
-        public string orientation { get; init; } = "horizontal";
-        public string direction { get; init; } = "ltr";
-        public string collisionBehavior { get; init; } = "push";
-        public string thumbAlignment { get; init; } = "center";
-        public double[] values { get; init; } = [];
-        public bool disabled { get; init; }
-        public bool readOnly { get; init; }
-        public double insetOffset { get; init; }
     }
 
     private static string CombineStyles(string? existing, string additional)

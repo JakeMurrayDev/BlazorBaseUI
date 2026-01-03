@@ -36,7 +36,7 @@ public sealed class FieldRegistry
         fields.Values.FirstOrDefault(f => f.ValidityData.State.Valid == false);
 }
 
-public record FormContext(
+public sealed record FormContext(
     EditContext? EditContext,
     Dictionary<string, string[]> Errors,
     Action<string?> ClearErrors,

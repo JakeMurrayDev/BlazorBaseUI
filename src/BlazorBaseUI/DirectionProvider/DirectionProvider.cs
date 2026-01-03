@@ -1,5 +1,4 @@
-﻿using BlazorBaseUI.Utilities.LabelableProvider;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using System.Globalization;
 

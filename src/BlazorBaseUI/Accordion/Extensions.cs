@@ -9,8 +9,8 @@ internal static class Extensions
         public string ToDataAttributeString() =>
             attribute switch
             {
-                AccordionRootDataAttribute.Disabled => "data-disabled",
-                AccordionRootDataAttribute.Orientation => "data-orientation",
+                AccordionRootDataAttribute.Disabled => "data-Disabled",
+                AccordionRootDataAttribute.Orientation => "data-Orientation",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(AccordionRootDataAttribute))
             };
     }
@@ -21,8 +21,8 @@ internal static class Extensions
             attribute switch
             {
                 AccordionItemDataAttribute.Index => "data-index",
-                AccordionItemDataAttribute.Orientation => "data-orientation",
-                AccordionItemDataAttribute.Disabled => "data-disabled",
+                AccordionItemDataAttribute.Orientation => "data-Orientation",
+                AccordionItemDataAttribute.Disabled => "data-Disabled",
                 AccordionItemDataAttribute.Open => "data-open",
                 AccordionItemDataAttribute.Closed => "data-closed",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(AccordionItemDataAttribute))
@@ -35,8 +35,8 @@ internal static class Extensions
             attribute switch
             {
                 AccordionHeaderDataAttribute.Index => "data-index",
-                AccordionHeaderDataAttribute.Orientation => "data-orientation",
-                AccordionHeaderDataAttribute.Disabled => "data-disabled",
+                AccordionHeaderDataAttribute.Orientation => "data-Orientation",
+                AccordionHeaderDataAttribute.Disabled => "data-Disabled",
                 AccordionHeaderDataAttribute.Open => "data-open",
                 AccordionHeaderDataAttribute.Closed => "data-closed",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(AccordionHeaderDataAttribute))
@@ -48,10 +48,10 @@ internal static class Extensions
         public string ToDataAttributeString() =>
             attribute switch
             {
-                AccordionTriggerDataAttribute.Value => "data-value",
+                AccordionTriggerDataAttribute.Value => "data-Value",
                 AccordionTriggerDataAttribute.PanelOpen => "data-panel-open",
-                AccordionTriggerDataAttribute.Orientation => "data-orientation",
-                AccordionTriggerDataAttribute.Disabled => "data-disabled",
+                AccordionTriggerDataAttribute.Orientation => "data-Orientation",
+                AccordionTriggerDataAttribute.Disabled => "data-Disabled",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(AccordionTriggerDataAttribute))
             };
     }
@@ -63,8 +63,8 @@ internal static class Extensions
             {
                 AccordionPanelDataAttribute.Index => "data-index",
                 AccordionPanelDataAttribute.Open => "data-open",
-                AccordionPanelDataAttribute.Orientation => "data-orientation",
-                AccordionPanelDataAttribute.Disabled => "data-disabled",
+                AccordionPanelDataAttribute.Orientation => "data-Orientation",
+                AccordionPanelDataAttribute.Disabled => "data-Disabled",
                 AccordionPanelDataAttribute.StartingStyle => "data-starting-style",
                 AccordionPanelDataAttribute.EndingStyle => "data-ending-style",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(AccordionPanelDataAttribute))

@@ -4,13 +4,12 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace BlazorBaseUI.Avatar;
 
-public sealed class AvatarFallback : ComponentBase
+public sealed class AvatarFallback : ComponentBase, IDisposable
 {
     private const string DefaultTag = "span";
 
     private CancellationTokenSource? delayCts;
     private bool delayPassed;
-    private ElementReference element;
 
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
@@ -37,7 +36,7 @@ public sealed class AvatarFallback : ComponentBase
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private AvatarRootState State => Context?.State ?? new(ImageLoadingStatus.Idle);
 
@@ -77,18 +76,17 @@ public sealed class AvatarFallback : ComponentBase
             builder.AddAttribute(3, "style", resolvedStyle);
             builder.AddMultipleAttributes(4, AdditionalAttributes);
             builder.AddAttribute(5, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(6, obj => { });
             builder.CloseComponent();
         }
         else
         {
             var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-            builder.OpenElement(7, tag);
-            builder.AddAttribute(8, "class", resolvedClass);
-            builder.AddAttribute(9, "style", resolvedStyle);
-            builder.AddMultipleAttributes(10, AdditionalAttributes);
-            builder.AddElementReferenceCapture(11, elemRef => element = elemRef);
-            builder.AddContent(12, ChildContent);
+            builder.OpenElement(6, tag);
+            builder.AddAttribute(7, "class", resolvedClass);
+            builder.AddAttribute(8, "style", resolvedStyle);
+            builder.AddMultipleAttributes(9, AdditionalAttributes);
+            builder.AddElementReferenceCapture(10, e => Element = e);
+            builder.AddContent(11, ChildContent);
             builder.CloseElement();
         }
     }
@@ -108,7 +106,7 @@ public sealed class AvatarFallback : ComponentBase
         {
         }
     }
-
+    
     public void Dispose()
     {
         delayCts?.Cancel();

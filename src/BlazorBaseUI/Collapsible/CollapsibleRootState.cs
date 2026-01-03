@@ -1,13 +1,13 @@
 ﻿namespace BlazorBaseUI.Collapsible;
 
-public record CollapsibleRootState(
+public sealed record CollapsibleRootState(
     bool Open,
     bool Disabled,
     TransitionStatus TransitionStatus)
 {
     public static CollapsibleRootState Default => new(false, false, TransitionStatus.Undefined);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

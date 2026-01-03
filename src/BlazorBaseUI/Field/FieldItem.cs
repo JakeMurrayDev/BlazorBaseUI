@@ -10,8 +10,6 @@ public sealed class FieldItem : ComponentBase
 {
     private const string DefaultTag = "div";
 
-    private ElementReference element;
-
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
 
@@ -40,7 +38,7 @@ public sealed class FieldItem : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool ResolvedDisabled => (FieldContext?.Disabled ?? false) || Disabled;
 
@@ -52,7 +50,7 @@ public sealed class FieldItem : ComponentBase
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
+        
         var itemContext = new FieldItemContext(ResolvedDisabled);
 
         builder.OpenComponent<LabelableProvider>(0);
@@ -62,20 +60,17 @@ public sealed class FieldItem : ComponentBase
             labelableBuilder.OpenComponent<CascadingValue<FieldItemContext>>(3);
             labelableBuilder.AddComponentParameter(4, "Value", itemContext);
             labelableBuilder.AddComponentParameter(5, "IsFixed", false);
-            labelableBuilder.AddComponentParameter(6, "ChildContent", (RenderFragment)(contextBuilder =>
-            {
-                RenderItem(contextBuilder, state);
-            }));
+            labelableBuilder.AddComponentParameter(6, "ChildContent", (RenderFragment)(RenderItem));
             labelableBuilder.CloseComponent();
         }));
         builder.CloseComponent();
     }
 
-    private void RenderItem(RenderTreeBuilder builder, FieldRootState state)
+    private void RenderItem(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -94,7 +89,7 @@ public sealed class FieldItem : ComponentBase
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }

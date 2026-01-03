@@ -18,14 +18,12 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private bool hasRendered;
-    private bool previousChecked;
     private bool previousDisabled;
     private bool previousReadOnly;
     private string? defaultId;
     private string resolvedControlId = null!;
     private string radioId = null!;
     private string inputId = null!;
-    private ElementReference element;
     private ElementReference inputElement;
 
     [Inject]
@@ -77,7 +75,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsInGroup => GroupContext is not null;
 
@@ -108,7 +106,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     private string? ResolvedName => Name ?? GroupContext?.Name ?? FieldContext?.Name;
 
-    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -135,8 +133,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
         FieldContext?.RegisterFocusHandlerFunc(FocusAsync);
         FieldContext?.SubscribeFunc(this);
-
-        previousChecked = CurrentChecked;
+        
         previousDisabled = ResolvedDisabled;
         previousReadOnly = ResolvedReadOnly;
     }
@@ -150,8 +147,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             inputId = resolvedControlId;
             LabelableContext?.SetControlId(resolvedControlId);
         }
-
-        previousChecked = CurrentChecked;
 
         if (hasRendered)
         {
@@ -167,15 +162,14 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var context = CreateContext(state);
+        var context = CreateContext(State);
 
         builder.OpenComponent<CascadingValue<RadioRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
-            RenderRadio(contextBuilder, state);
+            RenderRadio(contextBuilder, State);
             RenderHiddenInput(contextBuilder);
         }));
         builder.CloseComponent();
@@ -183,10 +177,10 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && Element.HasValue)
         {
             hasRendered = true;
-            GroupContext?.RegisterRadio(this, element, Value, () => ResolvedDisabled, FocusAsync);
+            GroupContext?.RegisterRadio(this, Element.Value, Value, () => ResolvedDisabled, FocusAsync);
             await InitializeJsAsync();
         }
     }
@@ -197,12 +191,12 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         FieldContext?.UnsubscribeFunc(this);
         GroupContext?.UnregisterRadio(this);
 
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", element);
+                await module.InvokeVoidAsync("dispose", Element);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -224,7 +218,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", element);
+            await module.InvokeVoidAsync("focus", Element);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -233,8 +227,8 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     private void RenderRadio(RenderTreeBuilder builder, RadioRootState state)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
         var attributes = BuildRadioAttributes(state);
 
         if (!string.IsNullOrEmpty(resolvedClass))
@@ -254,7 +248,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -273,7 +267,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             builder.AddAttribute(13, "checked", true);
 
         if (ResolvedDisabled)
-            builder.AddAttribute(14, "disabled", true);
+            builder.AddAttribute(14, "Disabled", true);
 
         if (ResolvedRequired)
             builder.AddAttribute(15, "required", true);
@@ -282,7 +276,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             builder.AddAttribute(16, "name", ResolvedName);
 
         if (Value is not null)
-            builder.AddAttribute(17, "value", Value.ToString());
+            builder.AddAttribute(17, "Value", Value.ToString());
 
         builder.AddAttribute(18, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
         builder.AddAttribute(19, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
@@ -309,7 +303,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
         if (IsInGroup)
         {
-            var isActiveItem = CurrentChecked || (GroupContext!.CheckedValue is null && GroupContext.IsFirstEnabledRadio((object)this));
+            var isActiveItem = CurrentChecked || (GroupContext!.CheckedValue is null && GroupContext.IsFirstEnabledRadio(this));
             attributes["tabindex"] = ResolvedDisabled ? -1 : (isActiveItem ? 0 : -1);
             attributes["data-radio-item"] = string.Empty;
         }
@@ -357,7 +351,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", element, inputElement, ResolvedDisabled, ResolvedReadOnly);
+            await module.InvokeVoidAsync("initialize", Element, inputElement, ResolvedDisabled, ResolvedReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -372,7 +366,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", element, inputElement, ResolvedDisabled, ResolvedReadOnly);
+            await module.InvokeVoidAsync("updateState", Element, inputElement, ResolvedDisabled, ResolvedReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -424,11 +418,11 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         {
             case "ArrowUp":
             case "ArrowLeft":
-                await GroupContext!.NavigateToPreviousAsync((object)this);
+                await GroupContext!.NavigateToPreviousAsync(this);
                 break;
             case "ArrowDown":
             case "ArrowRight":
-                await GroupContext!.NavigateToNextAsync((object)this);
+                await GroupContext!.NavigateToNextAsync(this);
                 break;
         }
     }

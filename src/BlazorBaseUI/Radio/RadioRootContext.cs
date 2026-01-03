@@ -9,7 +9,7 @@ public interface IRadioRootContext
     RadioRootState State { get; }
 }
 
-public record RadioRootContext(
+public sealed record RadioRootContext(
     bool Checked,
     bool Disabled,
     bool ReadOnly,

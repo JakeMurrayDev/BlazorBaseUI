@@ -11,7 +11,7 @@ internal static class Extensions
             {
                 CheckboxDataAttribute.Checked => "data-checked",
                 CheckboxDataAttribute.Unchecked => "data-unchecked",
-                CheckboxDataAttribute.Disabled => "data-disabled",
+                CheckboxDataAttribute.Disabled => "data-Disabled",
                 CheckboxDataAttribute.ReadOnly => "data-readonly",
                 CheckboxDataAttribute.Required => "data-required",
                 CheckboxDataAttribute.Indeterminate => "data-indeterminate",

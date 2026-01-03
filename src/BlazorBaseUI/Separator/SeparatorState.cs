@@ -1,3 +1,3 @@
 ﻿namespace BlazorBaseUI.Separator;
 
-public record SeparatorState(Orientation Orientation);
+public sealed record SeparatorState(Orientation Orientation);

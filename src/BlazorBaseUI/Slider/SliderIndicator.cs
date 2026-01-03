@@ -8,9 +8,6 @@ public sealed class SliderIndicator : ComponentBase
 {
     private const string DefaultTag = "div";
 
-    private bool hasRendered;
-    private ElementReference element;
-
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
 
@@ -33,7 +30,7 @@ public sealed class SliderIndicator : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsVertical => Context?.Orientation == Orientation.Vertical;
 
@@ -56,7 +53,7 @@ public sealed class SliderIndicator : ComponentBase
 
         var indicatorStyle = GetIndicatorStyle();
         attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle?.ToString() : null,
+            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
             indicatorStyle);
 
         if (RenderAs is not null)
@@ -73,19 +70,11 @@ public sealed class SliderIndicator : ComponentBase
         builder.AddMultipleAttributes(4, attributes);
         builder.AddElementReferenceCapture(5, e =>
         {
-            element = e;
+            Element = e;
             Context?.SetIndicatorElement(e);
         });
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
-    }
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            hasRendered = true;
-        }
     }
 
     private Dictionary<string, object> BuildIndicatorAttributes(SliderRootState state)

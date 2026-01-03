@@ -73,7 +73,7 @@ public sealed class SliderThumb : ComponentBase, IDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private int ResolvedIndex => Index ?? 0;
 
@@ -120,10 +120,10 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         if (Context is null)
             return;
 
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildThumbAttributes(state);
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -132,7 +132,7 @@ public sealed class SliderThumb : ComponentBase, IDisposable
 
         var positionStyle = GetPositionStyle();
         attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle?.ToString() : null,
+            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
             positionStyle);
 
         if (RenderAs is not null)
@@ -180,7 +180,7 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         }
     }
 
-    private Dictionary<string, object> BuildThumbAttributes(SliderThumbState state)
+    private Dictionary<string, object> BuildAttributes(SliderThumbState state)
     {
         var attributes = new Dictionary<string, object>();
 
@@ -215,10 +215,10 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         builder.AddAttribute(11, "min", Context.Min);
         builder.AddAttribute(12, "max", Context.Max);
         builder.AddAttribute(13, "step", Context.Step);
-        builder.AddAttribute(14, "value", thumbValue);
-        builder.AddAttribute(15, "disabled", ResolvedDisabled);
+        builder.AddAttribute(14, "Value", thumbValue);
+        builder.AddAttribute(15, "Disabled", ResolvedDisabled);
         builder.AddAttribute(16, "aria-valuenow", thumbValue);
-        builder.AddAttribute(17, "aria-orientation", Context.Orientation.ToDataAttributeString());
+        builder.AddAttribute(17, "aria-Orientation", Context.Orientation.ToDataAttributeString());
 
         var ariaLabel = GetAriaLabel?.Invoke(ResolvedIndex);
         if (!string.IsNullOrEmpty(ariaLabel))

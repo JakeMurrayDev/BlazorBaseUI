@@ -1,3 +1,3 @@
 ﻿namespace BlazorBaseUI.DirectionProvider;
 
-public sealed record class DirectionProviderContext(Direction Direction);
+public sealed record DirectionProviderContext(Direction Direction);

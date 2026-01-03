@@ -12,7 +12,7 @@ public interface IAccordionRootContext
     void HandleValueChange(object value, bool nextOpen);
 }
 
-public record AccordionRootContext<TValue>(
+public sealed record AccordionRootContext<TValue>(
     TValue[] Value,
     bool Disabled,
     Orientation Orientation,

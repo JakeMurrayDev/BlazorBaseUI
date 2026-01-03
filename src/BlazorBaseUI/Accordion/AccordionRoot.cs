@@ -12,7 +12,6 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
 
     private TValue[] currentValue = [];
     private AccordionRootContext<TValue> context = null!;
-    private ElementReference element;
 
     [CascadingParameter]
     private DirectionProviderContext? DirectionContext { get; set; }
@@ -66,7 +65,7 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value is not null;
 
@@ -115,7 +114,7 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
                     var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
                     listBuilder.OpenElement(9, tag);
                     listBuilder.AddMultipleAttributes(10, attributes);
-                    listBuilder.AddElementReferenceCapture(11, e => element = e);
+                    listBuilder.AddElementReferenceCapture(11, e => Element = e);
                     listBuilder.AddContent(12, ChildContent);
                     listBuilder.CloseElement();
                 }
@@ -173,7 +172,7 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
         }
         else
         {
-            nextValue = CurrentValue.Where(v => !EqualityComparer<TValue>.Default.Equals(v, itemValue)).ToArray();
+            nextValue = [.. CurrentValue.Where(v => !EqualityComparer<TValue>.Default.Equals(v, itemValue))];
         }
 
         var args = new AccordionValueChangeEventArgs<TValue>(nextValue);
