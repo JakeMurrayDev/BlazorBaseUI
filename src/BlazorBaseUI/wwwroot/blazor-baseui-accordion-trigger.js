@@ -136,7 +136,7 @@ function handleKeyDown(event) {
     }
 
     if (nextIndex > -1) {
-        triggers[nextIndex].focus();
+        triggers[nextIndex].focus({ preventScroll: true });
     }
 }
 
