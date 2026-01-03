@@ -2,7 +2,7 @@ using BlazorBaseUI.Field;
 
 namespace BlazorBaseUI.RadioGroup;
 
-public record RadioGroupState(
+public sealed record RadioGroupState(
     bool Disabled,
     bool ReadOnly,
     bool Required,
@@ -36,7 +36,7 @@ public record RadioGroupState(
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

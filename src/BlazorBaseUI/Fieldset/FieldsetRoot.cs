@@ -9,7 +9,6 @@ public sealed class FieldsetRoot : ComponentBase
     private const string DefaultTag = "fieldset";
 
     private string? legendId;
-    private ElementReference element;
 
     [Parameter]
     public bool Disabled { get; set; }
@@ -33,7 +32,7 @@ public sealed class FieldsetRoot : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
@@ -69,7 +68,7 @@ public sealed class FieldsetRoot : ComponentBase
                 var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
                 contentBuilder.OpenElement(7, tag);
                 contentBuilder.AddMultipleAttributes(8, attributes);
-                contentBuilder.AddElementReferenceCapture(9, e => element = e);
+                contentBuilder.AddElementReferenceCapture(9, e => Element = e);
                 contentBuilder.AddContent(10, ChildContent);
                 contentBuilder.CloseElement();
             }
@@ -94,7 +93,7 @@ public sealed class FieldsetRoot : ComponentBase
             attributes["aria-labelledby"] = legendId;
 
         if (Disabled)
-            attributes["disabled"] = true;
+            attributes["Disabled"] = true;
 
         foreach (var dataAttr in state.GetDataAttributes())
             attributes[dataAttr.Key] = dataAttr.Value;

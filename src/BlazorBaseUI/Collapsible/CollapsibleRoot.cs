@@ -11,7 +11,6 @@ public sealed class CollapsibleRoot : ComponentBase
     private bool isOpen;
     private string panelId = null!;
     private CollapsibleRootContext context = null!;
-    private ElementReference element;
 
     [Parameter]
     public bool? Open { get; set; }
@@ -47,7 +46,7 @@ public sealed class CollapsibleRoot : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Open.HasValue;
 
@@ -94,7 +93,7 @@ public sealed class CollapsibleRoot : ComponentBase
                 var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
                 innerBuilder.OpenElement(7, tag);
                 innerBuilder.AddMultipleAttributes(8, attributes);
-                innerBuilder.AddElementReferenceCapture(9, e => element = e);
+                innerBuilder.AddElementReferenceCapture(9, e => Element = e);
                 innerBuilder.AddContent(10, ChildContent);
                 innerBuilder.CloseElement();
             }

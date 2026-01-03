@@ -8,8 +8,6 @@ public sealed class SliderTrack : ComponentBase
 {
     private const string DefaultTag = "div";
 
-    private ElementReference element;
-
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
 
@@ -32,7 +30,7 @@ public sealed class SliderTrack : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
@@ -50,7 +48,7 @@ public sealed class SliderTrack : ComponentBase
             attributes["style"] = resolvedStyle;
 
         attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle?.ToString() : null,
+            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
             "position: relative;");
 
         if (RenderAs is not null)
@@ -65,7 +63,7 @@ public sealed class SliderTrack : ComponentBase
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }

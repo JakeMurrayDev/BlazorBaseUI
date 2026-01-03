@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.Serialization;
-using Microsoft.AspNetCore.Components.HotReload;
 
 namespace BlazorBaseUI.Base;
 
@@ -13,13 +12,13 @@ internal static class ExpressionFormatter
 
     private delegate void CapturedValueFormatter(object closure, ref ReverseStringBuilder builder);
 
-    private static readonly ConcurrentDictionary<MemberInfo, CapturedValueFormatter> s_capturedValueFormatterCache = new();
-    private static readonly ConcurrentDictionary<MethodInfo, MethodInfoData> s_methodInfoDataCache = new();
+    private static readonly ConcurrentDictionary<MemberInfo, CapturedValueFormatter> CapturedValueFormatterCache = new();
+    private static readonly ConcurrentDictionary<MethodInfo, MethodInfoData> MethodInfoDataCache = new();
 
     public static void ClearCache()
     {
-        s_capturedValueFormatterCache.Clear();
-        s_methodInfoDataCache.Clear();
+        CapturedValueFormatterCache.Clear();
+        MethodInfoDataCache.Clear();
     }
 
     public static string FormatLambda(LambdaExpression expression)
@@ -39,7 +38,6 @@ internal static class ExpressionFormatter
             switch (node.NodeType)
             {
                 case ExpressionType.Constant:
-                    var constantExpression = (ConstantExpression)node;
                     node = null;
                     break;
                 case ExpressionType.Call:
@@ -145,10 +143,10 @@ internal static class ExpressionFormatter
 
     private static MethodInfoData GetOrCreateMethodInfoData(MethodInfo methodInfo)
     {
-        if (!s_methodInfoDataCache.TryGetValue(methodInfo, out var methodInfoData))
+        if (!MethodInfoDataCache.TryGetValue(methodInfo, out var methodInfoData))
         {
             methodInfoData = GetMethodInfoData(methodInfo);
-            s_methodInfoDataCache[methodInfo] = methodInfoData;
+            MethodInfoDataCache[methodInfo] = methodInfoData;
         }
 
         return methodInfoData;
@@ -196,7 +194,7 @@ internal static class ExpressionFormatter
     {
         switch (indexExpression)
         {
-            case MemberExpression memberExpression when memberExpression.Expression is ConstantExpression constantExpression:
+            case MemberExpression {Expression: ConstantExpression constantExpression} memberExpression:
                 FormatCapturedValue(memberExpression, constantExpression, ref builder);
                 break;
             case ConstantExpression constantExpression:
@@ -226,10 +224,10 @@ internal static class ExpressionFormatter
     private static void FormatCapturedValue(MemberExpression memberExpression, ConstantExpression constantExpression, ref ReverseStringBuilder builder)
     {
         var member = memberExpression.Member;
-        if (!s_capturedValueFormatterCache.TryGetValue(member, out var format))
+        if (!CapturedValueFormatterCache.TryGetValue(member, out var format))
         {
             format = CreateCapturedValueFormatter(memberExpression);
-            s_capturedValueFormatterCache[member] = format;
+            CapturedValueFormatterCache[member] = format;
         }
 
         format(constantExpression.Value!, ref builder);
@@ -242,22 +240,22 @@ internal static class ExpressionFormatter
         if (memberType == typeof(int))
         {
             var func = CompileMemberEvaluator<int>(memberExpression);
-            return (object closure, ref ReverseStringBuilder builder) => builder.InsertFront(func.Invoke(closure));
+            return (closure, ref builder) => builder.InsertFront(func.Invoke(closure));
         }
         else if (memberType == typeof(string))
         {
             var func = CompileMemberEvaluator<string>(memberExpression);
-            return (object closure, ref ReverseStringBuilder builder) => builder.InsertFront(func.Invoke(closure));
+            return (closure, ref builder) => builder.InsertFront(func.Invoke(closure));
         }
         else if (typeof(ISpanFormattable).IsAssignableFrom(memberType))
         {
             var func = CompileMemberEvaluator<ISpanFormattable>(memberExpression);
-            return (object closure, ref ReverseStringBuilder builder) => builder.InsertFront(func.Invoke(closure));
+            return (closure, ref builder) => builder.InsertFront(func.Invoke(closure));
         }
         else if (typeof(IFormattable).IsAssignableFrom(memberType))
         {
             var func = CompileMemberEvaluator<IFormattable>(memberExpression);
-            return (object closure, ref ReverseStringBuilder builder) => builder.InsertFront(func.Invoke(closure));
+            return (closure, ref builder) => builder.InsertFront(func.Invoke(closure));
         }
         else
         {
@@ -296,13 +294,8 @@ internal static class ExpressionFormatter
         }
     }
 
-    private readonly struct MethodInfoData
+    private readonly struct MethodInfoData(bool isSingleArgumentIndexer)
     {
-        public bool IsSingleArgumentIndexer { get; }
-
-        public MethodInfoData(bool isSingleArgumentIndexer)
-        {
-            IsSingleArgumentIndexer = isSingleArgumentIndexer;
-        }
+        public bool IsSingleArgumentIndexer { get; } = isSingleArgumentIndexer;
     }
 }

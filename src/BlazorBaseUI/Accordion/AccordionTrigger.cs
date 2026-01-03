@@ -51,7 +51,7 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool ResolvedDisabled => Disabled ?? ItemContext?.Disabled ?? false;
 
@@ -99,11 +99,10 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     {
         if (ItemContext is null)
             return;
-
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -146,14 +145,14 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
             attributes["type"] = "button";
 
         attributes["tabindex"] = 0;
-        attributes["aria-disabled"] = ResolvedDisabled ? "true" : "false";
+        attributes["aria-Disabled"] = ResolvedDisabled ? "true" : "false";
         attributes["aria-expanded"] = ItemContext?.Open == true ? "true" : "false";
 
         if (ItemContext?.Open is true)
             attributes["aria-controls"] = ItemContext.PanelId;
 
         if (ResolvedDisabled)
-            attributes["disabled"] = true;
+            attributes["Disabled"] = true;
 
         attributes["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick);
 
@@ -185,25 +184,5 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
             {
             }
         }
-    }
-}
-
-public record AccordionTriggerState(bool Open, Orientation Orientation, string Value, bool Disabled)
-{
-    public Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>
-        {
-            [AccordionTriggerDataAttribute.Value.ToDataAttributeString()] = Value,
-            [AccordionTriggerDataAttribute.Orientation.ToDataAttributeString()] = Orientation.ToDataAttributeString()!
-        };
-
-        if (Open)
-            attributes[AccordionTriggerDataAttribute.PanelOpen.ToDataAttributeString()] = string.Empty;
-
-        if (Disabled)
-            attributes[AccordionTriggerDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
     }
 }

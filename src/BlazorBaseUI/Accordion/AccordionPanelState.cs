@@ -1,16 +1,13 @@
-﻿using BlazorBaseUI.Collapsible;
+﻿namespace BlazorBaseUI.Accordion;
 
-namespace BlazorBaseUI.Accordion;
-
-public record AccordionPanelState<TValue>(
-    TValue[] Value,
-    bool Disabled,
-    Orientation Orientation,
-    int Index,
+public sealed record AccordionPanelState(
     bool Open,
-    TransitionStatus TransitionStatus) : AccordionItemState<TValue>(Value, Disabled, Orientation, Index, Open)
+    bool Disabled,
+    int Index,
+    Orientation Orientation,
+    TransitionStatus TransitionStatus)
 {
-    public new Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>
         {

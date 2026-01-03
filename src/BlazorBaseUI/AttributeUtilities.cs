@@ -16,23 +16,25 @@ internal static class AttributeUtilities
         {
             return default;
         }
-
-        if (value is T typedValue)
-            return typedValue;
-
-        if (value is null)
-            return default;
-
-        try
+        
+        switch (value)
         {
-            return (T)Convert.ChangeType(value, typeof(T));
-        }
-        catch
-        {
-            throw new InvalidCastException(
-                $"Cannot convert attribute '{attribute}' of type "
-                    + $"{value.GetType().Name} to {typeof(T).Name}"
-            );
+            case null:
+                return default;
+            case T typedValue:
+                return typedValue;
+            default:
+                try
+                {
+                    return (T)Convert.ChangeType(value, typeof(T));
+                }
+                catch
+                {
+                    throw new InvalidCastException(
+                        $"Cannot convert attribute '{attribute}' of type "
+                        + $"{value.GetType().Name} to {typeof(T).Name}"
+                    );
+                }
         }
     }
 

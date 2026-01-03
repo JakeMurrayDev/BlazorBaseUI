@@ -10,14 +10,14 @@ public sealed class Form : ComponentBase
 {
     private const string DefaultTag = "form";
 
+    private readonly FieldRegistry fieldRegistry = new();
+
     private EditContext? editContext;
     private bool hasSetEditContextExplicitly;
     private bool submitAttempted;
     private Dictionary<string, string[]> errors = [];
     private Dictionary<string, string[]>? previousExternalErrors;
-    private FieldRegistry fieldRegistry = new();
     private FormContext formContext = null!;
-    private ElementReference element;
 
     [Parameter]
 #pragma warning disable BL0007
@@ -72,7 +72,7 @@ public sealed class Form : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     protected override void OnParametersSet()
     {
@@ -138,7 +138,7 @@ public sealed class Form : ComponentBase
             var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
             builder.OpenElement(3, tag);
             builder.AddMultipleAttributes(4, attributes);
-            builder.AddElementReferenceCapture(5, e => element = e);
+            builder.AddElementReferenceCapture(5, e => Element = e);
             builder.AddContent(6, BuildChildContent());
             builder.CloseElement();
         }
@@ -238,7 +238,7 @@ public sealed class Form : ComponentBase
         if (isValid && OnFormSubmit.HasDelegate)
         {
             var formValues = new Dictionary<string, object?>();
-            foreach (var (id, field) in fieldRegistry.Fields)
+            foreach (var (_, field) in fieldRegistry.Fields)
             {
                 if (field.Name is not null)
                 {

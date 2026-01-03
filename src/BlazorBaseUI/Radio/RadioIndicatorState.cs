@@ -1,6 +1,6 @@
 namespace BlazorBaseUI.Radio;
 
-public record RadioIndicatorState(
+public sealed record RadioIndicatorState(
     bool Checked,
     bool Disabled,
     bool ReadOnly,
@@ -12,7 +12,7 @@ public record RadioIndicatorState(
     bool Focused,
     TransitionStatus TransitionStatus)
 {
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

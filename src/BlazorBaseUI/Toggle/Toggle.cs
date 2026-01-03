@@ -21,7 +21,6 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     private Orientation previousOrientation;
     private string? defaultId;
     private string resolvedValue = null!;
-    private ElementReference element;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -69,7 +68,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Pressed.HasValue;
 
@@ -123,7 +122,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
         if (hasRendered)
         {
-            if (CurrentPressed != previousPressed)
+            if (previousPressed != CurrentPressed)
             {
                 previousPressed = CurrentPressed;
             }
@@ -144,10 +143,10 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -166,7 +165,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -177,11 +176,11 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         {
             hasRendered = true;
 
-            if (IsInGroup)
+            if (IsInGroup && Element.HasValue)
             {
                 GroupContext!.RegisterToggle(
                     this,
-                    element,
+                    Element.Value,
                     resolvedValue,
                     () => ResolvedDisabled,
                     FocusAsync);
@@ -194,11 +193,11 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
                 await InitializeJsAsync();
             }
         }
-        else if (IsInGroup)
+        else if (IsInGroup && Element.HasValue)
         {
             GroupContext!.RegisterToggle(
                 this,
-                element,
+                Element.Value,
                 resolvedValue,
                 () => ResolvedDisabled,
                 FocusAsync);
@@ -209,7 +208,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     {
         GroupContext?.UnregisterToggle(this);
 
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
@@ -217,12 +216,12 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
                 if (IsInGroup)
                 {
-                    await module.InvokeVoidAsync("disposeGroupItem", element);
+                    await module.InvokeVoidAsync("disposeGroupItem", Element);
                 }
 
                 if (!NativeButton)
                 {
-                    await module.InvokeVoidAsync("dispose", element);
+                    await module.InvokeVoidAsync("dispose", Element);
                 }
 
                 await module.DisposeAsync();
@@ -254,7 +253,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
             if (ResolvedDisabled)
             {
-                attributes["disabled"] = true;
+                attributes["Disabled"] = true;
             }
         }
         else
@@ -263,7 +262,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
             if (ResolvedDisabled)
             {
-                attributes["aria-disabled"] = true;
+                attributes["aria-Disabled"] = true;
                 attributes["tabindex"] = -1;
             }
         }
@@ -307,7 +306,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", element, ResolvedDisabled);
+            await module.InvokeVoidAsync("initialize", Element, ResolvedDisabled);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -320,7 +319,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         {
             var module = await moduleTask.Value;
             var orientationString = CurrentOrientation.ToDataAttributeString() ?? "horizontal";
-            await module.InvokeVoidAsync("initializeGroupItem", element, orientationString);
+            await module.InvokeVoidAsync("initializeGroupItem", Element, orientationString);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -335,7 +334,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", element, ResolvedDisabled);
+            await module.InvokeVoidAsync("updateState", Element, ResolvedDisabled);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -351,7 +350,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         {
             var module = await moduleTask.Value;
             var orientationString = CurrentOrientation.ToDataAttributeString() ?? "horizontal";
-            await module.InvokeVoidAsync("updateGroupItemOrientation", element, orientationString);
+            await module.InvokeVoidAsync("updateGroupItemOrientation", Element, orientationString);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -453,7 +452,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", element);
+            await module.InvokeVoidAsync("focus", Element);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

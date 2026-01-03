@@ -6,7 +6,7 @@ using BlazorBaseUI.Utilities.CompositeList;
 
 namespace BlazorBaseUI.Accordion;
 
-public class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : notnull
+public sealed class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : notnull
 {
     private const string DefaultTag = "div";
 
@@ -15,7 +15,7 @@ public class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : n
     private TValue resolvedValue = default!;
     private AccordionItemContext<TValue>? itemContext;
     private CollapsibleRootContext? collapsibleContext;
-    private ElementReference element;
+    private ElementReference? element;
 
     [CascadingParameter]
     private IAccordionRootContext? RootContext { get; set; }
@@ -51,11 +51,11 @@ public class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : n
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool ResolvedDisabled => Disabled || (RootContext?.Disabled ?? false);
 
-    private bool IsOpen => RootContext?.IsValueOpen(resolvedValue!) ?? false;
+    private bool IsOpen => RootContext?.IsValueOpen(resolvedValue) ?? false;
 
     private AccordionRootContext<TValue>? TypedRootContext => RootContext as AccordionRootContext<TValue>;
 
@@ -67,9 +67,9 @@ public class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : n
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && ListContext is not null && element.Id is not null)
+        if (firstRender && ListContext is not null && element.HasValue)
         {
-            index = ListContext.Register(element);
+            index = ListContext.Register(element.Value);
         }
     }
 
@@ -186,7 +186,7 @@ public class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : n
         if (args.Canceled)
             return;
 
-        RootContext?.HandleValueChange(resolvedValue!, nextOpen);
+        RootContext?.HandleValueChange(resolvedValue, nextOpen);
     }
 
     public void Dispose()

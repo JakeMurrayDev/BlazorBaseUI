@@ -18,7 +18,7 @@ public interface ICompositeListContext<TMetadata> : ICompositeListContext
     IReadOnlyList<(ElementReference Element, TMetadata Metadata)> GetAllItems();
 }
 
-public sealed class CompositeListContext : ICompositeListContext
+public sealed record CompositeListContext : ICompositeListContext
 {
     private readonly List<ElementReference?> elements = [];
     private readonly Queue<int> freeIndices = new();
@@ -63,7 +63,7 @@ public sealed class CompositeListContext : ICompositeListContext
     }
 }
 
-public sealed class CompositeListContext<TMetadata> : ICompositeListContext<TMetadata>
+public sealed record CompositeListContext<TMetadata> : ICompositeListContext<TMetadata>
 {
     private readonly List<(ElementReference? Element, TMetadata? Metadata)> items = [];
     private readonly Queue<int> freeIndices = new();

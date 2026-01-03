@@ -17,7 +17,6 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     private string[]? internalValue;
     private string[]? previousValue;
     private CheckboxRoot? controlRef;
-    private ElementReference element;
 
     [CascadingParameter] private FieldRootContext? FieldContext { get; set; }
 
@@ -50,7 +49,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull] public ElementReference? Element => element;
+    [DisallowNull] public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value is not null;
 
@@ -94,14 +93,13 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
+        
         var context = CreateContext();
 
         builder.OpenComponent<CascadingValue<CheckboxGroupContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent",
-            (RenderFragment) (contextBuilder => { RenderGroup(contextBuilder, state); }));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(RenderGroup));
         builder.CloseComponent();
     }
 
@@ -115,11 +113,11 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
         FieldContext?.UnsubscribeFunc(this);
     }
 
-    private void RenderGroup(RenderTreeBuilder builder, CheckboxGroupState state)
+    private void RenderGroup(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -138,7 +136,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -186,14 +184,14 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
         }
 
         return new CheckboxGroupContext(
-            value: CurrentValue,
-            defaultValue: DefaultValue,
-            allValues: AllValues,
-            disabled: ResolvedDisabled,
-            parent: parent,
-            validation: FieldContext?.Validation,
-            setValueFunc: SetValueInternal,
-            registerControlAction: RegisterControl);
+            Value: CurrentValue,
+            DefaultValue: DefaultValue,
+            AllValues: AllValues,
+            Disabled: ResolvedDisabled,
+            Parent: parent,
+            Validation: FieldContext?.Validation,
+            SetValueFunc: SetValueInternal,
+            RegisterControlAction: RegisterControl);
     }
 
     private void RegisterControl(CheckboxRoot checkbox)
@@ -251,7 +249,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
 
         if (FieldContext?.ShouldValidateOnChangeFunc() == true)
         {
-            await (FieldContext.Validation.CommitAsync(currentValue) ?? Task.CompletedTask);
+            await FieldContext.Validation.CommitAsync(currentValue);
         }
         else
         {

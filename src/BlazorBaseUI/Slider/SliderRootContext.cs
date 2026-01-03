@@ -7,7 +7,7 @@ public interface ISliderRootContext
 {
     int ActiveThumbIndex { get; }
     int LastUsedThumbIndex { get; }
-    ElementReference ControlElement { get; }
+    ElementReference? ControlElement { get; }
     bool Dragging { get; }
     bool Disabled { get; }
     bool ReadOnly { get; }
@@ -44,10 +44,10 @@ public interface ISliderRootContext
     (double? Start, double? End) GetIndicatorPosition();
 }
 
-public record SliderRootContext(
+public sealed record SliderRootContext(
     int ActiveThumbIndex,
     int LastUsedThumbIndex,
-    ElementReference ControlElement,
+    ElementReference? ControlElement,
     bool Dragging,
     bool Disabled,
     bool ReadOnly,
@@ -141,7 +141,7 @@ public record SliderRootContext(
     (double? Start, double? End) ISliderRootContext.GetIndicatorPosition() => GetIndicatorPositionFunc();
 }
 
-public record NumberFormatOptions(
+public sealed record NumberFormatOptions(
     string? Style = null,
     string? Currency = null,
     int? MinimumFractionDigits = null,

@@ -25,7 +25,6 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private string resolvedControlId = null!;
     private string switchId = null!;
     private string inputId = null!;
-    private ElementReference element;
     private ElementReference inputElement;
 
     [Inject]
@@ -86,7 +85,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Checked.HasValue;
 
@@ -96,7 +95,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private string? ResolvedName => Name ?? FieldContext?.Name;
 
-    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString())!;
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
@@ -164,15 +163,14 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var context = CreateContext(state);
+        var context = CreateContext(State);
 
         builder.OpenComponent<CascadingValue<SwitchRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
-            RenderSwitch(contextBuilder, state);
+            RenderSwitch(contextBuilder, State);
             RenderHiddenInput(contextBuilder);
             RenderCheckboxInput(contextBuilder);
         }));
@@ -193,12 +191,12 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", element);
+                await module.InvokeVoidAsync("dispose", Element);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -214,8 +212,8 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private void RenderSwitch(RenderTreeBuilder builder, SwitchRootState state)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
         var attributes = BuildSwitchAttributes(state);
 
         if (!string.IsNullOrEmpty(resolvedClass))
@@ -235,7 +233,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -248,7 +246,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         builder.OpenElement(7, "input");
         builder.AddAttribute(8, "type", "hidden");
         builder.AddAttribute(9, "name", ResolvedName);
-        builder.AddAttribute(10, "value", UncheckedValue);
+        builder.AddAttribute(10, "Value", UncheckedValue);
         builder.CloseElement();
     }
 
@@ -258,7 +256,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         builder.AddAttribute(12, "type", "checkbox");
         builder.AddAttribute(13, "id", inputId);
         builder.AddAttribute(14, "checked", CurrentChecked);
-        builder.AddAttribute(15, "disabled", ResolvedDisabled);
+        builder.AddAttribute(15, "Disabled", ResolvedDisabled);
         builder.AddAttribute(16, "required", Required);
         builder.AddAttribute(17, "aria-hidden", true);
         builder.AddAttribute(18, "tabindex", -1);
@@ -325,7 +323,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", element, inputElement, ResolvedDisabled, ReadOnly);
+            await module.InvokeVoidAsync("initialize", Element, inputElement, ResolvedDisabled, ReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -340,7 +338,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", element, ResolvedDisabled, ReadOnly);
+            await module.InvokeVoidAsync("updateState", Element, ResolvedDisabled, ReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -459,7 +457,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", element);
+            await module.InvokeVoidAsync("focus", Element);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

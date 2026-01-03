@@ -9,7 +9,6 @@ public sealed class FieldsetLegend : ComponentBase, IDisposable
     private const string DefaultTag = "div";
 
     private string? defaultId;
-    private ElementReference element;
 
     [CascadingParameter]
     private FieldsetRootContext? FieldsetContext { get; set; }
@@ -33,7 +32,7 @@ public sealed class FieldsetLegend : ComponentBase, IDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool Disabled => FieldsetContext?.Disabled ?? false;
 
@@ -68,7 +67,7 @@ public sealed class FieldsetLegend : ComponentBase, IDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }

@@ -1,3 +1,3 @@
 ﻿namespace BlazorBaseUI.Button;
 
-public record ButtonState(bool Disabled);
+public sealed record ButtonState(bool Disabled);

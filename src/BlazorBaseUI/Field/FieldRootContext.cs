@@ -31,7 +31,7 @@ public interface IFieldRootContext
     void Unsubscribe(IFieldStateSubscriber subscriber);
 }
 
-public record FieldRootContext(
+public sealed record FieldRootContext(
     bool? Invalid,
     string? Name,
     FieldValidityData ValidityData,

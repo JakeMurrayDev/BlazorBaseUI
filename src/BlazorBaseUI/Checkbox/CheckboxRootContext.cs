@@ -10,7 +10,7 @@ public interface ICheckboxRootContext
     CheckboxRootState State { get; }
 }
 
-public record CheckboxRootContext(
+public sealed record CheckboxRootContext(
     bool Checked,
     bool Disabled,
     bool ReadOnly,

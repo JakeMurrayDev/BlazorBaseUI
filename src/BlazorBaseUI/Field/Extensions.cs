@@ -7,7 +7,7 @@ internal static class Extensions
         public string ToDataAttributeName() =>
             attribute switch
             {
-                FieldDataAttribute.Disabled => "data-disabled",
+                FieldDataAttribute.Disabled => "data-Disabled",
                 FieldDataAttribute.Valid => "data-valid",
                 FieldDataAttribute.Invalid => "data-invalid",
                 FieldDataAttribute.Touched => "data-touched",

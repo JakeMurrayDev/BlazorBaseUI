@@ -1,6 +1,6 @@
 ﻿namespace BlazorBaseUI.Field;
 
-public record FieldRootState(
+public sealed record FieldRootState(
     bool Disabled,
     bool? Valid,
     bool Touched,

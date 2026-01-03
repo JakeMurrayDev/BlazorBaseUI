@@ -1,13 +1,13 @@
 ﻿namespace BlazorBaseUI.Accordion;
 
-public record AccordionItemState<TValue>(
+public sealed record AccordionItemState<TValue>(
     TValue[] Value,
     bool Disabled,
     Orientation Orientation,
     int Index,
-    bool Open) : AccordionRootState<TValue>(Value, Disabled, Orientation)
+    bool Open)
 {
-    public new Dictionary<string, object> GetDataAttributes()
+    public Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>
         {

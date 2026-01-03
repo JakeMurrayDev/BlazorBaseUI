@@ -9,7 +9,7 @@ internal static class Extensions
         public string ToDataAttributeString() =>
             attribute switch
             {
-                CheckboxGroupDataAttribute.Disabled => "data-disabled",
+                CheckboxGroupDataAttribute.Disabled => "data-Disabled",
                 CheckboxGroupDataAttribute.Valid => "data-valid",
                 CheckboxGroupDataAttribute.Invalid => "data-invalid",
                 CheckboxGroupDataAttribute.Touched => "data-touched",

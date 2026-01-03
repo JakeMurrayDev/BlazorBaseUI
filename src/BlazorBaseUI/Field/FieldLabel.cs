@@ -15,7 +15,6 @@ public sealed class FieldLabel : ComponentBase, IAsyncDisposable
 
     private string? defaultId;
     private string labelId = null!;
-    private ElementReference element;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -45,7 +44,7 @@ public sealed class FieldLabel : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
 
@@ -64,11 +63,11 @@ public sealed class FieldLabel : ComponentBase, IAsyncDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
 
-        var attributes = BuildAttributes(state);
+        var attributes = BuildAttributes(State);
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
         if (!string.IsNullOrEmpty(resolvedStyle))
@@ -86,7 +85,7 @@ public sealed class FieldLabel : ComponentBase, IAsyncDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -123,9 +122,9 @@ public sealed class FieldLabel : ComponentBase, IAsyncDisposable
             {
                 var module = await moduleTask.Value;
 
-                if (module != null)
+                if (Element.HasValue)
                 {
-                    await module.InvokeVoidAsync("addLabelMouseDownListener", Element);
+                    await module.InvokeVoidAsync("addLabelMouseDownListener", Element.Value);
                 }
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -138,12 +137,12 @@ public sealed class FieldLabel : ComponentBase, IAsyncDisposable
     {
         LabelableContext?.SetLabelId(null);
 
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("removeLabelMouseDownListener", element);
+                await module.InvokeVoidAsync("removeLabelMouseDownListener", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

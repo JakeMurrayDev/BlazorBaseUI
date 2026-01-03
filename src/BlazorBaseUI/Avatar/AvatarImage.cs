@@ -13,7 +13,6 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
     private string? previousSrc;
     private bool hasRendered;
-    private ElementReference element;
 
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
@@ -40,7 +39,7 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private AvatarRootState State => new(imageLoadingStatus);
 
@@ -92,7 +91,7 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
             builder.AddAttribute(6, "class", resolvedClass);
             builder.AddAttribute(7, "style", resolvedStyle);
             builder.AddMultipleAttributes(8, AdditionalAttributes);
-            builder.AddElementReferenceCapture(9, elemRef => element = elemRef);
+            builder.AddElementReferenceCapture(9, elemRef => Element = elemRef);
             builder.CloseElement();
         }
     }

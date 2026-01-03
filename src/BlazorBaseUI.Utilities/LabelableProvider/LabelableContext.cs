@@ -1,6 +1,6 @@
 ﻿namespace BlazorBaseUI.Utilities.LabelableProvider;
 
-public record LabelableContext(
+public sealed record LabelableContext(
     string? ControlId,
     Action<string?> SetControlId,
     string? LabelId,

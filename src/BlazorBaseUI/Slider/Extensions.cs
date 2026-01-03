@@ -50,8 +50,8 @@ internal static class Extensions
             attribute switch
             {
                 SliderDataAttribute.Dragging => "data-dragging",
-                SliderDataAttribute.Orientation => "data-orientation",
-                SliderDataAttribute.Disabled => "data-disabled",
+                SliderDataAttribute.Orientation => "data-Orientation",
+                SliderDataAttribute.Disabled => "data-Disabled",
                 SliderDataAttribute.ReadOnly => "data-readonly",
                 SliderDataAttribute.Required => "data-required",
                 SliderDataAttribute.Valid => "data-valid",
@@ -70,8 +70,8 @@ internal static class Extensions
             {
                 SliderThumbDataAttribute.Index => "data-index",
                 SliderThumbDataAttribute.Dragging => "data-dragging",
-                SliderThumbDataAttribute.Orientation => "data-orientation",
-                SliderThumbDataAttribute.Disabled => "data-disabled",
+                SliderThumbDataAttribute.Orientation => "data-Orientation",
+                SliderThumbDataAttribute.Disabled => "data-Disabled",
                 SliderThumbDataAttribute.ReadOnly => "data-readonly",
                 SliderThumbDataAttribute.Required => "data-required",
                 SliderThumbDataAttribute.Valid => "data-valid",

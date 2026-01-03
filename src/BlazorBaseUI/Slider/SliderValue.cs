@@ -8,13 +8,8 @@ public sealed class SliderValue : ComponentBase
 {
     private const string DefaultTag = "output";
 
-    private ElementReference element;
-
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
-
-    [Parameter]
-    public string AriaLive { get; set; } = "off";
 
     [Parameter]
     public RenderFragment<(string[] FormattedValues, double[] Values)>? ChildContent { get; set; }
@@ -35,7 +30,7 @@ public sealed class SliderValue : ComponentBase
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
@@ -67,7 +62,7 @@ public sealed class SliderValue : ComponentBase
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, displayContent);
         builder.CloseElement();
     }
@@ -84,9 +79,13 @@ public sealed class SliderValue : ComponentBase
                     attributes[attr.Key] = attr.Value;
             }
         }
-
-        attributes["aria-live"] = AriaLive;
-
+        
+        if (attributes.TryGetValue("aria-live", out var ariaLive) && ariaLive is string s &&
+            string.IsNullOrEmpty(s))
+        {
+            attributes["aria-live"] = "off";
+        }
+        
         var htmlFor = GetHtmlFor();
         if (!string.IsNullOrEmpty(htmlFor))
             attributes["for"] = htmlFor;
@@ -120,9 +119,7 @@ public sealed class SliderValue : ComponentBase
         if (Context is null)
             return [];
 
-        return Context.Values
-            .Select(v => SliderUtilities.FormatNumber(v, Context.Locale, Context.FormatOptions))
-            .ToArray();
+        return [.. Context.Values.Select(v => SliderUtilities.FormatNumber(v, Context.Locale, Context.FormatOptions))];
     }
 
     private RenderFragment GetDisplayContent(string[] formattedValues)
@@ -136,7 +133,7 @@ public sealed class SliderValue : ComponentBase
         }
 
         var displayValue = string.Join(" \u2013 ", formattedValues.Select((f, i) =>
-            !string.IsNullOrEmpty(f) ? f : Context.Values[i].ToString()));
+            !string.IsNullOrEmpty(f) ? f : Context.Values[i].ToString(Context.Locale)));
 
         return builder => builder.AddContent(0, displayValue);
     }

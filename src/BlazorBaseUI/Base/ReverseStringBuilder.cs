@@ -1,5 +1,4 @@
-﻿using System;
-using System.Buffers;
+﻿using System.Buffers;
 using System.Globalization;
 
 namespace BlazorBaseUI.Base;
@@ -8,63 +7,63 @@ internal ref struct ReverseStringBuilder
 {
     public const int MinimumRentedArraySize = 1024;
 
-    private static readonly ArrayPool<char> s_arrayPool = ArrayPool<char>.Shared;
+    private static readonly ArrayPool<char> ArrayPool = ArrayPool<char>.Shared;
 
-    private int _nextEndIndex;
-    private Span<char> _currentBuffer;
-    private SequenceSegment? _fallbackSequenceSegment;
+    private int nextEndIndex;
+    private Span<char> currentBuffer;
+    private SequenceSegment? fallbackSequenceSegment;
 
     // For testing.
-    internal readonly int SequenceSegmentCount => _fallbackSequenceSegment?.Count() ?? 0;
+    internal readonly int SequenceSegmentCount => fallbackSequenceSegment?.Count() ?? 0;
 
     public ReverseStringBuilder(int conservativeEstimatedStringLength)
     {
-        var array = s_arrayPool.Rent(conservativeEstimatedStringLength);
-        _fallbackSequenceSegment = new(array);
-        _currentBuffer = array;
-        _nextEndIndex = _currentBuffer.Length;
+        var array = ArrayPool.Rent(conservativeEstimatedStringLength);
+        fallbackSequenceSegment = new(array);
+        currentBuffer = array;
+        nextEndIndex = currentBuffer.Length;
     }
 
     public ReverseStringBuilder(Span<char> initialBuffer)
     {
-        _currentBuffer = initialBuffer;
-        _nextEndIndex = _currentBuffer.Length;
+        currentBuffer = initialBuffer;
+        nextEndIndex = currentBuffer.Length;
     }
 
-    public readonly bool Empty => _nextEndIndex == _currentBuffer.Length;
+    public readonly bool Empty => nextEndIndex == currentBuffer.Length;
 
     public void InsertFront(scoped ReadOnlySpan<char> span)
     {
-        var startIndex = _nextEndIndex - span.Length;
+        var startIndex = nextEndIndex - span.Length;
         if (startIndex >= 0)
         {
             // The common case. There is enough space in the current buffer to copy the given span.
             // No additional work needs to be done here after the copy.
-            span.CopyTo(_currentBuffer[startIndex..]);
-            _nextEndIndex = startIndex;
+            span.CopyTo(currentBuffer[startIndex..]);
+            nextEndIndex = startIndex;
             return;
         }
 
         // There wasn't enough space in the current buffer.
         // What we do next depends on whether we're writing to the provided "initial" buffer or a rented one.
 
-        if (_fallbackSequenceSegment is null)
+        if (fallbackSequenceSegment is null)
         {
             // We've been writing to a stack-allocated buffer, but there is no more room on the stack.
             // We rent new memory with a length sufficiently larger than the initial buffer
             // and copy the contents over.
             var remainingLength = -startIndex;
-            var sizeToRent = _currentBuffer.Length + Math.Max(MinimumRentedArraySize, remainingLength * 2);
-            var newBuffer = s_arrayPool.Rent(sizeToRent);
-            _fallbackSequenceSegment = new(newBuffer);
+            var sizeToRent = currentBuffer.Length + Math.Max(MinimumRentedArraySize, remainingLength * 2);
+            var newBuffer = ArrayPool.Rent(sizeToRent);
+            fallbackSequenceSegment = new(newBuffer);
 
-            var newEndIndex = newBuffer.Length - _currentBuffer.Length + _nextEndIndex;
-            _currentBuffer[_nextEndIndex..].CopyTo(newBuffer.AsSpan(newEndIndex));
+            var newEndIndex = newBuffer.Length - currentBuffer.Length + nextEndIndex;
+            currentBuffer[nextEndIndex..].CopyTo(newBuffer.AsSpan(newEndIndex));
             newEndIndex -= span.Length;
             span.CopyTo(newBuffer.AsSpan(newEndIndex));
 
-            _currentBuffer = newBuffer;
-            _nextEndIndex = newEndIndex;
+            currentBuffer = newBuffer;
+            nextEndIndex = newEndIndex;
         }
         else
         {
@@ -72,23 +71,23 @@ internal ref struct ReverseStringBuilder
             // Copy as much as we can to the current buffer, rent a new buffer, and
             // continue copying the remaining contents.
             var remainingLength = -startIndex;
-            span[remainingLength..].CopyTo(_currentBuffer);
+            span[remainingLength..].CopyTo(currentBuffer);
             span = span[..remainingLength];
 
             var sizeToRent = Math.Max(MinimumRentedArraySize, remainingLength * 2);
-            var newBuffer = s_arrayPool.Rent(sizeToRent);
-            _fallbackSequenceSegment = new(newBuffer, _fallbackSequenceSegment);
-            _currentBuffer = newBuffer;
+            var newBuffer = ArrayPool.Rent(sizeToRent);
+            fallbackSequenceSegment = new(newBuffer, fallbackSequenceSegment);
+            currentBuffer = newBuffer;
 
-            startIndex = _currentBuffer.Length - remainingLength;
-            span.CopyTo(_currentBuffer[startIndex..]);
-            _nextEndIndex = startIndex;
+            startIndex = currentBuffer.Length - remainingLength;
+            span.CopyTo(currentBuffer[startIndex..]);
+            nextEndIndex = startIndex;
         }
     }
 
     public void InsertFront<T>(T value) where T : ISpanFormattable
     {
-        // This is large enough for any integer value (10 digits plus the possible sign).
+        // This is large enough for any integer Value (10 digits plus the possible sign).
         // We won't try to optimize for anything larger.
         Span<char> result = stackalloc char[11];
 
@@ -106,22 +105,22 @@ internal ref struct ReverseStringBuilder
         => InsertFront(formattable.ToString(null, CultureInfo.InvariantCulture));
 
     public override readonly string ToString()
-        => _fallbackSequenceSegment is null
-            ? new(_currentBuffer[_nextEndIndex..])
-            : _fallbackSequenceSegment.ToString(_nextEndIndex);
+        => fallbackSequenceSegment is null
+            ? new(currentBuffer[nextEndIndex..])
+            : fallbackSequenceSegment.ToString(nextEndIndex);
 
     public readonly void Dispose()
     {
-        _fallbackSequenceSegment?.Dispose();
+        fallbackSequenceSegment?.Dispose();
     }
 
     private sealed class SequenceSegment : ReadOnlySequenceSegment<char>, IDisposable
     {
-        private readonly char[] _array;
+        private readonly char[] array;
 
         public SequenceSegment(char[] array, SequenceSegment? next = null)
         {
-            _array = array;
+            this.array = array;
             Memory = array;
             Next = next;
         }
@@ -156,7 +155,7 @@ internal ref struct ReverseStringBuilder
         {
             for (var current = this; current is not null; current = current.Next as SequenceSegment)
             {
-                s_arrayPool.Return(current._array);
+                ArrayPool.Return(current.array);
             }
         }
     }

@@ -319,4 +319,4 @@ internal static class SliderUtilities
     }
 }
 
-public record ResolveThumbCollisionResult(double[] Values, int ThumbIndex, bool DidSwap);
+public sealed record ResolveThumbCollisionResult(double[] Values, int ThumbIndex, bool DidSwap);

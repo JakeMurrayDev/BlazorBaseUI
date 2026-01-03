@@ -1,10 +1,10 @@
 namespace BlazorBaseUI.Toggle;
 
-public record ToggleState(bool Pressed, bool Disabled)
+public sealed record ToggleState(bool Pressed, bool Disabled)
 {
     public static ToggleState Default { get; } = new(Pressed: false, Disabled: false);
 
-    public Dictionary<string, object> GetDataAttributes()
+    internal Dictionary<string, object> GetDataAttributes()
     {
         var attributes = new Dictionary<string, object>();
 

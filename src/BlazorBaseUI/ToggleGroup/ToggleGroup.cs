@@ -12,9 +12,7 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
-    private bool hasRendered;
     private List<string> internalValue = [];
-    private ElementReference element;
     private ToggleGroupContext? groupContext;
 
     [Inject]
@@ -63,7 +61,7 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value is not null;
 
@@ -94,15 +92,10 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-
         builder.OpenComponent<CascadingValue<IToggleGroupContext>>(0);
         builder.AddComponentParameter(1, "Value", groupContext);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
-        {
-            RenderGroup(contextBuilder, state);
-        }));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(RenderGroup));
         builder.CloseComponent();
     }
 
@@ -110,19 +103,21 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
     {
         if (firstRender)
         {
-            hasRendered = true;
             await InitializeJsAsync();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("disposeGroup", element);
+                if (Element.HasValue)
+                {
+                    await module.InvokeVoidAsync("disposeGroup", Element.Value);
+                }
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -131,11 +126,11 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void RenderGroup(RenderTreeBuilder builder, ToggleGroupState state)
+    private void RenderGroup(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -154,7 +149,7 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -181,18 +176,21 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
     }
 
     private ToggleGroupContext CreateContext() => new(
-        disabled: Disabled,
-        orientation: Orientation,
-        loopFocus: LoopFocus,
-        getValue: () => CurrentValue,
-        setGroupValue: SetGroupValueInternalAsync);
+        Disabled: Disabled,
+        Orientation: Orientation,
+        LoopFocus: LoopFocus,
+        GetValue: () => CurrentValue,
+        SetGroupValue: SetGroupValueInternalAsync);
 
     private async Task InitializeJsAsync()
     {
         try
         {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initializeGroup", element);
+            if (Element.HasValue)
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("initializeGroup", Element.Value);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

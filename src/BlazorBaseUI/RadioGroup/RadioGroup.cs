@@ -22,7 +22,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     private string groupId = null!;
     private TValue? internalValue;
     private TValue? previousValue;
-    private ElementReference element;
     private RadioGroupContext<TValue>? groupContext;
 
     [Inject]
@@ -83,7 +82,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [DisallowNull]
-    public ElementReference? Element => element;
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => ValueChanged.HasDelegate;
 
@@ -139,22 +138,24 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
-
-        // Update existing context properties instead of recreating
-        groupContext?.UpdateProperties(
-            disabled: ResolvedDisabled,
-            readOnly: ReadOnly,
-            required: Required,
-            name: ResolvedName,
-            validation: FieldContext?.Validation);
+        if (groupContext is not null)
+        {
+            groupContext = groupContext with
+            {
+                Disabled = ResolvedDisabled,
+                ReadOnly = ReadOnly,
+                Required = Required,
+                Name = ResolvedName,
+                Validation = FieldContext?.Validation
+            };
+        }
 
         builder.OpenComponent<CascadingValue<IRadioGroupContext<TValue>>>(0);
         builder.AddComponentParameter(1, "Value", groupContext);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
         {
-            RenderGroup(contextBuilder, state);
+            RenderGroup(contextBuilder);
             RenderHiddenInput(contextBuilder);
         }));
         builder.CloseComponent();
@@ -173,12 +174,16 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     {
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated && element.Id is not null)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("disposeGroup", element);
+                if (Element.HasValue)
+                {
+                    await module.InvokeVoidAsync("disposeGroup", Element.Value);
+                }
+
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -192,11 +197,11 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private void RenderGroup(RenderTreeBuilder builder, RadioGroupState state)
+    private void RenderGroup(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var attributes = BuildAttributes(State);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
@@ -215,7 +220,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
         builder.OpenElement(3, tag);
         builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
+        builder.AddElementReferenceCapture(5, e => Element = e);
         builder.AddContent(6, ChildContent);
         builder.CloseElement();
     }
@@ -238,14 +243,14 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         if (ResolvedName is not null)
             builder.AddAttribute(13, "name", ResolvedName);
 
-        builder.AddAttribute(14, "value", serializedValue ?? string.Empty);
+        builder.AddAttribute(14, "Value", serializedValue ?? string.Empty);
 
         // checked attribute for native radio behavior
         if (CurrentValue is not null)
             builder.AddAttribute(15, "checked", true);
 
         if (ResolvedDisabled)
-            builder.AddAttribute(16, "disabled", true);
+            builder.AddAttribute(16, "Disabled", true);
 
         if (Required)
             builder.AddAttribute(17, "required", true);
@@ -314,7 +319,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
             attributes["aria-required"] = true;
 
         if (ResolvedDisabled)
-            attributes["aria-disabled"] = true;
+            attributes["aria-Disabled"] = true;
 
         if (ReadOnly)
             attributes["aria-readonly"] = true;
@@ -338,20 +343,23 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     }
 
     private RadioGroupContext<TValue> CreateContext() => new(
-        disabled: ResolvedDisabled,
-        readOnly: ReadOnly,
-        required: Required,
-        name: ResolvedName,
-        validation: FieldContext?.Validation,
-        getCheckedValue: () => CurrentValue,
-        setCheckedValue: SetValueInternalAsync);
+        Disabled: ResolvedDisabled,
+        ReadOnly: ReadOnly,
+        Required: Required,
+        Name: ResolvedName,
+        Validation: FieldContext?.Validation,
+        GetCheckedValue: () => CurrentValue,
+        SetCheckedValue: SetValueInternalAsync);
 
     private async Task InitializeJsAsync()
     {
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initializeGroup", element);
+            if (Element.HasValue)
+            {
+                await module.InvokeVoidAsync("initializeGroup", Element.Value);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -377,7 +385,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         try
         {
             var module = await moduleTask.Value;
-            var isWithinGroup = await module.InvokeAsync<bool>("isBlurWithinGroup", element);
+            var isWithinGroup = Element.HasValue && await module.InvokeAsync<bool>("isBlurWithinGroup", Element.Value);
 
             if (!isWithinGroup)
             {
@@ -386,7 +394,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
                 if (FieldContext?.ValidationMode == ValidationMode.OnBlur)
                 {
-                    await (FieldContext.Validation.CommitAsync(CurrentValue) ?? Task.CompletedTask);
+                    await FieldContext.Validation.CommitAsync(CurrentValue);
                 }
             }
         }
@@ -449,7 +457,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
         if (FieldContext?.ShouldValidateOnChangeFunc() == true)
         {
-            await (FieldContext.Validation.CommitAsync(currentValue) ?? Task.CompletedTask);
+            await FieldContext.Validation.CommitAsync(currentValue);
         }
         else
         {

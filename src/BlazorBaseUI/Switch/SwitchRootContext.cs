@@ -9,7 +9,7 @@ public interface ISwitchRootContext
     SwitchRootState State { get; }
 }
 
-public record SwitchRootContext(
+public sealed record SwitchRootContext(
     bool Checked,
     bool Disabled,
     bool ReadOnly,

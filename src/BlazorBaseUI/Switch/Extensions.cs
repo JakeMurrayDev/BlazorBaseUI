@@ -11,7 +11,7 @@ internal static class Extensions
             {
                 SwitchDataAttribute.Checked => "data-checked",
                 SwitchDataAttribute.Unchecked => "data-unchecked",
-                SwitchDataAttribute.Disabled => "data-disabled",
+                SwitchDataAttribute.Disabled => "data-Disabled",
                 SwitchDataAttribute.ReadOnly => "data-readonly",
                 SwitchDataAttribute.Required => "data-required",
                 SwitchDataAttribute.Valid => "data-valid",

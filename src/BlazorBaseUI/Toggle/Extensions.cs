@@ -10,7 +10,7 @@ internal static class Extensions
             attribute switch
             {
                 ToggleDataAttribute.Pressed => "data-pressed",
-                ToggleDataAttribute.Disabled => "data-disabled",
+                ToggleDataAttribute.Disabled => "data-Disabled",
                 _ => throw new InvalidEnumArgumentException(nameof(attribute), (int)attribute, typeof(ToggleDataAttribute))
             };
     }

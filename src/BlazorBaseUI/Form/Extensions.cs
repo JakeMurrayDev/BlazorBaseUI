@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Text;
+﻿using System.ComponentModel;
 
 namespace BlazorBaseUI.Form;
 
-internal static partial class Extensions
+internal static class Extensions
 {
     extension(ValidationMode mode)
     {
