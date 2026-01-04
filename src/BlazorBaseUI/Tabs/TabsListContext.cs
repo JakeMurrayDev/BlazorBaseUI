@@ -64,10 +64,7 @@ public sealed class TabsListContext<TValue> : ITabsListContext
 
     public async Task<bool> NavigateToPreviousAsync(object currentTab)
     {
-        if (rootContext is not TabsRootContext<TValue> ctx)
-            return false;
-
-        var ordered = ctx.GetOrderedTabs();
+        var ordered = rootContext.GetOrderedTabs();
         var currentIndex = FindTabIndex(ordered, currentTab);
         if (currentIndex < 0)
             return false;
@@ -100,10 +97,7 @@ public sealed class TabsListContext<TValue> : ITabsListContext
 
     public async Task<bool> NavigateToNextAsync(object currentTab)
     {
-        if (rootContext is not TabsRootContext<TValue> ctx)
-            return false;
-
-        var ordered = ctx.GetOrderedTabs();
+        var ordered = rootContext.GetOrderedTabs();
         var currentIndex = FindTabIndex(ordered, currentTab);
         if (currentIndex < 0)
             return false;
@@ -136,10 +130,7 @@ public sealed class TabsListContext<TValue> : ITabsListContext
 
     public async Task NavigateToFirstAsync()
     {
-        if (rootContext is not TabsRootContext<TValue> ctx)
-            return;
-
-        var ordered = ctx.GetOrderedTabs();
+        var ordered = rootContext.GetOrderedTabs();
         for (var i = 0; i < ordered.Length; i++)
         {
             if (!ordered[i].IsDisabled())
@@ -153,10 +144,7 @@ public sealed class TabsListContext<TValue> : ITabsListContext
 
     public async Task NavigateToLastAsync()
     {
-        if (rootContext is not TabsRootContext<TValue> ctx)
-            return;
-
-        var ordered = ctx.GetOrderedTabs();
+        var ordered = rootContext.GetOrderedTabs();
         for (var i = ordered.Length - 1; i >= 0; i--)
         {
             if (!ordered[i].IsDisabled())

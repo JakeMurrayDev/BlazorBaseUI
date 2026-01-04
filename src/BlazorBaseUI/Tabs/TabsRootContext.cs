@@ -20,6 +20,8 @@ public interface ITabsRootContext<TValue> : ITabsRootContext
     void RegisterTab(object tab, ElementReference element, TValue? value, string? id, Func<bool> isDisabled, Func<ValueTask> focus);
     void UnregisterTab(object tab);
     TabRegistration<TValue>? GetFirstEnabledTab();
+    TabRegistration<TValue>[] GetOrderedTabs();
+    int GetTabIndex(object tab);
 }
 
 public sealed class TabRegistration<TValue>(

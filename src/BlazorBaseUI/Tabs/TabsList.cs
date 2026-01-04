@@ -209,7 +209,7 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
 
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
-        if (listContext is null)
+        if (listContext is null || RootContext is null)
             return;
 
         var isHorizontal = Orientation == Orientation.Horizontal;
@@ -225,10 +225,7 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
 
         if (shouldNavigatePrevious || shouldNavigateNext || e.Key == "Home" || e.Key == "End")
         {
-            if (RootContext is not TabsRootContext<TValue> ctx)
-                return;
-
-            var ordered = ctx.GetOrderedTabs();
+            var ordered = RootContext.GetOrderedTabs();
             if (ordered.Length == 0)
                 return;
 

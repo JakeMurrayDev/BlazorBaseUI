@@ -88,18 +88,15 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
 
             var highlightedIndex = ListContext.HighlightedTabIndex;
 
-            if (RootContext is TabsRootContext<TValue> ctx)
-            {
-                var myIndex = ctx.GetTabIndex(this);
-                if (myIndex == highlightedIndex)
-                    return 0;
+            var myIndex = RootContext.GetTabIndex(this);
+            if (myIndex == highlightedIndex)
+                return 0;
 
-                if (RootContext.Value is null)
-                {
-                    var firstEnabled = ctx.GetFirstEnabledTab();
-                    if (firstEnabled is not null && ReferenceEquals(firstEnabled.Tab, this))
-                        return 0;
-                }
+            if (RootContext.Value is null)
+            {
+                var firstEnabled = RootContext.GetFirstEnabledTab();
+                if (firstEnabled is not null && ReferenceEquals(firstEnabled.Tab, this))
+                    return 0;
             }
 
             return -1;
@@ -318,9 +315,9 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         if (Disabled)
             return;
 
-        if (RootContext is TabsRootContext<TValue> ctx && ListContext is not null)
+        if (RootContext is not null && ListContext is not null)
         {
-            var myIndex = ctx.GetTabIndex(this);
+            var myIndex = RootContext.GetTabIndex(this);
             if (myIndex >= 0)
             {
                 ListContext.SetHighlightedTabIndex(myIndex);
