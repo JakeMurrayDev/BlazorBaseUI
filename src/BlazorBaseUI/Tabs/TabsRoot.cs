@@ -110,9 +110,14 @@ public sealed class TabsRoot<TValue> : ComponentBase
 
         if (RenderAs is not null)
         {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableElement.");
+            }
             builder.OpenComponent(0, RenderAs);
             builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
             builder.AddComponentParameter(2, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element!; });
             builder.CloseComponent();
             return;
         }
