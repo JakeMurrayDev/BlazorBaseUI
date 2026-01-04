@@ -251,7 +251,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", Element);
+                if(Element.HasValue) await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -274,7 +274,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", Element);
+            await module.InvokeVoidAsync("focus", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

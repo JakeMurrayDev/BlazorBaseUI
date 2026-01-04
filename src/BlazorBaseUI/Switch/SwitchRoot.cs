@@ -191,12 +191,12 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated && Element.HasValue)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", Element);
+                if (Element.HasValue) await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -457,7 +457,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", Element);
+            await module.InvokeVoidAsync("focus", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
