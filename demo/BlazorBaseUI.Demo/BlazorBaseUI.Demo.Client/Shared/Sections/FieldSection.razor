@@ -220,9 +220,7 @@
     private Task<string[]?> ValidateMinLength(object? value)
     {
         var str = value?.ToString() ?? string.Empty;
-        if (string.IsNullOrEmpty(str))
-            return Task.FromResult<string[]?>(null);
-        if (str.Length < 3)
+        if (string.IsNullOrEmpty(str) || str.Length < 3)
             return Task.FromResult<string[]?>(["Must be at least 3 characters"]);
         return Task.FromResult<string[]?>(null);
     }
