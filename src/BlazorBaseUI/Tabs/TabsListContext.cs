@@ -18,22 +18,19 @@ public interface ITabsListContext
 public sealed class TabsListContext<TValue> : ITabsListContext
 {
     private readonly ITabsRootContext<TValue> rootContext;
-    private readonly Func<int, Task> focusTabAtIndex;
 
     public TabsListContext(
         bool activateOnFocus,
         int highlightedTabIndex,
         Action<int> setHighlightedTabIndex,
         Func<ElementReference?> getTabsListElement,
-        ITabsRootContext<TValue> rootContext,
-        Func<int, Task> focusTabAtIndex)
+        ITabsRootContext<TValue> rootContext)
     {
         ActivateOnFocus = activateOnFocus;
         HighlightedTabIndex = highlightedTabIndex;
         SetHighlightedTabIndexInternal = setHighlightedTabIndex;
         GetTabsListElement = getTabsListElement;
         this.rootContext = rootContext;
-        this.focusTabAtIndex = focusTabAtIndex;
     }
 
     public bool ActivateOnFocus { get; private set; }

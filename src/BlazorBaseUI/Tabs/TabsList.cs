@@ -13,7 +13,6 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
-    private bool hasRendered;
     private int highlightedTabIndex;
     private TabsListContext<TValue>? listContext;
     private TabsRootState? cachedState;
@@ -106,7 +105,6 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
     {
         if (firstRender)
         {
-            hasRendered = true;
             await InitializeJsAsync();
         }
     }
@@ -185,8 +183,7 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
         highlightedTabIndex: highlightedTabIndex,
         setHighlightedTabIndex: SetHighlightedTabIndex,
         getTabsListElement: () => Element,
-        rootContext: RootContext!,
-        focusTabAtIndex: FocusTabAtIndexAsync);
+        rootContext: RootContext!);
 
     private async Task InitializeJsAsync()
     {
@@ -208,18 +205,6 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
     {
         highlightedTabIndex = index;
         listContext?.UpdateProperties(ActivateOnFocus, highlightedTabIndex, LoopFocus);
-    }
-
-    private async Task FocusTabAtIndexAsync(int index)
-    {
-        if (RootContext is not TabsRootContext<TValue> ctx)
-            return;
-
-        var ordered = ctx.GetOrderedTabs();
-        if (index >= 0 && index < ordered.Length)
-        {
-            await ordered[index].Focus();
-        }
     }
 
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
