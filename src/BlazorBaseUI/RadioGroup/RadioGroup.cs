@@ -178,7 +178,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex.Message);
+                Logger.LogError(ex, $"Error handling value change in {nameof(RadioGroup<>)}");
             }
         };
     }
