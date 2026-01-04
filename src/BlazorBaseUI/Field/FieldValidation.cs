@@ -1,5 +1,3 @@
-﻿using Microsoft.AspNetCore.Components;
-
 namespace BlazorBaseUI.Field;
 
 public sealed class FieldValidation : IDisposable
@@ -11,9 +9,9 @@ public sealed class FieldValidation : IDisposable
     private readonly int debounceTime;
     private readonly Action requestStateChange;
 
-    private CancellationTokenSource? debounceCts;
-
-    public ElementReference? InputReference { get; set; }
+    private Timer? debounceTimer;
+    private object? pendingValue;
+    private readonly Lock timerLock = new();
 
     public FieldValidation(
         Func<FieldValidityData> getValidityData,
@@ -79,24 +77,30 @@ public sealed class FieldValidation : IDisposable
 
     public void CommitDebounced(object? value)
     {
-        debounceCts?.Cancel();
-        debounceCts = new CancellationTokenSource();
-        var token = debounceCts.Token;
-
-        _ = Task.Run(async () =>
+        lock (timerLock)
         {
-            try
+            pendingValue = value;
+
+            if (debounceTimer is null)
             {
-                await Task.Delay(debounceTime, token);
-                if (!token.IsCancellationRequested)
-                {
-                    await CommitAsync(value);
-                }
+                debounceTimer = new Timer(OnDebounceElapsed, null, debounceTime, Timeout.Infinite);
             }
-            catch (TaskCanceledException)
+            else
             {
+                debounceTimer.Change(debounceTime, Timeout.Infinite);
             }
-        }, token);
+        }
+    }
+
+    private void OnDebounceElapsed(object? state)
+    {
+        object? valueToCommit;
+        lock (timerLock)
+        {
+            valueToCommit = pendingValue;
+        }
+
+        _ = CommitAsync(valueToCommit);
     }
 
     public void SetInitialValue(object? value)
@@ -110,7 +114,10 @@ public sealed class FieldValidation : IDisposable
 
     public void Dispose()
     {
-        debounceCts?.Cancel();
-        debounceCts?.Dispose();
+        lock (timerLock)
+        {
+            debounceTimer?.Dispose();
+            debounceTimer = null;
+        }
     }
 }

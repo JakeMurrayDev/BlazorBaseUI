@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -13,6 +13,8 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     private string? defaultId;
     private bool wasRendered;
+    private Dictionary<string, object>? cachedAttributes;
+    private FieldRootState lastAttributeState;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -50,7 +52,6 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
@@ -61,11 +62,13 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     protected override void OnInitialized()
     {
-        FieldContext?.SubscribeFunc(this);
+        FieldContext?.Subscribe(this);
     }
 
     protected override void OnParametersSet()
     {
+        cachedAttributes = null;
+
         var shouldRender = ShouldRenderError();
 
         if (shouldRender != wasRendered)
@@ -83,11 +86,12 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
     {
         if (!ShouldRenderError())
             return;
-        
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
 
-        var attributes = BuildAttributes(State);
+        var state = State;
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        var attributes = GetOrBuildAttributes(state);
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
         if (!string.IsNullOrEmpty(resolvedStyle))
@@ -95,9 +99,14 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
         if (RenderAs is not null)
         {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+            }
             builder.OpenComponent(0, RenderAs);
             builder.AddMultipleAttributes(1, attributes);
             builder.AddComponentParameter(2, "ChildContent", GetErrorContent());
+            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
             return;
         }
@@ -112,7 +121,14 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     void IFieldStateSubscriber.NotifyStateChanged()
     {
+        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        FieldContext?.Unsubscribe(this);
+        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
     }
 
     private bool ShouldRenderError()
@@ -188,7 +204,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
                 foreach (var error in errors)
                 {
                     builder.OpenElement(2, "li");
-                    builder.AddContent(2, error);
+                    builder.AddContent(3, error);
                     builder.CloseElement();
                 }
                 builder.CloseElement();
@@ -196,9 +212,21 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         };
     }
 
+    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
+    {
+        if (cachedAttributes is not null && lastAttributeState == state)
+            return cachedAttributes;
+
+        cachedAttributes = BuildAttributes(state);
+        lastAttributeState = state;
+        return cachedAttributes;
+    }
+
     private Dictionary<string, object> BuildAttributes(FieldRootState state)
     {
-        var attributes = new Dictionary<string, object>();
+        var dataAttrs = state.GetDataAttributes();
+        var additionalCount = AdditionalAttributes?.Count ?? 0;
+        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount + 1);
 
         if (AdditionalAttributes is not null)
         {
@@ -211,15 +239,9 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
         attributes["id"] = ResolvedId;
 
-        foreach (var dataAttr in state.GetDataAttributes())
+        foreach (var dataAttr in dataAttrs)
             attributes[dataAttr.Key] = dataAttr.Value;
 
         return attributes;
-    }
-
-    public void Dispose()
-    {
-        FieldContext?.UnsubscribeFunc(this);
-        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
     }
 }

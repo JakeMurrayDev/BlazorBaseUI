@@ -1,4 +1,4 @@
-﻿using BlazorBaseUI.Field;
+using BlazorBaseUI.Field;
 using Microsoft.AspNetCore.Components.Forms;
 
 namespace BlazorBaseUI.Form;
@@ -14,7 +14,7 @@ public interface IFieldRegistration
 
 public sealed class FieldRegistry
 {
-    private readonly Dictionary<string, IFieldRegistration> fields = [];
+    private readonly Dictionary<string, IFieldRegistration> fields = new(8);
 
     public IReadOnlyDictionary<string, IFieldRegistration> Fields => fields;
 
@@ -36,25 +36,61 @@ public sealed class FieldRegistry
         fields.Values.FirstOrDefault(f => f.ValidityData.State.Valid == false);
 }
 
-public sealed record FormContext(
-    EditContext? EditContext,
-    Dictionary<string, string[]> Errors,
-    Action<string?> ClearErrors,
-    ValidationMode ValidationMode,
-    Func<bool> GetSubmitAttempted,
-    FieldRegistry FieldRegistry)
+public interface IFormContext
 {
-    public static FormContext Default { get; } = new(
-        EditContext: null,
-        Errors: [],
-        ClearErrors: _ => { },
-        ValidationMode: ValidationMode.OnSubmit,
-        GetSubmitAttempted: () => false,
-        FieldRegistry: new FieldRegistry());
+    EditContext? EditContext { get; }
+    ValidationMode ValidationMode { get; }
+    FieldRegistry FieldRegistry { get; }
+
+    bool HasError(string? name);
+    string[] GetErrors(string? name);
+    void ClearErrors(string? name);
+    bool GetSubmitAttempted();
+}
+
+public sealed class FormContext : IFormContext
+{
+    public static FormContext Default { get; } = new();
+
+    public EditContext? EditContext { get; private set; }
+    public ValidationMode ValidationMode { get; private set; } = ValidationMode.OnSubmit;
+    public FieldRegistry FieldRegistry { get; private set; } = new();
+
+    private Dictionary<string, string[]> errors = new(4);
+    private Action<string?>? clearErrorsCallback;
+    private Func<bool>? getSubmitAttemptedCallback;
+
+    private FormContext() { }
+
+    public FormContext(
+        EditContext? editContext,
+        FieldRegistry fieldRegistry,
+        Action<string?> clearErrors,
+        Func<bool> getSubmitAttempted)
+    {
+        EditContext = editContext;
+        FieldRegistry = fieldRegistry;
+        clearErrorsCallback = clearErrors;
+        getSubmitAttemptedCallback = getSubmitAttempted;
+    }
+
+    internal void Update(
+        EditContext? editContext,
+        Dictionary<string, string[]> errors,
+        ValidationMode validationMode)
+    {
+        EditContext = editContext;
+        this.errors = errors;
+        ValidationMode = validationMode;
+    }
 
     public bool HasError(string? name) =>
-        name is not null && Errors.TryGetValue(name, out var errors) && errors.Length > 0;
+        name is not null && errors.TryGetValue(name, out var errorList) && errorList.Length > 0;
 
     public string[] GetErrors(string? name) =>
-        name is not null && Errors.TryGetValue(name, out var errors) ? errors : [];
+        name is not null && errors.TryGetValue(name, out var errorList) ? errorList : [];
+
+    public void ClearErrors(string? name) => clearErrorsCallback?.Invoke(name);
+
+    public bool GetSubmitAttempted() => getSubmitAttemptedCallback?.Invoke() ?? false;
 }

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -15,9 +15,11 @@ public sealed class Form : ComponentBase
     private EditContext? editContext;
     private bool hasSetEditContextExplicitly;
     private bool submitAttempted;
-    private Dictionary<string, string[]> errors = [];
+    private Dictionary<string, string[]> errors = new(4);
     private Dictionary<string, string[]>? previousExternalErrors;
     private FormContext formContext = null!;
+    private Dictionary<string, object>? cachedAttributes;
+    private EventCallback<EventArgs> cachedSubmitCallback;
 
     [Parameter]
 #pragma warning disable BL0007
@@ -71,8 +73,18 @@ public sealed class Form : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
+
+    protected override void OnInitialized()
+    {
+        cachedSubmitCallback = EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync);
+
+        formContext = new FormContext(
+            editContext: editContext,
+            fieldRegistry: fieldRegistry,
+            clearErrors: ClearErrors,
+            getSubmitAttempted: () => submitAttempted);
+    }
 
     protected override void OnParametersSet()
     {
@@ -104,23 +116,24 @@ public sealed class Form : ComponentBase
             previousExternalErrors = Errors;
             errors = Errors is not null
                 ? new Dictionary<string, string[]>(Errors)
-                : [];
+                : new Dictionary<string, string[]>(4);
         }
 
-        formContext = CreateFormContext();
+        UpdateContext();
+        cachedAttributes = null;
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         Debug.Assert(editContext is not null);
 
-        var state = new FormState();
+        var state = FormState.Default;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
         builder.OpenRegion(editContext.GetHashCode());
 
-        var attributes = BuildAttributes();
+        var attributes = GetOrBuildAttributes();
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
         if (!string.IsNullOrEmpty(resolvedStyle))
@@ -128,9 +141,14 @@ public sealed class Form : ComponentBase
 
         if (RenderAs is not null)
         {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+            }
             builder.OpenComponent(0, RenderAs);
             builder.AddMultipleAttributes(1, attributes);
             builder.AddComponentParameter(2, "ChildContent", BuildChildContent());
+            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
@@ -157,16 +175,34 @@ public sealed class Form : ComponentBase
         {
             editContextBuilder.OpenComponent<CascadingValue<FormContext>>(4);
             editContextBuilder.AddComponentParameter(5, "Value", formContext);
-            editContextBuilder.AddComponentParameter(6, "IsFixed", false);
+            editContextBuilder.AddComponentParameter(6, "IsFixed", true);
             editContextBuilder.AddComponentParameter(7, "ChildContent", ChildContent?.Invoke(editContext));
             editContextBuilder.CloseComponent();
         }));
         builder.CloseComponent();
     };
 
+    private void UpdateContext()
+    {
+        formContext.Update(
+            editContext: editContext,
+            errors: errors,
+            validationMode: ValidationMode);
+    }
+
+    private Dictionary<string, object> GetOrBuildAttributes()
+    {
+        if (cachedAttributes is not null)
+            return cachedAttributes;
+
+        cachedAttributes = BuildAttributes();
+        return cachedAttributes;
+    }
+
     private Dictionary<string, object> BuildAttributes()
     {
-        var attributes = new Dictionary<string, object>();
+        var additionalCount = AdditionalAttributes?.Count ?? 0;
+        var attributes = new Dictionary<string, object>(additionalCount + 2);
 
         if (AdditionalAttributes is not null)
         {
@@ -178,25 +214,16 @@ public sealed class Form : ComponentBase
         }
 
         attributes["novalidate"] = true;
-        attributes["onsubmit"] = EventCallback.Factory.Create(this, HandleSubmitAsync);
+        attributes["onsubmit"] = cachedSubmitCallback;
 
         return attributes;
     }
 
-    private FormContext CreateFormContext() => new(
-        EditContext: editContext,
-        Errors: errors,
-        ClearErrors: ClearErrors,
-        ValidationMode: ValidationMode,
-        GetSubmitAttempted: () => submitAttempted,
-        FieldRegistry: fieldRegistry);
-
     private void ClearErrors(string? name)
     {
-        if (name is not null && errors.ContainsKey(name))
+        if (name is not null && errors.Remove(name))
         {
-            errors.Remove(name);
-            formContext = CreateFormContext();
+            UpdateContext();
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -206,7 +233,7 @@ public sealed class Form : ComponentBase
         Debug.Assert(editContext is not null);
 
         submitAttempted = true;
-        formContext = CreateFormContext();
+        UpdateContext();
 
         if (OnSubmit.HasDelegate)
         {
@@ -237,7 +264,8 @@ public sealed class Form : ComponentBase
 
         if (isValid && OnFormSubmit.HasDelegate)
         {
-            var formValues = new Dictionary<string, object?>();
+            var fieldCount = fieldRegistry.Fields.Count;
+            var formValues = new Dictionary<string, object?>(fieldCount);
             foreach (var (_, field) in fieldRegistry.Fields)
             {
                 if (field.Name is not null)

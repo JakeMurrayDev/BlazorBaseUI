@@ -1,4 +1,4 @@
-﻿using BlazorBaseUI.Form;
+using BlazorBaseUI.Form;
 
 namespace BlazorBaseUI.Field;
 
@@ -18,9 +18,11 @@ public interface IFieldRootContext
     bool Filled { get; }
     bool Focused { get; }
     ValidationMode ValidationMode { get; }
+    int ValidationDebounceTime { get; }
     FieldRootState State { get; }
     FieldValidation Validation { get; }
 
+    void SetValidityData(FieldValidityData data);
     void SetTouched(bool value);
     void SetDirty(bool value);
     void SetFilled(bool value);
@@ -31,58 +33,97 @@ public interface IFieldRootContext
     void Unsubscribe(IFieldStateSubscriber subscriber);
 }
 
-public sealed record FieldRootContext(
-    bool? Invalid,
-    string? Name,
-    FieldValidityData ValidityData,
-    Action<FieldValidityData> SetValidityData,
-    bool Disabled,
-    bool Touched,
-    Action<bool> SetTouched,
-    bool Dirty,
-    Action<bool> SetDirty,
-    bool Filled,
-    Action<bool> SetFilled,
-    bool Focused,
-    Action<bool> SetFocused,
-    ValidationMode ValidationMode,
-    int ValidationDebounceTime,
-    Func<bool> ShouldValidateOnChangeFunc,
-    Action<Func<ValueTask>> RegisterFocusHandlerFunc,
-    Action<IFieldStateSubscriber> SubscribeFunc,
-    Action<IFieldStateSubscriber> UnsubscribeFunc,
-    FieldRootState State,
-    FieldValidation Validation) : IFieldRootContext
+public sealed class FieldRootContext : IFieldRootContext
 {
-    public static FieldRootContext Default { get; } = new(
-        Invalid: null,
-        Name: null,
-        ValidityData: FieldValidityData.Default,
-        SetValidityData: _ => { },
-        Disabled: false,
-        Touched: false,
-        SetTouched: _ => { },
-        Dirty: false,
-        SetDirty: _ => { },
-        Filled: false,
-        SetFilled: _ => { },
-        Focused: false,
-        SetFocused: _ => { },
-        ValidationMode: ValidationMode.OnSubmit,
-        ValidationDebounceTime: 0,
-        ShouldValidateOnChangeFunc: () => false,
-        RegisterFocusHandlerFunc: _ => { },
-        SubscribeFunc: _ => { },
-        UnsubscribeFunc: _ => { },
-        State: FieldRootState.Default,
-        Validation: null!);
+    public static FieldRootContext Default { get; } = new();
 
-    void IFieldRootContext.SetTouched(bool value) => SetTouched(value);
-    void IFieldRootContext.SetDirty(bool value) => SetDirty(value);
-    void IFieldRootContext.SetFilled(bool value) => SetFilled(value);
-    void IFieldRootContext.SetFocused(bool value) => SetFocused(value);
-    bool IFieldRootContext.ShouldValidateOnChange() => ShouldValidateOnChangeFunc();
-    void IFieldRootContext.RegisterFocusHandler(Func<ValueTask> handler) => RegisterFocusHandlerFunc(handler);
-    void IFieldRootContext.Subscribe(IFieldStateSubscriber subscriber) => SubscribeFunc(subscriber);
-    void IFieldRootContext.Unsubscribe(IFieldStateSubscriber subscriber) => UnsubscribeFunc(subscriber);
+    public bool? Invalid { get; private set; }
+    public string? Name { get; private set; }
+    public FieldValidityData ValidityData { get; private set; } = FieldValidityData.Default;
+    public bool Disabled { get; private set; }
+    public bool Touched { get; private set; }
+    public bool Dirty { get; private set; }
+    public bool Filled { get; private set; }
+    public bool Focused { get; private set; }
+    public ValidationMode ValidationMode { get; private set; } = ValidationMode.OnSubmit;
+    public int ValidationDebounceTime { get; private set; }
+    public FieldRootState State { get; private set; } = FieldRootState.Default;
+    public FieldValidation Validation { get; private set; } = null!;
+
+    private Action<FieldValidityData>? setValidityDataCallback;
+    private Action<bool>? setTouchedCallback;
+    private Action<bool>? setDirtyCallback;
+    private Action<bool>? setFilledCallback;
+    private Action<bool>? setFocusedCallback;
+    private Func<bool>? shouldValidateOnChangeCallback;
+    private Action<Func<ValueTask>>? registerFocusHandlerCallback;
+    private Action<IFieldStateSubscriber>? subscribeCallback;
+    private Action<IFieldStateSubscriber>? unsubscribeCallback;
+
+    private FieldRootContext() { }
+
+    public FieldRootContext(
+        Action<FieldValidityData> setValidityData,
+        Action<bool> setTouched,
+        Action<bool> setDirty,
+        Action<bool> setFilled,
+        Action<bool> setFocused,
+        Func<bool> shouldValidateOnChange,
+        Action<Func<ValueTask>> registerFocusHandler,
+        Action<IFieldStateSubscriber> subscribe,
+        Action<IFieldStateSubscriber> unsubscribe,
+        FieldValidation validation)
+    {
+        setValidityDataCallback = setValidityData;
+        setTouchedCallback = setTouched;
+        setDirtyCallback = setDirty;
+        setFilledCallback = setFilled;
+        setFocusedCallback = setFocused;
+        shouldValidateOnChangeCallback = shouldValidateOnChange;
+        registerFocusHandlerCallback = registerFocusHandler;
+        subscribeCallback = subscribe;
+        unsubscribeCallback = unsubscribe;
+        Validation = validation;
+    }
+
+    internal void Update(
+        bool? invalid,
+        string? name,
+        FieldValidityData validityData,
+        bool disabled,
+        bool touched,
+        bool dirty,
+        bool filled,
+        bool focused,
+        ValidationMode validationMode,
+        int validationDebounceTime,
+        FieldRootState state)
+    {
+        Invalid = invalid;
+        Name = name;
+        ValidityData = validityData;
+        Disabled = disabled;
+        Touched = touched;
+        Dirty = dirty;
+        Filled = filled;
+        Focused = focused;
+        ValidationMode = validationMode;
+        ValidationDebounceTime = validationDebounceTime;
+        State = state;
+    }
+
+    public void SetValidityData(FieldValidityData data) => setValidityDataCallback?.Invoke(data);
+    public void SetTouched(bool value) => setTouchedCallback?.Invoke(value);
+    public void SetDirty(bool value) => setDirtyCallback?.Invoke(value);
+    public void SetFilled(bool value) => setFilledCallback?.Invoke(value);
+    public void SetFocused(bool value) => setFocusedCallback?.Invoke(value);
+    public bool ShouldValidateOnChange() => shouldValidateOnChangeCallback?.Invoke() ?? false;
+    public void RegisterFocusHandler(Func<ValueTask> handler) => registerFocusHandlerCallback?.Invoke(handler);
+    public void Subscribe(IFieldStateSubscriber subscriber) => subscribeCallback?.Invoke(subscriber);
+    public void Unsubscribe(IFieldStateSubscriber subscriber) => unsubscribeCallback?.Invoke(subscriber);
+
+    public Func<bool> ShouldValidateOnChangeFunc => ShouldValidateOnChange;
+    public Action<Func<ValueTask>> RegisterFocusHandlerFunc => handler => RegisterFocusHandler(handler);
+    public Action<IFieldStateSubscriber> SubscribeFunc => Subscribe;
+    public Action<IFieldStateSubscriber> UnsubscribeFunc => Unsubscribe;
 }
