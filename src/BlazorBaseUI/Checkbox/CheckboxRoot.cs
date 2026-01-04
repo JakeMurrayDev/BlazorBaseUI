@@ -572,13 +572,13 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private async ValueTask FocusAsync()
     {
-        if (!hasRendered && !Element.HasValue)
+        if (!hasRendered || !Element.HasValue)
             return;
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", Element!.Value);
+            await module.InvokeVoidAsync("focus", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
