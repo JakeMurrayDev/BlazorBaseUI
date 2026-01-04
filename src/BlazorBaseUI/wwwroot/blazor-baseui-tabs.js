@@ -2,25 +2,55 @@ const STATE_KEY = Symbol.for('BlazorBaseUI.Tabs.State');
 if (!window[STATE_KEY]) {
     window[STATE_KEY] = {
         resizeObservers: new WeakMap(),
-        dotNetRefs: new WeakMap()
+        dotNetRefs: new WeakMap(),
+        listHandlers: new WeakMap()
     };
 }
 const state = window[STATE_KEY];
 
-export function initializeList(element) {
+const NAVIGATION_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+
+export function initializeList(element, orientation) {
     if (!element) return;
+
+    const handler = (e) => {
+        if (!NAVIGATION_KEYS.includes(e.key)) return;
+
+        const isHorizontal = orientation === 'horizontal';
+        const isVertical = orientation === 'vertical';
+
+        const shouldPrevent =
+            (isHorizontal && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
+            (isVertical && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) ||
+            e.key === 'Home' ||
+            e.key === 'End';
+
+        if (shouldPrevent) {
+            e.preventDefault();
+        }
+    };
+
+    element.addEventListener('keydown', handler);
+    state.listHandlers.set(element, handler);
 }
 
 export function disposeList(element) {
     if (!element) return;
+
+    const handler = state.listHandlers.get(element);
+    if (handler) {
+        element.removeEventListener('keydown', handler);
+        state.listHandlers.delete(element);
+    }
+
     unobserveResize(element);
 }
 
-export function initializeTab(element, disabled) {
+export function initializeTab(element) {
     if (!element) return;
 
     element._tabsKeydownHandler = (e) => {
-        if (disabled) return;
+        if (element.disabled || element.getAttribute('aria-disabled') === 'true') return;
 
         if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
@@ -43,6 +73,7 @@ export function dispose(element) {
 export function focus(element) {
     if (!element) return;
     element.focus({ preventScroll: true });
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 export function getTabPosition(listElement, tabElement) {
