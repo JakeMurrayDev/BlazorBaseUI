@@ -208,20 +208,23 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     {
         GroupContext?.UnregisterToggle(this);
 
-        if (moduleTask.IsValueCreated && Element.HasValue)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
 
-                if (IsInGroup)
+                if (Element.HasValue)
                 {
-                    await module.InvokeVoidAsync("disposeGroupItem", Element);
-                }
+                    if (IsInGroup)
+                    {
+                        await module.InvokeVoidAsync("disposeGroupItem", Element.Value);
+                    }
 
-                if (!NativeButton)
-                {
-                    await module.InvokeVoidAsync("dispose", Element);
+                    if (!NativeButton)
+                    {
+                        await module.InvokeVoidAsync("dispose", Element.Value);
+                    }
                 }
 
                 await module.DisposeAsync();
@@ -452,7 +455,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", Element);
+            await module.InvokeVoidAsync("focus", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

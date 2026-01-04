@@ -213,12 +213,12 @@ public class Button : ComponentBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask.IsValueCreated && Element.HasValue)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", Element);
+                if (Element.HasValue) await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

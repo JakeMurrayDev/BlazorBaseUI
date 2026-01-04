@@ -191,13 +191,13 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
     public async ValueTask FocusAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered && !Element.HasValue)
             return;
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focusElement", Element);
+            await module.InvokeVoidAsync("focusElement", Element!.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
