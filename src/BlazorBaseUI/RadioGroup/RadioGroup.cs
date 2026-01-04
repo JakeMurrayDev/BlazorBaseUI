@@ -178,7 +178,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, $"Error handling value change in {nameof(RadioGroup<>)}");
+                Logger.LogError(ex, "Error handling value change in {component}", nameof(RadioGroup<>));
             }
         };
     }
@@ -366,7 +366,13 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
             var firstRadio = groupContext.GetFirstEnabledRadio();
             if (firstRadio is not null)
             {
-                await firstRadio.Focus();
+                try
+                {
+                    await firstRadio.Focus();
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
             }
         }
     }
