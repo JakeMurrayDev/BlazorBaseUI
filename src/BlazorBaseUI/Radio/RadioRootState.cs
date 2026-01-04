@@ -40,41 +40,52 @@ public sealed record RadioRootState(
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
 
-    internal Dictionary<string, object> GetDataAttributes()
+    internal void WriteDataAttributes(Dictionary<string, object> attributes)
     {
-        var attributes = new Dictionary<string, object>();
-
         if (Checked)
-            attributes[RadioDataAttribute.Checked.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Checked] = string.Empty;
         else
-            attributes[RadioDataAttribute.Unchecked.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Unchecked] = string.Empty;
 
         if (Disabled)
-            attributes[RadioDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Disabled] = string.Empty;
 
         if (ReadOnly)
-            attributes[RadioDataAttribute.ReadOnly.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.ReadOnly] = string.Empty;
 
         if (Required)
-            attributes[RadioDataAttribute.Required.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Required] = string.Empty;
 
         if (Valid == true)
-            attributes[RadioDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Valid] = string.Empty;
         else if (Valid == false)
-            attributes[RadioDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Invalid] = string.Empty;
 
         if (Touched)
-            attributes[RadioDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Touched] = string.Empty;
 
         if (Dirty)
-            attributes[RadioDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Dirty] = string.Empty;
 
         if (Filled)
-            attributes[RadioDataAttribute.Filled.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Filled] = string.Empty;
 
         if (Focused)
-            attributes[RadioDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Focused] = string.Empty;
+    }
 
-        return attributes;
+    private static class DataAttributes
+    {
+        public const string Checked = "data-checked";
+        public const string Unchecked = "data-unchecked";
+        public const string Disabled = "data-disabled";
+        public const string ReadOnly = "data-readonly";
+        public const string Required = "data-required";
+        public const string Valid = "data-valid";
+        public const string Invalid = "data-invalid";
+        public const string Touched = "data-touched";
+        public const string Dirty = "data-dirty";
+        public const string Filled = "data-filled";
+        public const string Focused = "data-focused";
     }
 }

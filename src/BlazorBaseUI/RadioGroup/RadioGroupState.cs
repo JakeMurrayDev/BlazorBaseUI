@@ -36,36 +36,45 @@ public sealed record RadioGroupState(
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
 
-    internal Dictionary<string, object> GetDataAttributes()
+    internal void WriteDataAttributes(Dictionary<string, object> attributes)
     {
-        var attributes = new Dictionary<string, object>();
-
         if (Disabled)
-            attributes[RadioGroupDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Disabled] = string.Empty;
 
         if (ReadOnly)
-            attributes[RadioGroupDataAttribute.ReadOnly.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.ReadOnly] = string.Empty;
 
         if (Required)
-            attributes[RadioGroupDataAttribute.Required.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Required] = string.Empty;
 
         if (Valid == true)
-            attributes[RadioGroupDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Valid] = string.Empty;
         else if (Valid == false)
-            attributes[RadioGroupDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Invalid] = string.Empty;
 
         if (Touched)
-            attributes[RadioGroupDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Touched] = string.Empty;
 
         if (Dirty)
-            attributes[RadioGroupDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Dirty] = string.Empty;
 
         if (Filled)
-            attributes[RadioGroupDataAttribute.Filled.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Filled] = string.Empty;
 
         if (Focused)
-            attributes[RadioGroupDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
+            attributes[DataAttributes.Focused] = string.Empty;
+    }
 
-        return attributes;
+    private static class DataAttributes
+    {
+        public const string Disabled = "data-disabled";
+        public const string ReadOnly = "data-readonly";
+        public const string Required = "data-required";
+        public const string Valid = "data-valid";
+        public const string Invalid = "data-invalid";
+        public const string Touched = "data-touched";
+        public const string Dirty = "data-dirty";
+        public const string Filled = "data-filled";
+        public const string Focused = "data-focused";
     }
 }

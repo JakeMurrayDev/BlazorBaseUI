@@ -9,7 +9,7 @@ internal static class Extensions
         public string ToDataAttributeString() =>
             attribute switch
             {
-                RadioGroupDataAttribute.Disabled => "data-Disabled",
+                RadioGroupDataAttribute.Disabled => "data-disabled",
                 RadioGroupDataAttribute.ReadOnly => "data-readonly",
                 RadioGroupDataAttribute.Required => "data-required",
                 RadioGroupDataAttribute.Valid => "data-valid",
