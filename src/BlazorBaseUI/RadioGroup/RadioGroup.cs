@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -7,6 +8,7 @@ using BlazorBaseUI.Field;
 using BlazorBaseUI.Form;
 using BlazorBaseUI.Utilities.LabelableProvider;
 using BlazorBaseUI.Fieldset;
+using Microsoft.Extensions.Logging;
 
 namespace BlazorBaseUI.RadioGroup;
 
@@ -38,9 +40,13 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     private EventCallback<KeyboardEventArgs> cachedKeyDownCaptureCallback;
     private EventCallback<ChangeEventArgs> cachedHiddenInputChangeCallback;
     private EventCallback<FocusEventArgs> cachedHiddenInputFocusCallback;
+    private Func<Task> cachedValueChangedCallback = default!;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
+
+    [Inject]
+    private ILogger<RadioGroup<TValue>> Logger { get; set; } = null!;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -127,7 +133,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     public RadioGroup()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
-            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+                                    JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
     protected override void OnInitialized()
@@ -163,6 +169,18 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         cachedKeyDownCaptureCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture);
         cachedHiddenInputChangeCallback = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange);
         cachedHiddenInputFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus);
+
+        cachedValueChangedCallback = async () =>
+        {
+            try
+            {
+                await HandleValueChangedAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+            }
+        };
     }
 
     protected override void OnParametersSet()
@@ -181,7 +199,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         if (!EqualityComparer<TValue>.Default.Equals(CurrentValue, previousValue))
         {
             previousValue = CurrentValue;
-            _ = HandleValueChangedAsync();
+            _ = InvokeAsync(cachedValueChangedCallback);
         }
     }
 
@@ -529,6 +547,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         if (value is string str)
             return str;
 
-        return System.Text.Json.JsonSerializer.Serialize(value);
+        return JsonSerializer.Serialize(value);
     }
 }
