@@ -451,7 +451,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private async ValueTask FocusAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
             return;
 
         try

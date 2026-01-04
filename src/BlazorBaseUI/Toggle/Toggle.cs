@@ -449,7 +449,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     private async ValueTask FocusAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
             return;
 
         try
