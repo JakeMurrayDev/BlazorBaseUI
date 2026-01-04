@@ -42,7 +42,6 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsHidden
@@ -132,12 +131,12 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
         {
             if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
             {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableElement.");
+                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
             }
             builder.OpenComponent(0, RenderAs);
             builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
             builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element!; });
+            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
             return;
         }
