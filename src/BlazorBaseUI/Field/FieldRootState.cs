@@ -1,6 +1,6 @@
-﻿namespace BlazorBaseUI.Field;
+namespace BlazorBaseUI.Field;
 
-public sealed record FieldRootState(
+public readonly record struct FieldRootState(
     bool Disabled,
     bool? Valid,
     bool Touched,
@@ -16,29 +16,51 @@ public sealed record FieldRootState(
         Filled: false,
         Focused: false);
 
+    private static readonly Dictionary<string, object> EmptyAttributes = new(0);
+    private static readonly object EmptyValue = string.Empty;
+
     internal Dictionary<string, object> GetDataAttributes()
     {
-        var attributes = new Dictionary<string, object>();
+        var hasDisabled = Disabled;
+        var hasValid = Valid == true;
+        var hasInvalid = Valid == false;
+        var hasTouched = Touched;
+        var hasDirty = Dirty;
+        var hasFilled = Filled;
+        var hasFocused = Focused;
 
-        if (Disabled)
-            attributes[FieldDataAttribute.Disabled.ToDataAttributeName()] = string.Empty;
+        var count = (hasDisabled ? 1 : 0) +
+                    (hasValid ? 1 : 0) +
+                    (hasInvalid ? 1 : 0) +
+                    (hasTouched ? 1 : 0) +
+                    (hasDirty ? 1 : 0) +
+                    (hasFilled ? 1 : 0) +
+                    (hasFocused ? 1 : 0);
 
-        if (Valid == true)
-            attributes[FieldDataAttribute.Valid.ToDataAttributeName()] = string.Empty;
-        else if (Valid == false)
-            attributes[FieldDataAttribute.Invalid.ToDataAttributeName()] = string.Empty;
+        if (count == 0)
+            return EmptyAttributes;
 
-        if (Touched)
-            attributes[FieldDataAttribute.Touched.ToDataAttributeName()] = string.Empty;
+        var attributes = new Dictionary<string, object>(count);
 
-        if (Dirty)
-            attributes[FieldDataAttribute.Dirty.ToDataAttributeName()] = string.Empty;
+        if (hasDisabled)
+            attributes["data-disabled"] = EmptyValue;
 
-        if (Filled)
-            attributes[FieldDataAttribute.Filled.ToDataAttributeName()] = string.Empty;
+        if (hasValid)
+            attributes["data-valid"] = EmptyValue;
+        else if (hasInvalid)
+            attributes["data-invalid"] = EmptyValue;
 
-        if (Focused)
-            attributes[FieldDataAttribute.Focused.ToDataAttributeName()] = string.Empty;
+        if (hasTouched)
+            attributes["data-touched"] = EmptyValue;
+
+        if (hasDirty)
+            attributes["data-dirty"] = EmptyValue;
+
+        if (hasFilled)
+            attributes["data-filled"] = EmptyValue;
+
+        if (hasFocused)
+            attributes["data-focused"] = EmptyValue;
 
         return attributes;
     }
