@@ -1,3 +1,6 @@
-﻿namespace BlazorBaseUI.Form;
+namespace BlazorBaseUI.Form;
 
-public sealed record FormState;
+public readonly record struct FormState
+{
+    public static FormState Default { get; } = new();
+}

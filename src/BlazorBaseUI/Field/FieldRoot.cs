@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -21,9 +21,12 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private FieldValidityData validityData = FieldValidityData.Default;
     private FieldValidation validation = null!;
     private FieldRootContext context = null!;
+    private FieldRootState cachedState;
     private string fieldId = null!;
     private EditContext? previousEditContext;
     private Func<ValueTask>? focusHandler;
+    private Dictionary<string, object>? cachedAttributes;
+    private FieldRootState lastAttributeState;
 
     [CascadingParameter]
     private EditContext? EditContext { get; set; }
@@ -73,7 +76,6 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private ValidationMode ResolvedValidationMode =>
@@ -106,13 +108,22 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         return validityData.State.Valid;
     }
 
-    private FieldRootState CreateState() => new(
-        Disabled: ResolvedDisabled,
-        Valid: ComputeValid(),
-        Touched: ResolvedTouched,
-        Dirty: ResolvedDirty,
-        Filled: filled,
-        Focused: focused);
+    private FieldRootState CreateState()
+    {
+        var newState = new FieldRootState(
+            Disabled: ResolvedDisabled,
+            Valid: ComputeValid(),
+            Touched: ResolvedTouched,
+            Dirty: ResolvedDirty,
+            Filled: filled,
+            Focused: focused);
+
+        if (newState == cachedState)
+            return cachedState;
+
+        cachedState = newState;
+        return newState;
+    }
 
     private bool ShouldValidateOnChange() =>
         ResolvedValidationMode == FormValidationMode.OnChange ||
@@ -131,7 +142,20 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             debounceTime: ValidationDebounceTime,
             requestStateChange: NotifyStateChanged);
 
-        context = CreateContext();
+        context = new FieldRootContext(
+            setValidityData: SetValidityData,
+            setTouched: SetTouched,
+            setDirty: SetDirty,
+            setFilled: SetFilled,
+            setFocused: SetFocused,
+            shouldValidateOnChange: ShouldValidateOnChange,
+            registerFocusHandler: RegisterFocusHandler,
+            subscribe: Subscribe,
+            unsubscribe: Unsubscribe,
+            validation: validation);
+
+        cachedState = FieldRootState.Default;
+        UpdateContext();
         RegisterWithForm();
     }
 
@@ -144,7 +168,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             AttachValidationStateChangedHandler();
         }
 
-        context = CreateContext();
+        UpdateContext();
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -153,11 +177,17 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        var attributes = BuildAttributes(state);
+        var attributes = GetOrBuildAttributes(state);
+
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
+        else
+            attributes.Remove("class");
+
         if (!string.IsNullOrEmpty(resolvedStyle))
             attributes["style"] = resolvedStyle;
+        else
+            attributes.Remove("style");
 
         builder.OpenComponent<LabelableProvider>(0);
         builder.AddComponentParameter(1, "InitialControlId", fieldId);
@@ -165,14 +195,19 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         {
             labelableBuilder.OpenComponent<CascadingValue<FieldRootContext>>(3);
             labelableBuilder.AddComponentParameter(4, "Value", context);
-            labelableBuilder.AddComponentParameter(5, "IsFixed", false);
+            labelableBuilder.AddComponentParameter(5, "IsFixed", true);
             labelableBuilder.AddComponentParameter(6, "ChildContent", (RenderFragment)(contextBuilder =>
             {
                 if (RenderAs is not null)
                 {
+                    if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+                    {
+                        throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+                    }
                     contextBuilder.OpenComponent(7, RenderAs);
                     contextBuilder.AddMultipleAttributes(8, attributes);
                     contextBuilder.AddComponentParameter(9, "ChildContent", ChildContent);
+                    contextBuilder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
                     contextBuilder.CloseComponent();
                 }
                 else
@@ -198,32 +233,38 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         subscribers.Clear();
     }
 
-    private FieldRootContext CreateContext() => new(
-        Invalid: Invalid,
-        Name: Name,
-        ValidityData: validityData,
-        SetValidityData: SetValidityData,
-        Disabled: ResolvedDisabled,
-        Touched: ResolvedTouched,
-        SetTouched: SetTouched,
-        Dirty: ResolvedDirty,
-        SetDirty: SetDirty,
-        Filled: filled,
-        SetFilled: SetFilled,
-        Focused: focused,
-        SetFocused: SetFocused,
-        ValidationMode: ResolvedValidationMode,
-        ValidationDebounceTime: ValidationDebounceTime,
-        ShouldValidateOnChangeFunc: ShouldValidateOnChange,
-        RegisterFocusHandlerFunc: RegisterFocusHandler,
-        SubscribeFunc: Subscribe,
-        UnsubscribeFunc: Unsubscribe,
-        State: CreateState(),
-        Validation: validation);
+    private void UpdateContext()
+    {
+        var state = CreateState();
+        context.Update(
+            invalid: Invalid,
+            name: Name,
+            validityData: validityData,
+            disabled: ResolvedDisabled,
+            touched: ResolvedTouched,
+            dirty: ResolvedDirty,
+            filled: filled,
+            focused: focused,
+            validationMode: ResolvedValidationMode,
+            validationDebounceTime: ValidationDebounceTime,
+            state: state);
+    }
+
+    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
+    {
+        if (cachedAttributes is not null && lastAttributeState == state)
+            return cachedAttributes;
+
+        cachedAttributes = BuildAttributes(state);
+        lastAttributeState = state;
+        return cachedAttributes;
+    }
 
     private Dictionary<string, object> BuildAttributes(FieldRootState state)
     {
-        var attributes = new Dictionary<string, object>();
+        var dataAttrs = state.GetDataAttributes();
+        var additionalCount = AdditionalAttributes?.Count ?? 0;
+        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount);
 
         if (AdditionalAttributes is not null)
         {
@@ -234,7 +275,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             }
         }
 
-        foreach (var dataAttr in state.GetDataAttributes())
+        foreach (var dataAttr in dataAttrs)
             attributes[dataAttr.Key] = dataAttr.Value;
 
         return attributes;
@@ -267,7 +308,8 @@ public sealed class FieldRoot : ComponentBase, IDisposable
 
     private void NotifyStateChanged()
     {
-        context = CreateContext();
+        UpdateContext();
+        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
 
         foreach (var subscriber in subscribers)
@@ -279,7 +321,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private void SetValidityData(FieldValidityData data)
     {
         validityData = data;
-        context = CreateContext();
+        UpdateContext();
     }
 
     private void SetTouched(bool value)

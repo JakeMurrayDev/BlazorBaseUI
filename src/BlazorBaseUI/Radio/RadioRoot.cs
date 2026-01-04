@@ -268,7 +268,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     internal async ValueTask FocusAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
             return;
 
         try

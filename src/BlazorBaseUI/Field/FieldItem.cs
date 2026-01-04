@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using BlazorBaseUI.Utilities.LabelableProvider;
@@ -6,9 +6,12 @@ using BlazorBaseUI.CheckboxGroup;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldItem : ComponentBase
+public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposable
 {
     private const string DefaultTag = "div";
+
+    private Dictionary<string, object>? cachedAttributes;
+    private FieldRootState lastAttributeState;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -37,7 +40,6 @@ public sealed class FieldItem : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool ResolvedDisabled => (FieldContext?.Disabled ?? false) || Disabled;
@@ -48,9 +50,18 @@ public sealed class FieldItem : ComponentBase
 
     private string? InitialControlId => HasParentCheckbox ? CheckboxGroupContext?.Parent?.Id : null;
 
+    protected override void OnInitialized()
+    {
+        FieldContext?.Subscribe(this);
+    }
+
+    protected override void OnParametersSet()
+    {
+        cachedAttributes = null;
+    }
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        
         var itemContext = new FieldItemContext(ResolvedDisabled);
 
         builder.OpenComponent<LabelableProvider>(0);
@@ -66,22 +77,44 @@ public sealed class FieldItem : ComponentBase
         builder.CloseComponent();
     }
 
+    void IFieldStateSubscriber.NotifyStateChanged()
+    {
+        cachedAttributes = null;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        FieldContext?.Unsubscribe(this);
+    }
+
     private void RenderItem(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
+        var state = State;
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var attributes = GetOrBuildAttributes(state);
 
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
+        else
+            attributes.Remove("class");
+
         if (!string.IsNullOrEmpty(resolvedStyle))
             attributes["style"] = resolvedStyle;
+        else
+            attributes.Remove("style");
 
         if (RenderAs is not null)
         {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+            }
             builder.OpenComponent(0, RenderAs);
             builder.AddMultipleAttributes(1, attributes);
             builder.AddComponentParameter(2, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
             return;
         }
@@ -94,9 +127,21 @@ public sealed class FieldItem : ComponentBase
         builder.CloseElement();
     }
 
+    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
+    {
+        if (cachedAttributes is not null && lastAttributeState == state)
+            return cachedAttributes;
+
+        cachedAttributes = BuildAttributes(state);
+        lastAttributeState = state;
+        return cachedAttributes;
+    }
+
     private Dictionary<string, object> BuildAttributes(FieldRootState state)
     {
-        var attributes = new Dictionary<string, object>();
+        var dataAttrs = state.GetDataAttributes();
+        var additionalCount = AdditionalAttributes?.Count ?? 0;
+        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount);
 
         if (AdditionalAttributes is not null)
         {
@@ -107,7 +152,7 @@ public sealed class FieldItem : ComponentBase
             }
         }
 
-        foreach (var dataAttr in state.GetDataAttributes())
+        foreach (var dataAttr in dataAttrs)
             attributes[dataAttr.Key] = dataAttr.Value;
 
         return attributes;

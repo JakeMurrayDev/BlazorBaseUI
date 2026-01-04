@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -15,11 +15,18 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
     private const string DefaultTag = "input";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-field.js";
 
+    private static readonly object EmptyValue = string.Empty;
+
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private string? defaultId;
     private string resolvedControlId = null!;
     private bool hasRendered;
+    private Dictionary<string, object>? cachedAttributes;
+    private FieldRootState lastAttributeState;
+    private EventCallback<FocusEventArgs> cachedFocusCallback;
+    private EventCallback<FocusEventArgs> cachedBlurCallback;
+    private EventCallback<ChangeEventArgs> cachedInputCallback;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -51,7 +58,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
     [Parameter]
     public Func<FieldRootState, string>? StyleValue { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private string ResolvedName => Name ?? FieldContext?.Name ?? NameAttributeValue;
@@ -71,14 +77,18 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
         resolvedControlId = ResolvedControlId;
         LabelableContext?.SetControlId(resolvedControlId);
 
+        cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
+        cachedBlurCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
+        cachedInputCallback = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput);
+
         var initialValue = IsControlled ? Value : DefaultValue;
         FieldContext?.Validation.SetInitialValue(initialValue);
 
         if (initialValue is not null && !IsEmpty(initialValue))
             FieldContext?.SetFilled(true);
 
-        FieldContext?.RegisterFocusHandlerFunc(FocusAsync);
-        FieldContext?.SubscribeFunc(this);
+        FieldContext?.RegisterFocusHandler(FocusAsync);
+        FieldContext?.Subscribe(this);
     }
 
     protected override void OnParametersSet()
@@ -89,6 +99,8 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
             resolvedControlId = newResolvedId;
             LabelableContext?.SetControlId(resolvedControlId);
         }
+
+        cachedAttributes = null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -109,16 +121,27 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
             string.Join(' ', ClassValue?.Invoke(state), CssClass));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        var attributes = BuildAttributes(state);
+        var attributes = GetOrBuildAttributes(state);
+
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
+        else
+            attributes.Remove("class");
+
         if (!string.IsNullOrEmpty(resolvedStyle))
             attributes["style"] = resolvedStyle;
+        else
+            attributes.Remove("style");
 
         if (RenderAs is not null)
         {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+            }
             builder.OpenComponent(0, RenderAs);
             builder.AddMultipleAttributes(1, attributes);
+            builder.AddComponentReferenceCapture(2, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
             return;
         }
@@ -186,6 +209,7 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
     void IFieldStateSubscriber.NotifyStateChanged()
     {
+        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -207,7 +231,7 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
     public async ValueTask DisposeAsync()
     {
         LabelableContext?.SetControlId(null);
-        FieldContext?.UnsubscribeFunc(this);
+        FieldContext?.Unsubscribe(this);
 
         if (moduleTask.IsValueCreated)
         {
@@ -222,9 +246,21 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
         }
     }
 
+    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
+    {
+        if (cachedAttributes is not null && lastAttributeState == state)
+            return cachedAttributes;
+
+        cachedAttributes = BuildAttributes(state);
+        lastAttributeState = state;
+        return cachedAttributes;
+    }
+
     private Dictionary<string, object> BuildAttributes(FieldRootState state)
     {
-        var attributes = new Dictionary<string, object>();
+        var dataAttrs = state.GetDataAttributes();
+        var additionalCount = AdditionalAttributes?.Count ?? 0;
+        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount + 10);
 
         if (AdditionalAttributes is not null)
         {
@@ -236,13 +272,12 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
         }
 
         attributes["id"] = resolvedControlId;
-
         attributes["name"] = ResolvedName;
 
         if (ResolvedDisabled)
-            attributes["Disabled"] = true;
+            attributes["disabled"] = true;
 
-        attributes["Value"] = CurrentValueAsString ?? string.Empty;
+        attributes["value"] = CurrentValueAsString ?? EmptyValue;
 
         if (LabelableContext?.LabelId is not null)
             attributes["aria-labelledby"] = LabelableContext.LabelId;
@@ -254,11 +289,11 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
         if (state.Valid == false)
             attributes["aria-invalid"] = true;
 
-        attributes["onfocus"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        attributes["onblur"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
-        attributes["oninput"] = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput);
+        attributes["onfocus"] = cachedFocusCallback;
+        attributes["onblur"] = cachedBlurCallback;
+        attributes["oninput"] = cachedInputCallback;
 
-        foreach (var dataAttr in state.GetDataAttributes())
+        foreach (var dataAttr in dataAttrs)
             attributes[dataAttr.Key] = dataAttr.Value;
 
         return attributes;
@@ -293,7 +328,7 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
         FieldContext?.SetDirty(isDirty);
         FieldContext?.SetFilled(!IsEmpty(CurrentValue));
 
-        if (FieldContext?.ShouldValidateOnChangeFunc() == true)
+        if (FieldContext?.ShouldValidateOnChange() == true)
         {
             if (FieldContext.ValidationDebounceTime > 0)
                 FieldContext.Validation.CommitDebounced(CurrentValue);
