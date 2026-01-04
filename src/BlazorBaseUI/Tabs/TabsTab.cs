@@ -205,15 +205,15 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     {
         RootContext?.UnregisterTab(this);
 
-        if (moduleTask.IsValueCreated && Element.HasValue)
+        if (moduleTask.IsValueCreated)
         {
             try
             {
                 var module = await moduleTask.Value;
 
-                if (!NativeButton)
+                if (!NativeButton && Element.HasValue)
                 {
-                    await module.InvokeVoidAsync("dispose", Element);
+                    await module.InvokeVoidAsync("dispose", Element.Value);
                 }
 
                 await module.DisposeAsync();
@@ -279,7 +279,7 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
             var module = await moduleTask.Value;
             if (Element.HasValue)
             {
-                await module.InvokeVoidAsync("initializeTab", Element.Value, Disabled);
+                await module.InvokeVoidAsync("initializeTab", Element.Value);
             }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

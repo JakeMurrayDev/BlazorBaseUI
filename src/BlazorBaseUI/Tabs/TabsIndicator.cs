@@ -1,7 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace BlazorBaseUI.Tabs;
 
@@ -94,7 +95,7 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        if (RootContext is { Value : null })
+        if (RootContext is { Value: null })
             return;
 
         var state = State;
@@ -189,12 +190,13 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         if (!HasValidPosition || currentPosition is null)
             return null;
 
-        return $"--tabs-indicator-active-tab-left:{currentPosition.Left}px;" +
-               $"--tabs-indicator-active-tab-right:{currentPosition.Right}px;" +
-               $"--tabs-indicator-active-tab-top:{currentPosition.Top}px;" +
-               $"--tabs-indicator-active-tab-bottom:{currentPosition.Bottom}px;" +
-               $"--tabs-indicator-active-tab-width:{currentPosition.Width}px;" +
-               $"--tabs-indicator-active-tab-height:{currentPosition.Height}px;";
+        return string.Create(CultureInfo.InvariantCulture,
+            $"--tabs-indicator-active-tab-left:{currentPosition.Left}px;" +
+            $"--tabs-indicator-active-tab-right:{currentPosition.Right}px;" +
+            $"--tabs-indicator-active-tab-top:{currentPosition.Top}px;" +
+            $"--tabs-indicator-active-tab-bottom:{currentPosition.Bottom}px;" +
+            $"--tabs-indicator-active-tab-width:{currentPosition.Width}px;" +
+            $"--tabs-indicator-active-tab-height:{currentPosition.Height}px;");
     }
 
     private static string? CombineStyles(string? style1, string? style2)

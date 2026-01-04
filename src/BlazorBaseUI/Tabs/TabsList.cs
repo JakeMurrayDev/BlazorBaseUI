@@ -15,7 +15,6 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
 
     private bool hasRendered;
     private int highlightedTabIndex;
-    private double? previousTabEdge;
     private TabsListContext<TValue>? listContext;
     private TabsRootState? cachedState;
     private bool stateDirty = true;
@@ -196,7 +195,8 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
             var module = await moduleTask.Value;
             if (Element.HasValue)
             {
-                await module.InvokeVoidAsync("initializeList", Element.Value);
+                var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
+                await module.InvokeVoidAsync("initializeList", Element.Value, orientationString);
             }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -271,94 +271,4 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
             }
         }
     }
-
-    internal ActivationDirection DetectActivationDirection(TValue? newValue)
-    {
-        if (RootContext is null)
-            return ActivationDirection.None;
-
-        var currentValue = RootContext.Value;
-
-        if (EqualityComparer<TValue>.Default.Equals(newValue, currentValue))
-            return ActivationDirection.None;
-
-        if (newValue is null)
-        {
-            previousTabEdge = null;
-            return ActivationDirection.None;
-        }
-
-        if (RootContext is not TabsRootContext<TValue> ctx)
-            return ActivationDirection.None;
-
-        var newTabElement = ctx.GetTabElementByValue(newValue);
-        if (newTabElement is null)
-            return ActivationDirection.None;
-
-        if (previousTabEdge is null)
-            return ActivationDirection.None;
-
-        var isHorizontal = Orientation == Orientation.Horizontal;
-
-        return isHorizontal
-            ? (previousTabEdge > 0 ? ActivationDirection.Left : ActivationDirection.Right)
-            : (previousTabEdge > 0 ? ActivationDirection.Up : ActivationDirection.Down);
-    }
-
-    internal async Task<ActivationDirection> DetectActivationDirectionAsync(TValue? newValue)
-    {
-        if (!hasRendered || RootContext is null || !Element.HasValue)
-            return ActivationDirection.None;
-
-        var currentValue = RootContext.Value;
-
-        if (EqualityComparer<TValue>.Default.Equals(newValue, currentValue))
-            return ActivationDirection.None;
-
-        if (newValue is null)
-        {
-            previousTabEdge = null;
-            return ActivationDirection.None;
-        }
-
-        var newTabElement = RootContext.GetTabElementByValue(newValue);
-        if (newTabElement is null || !newTabElement.HasValue)
-            return ActivationDirection.None;
-
-        try
-        {
-            var module = await moduleTask.Value;
-            var newPosition = await module.InvokeAsync<TabPositionResult>("getTabPosition", Element.Value, newTabElement.Value);
-            var currentTabElement = RootContext.GetTabElementByValue(currentValue);
-
-            if (currentTabElement is null || !currentTabElement.HasValue)
-            {
-                previousTabEdge = Orientation == Orientation.Horizontal ? newPosition.Left : newPosition.Top;
-                return ActivationDirection.None;
-            }
-
-            var currentPosition = await module.InvokeAsync<TabPositionResult>("getTabPosition", Element.Value, currentTabElement.Value);
-
-            var isHorizontal = Orientation == Orientation.Horizontal;
-            var currentEdge = isHorizontal ? currentPosition.Left : currentPosition.Top;
-            var newEdge = isHorizontal ? newPosition.Left : newPosition.Top;
-
-            previousTabEdge = newEdge;
-
-            if (isHorizontal)
-            {
-                return newEdge > currentEdge ? ActivationDirection.Right : ActivationDirection.Left;
-            }
-            else
-            {
-                return newEdge > currentEdge ? ActivationDirection.Down : ActivationDirection.Up;
-            }
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
-            return ActivationDirection.None;
-        }
-    }
-
-    private sealed record TabPositionResult(double Left, double Top, double Width, double Height);
 }
