@@ -122,10 +122,16 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
         var attributes = GetOrBuildAttributes(state);
+
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
+        else
+            attributes.Remove("class");
+
         if (!string.IsNullOrEmpty(resolvedStyle))
             attributes["style"] = resolvedStyle;
+        else
+            attributes.Remove("style");
 
         if (RenderAs is not null)
         {

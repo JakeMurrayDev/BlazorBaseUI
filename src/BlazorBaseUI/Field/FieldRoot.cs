@@ -178,10 +178,16 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
         var attributes = GetOrBuildAttributes(state);
+
         if (!string.IsNullOrEmpty(resolvedClass))
             attributes["class"] = resolvedClass;
+        else
+            attributes.Remove("class");
+
         if (!string.IsNullOrEmpty(resolvedStyle))
             attributes["style"] = resolvedStyle;
+        else
+            attributes.Remove("style");
 
         builder.OpenComponent<LabelableProvider>(0);
         builder.AddComponentParameter(1, "InitialControlId", fieldId);
@@ -201,7 +207,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
                     contextBuilder.OpenComponent(7, RenderAs);
                     contextBuilder.AddMultipleAttributes(8, attributes);
                     contextBuilder.AddComponentParameter(9, "ChildContent", ChildContent);
-                    builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
+                    contextBuilder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
                     contextBuilder.CloseComponent();
                 }
                 else
