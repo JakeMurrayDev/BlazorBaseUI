@@ -17,6 +17,7 @@ public sealed class Form : ComponentBase
     private EditContext? editContext;
     private bool hasSetEditContextExplicitly;
     private bool submitAttempted;
+    private bool isComponentRenderAs;
     private Dictionary<string, string[]> errors = new(4);
     private Dictionary<string, string[]>? previousExternalErrors;
     private FormContext formContext = null!;
@@ -96,6 +97,12 @@ public sealed class Form : ComponentBase
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         if (hasSetEditContextExplicitly && Model is not null)
         {
             throw new InvalidOperationException(
@@ -137,16 +144,11 @@ public sealed class Form : ComponentBase
         var state = FormState.Default;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
         builder.OpenRegion(editContext.GetHashCode());
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -168,7 +170,7 @@ public sealed class Form : ComponentBase
             builder.AddAttribute(5, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(6, "ChildContent", renderChildContent);
             builder.AddComponentReferenceCapture(7, component => { Element = ((IReferencableComponent)component).Element; });

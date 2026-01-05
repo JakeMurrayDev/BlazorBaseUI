@@ -9,19 +9,13 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
 {
     private const string DefaultTag = "div";
 
-    private readonly RenderFragment renderContent;
-
     private string? controlId;
     private string? labelId;
     private List<string> messageIds = [];
     private bool labelableNotifyPending;
+    private bool isComponentRenderAs;
     private LabelableContext labelableContext = null!;
     private FieldItemContext itemContext = null!;
-
-    public FieldItem()
-    {
-        renderContent = RenderContent;
-    }
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -71,6 +65,12 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         itemContext = new FieldItemContext(ResolvedDisabled);
     }
 
@@ -78,13 +78,12 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
     {
         builder.OpenComponent<CascadingValue<LabelableContext>>(0);
         builder.AddComponentParameter(1, "Value", labelableContext);
-        builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(builder2 =>
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(builder2 =>
         {
             builder2.OpenComponent<CascadingValue<FieldItemContext>>(0);
-            builder2.AddComponentParameter(1, "Value", itemContext);
-            builder2.AddComponentParameter(2, "IsFixed", false);
-            builder2.AddComponentParameter(3, "ChildContent", renderContent);
+            builder2.AddComponentParameter(3, "Value", itemContext);
+            builder2.AddComponentParameter(4, "IsFixed", false);
+            builder2.AddComponentParameter(5, "ChildContent", (RenderFragment)RenderContent);
             builder2.CloseComponent();
         }));
         builder.CloseComponent();
@@ -95,14 +94,9 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -156,7 +150,7 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
             builder.AddAttribute(10, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(11, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });

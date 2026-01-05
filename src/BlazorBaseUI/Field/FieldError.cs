@@ -12,6 +12,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     private string? defaultId;
     private bool wasRendered;
+    private bool isComponentRenderAs;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -64,6 +65,12 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var shouldRender = ShouldRenderError();
 
         if (shouldRender != wasRendered)
@@ -85,15 +92,10 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
         var errors = GetAllErrors();
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -148,7 +150,7 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
             builder.AddAttribute(11, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(12, "ChildContent", ChildContent ?? BuildErrorContent(errors));
             builder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });

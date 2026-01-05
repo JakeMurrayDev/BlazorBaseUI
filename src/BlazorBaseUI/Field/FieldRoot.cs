@@ -12,7 +12,6 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private const string DefaultTag = "div";
 
     private readonly HashSet<IFieldStateSubscriber> subscribers = [];
-    private readonly RenderFragment renderContent;
 
     private string? controlId;
     private string? labelId;
@@ -23,6 +22,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private bool filled;
     private bool focused;
     private bool notifyPending;
+    private bool isComponentRenderAs;
     private FieldValidityData validityData = FieldValidityData.Default;
     private FieldValidation validation = null!;
     private FieldRootContext context = null!;
@@ -37,11 +37,6 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private bool previousDirty;
     private bool previousFilled;
     private bool previousFocused;
-
-    public FieldRoot()
-    {
-        renderContent = RenderContent;
-    }
 
     [CascadingParameter]
     private EditContext? EditContext { get; set; }
@@ -176,6 +171,12 @@ public sealed class FieldRoot : ComponentBase, IDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         if (EditContext != previousEditContext)
         {
             DetachValidationStateChangedHandler();
@@ -226,7 +227,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             builder2.OpenComponent<CascadingValue<FieldRootContext>>(0);
             builder2.AddComponentParameter(1, "Value", context);
             builder2.AddComponentParameter(2, "IsFixed", true);
-            builder2.AddComponentParameter(3, "ChildContent", renderContent);
+            builder2.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderContent);
             builder2.CloseComponent();
         }));
         builder.CloseComponent();
@@ -236,14 +237,9 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -297,7 +293,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             builder.AddAttribute(10, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(11, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });

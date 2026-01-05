@@ -36,7 +36,6 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private bool previousDirty;
     private bool previousFilled;
     private bool previousFocused;
-    private RenderFragment renderContent = null!;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -159,7 +158,6 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
             JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
-        renderContent = RenderContent;
     }
 
     protected override void OnInitialized()
@@ -319,8 +317,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     {
         builder.OpenComponent<CascadingValue<CheckboxRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
-        builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", renderContent);
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)RenderContent);
         builder.CloseComponent();
     }
 

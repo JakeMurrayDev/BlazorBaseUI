@@ -27,8 +27,7 @@ public sealed class LabelableProvider : ComponentBase
     {
         builder.OpenComponent<CascadingValue<LabelableContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
-        builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", ChildContent);
+        builder.AddComponentParameter(2, "ChildContent", ChildContent);
         builder.CloseComponent();
     }
 

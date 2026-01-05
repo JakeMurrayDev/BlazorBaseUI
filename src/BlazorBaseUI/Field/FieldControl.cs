@@ -22,6 +22,7 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
     private string? defaultId;
     private string resolvedControlId = null!;
     private bool hasRendered;
+    private bool isComponentRenderAs;
     private EventCallback<FocusEventArgs> cachedFocusCallback;
     private EventCallback<FocusEventArgs> cachedBlurCallback;
     private EventCallback<ChangeEventArgs> cachedInputCallback;
@@ -93,6 +94,12 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var newResolvedId = ResolvedControlId;
         if (newResolvedId != resolvedControlId)
         {
@@ -118,14 +125,9 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
             AdditionalAttributes,
             string.Join(' ', ClassValue?.Invoke(state), CssClass));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -208,7 +210,7 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
             builder.AddAttribute(20, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddComponentReferenceCapture(21, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();

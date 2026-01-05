@@ -9,6 +9,7 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
     private const string DefaultTag = "p";
 
     private string? defaultId;
+    private bool isComponentRenderAs;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -46,19 +47,23 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
         FieldContext?.Subscribe(this);
     }
 
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+    }
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -113,7 +118,7 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
             builder.AddAttribute(11, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(12, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });

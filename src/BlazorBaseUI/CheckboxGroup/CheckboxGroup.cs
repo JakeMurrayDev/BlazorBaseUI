@@ -24,12 +24,6 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     private bool previousDirty;
     private bool previousFilled;
     private bool previousFocused;
-    private readonly RenderFragment renderContent;
-
-    public CheckboxGroup()
-    {
-        renderContent = RenderContent;
-    }
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -158,8 +152,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     {
         builder.OpenComponent<CascadingValue<CheckboxGroupContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
-        builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", renderContent);
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)RenderContent);
         builder.CloseComponent();
     }
 
