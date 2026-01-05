@@ -1,6 +1,6 @@
-﻿namespace BlazorBaseUI.Checkbox;
+namespace BlazorBaseUI.Checkbox;
 
-public sealed record CheckboxIndicatorState(
+public readonly record struct CheckboxIndicatorState(
     bool Checked,
     bool Disabled,
     bool ReadOnly,
@@ -13,54 +13,18 @@ public sealed record CheckboxIndicatorState(
     bool Focused,
     TransitionStatus TransitionStatus)
 {
-    internal Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (Indeterminate)
-        {
-            attributes[CheckboxDataAttribute.Indeterminate.ToDataAttributeString()] = string.Empty;
-        }
-        else if (Checked)
-        {
-            attributes[CheckboxDataAttribute.Checked.ToDataAttributeString()] = string.Empty;
-        }
-        else
-        {
-            attributes[CheckboxDataAttribute.Unchecked.ToDataAttributeString()] = string.Empty;
-        }
-
-        if (Disabled)
-            attributes[CheckboxDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        if (ReadOnly)
-            attributes[CheckboxDataAttribute.ReadOnly.ToDataAttributeString()] = string.Empty;
-
-        if (Required)
-            attributes[CheckboxDataAttribute.Required.ToDataAttributeString()] = string.Empty;
-
-        if (Valid == true)
-            attributes[CheckboxDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
-        else if (Valid == false)
-            attributes[CheckboxDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
-
-        if (Touched)
-            attributes[CheckboxDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
-
-        if (Dirty)
-            attributes[CheckboxDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
-
-        if (Filled)
-            attributes[CheckboxDataAttribute.Filled.ToDataAttributeString()] = string.Empty;
-
-        if (Focused)
-            attributes[CheckboxDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
-
-        if (TransitionStatus == TransitionStatus.Starting)
-            attributes[CheckboxDataAttribute.StartingStyle.ToDataAttributeString()] = string.Empty;
-        else if (TransitionStatus == TransitionStatus.Ending)
-            attributes[CheckboxDataAttribute.EndingStyle.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
-    }
+    internal static CheckboxIndicatorState FromRootState(
+        CheckboxRootState rootState,
+        TransitionStatus transitionStatus) => new(
+            Checked: rootState.Checked,
+            Disabled: rootState.Disabled,
+            ReadOnly: rootState.ReadOnly,
+            Required: rootState.Required,
+            Indeterminate: rootState.Indeterminate,
+            Valid: rootState.Valid,
+            Touched: rootState.Touched,
+            Dirty: rootState.Dirty,
+            Filled: rootState.Filled,
+            Focused: rootState.Focused,
+            TransitionStatus: transitionStatus);
 }

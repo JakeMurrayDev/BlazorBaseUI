@@ -1,4 +1,4 @@
-﻿namespace BlazorBaseUI.Checkbox;
+namespace BlazorBaseUI.Checkbox;
 
 public interface ICheckboxRootContext
 {
@@ -18,7 +18,7 @@ public sealed record CheckboxRootContext(
     bool Indeterminate,
     CheckboxRootState State) : ICheckboxRootContext
 {
-    public static CheckboxRootContext Default { get; } = new(
+    internal static CheckboxRootContext Default { get; } = new(
         Checked: false,
         Disabled: false,
         ReadOnly: false,

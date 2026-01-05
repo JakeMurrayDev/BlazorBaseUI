@@ -1,8 +1,8 @@
-﻿using BlazorBaseUI.Field;
+using BlazorBaseUI.Field;
 
 namespace BlazorBaseUI.Checkbox;
 
-public sealed record CheckboxRootState(
+public readonly record struct CheckboxRootState(
     bool Checked,
     bool Disabled,
     bool ReadOnly,
@@ -14,7 +14,7 @@ public sealed record CheckboxRootState(
     bool Filled,
     bool Focused)
 {
-    public static CheckboxRootState Default { get; } = new(
+    internal static CheckboxRootState Default { get; } = new(
         Checked: false,
         Disabled: false,
         ReadOnly: false,
@@ -26,7 +26,7 @@ public sealed record CheckboxRootState(
         Filled: false,
         Focused: false);
 
-    public static CheckboxRootState FromFieldState(
+    internal static CheckboxRootState FromFieldState(
         FieldRootState fieldState,
         bool isChecked,
         bool isDisabled,
@@ -43,50 +43,4 @@ public sealed record CheckboxRootState(
             Dirty: fieldState.Dirty,
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
-
-    internal Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (Indeterminate)
-        {
-            attributes[CheckboxDataAttribute.Indeterminate.ToDataAttributeString()] = string.Empty;
-        }
-        else if (Checked)
-        {
-            attributes[CheckboxDataAttribute.Checked.ToDataAttributeString()] = string.Empty;
-        }
-        else
-        {
-            attributes[CheckboxDataAttribute.Unchecked.ToDataAttributeString()] = string.Empty;
-        }
-
-        if (Disabled)
-            attributes[CheckboxDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        if (ReadOnly)
-            attributes[CheckboxDataAttribute.ReadOnly.ToDataAttributeString()] = string.Empty;
-
-        if (Required)
-            attributes[CheckboxDataAttribute.Required.ToDataAttributeString()] = string.Empty;
-
-        if (Valid == true)
-            attributes[CheckboxDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
-        else if (Valid == false)
-            attributes[CheckboxDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
-
-        if (Touched)
-            attributes[CheckboxDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
-
-        if (Dirty)
-            attributes[CheckboxDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
-
-        if (Filled)
-            attributes[CheckboxDataAttribute.Filled.ToDataAttributeString()] = string.Empty;
-
-        if (Focused)
-            attributes[CheckboxDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
-    }
 }

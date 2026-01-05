@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -11,6 +10,18 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
     private bool isMounted;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private CancellationTokenSource? transitionCts;
+    private CheckboxIndicatorState state;
+    private bool previousChecked;
+    private bool previousDisabled;
+    private bool previousReadOnly;
+    private bool previousRequired;
+    private bool previousIndeterminate;
+    private bool? previousValid;
+    private bool previousTouched;
+    private bool previousDirty;
+    private bool previousFilled;
+    private bool previousFocused;
+    private TransitionStatus previousTransitionStatus = TransitionStatus.Undefined;
 
     [CascadingParameter]
     private CheckboxRootContext? CheckboxContext { get; set; }
@@ -36,60 +47,162 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool Rendered => CheckboxContext?.Checked == true || CheckboxContext?.Indeterminate == true;
 
     private bool IsPresent => KeepMounted || isMounted || Rendered;
 
-    private CheckboxIndicatorState State => new(
-        CheckboxContext?.Checked ?? false,
-        CheckboxContext?.Disabled ?? false,
-        CheckboxContext?.ReadOnly ?? false,
-        CheckboxContext?.Required ?? false,
-        CheckboxContext?.Indeterminate ?? false,
-        CheckboxContext?.State.Valid,
-        CheckboxContext?.State.Touched ?? false,
-        CheckboxContext?.State.Dirty ?? false,
-        CheckboxContext?.State.Filled ?? false,
-        CheckboxContext?.State.Focused ?? false,
-        transitionStatus);
-
     protected override void OnParametersSet()
     {
         UpdateTransitionStatus();
+
+        var rootState = CheckboxContext?.State ?? CheckboxRootState.Default;
+
+        var stateChanged = previousChecked != rootState.Checked ||
+                           previousDisabled != rootState.Disabled ||
+                           previousReadOnly != rootState.ReadOnly ||
+                           previousRequired != rootState.Required ||
+                           previousIndeterminate != rootState.Indeterminate ||
+                           previousValid != rootState.Valid ||
+                           previousTouched != rootState.Touched ||
+                           previousDirty != rootState.Dirty ||
+                           previousFilled != rootState.Filled ||
+                           previousFocused != rootState.Focused ||
+                           previousTransitionStatus != transitionStatus;
+
+        if (stateChanged)
+        {
+            state = CheckboxIndicatorState.FromRootState(rootState, transitionStatus);
+        }
+
+        previousChecked = rootState.Checked;
+        previousDisabled = rootState.Disabled;
+        previousReadOnly = rootState.ReadOnly;
+        previousRequired = rootState.Required;
+        previousIndeterminate = rootState.Indeterminate;
+        previousValid = rootState.Valid;
+        previousTouched = rootState.Touched;
+        previousDirty = rootState.Dirty;
+        previousFilled = rootState.Filled;
+        previousFocused = rootState.Focused;
+        previousTransitionStatus = transitionStatus;
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (!IsPresent)
-            return;
-
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
             return;
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
+
+        if (isComponent)
+        {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+            }
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (state.Indeterminate)
+        {
+            builder.AddAttribute(2, "data-indeterminate", string.Empty);
+        }
+        else if (state.Checked)
+        {
+            builder.AddAttribute(3, "data-checked", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(4, "data-unchecked", string.Empty);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(5, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(6, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(7, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(8, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(9, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(10, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(11, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(12, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(13, "data-focused", string.Empty);
+        }
+
+        if (state.TransitionStatus == TransitionStatus.Starting)
+        {
+            builder.AddAttribute(14, "data-starting-style", string.Empty);
+        }
+        else if (state.TransitionStatus == TransitionStatus.Ending)
+        {
+            builder.AddAttribute(15, "data-ending-style", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(16, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(17, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(18, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(19, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(20, elementReference => Element = elementReference);
+            builder.AddContent(21, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     public void Dispose()
@@ -149,24 +262,5 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
                 await InvokeAsync(StateHasChanged);
             }
         }, token);
-    }
-
-    private Dictionary<string, object> BuildAttributes(CheckboxIndicatorState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }
