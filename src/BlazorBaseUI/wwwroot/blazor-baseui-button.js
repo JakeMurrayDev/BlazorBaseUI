@@ -1,6 +1,6 @@
 const STATE_KEY = Symbol.for('BlazorBaseUI.Button.State');
 
-export function initialize(element, disabled, focusableWhenDisabled) {
+export function initialize(element, disabled, focusableWhenDisabled, nativeButton) {
     if (!element) {
         return;
     }
@@ -8,8 +8,24 @@ export function initialize(element, disabled, focusableWhenDisabled) {
     const state = {
         disabled,
         focusableWhenDisabled,
+        nativeButton,
+        clickHandler: null,
+        pointerDownHandler: null,
         keydownHandler: null,
         keyupHandler: null
+    };
+
+    state.clickHandler = (event) => {
+        if (state.disabled) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    };
+
+    state.pointerDownHandler = (event) => {
+        if (state.disabled) {
+            event.preventDefault();
+        }
     };
 
     state.keydownHandler = (event) => {
@@ -19,6 +35,14 @@ export function initialize(element, disabled, focusableWhenDisabled) {
         }
 
         if (state.disabled) {
+            return;
+        }
+
+        if (state.nativeButton) {
+            return;
+        }
+
+        if (event.target !== event.currentTarget) {
             return;
         }
 
@@ -43,6 +67,14 @@ export function initialize(element, disabled, focusableWhenDisabled) {
             return;
         }
 
+        if (state.nativeButton) {
+            return;
+        }
+
+        if (event.target !== event.currentTarget) {
+            return;
+        }
+
         const isValidLink = element.tagName === 'A' && element.href;
         if (isValidLink) {
             return;
@@ -53,13 +85,15 @@ export function initialize(element, disabled, focusableWhenDisabled) {
         }
     };
 
+    element.addEventListener('click', state.clickHandler);
+    element.addEventListener('pointerdown', state.pointerDownHandler);
     element.addEventListener('keydown', state.keydownHandler);
     element.addEventListener('keyup', state.keyupHandler);
 
     element[STATE_KEY] = state;
 }
 
-export function updateState(element, disabled, focusableWhenDisabled) {
+export function updateState(element, disabled, focusableWhenDisabled, nativeButton) {
     if (!element) {
         return;
     }
@@ -68,6 +102,7 @@ export function updateState(element, disabled, focusableWhenDisabled) {
     if (state) {
         state.disabled = disabled;
         state.focusableWhenDisabled = focusableWhenDisabled;
+        state.nativeButton = nativeButton;
     }
 }
 
@@ -78,6 +113,12 @@ export function dispose(element) {
 
     const state = element[STATE_KEY];
     if (state) {
+        if (state.clickHandler) {
+            element.removeEventListener('click', state.clickHandler);
+        }
+        if (state.pointerDownHandler) {
+            element.removeEventListener('pointerdown', state.pointerDownHandler);
+        }
         if (state.keydownHandler) {
             element.removeEventListener('keydown', state.keydownHandler);
         }
