@@ -747,6 +747,8 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         previousChecked = currentChecked;
         previousDisabled = currentDisabled;
         previousIndeterminate = currentIndeterminate;
+        previousReadOnly = ReadOnly;
+        previousRequired = Required;
         previousValid = fieldState.Valid;
         previousTouched = fieldState.Touched;
         previousDirty = fieldState.Dirty;
