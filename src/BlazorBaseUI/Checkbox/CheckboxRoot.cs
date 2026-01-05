@@ -666,6 +666,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         if (!IsControlled)
         {
             isChecked = value;
+            UpdateStateAndContext();
         }
 
         if (CheckedChanged.HasDelegate)
@@ -718,6 +719,39 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         {
             await (validation?.CommitAsync(CurrentChecked, revalidateOnly: true) ?? Task.CompletedTask);
         }
+    }
+
+    private void UpdateStateAndContext()
+    {
+        var currentChecked = CurrentChecked;
+        var currentDisabled = ResolvedDisabled;
+        var currentIndeterminate = CurrentIndeterminate;
+        var fieldState = FieldState;
+
+        state = CheckboxRootState.FromFieldState(
+            fieldState,
+            currentChecked,
+            currentDisabled,
+            ReadOnly,
+            Required,
+            currentIndeterminate);
+
+        context = new CheckboxRootContext(
+            Checked: currentChecked,
+            Disabled: currentDisabled,
+            ReadOnly: ReadOnly,
+            Required: Required,
+            Indeterminate: currentIndeterminate,
+            State: state);
+
+        previousChecked = currentChecked;
+        previousDisabled = currentDisabled;
+        previousIndeterminate = currentIndeterminate;
+        previousValid = fieldState.Valid;
+        previousTouched = fieldState.Touched;
+        previousDirty = fieldState.Dirty;
+        previousFilled = fieldState.Filled;
+        previousFocused = fieldState.Focused;
     }
 
     private async ValueTask FocusAsync()
