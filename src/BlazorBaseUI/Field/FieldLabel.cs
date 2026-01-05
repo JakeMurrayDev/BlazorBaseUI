@@ -2,7 +2,6 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BlazorBaseUI.Field;
 
@@ -15,8 +14,6 @@ public sealed class FieldLabel : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private string? defaultId;
     private string labelId = null!;
-    private Dictionary<string, object>? cachedAttributes;
-    private FieldRootState lastAttributeState;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -64,49 +61,90 @@ public sealed class FieldLabel : ComponentBase, IFieldStateSubscriber, IAsyncDis
         FieldContext?.Subscribe(this);
     }
 
-    protected override void OnParametersSet()
-    {
-        cachedAttributes = null;
-    }
-
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
 
-        var attributes = GetOrBuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        if (RenderAs is not null)
+        if (isComponent)
         {
             if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
             {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
             }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", labelId);
+
+        if (!string.IsNullOrEmpty(LabelableContext?.ControlId))
+        {
+            builder.AddAttribute(3, "for", LabelableContext.ControlId);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(4, "data-disabled", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(5, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(6, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(7, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(8, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(9, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(10, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(11, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(12, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(13, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(14, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
+            builder.AddContent(16, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -130,7 +168,6 @@ public sealed class FieldLabel : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     void IFieldStateSubscriber.NotifyStateChanged()
     {
-        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -151,41 +188,5 @@ public sealed class FieldLabel : ComponentBase, IFieldStateSubscriber, IAsyncDis
             {
             }
         }
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
-    {
-        if (cachedAttributes is not null && lastAttributeState == state)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes(state);
-        lastAttributeState = state;
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
-    {
-        var dataAttrs = state.GetDataAttributes();
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount + 2);
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = labelId;
-
-        if (!string.IsNullOrEmpty(LabelableContext?.ControlId))
-            attributes["for"] = LabelableContext.ControlId;
-
-        foreach (var dataAttr in dataAttrs)
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }

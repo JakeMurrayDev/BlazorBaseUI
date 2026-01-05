@@ -22,8 +22,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
     private string? defaultId;
     private string resolvedControlId = null!;
     private bool hasRendered;
-    private Dictionary<string, object>? cachedAttributes;
-    private FieldRootState lastAttributeState;
     private EventCallback<FocusEventArgs> cachedFocusCallback;
     private EventCallback<FocusEventArgs> cachedBlurCallback;
     private EventCallback<ChangeEventArgs> cachedInputCallback;
@@ -66,6 +64,8 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
     private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
+    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
+
     public FieldControl()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -99,8 +99,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
             resolvedControlId = newResolvedId;
             LabelableContext?.SetControlId(resolvedControlId);
         }
-
-        cachedAttributes = null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -115,42 +113,111 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = FieldContext?.State ?? FieldRootState.Default;
+        var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(
             AdditionalAttributes,
             string.Join(' ', ClassValue?.Invoke(state), CssClass));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
 
-        var attributes = GetOrBuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        if (RenderAs is not null)
+        if (isComponent)
         {
             if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
             {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
             }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentReferenceCapture(2, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(2, tag);
-        builder.AddMultipleAttributes(3, attributes);
-        builder.AddElementReferenceCapture(4, e => Element = e);
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", resolvedControlId);
+        builder.AddAttribute(3, "name", ResolvedName);
+
+        if (ResolvedDisabled)
+        {
+            builder.AddAttribute(4, "disabled", true);
+        }
+
+        builder.AddAttribute(5, "value", CurrentValueAsString ?? EmptyValue);
+
+        if (LabelableContext?.LabelId is not null)
+        {
+            builder.AddAttribute(6, "aria-labelledby", LabelableContext.LabelId);
+        }
+
+        var ariaDescribedBy = LabelableContext?.GetAriaDescribedBy();
+        if (ariaDescribedBy is not null)
+        {
+            builder.AddAttribute(7, "aria-describedby", ariaDescribedBy);
+        }
+
+        if (state.Valid == false)
+        {
+            builder.AddAttribute(8, "aria-invalid", "true");
+        }
+
+        builder.AddAttribute(9, "onfocus", cachedFocusCallback);
+        builder.AddAttribute(10, "onblur", cachedBlurCallback);
+        builder.AddAttribute(11, "oninput", cachedInputCallback);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(12, "data-disabled", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(13, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(14, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(15, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(16, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(17, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(18, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(19, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(20, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddComponentReferenceCapture(21, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(22, elementReference => Element = elementReference);
+            builder.CloseElement();
+        }
     }
 
     protected override bool TryParseValueFromString(
@@ -209,7 +276,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
     void IFieldStateSubscriber.NotifyStateChanged()
     {
-        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -244,59 +310,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
             {
             }
         }
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
-    {
-        if (cachedAttributes is not null && lastAttributeState == state)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes(state);
-        lastAttributeState = state;
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
-    {
-        var dataAttrs = state.GetDataAttributes();
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount + 10);
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style" and not "Value" and not "DefaultValue")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = resolvedControlId;
-        attributes["name"] = ResolvedName;
-
-        if (ResolvedDisabled)
-            attributes["disabled"] = true;
-
-        attributes["value"] = CurrentValueAsString ?? EmptyValue;
-
-        if (LabelableContext?.LabelId is not null)
-            attributes["aria-labelledby"] = LabelableContext.LabelId;
-
-        var ariaDescribedBy = LabelableContext?.GetAriaDescribedBy();
-        if (ariaDescribedBy is not null)
-            attributes["aria-describedby"] = ariaDescribedBy;
-
-        if (state.Valid == false)
-            attributes["aria-invalid"] = true;
-
-        attributes["onfocus"] = cachedFocusCallback;
-        attributes["onblur"] = cachedBlurCallback;
-        attributes["oninput"] = cachedInputCallback;
-
-        foreach (var dataAttr in dataAttrs)
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 
     private void HandleFocus(FocusEventArgs e)

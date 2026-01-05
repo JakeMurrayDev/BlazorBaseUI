@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -13,20 +12,36 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private const string DefaultTag = "div";
 
     private readonly HashSet<IFieldStateSubscriber> subscribers = [];
+    private readonly RenderFragment renderContent;
 
+    private string? controlId;
+    private string? labelId;
+    private List<string> messageIds = [];
+    private bool labelableNotifyPending;
     private bool touched;
     private bool dirty;
     private bool filled;
     private bool focused;
+    private bool notifyPending;
     private FieldValidityData validityData = FieldValidityData.Default;
     private FieldValidation validation = null!;
     private FieldRootContext context = null!;
-    private FieldRootState cachedState;
+    private LabelableContext labelableContext = null!;
+    private FieldRootState state = FieldRootState.Default;
     private string fieldId = null!;
     private EditContext? previousEditContext;
     private Func<ValueTask>? focusHandler;
-    private Dictionary<string, object>? cachedAttributes;
-    private FieldRootState lastAttributeState;
+    private bool previousDisabled;
+    private bool? previousValid;
+    private bool previousTouched;
+    private bool previousDirty;
+    private bool previousFilled;
+    private bool previousFocused;
+
+    public FieldRoot()
+    {
+        renderContent = RenderContent;
+    }
 
     [CascadingParameter]
     private EditContext? EditContext { get; set; }
@@ -108,23 +123,6 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         return validityData.State.Valid;
     }
 
-    private FieldRootState CreateState()
-    {
-        var newState = new FieldRootState(
-            Disabled: ResolvedDisabled,
-            Valid: ComputeValid(),
-            Touched: ResolvedTouched,
-            Dirty: ResolvedDirty,
-            Filled: filled,
-            Focused: focused);
-
-        if (newState == cachedState)
-            return cachedState;
-
-        cachedState = newState;
-        return newState;
-    }
-
     private bool ShouldValidateOnChange() =>
         ResolvedValidationMode == FormValidationMode.OnChange ||
         (ResolvedValidationMode == FormValidationMode.OnSubmit &&
@@ -133,6 +131,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     protected override void OnInitialized()
     {
         fieldId = Guid.NewGuid().ToIdString();
+        controlId = fieldId;
 
         validation = new FieldValidation(
             getValidityData: () => validityData,
@@ -140,7 +139,15 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             validate: Validate,
             getInvalid: () => Invalid ?? false,
             debounceTime: ValidationDebounceTime,
-            requestStateChange: NotifyStateChanged);
+            requestStateChange: ScheduleNotifyStateChanged);
+
+        state = new FieldRootState(
+            Disabled: ResolvedDisabled,
+            Valid: ComputeValid(),
+            Touched: ResolvedTouched,
+            Dirty: ResolvedDirty,
+            Filled: filled,
+            Focused: focused);
 
         context = new FieldRootContext(
             setValidityData: SetValidityData,
@@ -154,9 +161,17 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             unsubscribe: Unsubscribe,
             validation: validation);
 
-        cachedState = FieldRootState.Default;
+        labelableContext = CreateLabelableContext();
+
         UpdateContext();
         RegisterWithForm();
+
+        previousDisabled = ResolvedDisabled;
+        previousValid = ComputeValid();
+        previousTouched = ResolvedTouched;
+        previousDirty = ResolvedDirty;
+        previousFilled = filled;
+        previousFocused = focused;
     }
 
     protected override void OnParametersSet()
@@ -168,61 +183,132 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             AttachValidationStateChangedHandler();
         }
 
+        var currentDisabled = ResolvedDisabled;
+        var currentValid = ComputeValid();
+        var currentTouched = ResolvedTouched;
+        var currentDirty = ResolvedDirty;
+
+        var stateChanged = previousDisabled != currentDisabled ||
+                           previousValid != currentValid ||
+                           previousTouched != currentTouched ||
+                           previousDirty != currentDirty ||
+                           previousFilled != filled ||
+                           previousFocused != focused;
+
+        if (stateChanged)
+        {
+            state = new FieldRootState(
+                Disabled: currentDisabled,
+                Valid: currentValid,
+                Touched: currentTouched,
+                Dirty: currentDirty,
+                Filled: filled,
+                Focused: focused);
+
+            previousDisabled = currentDisabled;
+            previousValid = currentValid;
+            previousTouched = currentTouched;
+            previousDirty = currentDirty;
+            previousFilled = filled;
+            previousFocused = focused;
+        }
+
         UpdateContext();
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = CreateState();
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
-        var attributes = GetOrBuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        builder.OpenComponent<LabelableProvider>(0);
-        builder.AddComponentParameter(1, "InitialControlId", fieldId);
-        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(labelableBuilder =>
+        builder.OpenComponent<CascadingValue<LabelableContext>>(0);
+        builder.AddComponentParameter(1, "Value", labelableContext);
+        builder.AddComponentParameter(2, "IsFixed", true);
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(builder2 =>
         {
-            labelableBuilder.OpenComponent<CascadingValue<FieldRootContext>>(3);
-            labelableBuilder.AddComponentParameter(4, "Value", context);
-            labelableBuilder.AddComponentParameter(5, "IsFixed", true);
-            labelableBuilder.AddComponentParameter(6, "ChildContent", (RenderFragment)(contextBuilder =>
-            {
-                if (RenderAs is not null)
-                {
-                    if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-                    {
-                        throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-                    }
-                    contextBuilder.OpenComponent(7, RenderAs);
-                    contextBuilder.AddMultipleAttributes(8, attributes);
-                    contextBuilder.AddComponentParameter(9, "ChildContent", ChildContent);
-                    contextBuilder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-                    contextBuilder.CloseComponent();
-                }
-                else
-                {
-                    var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-                    contextBuilder.OpenElement(10, tag);
-                    contextBuilder.AddMultipleAttributes(11, attributes);
-                    contextBuilder.AddElementReferenceCapture(12, e => Element = e);
-                    contextBuilder.AddContent(13, ChildContent);
-                    contextBuilder.CloseElement();
-                }
-            }));
-            labelableBuilder.CloseComponent();
+            builder2.OpenComponent<CascadingValue<FieldRootContext>>(0);
+            builder2.AddComponentParameter(1, "Value", context);
+            builder2.AddComponentParameter(2, "IsFixed", true);
+            builder2.AddComponentParameter(3, "ChildContent", renderContent);
+            builder2.CloseComponent();
         }));
         builder.CloseComponent();
+    }
+
+    private void RenderContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
+
+        if (isComponent)
+        {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+            }
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(2, "data-disabled", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(3, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(4, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(5, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(6, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(7, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(8, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(9, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(10, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(11, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
+            builder.AddContent(14, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     public void Dispose()
@@ -233,9 +319,59 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         subscribers.Clear();
     }
 
+    private LabelableContext CreateLabelableContext() => new(
+        ControlId: controlId,
+        SetControlId: SetControlId,
+        LabelId: labelId,
+        SetLabelId: SetLabelId,
+        MessageIds: messageIds,
+        UpdateMessageIds: UpdateMessageIds);
+
+    private void ScheduleLabelableStateHasChanged()
+    {
+        if (labelableNotifyPending)
+            return;
+
+        labelableNotifyPending = true;
+        _ = InvokeAsync(() =>
+        {
+            labelableNotifyPending = false;
+            labelableContext = CreateLabelableContext();
+            StateHasChanged();
+        });
+    }
+
+    private void SetControlId(string? id)
+    {
+        if (controlId == id) return;
+        controlId = id;
+        ScheduleLabelableStateHasChanged();
+    }
+
+    private void SetLabelId(string? id)
+    {
+        if (labelId == id) return;
+        labelId = id;
+        ScheduleLabelableStateHasChanged();
+    }
+
+    private void UpdateMessageIds(string id, bool add)
+    {
+        if (add)
+        {
+            if (messageIds.Contains(id)) return;
+            messageIds = [.. messageIds, id];
+        }
+        else
+        {
+            if (!messageIds.Contains(id)) return;
+            messageIds = messageIds.Where(m => m != id).ToList();
+        }
+        ScheduleLabelableStateHasChanged();
+    }
+
     private void UpdateContext()
     {
-        var state = CreateState();
         context.Update(
             invalid: Invalid,
             name: Name,
@@ -248,37 +384,6 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             validationMode: ResolvedValidationMode,
             validationDebounceTime: ValidationDebounceTime,
             state: state);
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
-    {
-        if (cachedAttributes is not null && lastAttributeState == state)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes(state);
-        lastAttributeState = state;
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
-    {
-        var dataAttrs = state.GetDataAttributes();
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount);
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        foreach (var dataAttr in dataAttrs)
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 
     private void RegisterWithForm()
@@ -306,11 +411,37 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         subscribers.Remove(subscriber);
     }
 
-    private void NotifyStateChanged()
+    private void ScheduleNotifyStateChanged()
     {
+        if (notifyPending)
+            return;
+
+        notifyPending = true;
+        _ = InvokeAsync(ExecuteNotifyStateChanged);
+    }
+
+    private void ExecuteNotifyStateChanged()
+    {
+        notifyPending = false;
+
+        var currentValid = ComputeValid();
+        state = new FieldRootState(
+            Disabled: ResolvedDisabled,
+            Valid: currentValid,
+            Touched: ResolvedTouched,
+            Dirty: ResolvedDirty,
+            Filled: filled,
+            Focused: focused);
+
+        previousDisabled = ResolvedDisabled;
+        previousValid = currentValid;
+        previousTouched = ResolvedTouched;
+        previousDirty = ResolvedDirty;
+        previousFilled = filled;
+        previousFocused = focused;
+
         UpdateContext();
-        cachedAttributes = null;
-        _ = InvokeAsync(StateHasChanged);
+        StateHasChanged();
 
         foreach (var subscriber in subscribers)
         {
@@ -329,7 +460,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         if (TouchedState.HasValue) return;
         if (touched == value) return;
         touched = value;
-        NotifyStateChanged();
+        ScheduleNotifyStateChanged();
     }
 
     private void SetDirty(bool value)
@@ -337,21 +468,21 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         if (DirtyState.HasValue) return;
         if (dirty == value) return;
         dirty = value;
-        NotifyStateChanged();
+        ScheduleNotifyStateChanged();
     }
 
     private void SetFilled(bool value)
     {
         if (filled == value) return;
         filled = value;
-        NotifyStateChanged();
+        ScheduleNotifyStateChanged();
     }
 
     private void SetFocused(bool value)
     {
         if (focused == value) return;
         focused = value;
-        NotifyStateChanged();
+        ScheduleNotifyStateChanged();
     }
 
     private void AttachValidationStateChangedHandler()
@@ -372,7 +503,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
 
     private void HandleValidationStateChanged(object? sender, ValidationStateChangedEventArgs e)
     {
-        NotifyStateChanged();
+        ScheduleNotifyStateChanged();
     }
 
     private sealed class FieldRegistration(

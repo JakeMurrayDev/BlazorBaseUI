@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using BlazorBaseUI.Utilities.LabelableProvider;
@@ -10,8 +9,19 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
 {
     private const string DefaultTag = "div";
 
-    private Dictionary<string, object>? cachedAttributes;
-    private FieldRootState lastAttributeState;
+    private readonly RenderFragment renderContent;
+
+    private string? controlId;
+    private string? labelId;
+    private List<string> messageIds = [];
+    private bool labelableNotifyPending;
+    private LabelableContext labelableContext = null!;
+    private FieldItemContext itemContext = null!;
+
+    public FieldItem()
+    {
+        renderContent = RenderContent;
+    }
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -52,34 +62,116 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
 
     protected override void OnInitialized()
     {
+        controlId = InitialControlId ?? Guid.NewGuid().ToIdString();
+        itemContext = new FieldItemContext(ResolvedDisabled);
+        labelableContext = CreateLabelableContext();
+
         FieldContext?.Subscribe(this);
     }
 
     protected override void OnParametersSet()
     {
-        cachedAttributes = null;
+        itemContext = new FieldItemContext(ResolvedDisabled);
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var itemContext = new FieldItemContext(ResolvedDisabled);
-
-        builder.OpenComponent<LabelableProvider>(0);
-        builder.AddComponentParameter(1, "InitialControlId", InitialControlId);
-        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(labelableBuilder =>
+        builder.OpenComponent<CascadingValue<LabelableContext>>(0);
+        builder.AddComponentParameter(1, "Value", labelableContext);
+        builder.AddComponentParameter(2, "IsFixed", true);
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(builder2 =>
         {
-            labelableBuilder.OpenComponent<CascadingValue<FieldItemContext>>(3);
-            labelableBuilder.AddComponentParameter(4, "Value", itemContext);
-            labelableBuilder.AddComponentParameter(5, "IsFixed", false);
-            labelableBuilder.AddComponentParameter(6, "ChildContent", (RenderFragment)(RenderItem));
-            labelableBuilder.CloseComponent();
+            builder2.OpenComponent<CascadingValue<FieldItemContext>>(0);
+            builder2.AddComponentParameter(1, "Value", itemContext);
+            builder2.AddComponentParameter(2, "IsFixed", false);
+            builder2.AddComponentParameter(3, "ChildContent", renderContent);
+            builder2.CloseComponent();
         }));
         builder.CloseComponent();
     }
 
+    private void RenderContent(RenderTreeBuilder builder)
+    {
+        var state = State;
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
+
+        if (isComponent)
+        {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+            }
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(2, "data-disabled", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(3, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(4, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(5, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(6, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(7, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(8, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(9, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(10, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(11, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
+            builder.AddContent(14, ChildContent);
+            builder.CloseElement();
+        }
+    }
+
     void IFieldStateSubscriber.NotifyStateChanged()
     {
-        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -88,73 +180,54 @@ public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposabl
         FieldContext?.Unsubscribe(this);
     }
 
-    private void RenderItem(RenderTreeBuilder builder)
+    private LabelableContext CreateLabelableContext() => new(
+        ControlId: controlId,
+        SetControlId: SetControlId,
+        LabelId: labelId,
+        SetLabelId: SetLabelId,
+        MessageIds: messageIds,
+        UpdateMessageIds: UpdateMessageIds);
+
+    private void ScheduleLabelableStateHasChanged()
     {
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = GetOrBuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        if (RenderAs is not null)
-        {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
+        if (labelableNotifyPending)
             return;
-        }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
-    {
-        if (cachedAttributes is not null && lastAttributeState == state)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes(state);
-        lastAttributeState = state;
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
-    {
-        var dataAttrs = state.GetDataAttributes();
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount);
-
-        if (AdditionalAttributes is not null)
+        labelableNotifyPending = true;
+        _ = InvokeAsync(() =>
         {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+            labelableNotifyPending = false;
+            labelableContext = CreateLabelableContext();
+            StateHasChanged();
+        });
+    }
+
+    private void SetControlId(string? id)
+    {
+        if (controlId == id) return;
+        controlId = id;
+        ScheduleLabelableStateHasChanged();
+    }
+
+    private void SetLabelId(string? id)
+    {
+        if (labelId == id) return;
+        labelId = id;
+        ScheduleLabelableStateHasChanged();
+    }
+
+    private void UpdateMessageIds(string id, bool add)
+    {
+        if (add)
+        {
+            if (messageIds.Contains(id)) return;
+            messageIds = [.. messageIds, id];
         }
-
-        foreach (var dataAttr in dataAttrs)
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
+        else
+        {
+            if (!messageIds.Contains(id)) return;
+            messageIds = messageIds.Where(m => m != id).ToList();
+        }
+        ScheduleLabelableStateHasChanged();
     }
 }

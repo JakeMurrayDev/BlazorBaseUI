@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -13,8 +12,6 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     private string? defaultId;
     private bool wasRendered;
-    private Dictionary<string, object>? cachedAttributes;
-    private FieldRootState lastAttributeState;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -67,8 +64,6 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
 
     protected override void OnParametersSet()
     {
-        cachedAttributes = null;
-
         var shouldRender = ShouldRenderError();
 
         if (shouldRender != wasRendered)
@@ -90,44 +85,105 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
+        var errors = GetAllErrors();
 
-        var attributes = GetOrBuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        if (RenderAs is not null)
+        if (isComponent)
         {
             if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
             {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
             }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", GetErrorContent());
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, GetErrorContent());
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", ResolvedId);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(3, "data-disabled", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(4, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(5, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(6, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(7, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(8, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(9, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(10, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(11, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(12, "ChildContent", ChildContent ?? BuildErrorContent(errors));
+            builder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+
+            if (ChildContent is not null)
+            {
+                builder.AddContent(15, ChildContent);
+            }
+            else if (errors.Length == 1)
+            {
+                builder.AddContent(16, errors[0]);
+            }
+            else if (errors.Length > 1)
+            {
+                builder.OpenElement(17, "ul");
+                foreach (var error in errors)
+                {
+                    builder.OpenElement(18, "li");
+                    builder.AddContent(19, error);
+                    builder.CloseElement();
+                }
+                builder.CloseElement();
+            }
+
+            builder.CloseElement();
+        }
     }
 
     void IFieldStateSubscriber.NotifyStateChanged()
     {
-        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -191,13 +247,8 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
         return [.. errors.Distinct()];
     }
 
-    private RenderFragment GetErrorContent()
+    private RenderFragment BuildErrorContent(string[] errors)
     {
-        if (ChildContent is not null)
-            return ChildContent;
-
-        var errors = GetAllErrors();
-
         return builder =>
         {
             if (errors.Length == 1)
@@ -216,38 +267,5 @@ public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposab
                 builder.CloseElement();
             }
         };
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
-    {
-        if (cachedAttributes is not null && lastAttributeState == state)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes(state);
-        lastAttributeState = state;
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
-    {
-        var dataAttrs = state.GetDataAttributes();
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount + 1);
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = ResolvedId;
-
-        foreach (var dataAttr in dataAttrs)
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }

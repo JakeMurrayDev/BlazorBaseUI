@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -11,6 +10,9 @@ public sealed class Form : ComponentBase
     private const string DefaultTag = "form";
 
     private readonly FieldRegistry fieldRegistry = new();
+    private readonly RenderFragment renderChildContent;
+    private readonly RenderFragment renderEditContextContent;
+    private readonly RenderFragment renderFormContextContent;
 
     private EditContext? editContext;
     private bool hasSetEditContextExplicitly;
@@ -18,8 +20,14 @@ public sealed class Form : ComponentBase
     private Dictionary<string, string[]> errors = new(4);
     private Dictionary<string, string[]>? previousExternalErrors;
     private FormContext formContext = null!;
-    private Dictionary<string, object>? cachedAttributes;
     private EventCallback<EventArgs> cachedSubmitCallback;
+
+    public Form()
+    {
+        renderChildContent = RenderChildContent;
+        renderEditContextContent = RenderEditContextContent;
+        renderFormContextContent = RenderFormContextContent;
+    }
 
     [Parameter]
 #pragma warning disable BL0007
@@ -120,7 +128,6 @@ public sealed class Form : ComponentBase
         }
 
         UpdateContext();
-        cachedAttributes = null;
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -130,63 +137,78 @@ public sealed class Form : ComponentBase
         var state = FormState.Default;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
 
         builder.OpenRegion(editContext.GetHashCode());
 
-        var attributes = GetOrBuildAttributes();
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        if (RenderAs is not null)
+        if (isComponent)
         {
             if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
             {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
             }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", BuildChildContent());
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "novalidate", true);
+        builder.AddAttribute(3, "onsubmit", cachedSubmitCallback);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(4, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(5, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(6, "ChildContent", renderChildContent);
+            builder.AddComponentReferenceCapture(7, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-            builder.OpenElement(3, tag);
-            builder.AddMultipleAttributes(4, attributes);
-            builder.AddElementReferenceCapture(5, e => Element = e);
-            builder.AddContent(6, BuildChildContent());
+            builder.AddElementReferenceCapture(8, e => Element = e);
+            builder.AddContent(9, renderChildContent);
             builder.CloseElement();
         }
 
         builder.CloseRegion();
     }
 
-    private RenderFragment BuildChildContent() => builder =>
+    private void RenderChildContent(RenderTreeBuilder builder)
     {
         Debug.Assert(editContext is not null);
 
         builder.OpenComponent<CascadingValue<EditContext>>(0);
         builder.AddComponentParameter(1, "IsFixed", true);
         builder.AddComponentParameter(2, "Value", editContext);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(editContextBuilder =>
-        {
-            editContextBuilder.OpenComponent<CascadingValue<FormContext>>(4);
-            editContextBuilder.AddComponentParameter(5, "Value", formContext);
-            editContextBuilder.AddComponentParameter(6, "IsFixed", true);
-            editContextBuilder.AddComponentParameter(7, "ChildContent", ChildContent?.Invoke(editContext));
-            editContextBuilder.CloseComponent();
-        }));
+        builder.AddComponentParameter(3, "ChildContent", renderEditContextContent);
         builder.CloseComponent();
-    };
+    }
+
+    private void RenderEditContextContent(RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<CascadingValue<FormContext>>(0);
+        builder.AddComponentParameter(1, "Value", formContext);
+        builder.AddComponentParameter(2, "IsFixed", true);
+        builder.AddComponentParameter(3, "ChildContent", renderFormContextContent);
+        builder.CloseComponent();
+    }
+
+    private void RenderFormContextContent(RenderTreeBuilder builder)
+    {
+        Debug.Assert(editContext is not null);
+        builder.AddContent(0, ChildContent?.Invoke(editContext));
+    }
 
     private void UpdateContext()
     {
@@ -194,35 +216,6 @@ public sealed class Form : ComponentBase
             editContext: editContext,
             errors: errors,
             validationMode: ValidationMode);
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes()
-    {
-        if (cachedAttributes is not null)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes();
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes()
-    {
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(additionalCount + 2);
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["novalidate"] = true;
-        attributes["onsubmit"] = cachedSubmitCallback;
-
-        return attributes;
     }
 
     private void ClearErrors(string? name)
