@@ -13,6 +13,7 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
     private AvatarRootState state = new(ImageLoadingStatus.Idle);
     private string? previousSrc;
     private bool hasRendered;
+    private bool isComponentRenderAs;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = default!;
@@ -35,6 +36,9 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
     [Parameter]
     public EventCallback<ImageLoadingStatus> OnLoadingStatusChange { get; set; }
 
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
@@ -56,6 +60,12 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         if (state.ImageLoadingStatus != imageLoadingStatus)
         {
             state = new AvatarRootState(imageLoadingStatus);
@@ -77,14 +87,9 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -103,14 +108,16 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
             builder.AddAttribute(3, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            builder.AddComponentReferenceCapture(4, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddAttribute(4, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(6, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddElementReferenceCapture(5, elementReference => Element = elementReference);
+            builder.AddElementReferenceCapture(7, elementReference => Element = elementReference);
+            builder.AddContent(8, ChildContent);
             builder.CloseElement();
         }
     }

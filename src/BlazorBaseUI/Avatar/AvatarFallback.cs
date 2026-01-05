@@ -11,6 +11,7 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
     private AvatarRootState state = new(ImageLoadingStatus.Idle);
     private int? previousDelay;
     private bool delayPassed;
+    private bool isComponentRenderAs;
 
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
@@ -51,6 +52,12 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var currentStatus = Context?.ImageLoadingStatus ?? ImageLoadingStatus.Idle;
         if (state.ImageLoadingStatus != currentStatus)
         {
@@ -83,14 +90,9 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -109,7 +111,7 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
             builder.AddAttribute(3, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(4, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(5, component => { Element = ((IReferencableComponent)component).Element; });

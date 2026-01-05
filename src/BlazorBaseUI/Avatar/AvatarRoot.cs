@@ -8,6 +8,7 @@ public sealed class AvatarRoot : ComponentBase
     private const string DefaultTag = "span";
 
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
+    private bool isComponentRenderAs;
     private AvatarRootContext context = null!;
     private AvatarRootState state = new(ImageLoadingStatus.Idle);
 
@@ -38,6 +39,12 @@ public sealed class AvatarRoot : ComponentBase
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         if (state.ImageLoadingStatus != imageLoadingStatus)
         {
             state = new AvatarRootState(imageLoadingStatus);
@@ -48,20 +55,14 @@ public sealed class AvatarRoot : ComponentBase
     {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
         builder.OpenComponent<CascadingValue<AvatarRootContext>>(0);
         builder.AddAttribute(1, "Value", context);
-        builder.AddAttribute(2, "IsFixed", false);
-        builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+        builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
         {
-            if (isComponent)
+            if (isComponentRenderAs)
             {
-                if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-                {
-                    throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-                }
-                innerBuilder.OpenComponent(4, RenderAs!);
+                innerBuilder.OpenComponent(3, RenderAs!);
             }
             else
             {
@@ -79,7 +80,7 @@ public sealed class AvatarRoot : ComponentBase
                 innerBuilder.AddAttribute(7, "style", resolvedStyle);
             }
 
-            if (isComponent)
+            if (isComponentRenderAs)
             {
                 innerBuilder.AddAttribute(8, "ChildContent", ChildContent);
                 innerBuilder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
