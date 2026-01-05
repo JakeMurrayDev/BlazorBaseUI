@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Button;
@@ -10,7 +11,9 @@ public class Button : ComponentBase, IAsyncDisposable
     private const string DefaultTag = "button";
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
     private bool hasRendered;
+    private Func<bool, Task> cachedSyncJsCallback = default!;
     private bool previousDisabled;
     private bool previousFocusableWhenDisabled;
     private bool previousNativeButton;
@@ -19,6 +22,9 @@ public class Button : ComponentBase, IAsyncDisposable
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = default!;
+
+    [Inject]
+    private ILogger<Button> Logger { get; set; } = default!;
 
     [Parameter]
     public bool Disabled { get; set; }
@@ -62,6 +68,21 @@ public class Button : ComponentBase, IAsyncDisposable
                 "./_content/BlazorBaseUI/blazor-baseui-button.js").AsTask());
     }
 
+    protected override void OnInitialized()
+    {
+        cachedSyncJsCallback = async (dispose) =>
+        {
+            try
+            {
+                await SyncJsAsync(dispose);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error syncing JS state in {Component}", nameof(Button));
+            }
+        };
+    }
+
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -98,11 +119,11 @@ public class Button : ComponentBase, IAsyncDisposable
 
         if (currentNeedsJs)
         {
-            _ = SyncJsAsync(dispose: false);
+            _ = InvokeAsync(() => cachedSyncJsCallback(false));
         }
         else if (previousNeedsJs)
         {
-            _ = SyncJsAsync(dispose: true);
+            _ = InvokeAsync(() => cachedSyncJsCallback(true));
         }
     }
 

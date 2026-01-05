@@ -8,6 +8,8 @@ public sealed class FieldValidation : IDisposable
     private readonly Func<bool>? getInvalid;
     private readonly int debounceTime;
     private readonly Action requestStateChange;
+    private readonly Action<Exception, string>? logError;
+    private readonly Func<object?, Task> cachedCommitCallback;
 
     private Timer? debounceTimer;
     private object? pendingValue;
@@ -19,7 +21,8 @@ public sealed class FieldValidation : IDisposable
         Func<object?, Task<string[]?>>? validate,
         Func<bool>? getInvalid,
         int debounceTime,
-        Action requestStateChange)
+        Action requestStateChange,
+        Action<Exception, string>? logError = null)
     {
         this.getValidityData = getValidityData;
         this.setValidityData = setValidityData;
@@ -27,6 +30,19 @@ public sealed class FieldValidation : IDisposable
         this.getInvalid = getInvalid;
         this.debounceTime = debounceTime;
         this.requestStateChange = requestStateChange;
+        this.logError = logError;
+
+        cachedCommitCallback = async (value) =>
+        {
+            try
+            {
+                await CommitAsync(value);
+            }
+            catch (Exception ex)
+            {
+                logError?.Invoke(ex, "Error committing validation");
+            }
+        };
     }
 
     public async Task CommitAsync(object? value, bool revalidateOnly = false)
@@ -100,7 +116,7 @@ public sealed class FieldValidation : IDisposable
             valueToCommit = pendingValue;
         }
 
-        _ = CommitAsync(valueToCommit);
+        _ = cachedCommitCallback(valueToCommit);
     }
 
     public void SetInitialValue(object? value)

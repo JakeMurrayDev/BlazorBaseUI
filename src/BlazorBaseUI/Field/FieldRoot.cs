@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.Extensions.Logging;
 using BlazorBaseUI.Form;
 using BlazorBaseUI.Utilities.LabelableProvider;
 using FormValidationMode = BlazorBaseUI.Form.ValidationMode;
@@ -12,6 +13,9 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private const string DefaultTag = "div";
 
     private readonly HashSet<IFieldStateSubscriber> subscribers = [];
+
+    private Func<Task> cachedLabelableStateChangedCallback = default!;
+    private Func<Task> cachedNotifyStateChangedCallback = default!;
 
     private string? controlId;
     private string? labelId;
@@ -37,6 +41,9 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     private bool previousDirty;
     private bool previousFilled;
     private bool previousFocused;
+
+    [Inject]
+    private ILogger<FieldRoot> Logger { get; set; } = default!;
 
     [CascadingParameter]
     private EditContext? EditContext { get; set; }
@@ -128,13 +135,42 @@ public sealed class FieldRoot : ComponentBase, IDisposable
         fieldId = Guid.NewGuid().ToIdString();
         controlId = fieldId;
 
+        cachedLabelableStateChangedCallback = async () =>
+        {
+            try
+            {
+                labelableNotifyPending = false;
+                labelableContext = CreateLabelableContext();
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error updating labelable state in {Component}", nameof(FieldRoot));
+            }
+            await Task.CompletedTask;
+        };
+
+        cachedNotifyStateChangedCallback = async () =>
+        {
+            try
+            {
+                ExecuteNotifyStateChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error notifying state changed in {Component}", nameof(FieldRoot));
+            }
+            await Task.CompletedTask;
+        };
+
         validation = new FieldValidation(
             getValidityData: () => validityData,
             setValidityData: data => validityData = data,
             validate: Validate,
             getInvalid: () => Invalid ?? false,
             debounceTime: ValidationDebounceTime,
-            requestStateChange: ScheduleNotifyStateChanged);
+            requestStateChange: ScheduleNotifyStateChanged,
+            logError: (ex, message) => Logger.LogError(ex, "{Message} in {Component}", message, nameof(FieldRoot)));
 
         state = new FieldRootState(
             Disabled: ResolvedDisabled,
@@ -221,13 +257,11 @@ public sealed class FieldRoot : ComponentBase, IDisposable
     {
         builder.OpenComponent<CascadingValue<LabelableContext>>(0);
         builder.AddComponentParameter(1, "Value", labelableContext);
-        builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(builder2 =>
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(builder2 =>
         {
             builder2.OpenComponent<CascadingValue<FieldRootContext>>(0);
-            builder2.AddComponentParameter(1, "Value", context);
-            builder2.AddComponentParameter(2, "IsFixed", true);
-            builder2.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderContent);
+            builder2.AddComponentParameter(3, "Value", context);
+            builder2.AddComponentParameter(4, "ChildContent", (RenderFragment)RenderContent);
             builder2.CloseComponent();
         }));
         builder.CloseComponent();
@@ -329,12 +363,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             return;
 
         labelableNotifyPending = true;
-        _ = InvokeAsync(() =>
-        {
-            labelableNotifyPending = false;
-            labelableContext = CreateLabelableContext();
-            StateHasChanged();
-        });
+        _ = InvokeAsync(cachedLabelableStateChangedCallback);
     }
 
     private void SetControlId(string? id)
@@ -413,7 +442,7 @@ public sealed class FieldRoot : ComponentBase, IDisposable
             return;
 
         notifyPending = true;
-        _ = InvokeAsync(ExecuteNotifyStateChanged);
+        _ = InvokeAsync(cachedNotifyStateChangedCallback);
     }
 
     private void ExecuteNotifyStateChanged()

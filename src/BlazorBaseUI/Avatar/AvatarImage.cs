@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Avatar;
@@ -9,7 +10,9 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
     private const string DefaultTag = "img";
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
+    private Func<Task> cachedLoadImageCallback = default!;
     private AvatarRootState state = new(ImageLoadingStatus.Idle);
     private string? previousSrc;
     private bool hasRendered;
@@ -17,6 +20,9 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = default!;
+
+    [Inject]
+    private ILogger<AvatarImage> Logger { get; set; } = default!;
 
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
@@ -58,6 +64,21 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
                 "./_content/BlazorBaseUI/blazor-baseui-avatar-image.js").AsTask());
     }
 
+    protected override void OnInitialized()
+    {
+        cachedLoadImageCallback = async () =>
+        {
+            try
+            {
+                await LoadImageAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading image in {Component}", nameof(AvatarImage));
+            }
+        };
+    }
+
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -74,7 +95,7 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
         if (hasRendered && Src != previousSrc)
         {
             previousSrc = Src;
-            _ = LoadImageAsync();
+            _ = InvokeAsync(cachedLoadImageCallback);
         }
     }
 

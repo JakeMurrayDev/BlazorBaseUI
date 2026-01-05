@@ -10,9 +10,6 @@ public sealed class Form : ComponentBase
     private const string DefaultTag = "form";
 
     private readonly FieldRegistry fieldRegistry = new();
-    private readonly RenderFragment renderChildContent;
-    private readonly RenderFragment renderEditContextContent;
-    private readonly RenderFragment renderFormContextContent;
 
     private EditContext? editContext;
     private bool hasSetEditContextExplicitly;
@@ -22,13 +19,6 @@ public sealed class Form : ComponentBase
     private Dictionary<string, string[]>? previousExternalErrors;
     private FormContext formContext = null!;
     private EventCallback<EventArgs> cachedSubmitCallback;
-
-    public Form()
-    {
-        renderChildContent = RenderChildContent;
-        renderEditContextContent = RenderEditContextContent;
-        renderFormContextContent = RenderFormContextContent;
-    }
 
     [Parameter]
 #pragma warning disable BL0007
@@ -172,14 +162,14 @@ public sealed class Form : ComponentBase
 
         if (isComponentRenderAs)
         {
-            builder.AddAttribute(6, "ChildContent", renderChildContent);
+            builder.AddAttribute(6, "ChildContent", (RenderFragment)RenderChildContent);
             builder.AddComponentReferenceCapture(7, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
             builder.AddElementReferenceCapture(8, e => Element = e);
-            builder.AddContent(9, renderChildContent);
+            builder.AddContent(9, (RenderFragment)RenderChildContent);
             builder.CloseElement();
         }
 
@@ -191,9 +181,8 @@ public sealed class Form : ComponentBase
         Debug.Assert(editContext is not null);
 
         builder.OpenComponent<CascadingValue<EditContext>>(0);
-        builder.AddComponentParameter(1, "IsFixed", true);
-        builder.AddComponentParameter(2, "Value", editContext);
-        builder.AddComponentParameter(3, "ChildContent", renderEditContextContent);
+        builder.AddComponentParameter(1, "Value", editContext);
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)RenderEditContextContent);
         builder.CloseComponent();
     }
 
@@ -201,8 +190,7 @@ public sealed class Form : ComponentBase
     {
         builder.OpenComponent<CascadingValue<FormContext>>(0);
         builder.AddComponentParameter(1, "Value", formContext);
-        builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", renderFormContextContent);
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)RenderFormContextContent);
         builder.CloseComponent();
     }
 

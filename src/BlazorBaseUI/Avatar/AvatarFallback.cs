@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.Extensions.Logging;
 
 namespace BlazorBaseUI.Avatar;
 
@@ -8,10 +9,15 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
     private const string DefaultTag = "span";
 
     private CancellationTokenSource? delayCts;
+    private Func<Task> cachedStartDelayCallback = default!;
+
     private AvatarRootState state = new(ImageLoadingStatus.Idle);
     private int? previousDelay;
     private bool delayPassed;
     private bool isComponentRenderAs;
+
+    [Inject]
+    private ILogger<AvatarFallback> Logger { get; set; } = default!;
 
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
@@ -48,6 +54,18 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
         }
 
         delayPassed = Delay is null;
+
+        cachedStartDelayCallback = async () =>
+        {
+            try
+            {
+                await StartDelayAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error starting delay in {Component}", nameof(AvatarFallback));
+            }
+        };
     }
 
     protected override void OnParametersSet()
@@ -76,7 +94,7 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
             else
             {
                 delayPassed = false;
-                _ = StartDelayAsync();
+                _ = InvokeAsync(cachedStartDelayCallback);
             }
         }
     }
