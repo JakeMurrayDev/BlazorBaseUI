@@ -14,6 +14,7 @@ public class Button : ComponentBase, IAsyncDisposable
     private bool previousDisabled;
     private bool previousFocusableWhenDisabled;
     private bool previousNativeButton;
+    private bool isComponentRenderAs;
     private ButtonState state = new(false);
 
     [Inject]
@@ -63,39 +64,45 @@ public class Button : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         if (state.Disabled != Disabled)
         {
             state = new ButtonState(Disabled);
         }
 
-        if (hasRendered)
+        if (!hasRendered)
         {
-            var stateChanged = Disabled != previousDisabled ||
-                               FocusableWhenDisabled != previousFocusableWhenDisabled ||
-                               NativeButton != previousNativeButton;
+            return;
+        }
 
-            if (stateChanged)
-            {
-                var previousNeedsJs = !previousNativeButton || (previousDisabled && previousFocusableWhenDisabled);
-                var currentNeedsJs = NeedsJsInterop;
+        var stateChanged = Disabled != previousDisabled ||
+                           FocusableWhenDisabled != previousFocusableWhenDisabled ||
+                           NativeButton != previousNativeButton;
 
-                previousDisabled = Disabled;
-                previousFocusableWhenDisabled = FocusableWhenDisabled;
-                previousNativeButton = NativeButton;
+        if (!stateChanged)
+        {
+            return;
+        }
 
-                if (previousNeedsJs && currentNeedsJs)
-                {
-                    _ = UpdateJsStateAsync();
-                }
-                else if (!previousNeedsJs && currentNeedsJs)
-                {
-                    _ = InitializeJsAsync();
-                }
-                else if (previousNeedsJs && !currentNeedsJs)
-                {
-                    _ = DisposeJsAsync();
-                }
-            }
+        var previousNeedsJs = !previousNativeButton || (previousDisabled && previousFocusableWhenDisabled);
+        var currentNeedsJs = NeedsJsInterop;
+
+        previousDisabled = Disabled;
+        previousFocusableWhenDisabled = FocusableWhenDisabled;
+        previousNativeButton = NativeButton;
+
+        if (currentNeedsJs)
+        {
+            _ = SyncJsAsync(dispose: false);
+        }
+        else if (previousNeedsJs)
+        {
+            _ = SyncJsAsync(dispose: true);
         }
     }
 
@@ -103,14 +110,9 @@ public class Button : ComponentBase, IAsyncDisposable
     {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -160,7 +162,7 @@ public class Button : ComponentBase, IAsyncDisposable
             builder.AddAttribute(12, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
             builder.AddAttribute(13, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(14, component => { Element = ((IReferencableComponent)component).Element; });
@@ -183,14 +185,14 @@ public class Button : ComponentBase, IAsyncDisposable
             previousFocusableWhenDisabled = FocusableWhenDisabled;
             previousNativeButton = NativeButton;
 
-            if (NeedsJsInterop && Element.HasValue)
+            if (NeedsJsInterop)
             {
-                await InitializeJsAsync();
+                await SyncJsAsync(dispose: false);
             }
         }
     }
 
-    private async Task InitializeJsAsync()
+    private async Task SyncJsAsync(bool dispose)
     {
         if (!Element.HasValue)
         {
@@ -200,41 +202,7 @@ public class Button : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element.Value, Disabled, FocusableWhenDisabled, NativeButton);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
-        }
-    }
-
-    private async Task UpdateJsStateAsync()
-    {
-        if (!Element.HasValue)
-        {
-            return;
-        }
-
-        try
-        {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element.Value, Disabled, FocusableWhenDisabled, NativeButton);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
-        }
-    }
-
-    private async Task DisposeJsAsync()
-    {
-        if (!moduleTask.IsValueCreated || !Element.HasValue)
-        {
-            return;
-        }
-
-        try
-        {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("dispose", Element.Value);
+            await module.InvokeVoidAsync("sync", Element.Value, Disabled, FocusableWhenDisabled, NativeButton, dispose);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -248,7 +216,7 @@ public class Button : ComponentBase, IAsyncDisposable
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", Element.Value);
+                await module.InvokeVoidAsync("sync", Element.Value, false, false, false, true);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

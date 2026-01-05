@@ -1,7 +1,27 @@
 const STATE_KEY = Symbol.for('BlazorBaseUI.Button.State');
 
-export function initialize(element, disabled, focusableWhenDisabled, nativeButton) {
+export function sync(element, disabled, focusableWhenDisabled, nativeButton, dispose) {
     if (!element) {
+        return;
+    }
+
+    const existingState = element[STATE_KEY];
+
+    if (dispose) {
+        if (existingState) {
+            element.removeEventListener('click', existingState.clickHandler);
+            element.removeEventListener('pointerdown', existingState.pointerDownHandler);
+            element.removeEventListener('keydown', existingState.keydownHandler);
+            element.removeEventListener('keyup', existingState.keyupHandler);
+            delete element[STATE_KEY];
+        }
+        return;
+    }
+
+    if (existingState) {
+        existingState.disabled = disabled;
+        existingState.focusableWhenDisabled = focusableWhenDisabled;
+        existingState.nativeButton = nativeButton;
         return;
     }
 
@@ -91,40 +111,4 @@ export function initialize(element, disabled, focusableWhenDisabled, nativeButto
     element.addEventListener('keyup', state.keyupHandler);
 
     element[STATE_KEY] = state;
-}
-
-export function updateState(element, disabled, focusableWhenDisabled, nativeButton) {
-    if (!element) {
-        return;
-    }
-
-    const state = element[STATE_KEY];
-    if (state) {
-        state.disabled = disabled;
-        state.focusableWhenDisabled = focusableWhenDisabled;
-        state.nativeButton = nativeButton;
-    }
-}
-
-export function dispose(element) {
-    if (!element) {
-        return;
-    }
-
-    const state = element[STATE_KEY];
-    if (state) {
-        if (state.clickHandler) {
-            element.removeEventListener('click', state.clickHandler);
-        }
-        if (state.pointerDownHandler) {
-            element.removeEventListener('pointerdown', state.pointerDownHandler);
-        }
-        if (state.keydownHandler) {
-            element.removeEventListener('keydown', state.keydownHandler);
-        }
-        if (state.keyupHandler) {
-            element.removeEventListener('keyup', state.keyupHandler);
-        }
-        delete element[STATE_KEY];
-    }
 }
