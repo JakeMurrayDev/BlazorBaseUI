@@ -1,7 +1,6 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BlazorBaseUI.Avatar;
 
@@ -11,14 +10,15 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
+    private AvatarRootState state = new(ImageLoadingStatus.Idle);
     private string? previousSrc;
     private bool hasRendered;
 
-    [CascadingParameter]
-    private AvatarRootContext? Context { get; set; }
-
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = default!;
+
+    [CascadingParameter]
+    private AvatarRootContext? Context { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -27,21 +27,18 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
     public Type? RenderAs { get; set; }
 
     [Parameter]
-    public Func<AvatarRootState, string>? ClassValue { get; set; }
+    public Func<AvatarRootState, string?>? ClassValue { get; set; }
 
     [Parameter]
-    public Func<AvatarRootState, string>? StyleValue { get; set; }
+    public Func<AvatarRootState, string?>? StyleValue { get; set; }
 
     [Parameter]
     public EventCallback<ImageLoadingStatus> OnLoadingStatusChange { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)]
-    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
-
-    private AvatarRootState State => new(imageLoadingStatus);
 
     private string? Src => AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "src");
 
@@ -59,6 +56,11 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        if (state.ImageLoadingStatus != imageLoadingStatus)
+        {
+            state = new AvatarRootState(imageLoadingStatus);
+        }
+
         if (hasRendered && Src != previousSrc)
         {
             previousSrc = Src;
@@ -73,25 +75,42 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
             return;
         }
 
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
 
-        if (RenderAs is not null)
+        if (isComponent)
         {
-            builder.OpenComponent(1, RenderAs);
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+            }
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
             builder.AddAttribute(2, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
             builder.AddAttribute(3, "style", resolvedStyle);
-            builder.AddMultipleAttributes(4, AdditionalAttributes);
+        }
+
+        if (isComponent)
+        {
+            builder.AddComponentReferenceCapture(4, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-            builder.OpenElement(5, tag);
-            builder.AddAttribute(6, "class", resolvedClass);
-            builder.AddAttribute(7, "style", resolvedStyle);
-            builder.AddMultipleAttributes(8, AdditionalAttributes);
-            builder.AddElementReferenceCapture(9, elemRef => Element = elemRef);
+            builder.AddElementReferenceCapture(5, elementReference => Element = elementReference);
             builder.CloseElement();
         }
     }
@@ -115,9 +134,7 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
                 var module = await moduleTask.Value;
                 await module.DisposeAsync();
             }
-            catch (Exception ex) when (
-                ex is JSDisconnectedException or
-                TaskCanceledException)
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
             }
         }
@@ -143,13 +160,12 @@ public sealed class AvatarImage : ComponentBase, IAsyncDisposable
                 _ => ImageLoadingStatus.Idle
             };
 
+            state = new AvatarRootState(imageLoadingStatus);
             await OnLoadingStatusChange.InvokeAsync(imageLoadingStatus);
             Context.SetImageLoadingStatus(imageLoadingStatus);
             await InvokeAsync(StateHasChanged);
         }
-        catch (Exception ex) when (
-            ex is JSDisconnectedException or
-            TaskCanceledException)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
         }
     }

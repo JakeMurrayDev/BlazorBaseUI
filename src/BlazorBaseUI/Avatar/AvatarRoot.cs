@@ -1,6 +1,5 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BlazorBaseUI.Avatar;
 
@@ -10,7 +9,7 @@ public sealed class AvatarRoot : ComponentBase
 
     private ImageLoadingStatus imageLoadingStatus = ImageLoadingStatus.Idle;
     private AvatarRootContext context = null!;
-    private AvatarRootState state = null!;
+    private AvatarRootState state = new(ImageLoadingStatus.Idle);
 
     [Parameter]
     public string? As { get; set; }
@@ -19,55 +18,78 @@ public sealed class AvatarRoot : ComponentBase
     public Type? RenderAs { get; set; }
 
     [Parameter]
-    public Func<AvatarRootState, string>? ClassValue { get; set; }
+    public Func<AvatarRootState, string?>? ClassValue { get; set; }
 
     [Parameter]
-    public Func<AvatarRootState, string>? StyleValue { get; set; }
+    public Func<AvatarRootState, string?>? StyleValue { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)]
-    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     protected override void OnInitialized()
     {
-        state = new AvatarRootState(imageLoadingStatus);
-        context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus, state);
+        context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (state.ImageLoadingStatus != imageLoadingStatus)
+        {
+            state = new AvatarRootState(imageLoadingStatus);
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
 
         builder.OpenComponent<CascadingValue<AvatarRootContext>>(0);
         builder.AddAttribute(1, "Value", context);
         builder.AddAttribute(2, "IsFixed", false);
-        builder.AddAttribute(3, "ChildContent", (RenderFragment)(cascadingBuilder =>
+        builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
         {
-            if (RenderAs is not null)
+            if (isComponent)
             {
-                cascadingBuilder.OpenComponent(5, RenderAs);
-                cascadingBuilder.AddAttribute(6, "class", resolvedClass);
-                cascadingBuilder.AddAttribute(7, "style", resolvedStyle);
-                cascadingBuilder.AddMultipleAttributes(8, AdditionalAttributes);
-                cascadingBuilder.AddAttribute(9, "ChildContent", ChildContent);
-                cascadingBuilder.CloseComponent();
+                if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+                {
+                    throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+                }
+                innerBuilder.OpenComponent(4, RenderAs!);
             }
             else
             {
-                var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-                cascadingBuilder.OpenElement(10, tag);
-                cascadingBuilder.AddAttribute(11, "class", resolvedClass);
-                cascadingBuilder.AddAttribute(12, "style", resolvedStyle);
-                cascadingBuilder.AddMultipleAttributes(13, AdditionalAttributes);
-                cascadingBuilder.AddElementReferenceCapture(14, e => Element = e);
-                cascadingBuilder.AddContent(15, ChildContent);
-                cascadingBuilder.CloseElement();
+                innerBuilder.OpenElement(4, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            }
+
+            innerBuilder.AddMultipleAttributes(5, AdditionalAttributes);
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                innerBuilder.AddAttribute(6, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                innerBuilder.AddAttribute(7, "style", resolvedStyle);
+            }
+
+            if (isComponent)
+            {
+                innerBuilder.AddAttribute(8, "ChildContent", ChildContent);
+                innerBuilder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
+                innerBuilder.CloseComponent();
+            }
+            else
+            {
+                innerBuilder.AddElementReferenceCapture(10, elementReference => Element = elementReference);
+                innerBuilder.AddContent(11, ChildContent);
+                innerBuilder.CloseElement();
             }
         }));
         builder.CloseComponent();
@@ -79,7 +101,7 @@ public sealed class AvatarRoot : ComponentBase
         {
             imageLoadingStatus = status;
             state = new AvatarRootState(imageLoadingStatus);
-            context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus, state);
+            context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
             StateHasChanged();
         }
     }
