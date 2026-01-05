@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -20,66 +19,97 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private bool hasRendered;
     private bool isChecked;
-    private bool previousChecked;
-    private bool previousDisabled;
-    private bool previousReadOnly;
-    private bool previousIndeterminate;
     private string? defaultId;
     private string resolvedControlId = null!;
     private string checkboxId = null!;
     private string inputId = null!;
     private ElementReference inputElement;
+    private CheckboxRootState state = CheckboxRootState.Default;
+    private CheckboxRootContext context = CheckboxRootContext.Default;
+    private bool previousChecked;
+    private bool previousDisabled;
+    private bool previousReadOnly;
+    private bool previousRequired;
+    private bool previousIndeterminate;
+    private bool? previousValid;
+    private bool previousTouched;
+    private bool previousDirty;
+    private bool previousFilled;
+    private bool previousFocused;
 
-    [Inject] private IJSRuntime JSRuntime { get; set; } = null!;
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = null!;
 
-    [CascadingParameter] private FieldRootContext? FieldContext { get; set; }
+    [CascadingParameter]
+    private FieldRootContext? FieldContext { get; set; }
 
-    [CascadingParameter] private FieldItemContext? FieldItemContext { get; set; }
+    [CascadingParameter]
+    private FieldItemContext? FieldItemContext { get; set; }
 
-    [CascadingParameter] private FormContext? FormContext { get; set; }
+    [CascadingParameter]
+    private FormContext? FormContext { get; set; }
 
-    [CascadingParameter] private LabelableContext? LabelableContext { get; set; }
+    [CascadingParameter]
+    private LabelableContext? LabelableContext { get; set; }
 
-    [CascadingParameter] private CheckboxGroupContext? GroupContext { get; set; }
+    [CascadingParameter]
+    private CheckboxGroupContext? GroupContext { get; set; }
 
-    [Parameter] public bool? Checked { get; set; }
+    [Parameter]
+    public bool? Checked { get; set; }
 
-    [Parameter] public bool DefaultChecked { get; set; }
+    [Parameter]
+    public bool DefaultChecked { get; set; }
 
-    [Parameter] public bool Disabled { get; set; }
+    [Parameter]
+    public bool Disabled { get; set; }
 
-    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter]
+    public bool ReadOnly { get; set; }
 
-    [Parameter] public bool Required { get; set; }
+    [Parameter]
+    public bool Required { get; set; }
 
-    [Parameter] public bool Indeterminate { get; set; }
+    [Parameter]
+    public bool Indeterminate { get; set; }
 
-    [Parameter] public bool Parent { get; set; }
+    [Parameter]
+    public bool Parent { get; set; }
 
-    [Parameter] public string? Name { get; set; }
+    [Parameter]
+    public string? Name { get; set; }
 
-    [Parameter] public string? Value { get; set; }
+    [Parameter]
+    public string? Value { get; set; }
 
-    [Parameter] public string? UncheckedValue { get; set; }
+    [Parameter]
+    public string? UncheckedValue { get; set; }
 
-    [Parameter] public EventCallback<bool> CheckedChanged { get; set; }
+    [Parameter]
+    public EventCallback<bool> CheckedChanged { get; set; }
 
-    [Parameter] public EventCallback<CheckboxCheckedChangeEventArgs> OnCheckedChange { get; set; }
+    [Parameter]
+    public EventCallback<CheckboxCheckedChangeEventArgs> OnCheckedChange { get; set; }
 
-    [Parameter] public string? As { get; set; }
+    [Parameter]
+    public string? As { get; set; }
 
-    [Parameter] public Type? RenderAs { get; set; }
+    [Parameter]
+    public Type? RenderAs { get; set; }
 
-    [Parameter] public Func<CheckboxRootState, string>? ClassValue { get; set; }
+    [Parameter]
+    public Func<CheckboxRootState, string>? ClassValue { get; set; }
 
-    [Parameter] public Func<CheckboxRootState, string>? StyleValue { get; set; }
+    [Parameter]
+    public Func<CheckboxRootState, string>? StyleValue { get; set; }
 
-    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull] public ElementReference? Element { get; private set; }
+    public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Checked.HasValue;
 
@@ -123,14 +153,6 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
-
-    private CheckboxRootState State => CheckboxRootState.FromFieldState(
-        FieldState,
-        CurrentChecked,
-        ResolvedDisabled,
-        ReadOnly,
-        Required,
-        CurrentIndeterminate);
 
     public CheckboxRoot()
     {
@@ -186,10 +208,32 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         previousChecked = CurrentChecked;
         previousDisabled = ResolvedDisabled;
         previousReadOnly = ReadOnly;
+        previousRequired = Required;
         previousIndeterminate = CurrentIndeterminate;
+        previousValid = FieldState.Valid;
+        previousTouched = FieldState.Touched;
+        previousDirty = FieldState.Dirty;
+        previousFilled = FieldState.Filled;
+        previousFocused = FieldState.Focused;
+
+        state = CheckboxRootState.FromFieldState(
+            FieldState,
+            CurrentChecked,
+            ResolvedDisabled,
+            ReadOnly,
+            Required,
+            CurrentIndeterminate);
+
+        context = new CheckboxRootContext(
+            Checked: CurrentChecked,
+            Disabled: ResolvedDisabled,
+            ReadOnly: ReadOnly,
+            Required: Required,
+            Indeterminate: CurrentIndeterminate,
+            State: state);
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
         var newResolvedId = ResolvedControlId;
         if (newResolvedId != resolvedControlId)
@@ -207,40 +251,253 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             GroupContext!.Parent!.SetDisabledState(ResolvedValue, ResolvedDisabled);
         }
 
+        var currentChecked = CurrentChecked;
+        var currentDisabled = ResolvedDisabled;
+        var currentIndeterminate = CurrentIndeterminate;
+        var fieldState = FieldState;
+
+        var stateChanged = previousChecked != currentChecked ||
+                           previousDisabled != currentDisabled ||
+                           previousReadOnly != ReadOnly ||
+                           previousRequired != Required ||
+                           previousIndeterminate != currentIndeterminate ||
+                           previousValid != fieldState.Valid ||
+                           previousTouched != fieldState.Touched ||
+                           previousDirty != fieldState.Dirty ||
+                           previousFilled != fieldState.Filled ||
+                           previousFocused != fieldState.Focused;
+
+        if (stateChanged)
+        {
+            state = CheckboxRootState.FromFieldState(
+                fieldState,
+                currentChecked,
+                currentDisabled,
+                ReadOnly,
+                Required,
+                currentIndeterminate);
+
+            context = new CheckboxRootContext(
+                Checked: currentChecked,
+                Disabled: currentDisabled,
+                ReadOnly: ReadOnly,
+                Required: Required,
+                Indeterminate: currentIndeterminate,
+                State: state);
+        }
+
         if (hasRendered)
         {
-            if (CurrentChecked != previousChecked)
+            if (currentChecked != previousChecked)
             {
-                previousChecked = CurrentChecked;
-                await HandleCheckedChangedAsync();
+                _ = HandleCheckedChangedAsync();
             }
 
-            if (ResolvedDisabled != previousDisabled ||
+            if (currentDisabled != previousDisabled ||
                 ReadOnly != previousReadOnly ||
-                CurrentIndeterminate != previousIndeterminate)
+                currentIndeterminate != previousIndeterminate)
             {
-                previousDisabled = ResolvedDisabled;
-                previousReadOnly = ReadOnly;
-                previousIndeterminate = CurrentIndeterminate;
-                await UpdateJsStateAsync();
+                _ = UpdateJsStateAsync();
             }
         }
+
+        previousChecked = currentChecked;
+        previousDisabled = currentDisabled;
+        previousReadOnly = ReadOnly;
+        previousRequired = Required;
+        previousIndeterminate = currentIndeterminate;
+        previousValid = fieldState.Valid;
+        previousTouched = fieldState.Touched;
+        previousDirty = fieldState.Dirty;
+        previousFilled = fieldState.Filled;
+        previousFocused = fieldState.Focused;
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var context = CreateContext(State);
-
         builder.OpenComponent<CascadingValue<CheckboxRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
-        builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
-        {
-            RenderCheckbox(contextBuilder, State);
-            RenderHiddenInput(contextBuilder);
-            RenderCheckboxInput(contextBuilder);
-        }));
+        builder.AddComponentParameter(2, "ChildContent", (RenderFragment)RenderContent);
         builder.CloseComponent();
+    }
+
+    private void RenderContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var isComponent = RenderAs is not null;
+
+        if (isComponent)
+        {
+            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+            {
+                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+            }
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", checkboxId);
+        builder.AddAttribute(3, "role", "checkbox");
+        builder.AddAttribute(4, "aria-checked", CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false");
+        builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
+
+        if (ReadOnly)
+        {
+            builder.AddAttribute(6, "aria-readonly", "true");
+        }
+
+        if (Required)
+        {
+            builder.AddAttribute(7, "aria-required", "true");
+        }
+
+        if (LabelableContext?.LabelId is not null)
+        {
+            builder.AddAttribute(8, "aria-labelledby", LabelableContext.LabelId);
+        }
+
+        var describedBy = LabelableContext?.GetAriaDescribedBy();
+        if (describedBy is not null)
+        {
+            builder.AddAttribute(9, "aria-describedby", describedBy);
+        }
+
+        if (state.Valid == false)
+        {
+            builder.AddAttribute(10, "aria-invalid", "true");
+        }
+
+        if (Parent)
+        {
+            builder.AddAttribute(11, ParentCheckboxAttribute, string.Empty);
+        }
+
+        if (IsGroupedWithParent && Parent && GroupContext!.Parent!.AriaControls is not null)
+        {
+            builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
+        }
+
+        builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(14, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
+
+        if (state.Indeterminate)
+        {
+            builder.AddAttribute(15, "data-indeterminate", string.Empty);
+        }
+        else if (state.Checked)
+        {
+            builder.AddAttribute(16, "data-checked", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(17, "data-unchecked", string.Empty);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(18, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(19, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(20, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(21, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(22, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(23, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(24, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(25, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(26, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(27, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(28, "style", resolvedStyle);
+        }
+
+        if (isComponent)
+        {
+            builder.AddAttribute(29, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(30, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(31, elementReference => Element = elementReference);
+            builder.AddContent(32, ChildContent);
+            builder.CloseElement();
+        }
+
+        if (!CurrentChecked && GroupContext is null && ResolvedName is not null && !Parent && UncheckedValue is not null)
+        {
+            builder.OpenElement(33, "input");
+            builder.AddAttribute(34, "type", "hidden");
+            builder.AddAttribute(35, "name", ResolvedName);
+            builder.AddAttribute(36, "value", UncheckedValue);
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(37, "input");
+        builder.AddAttribute(38, "type", "checkbox");
+        builder.AddAttribute(39, "id", inputId);
+        builder.AddAttribute(40, "checked", CurrentChecked);
+        builder.AddAttribute(41, "disabled", ResolvedDisabled);
+        builder.AddAttribute(42, "required", Required);
+        builder.AddAttribute(43, "aria-hidden", "true");
+        builder.AddAttribute(44, "tabindex", -1);
+        builder.AddAttribute(45, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+
+        if (!Parent && ResolvedName is not null)
+        {
+            builder.AddAttribute(46, "name", ResolvedName);
+        }
+
+        if (ResolvedValue is not null)
+        {
+            builder.AddAttribute(47, "value", ResolvedValue);
+        }
+
+        builder.AddAttribute(48, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
+        builder.AddAttribute(49, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
+        builder.AddElementReferenceCapture(50, e => inputElement = e);
+        builder.CloseElement();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -276,139 +533,17 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private void RenderCheckbox(RenderTreeBuilder builder, CheckboxRootState state)
-    {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildCheckboxAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
-        {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
-        }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private void RenderHiddenInput(RenderTreeBuilder builder)
-    {
-        if (CurrentChecked || GroupContext is not null || ResolvedName is null || Parent || UncheckedValue is null)
-            return;
-
-        builder.OpenElement(7, "input");
-        builder.AddAttribute(8, "type", "hidden");
-        builder.AddAttribute(9, "name", ResolvedName);
-        builder.AddAttribute(10, "Value", UncheckedValue);
-        builder.CloseElement();
-    }
-
-    private void RenderCheckboxInput(RenderTreeBuilder builder)
-    {
-        builder.OpenElement(11, "input");
-        builder.AddAttribute(12, "type", "checkbox");
-        builder.AddAttribute(13, "id", inputId);
-        builder.AddAttribute(14, "checked", CurrentChecked);
-        builder.AddAttribute(15, "Disabled", ResolvedDisabled);
-        builder.AddAttribute(16, "required", Required);
-        builder.AddAttribute(17, "aria-hidden", true);
-        builder.AddAttribute(18, "tabindex", -1);
-        builder.AddAttribute(19, "style",
-            "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
-
-        if (!Parent && ResolvedName is not null)
-            builder.AddAttribute(20, "name", ResolvedName);
-
-        if (ResolvedValue is not null)
-        {
-            var inputValue = ResolvedValue;
-            builder.AddAttribute(21, "Value", inputValue);
-        }
-
-        builder.AddAttribute(22, "onchange",
-            EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
-        builder.AddAttribute(23, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
-        builder.AddElementReferenceCapture(24, e => inputElement = e);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildCheckboxAttributes(CheckboxRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = checkboxId;
-        attributes["role"] = "checkbox";
-        attributes["aria-checked"] = CurrentIndeterminate ? "mixed" : CurrentChecked;
-        attributes["tabindex"] = ResolvedDisabled ? -1 : 0;
-
-        if (ReadOnly)
-            attributes["aria-readonly"] = true;
-
-        if (Required)
-            attributes["aria-required"] = true;
-
-        if (LabelableContext?.LabelId is not null)
-            attributes["aria-labelledby"] = LabelableContext.LabelId;
-
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
-            attributes["aria-describedby"] = describedBy;
-
-        if (state.Valid == false)
-            attributes["aria-invalid"] = true;
-
-        if (Parent)
-            attributes[ParentCheckboxAttribute] = string.Empty;
-
-        if (IsGroupedWithParent && Parent && GroupContext!.Parent!.AriaControls is not null)
-            attributes["aria-controls"] = GroupContext.Parent.AriaControls;
-
-        attributes["onfocus"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        attributes["onblur"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync);
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
-    private CheckboxRootContext CreateContext(CheckboxRootState state) => new(
-        Checked: CurrentChecked,
-        Disabled: ResolvedDisabled,
-        ReadOnly: ReadOnly,
-        Required: Required,
-        Indeterminate: CurrentIndeterminate,
-        State: state);
-
     private async Task InitializeJsAsync()
     {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element, inputElement, ResolvedDisabled, ReadOnly,
-                CurrentIndeterminate);
+            await module.InvokeVoidAsync("initialize", Element.Value, inputElement, ResolvedDisabled, ReadOnly, CurrentIndeterminate);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -417,14 +552,15 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private async Task UpdateJsStateAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element, inputElement, ResolvedDisabled, ReadOnly,
-                CurrentIndeterminate);
+            await module.InvokeVoidAsync("updateState", Element.Value, inputElement, ResolvedDisabled, ReadOnly, CurrentIndeterminate);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -434,7 +570,9 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private void HandleFocus(FocusEventArgs e)
     {
         if (ResolvedDisabled)
+        {
             return;
+        }
 
         FieldContext?.SetFocused(true);
     }
@@ -442,7 +580,9 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private async Task HandleBlurAsync(FocusEventArgs e)
     {
         if (ResolvedDisabled)
+        {
             return;
+        }
 
         FieldContext?.SetTouched(true);
         FieldContext?.SetFocused(false);
@@ -464,12 +604,16 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private async Task HandleInputChangeAsync(ChangeEventArgs e)
     {
         if (ReadOnly || ResolvedDisabled)
+        {
             return;
+        }
 
         var nextChecked = e.Value is bool b ? b : bool.TryParse(e.Value?.ToString(), out var parsed) && parsed;
 
         if (nextChecked == CurrentChecked && !CurrentIndeterminate)
+        {
             return;
+        }
 
         if (IsGroupedWithParent && Parent)
         {
@@ -479,18 +623,20 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
         if (GroupContext is not null && !Parent && ResolvedValue is not null)
         {
-            var currentValues = GroupContext.Value?.ToList() ?? new List<string>();
+            var currentValues = GroupContext.Value?.ToList() ?? [];
             if (nextChecked)
             {
                 if (!currentValues.Contains(ResolvedValue))
+                {
                     currentValues.Add(ResolvedValue);
+                }
             }
             else
             {
                 currentValues.Remove(ResolvedValue);
             }
 
-            GroupContext.SetValue(currentValues.ToArray());
+            GroupContext.SetValue([.. currentValues]);
             return;
         }
 
@@ -520,6 +666,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         if (!IsControlled)
         {
             isChecked = value;
+            UpdateStateAndContext();
         }
 
         if (CheckedChanged.HasDelegate)
@@ -534,7 +681,9 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private async Task ResetInputCheckedAsync()
     {
         if (!hasRendered)
+        {
             return;
+        }
 
         try
         {
@@ -549,7 +698,9 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private async Task HandleCheckedChangedAsync()
     {
         if (GroupContext is not null && !Parent)
+        {
             return;
+        }
 
         FormContext?.ClearErrors(ResolvedName);
 
@@ -570,10 +721,47 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
         }
     }
 
+    private void UpdateStateAndContext()
+    {
+        var currentChecked = CurrentChecked;
+        var currentDisabled = ResolvedDisabled;
+        var currentIndeterminate = CurrentIndeterminate;
+        var fieldState = FieldState;
+
+        state = CheckboxRootState.FromFieldState(
+            fieldState,
+            currentChecked,
+            currentDisabled,
+            ReadOnly,
+            Required,
+            currentIndeterminate);
+
+        context = new CheckboxRootContext(
+            Checked: currentChecked,
+            Disabled: currentDisabled,
+            ReadOnly: ReadOnly,
+            Required: Required,
+            Indeterminate: currentIndeterminate,
+            State: state);
+
+        previousChecked = currentChecked;
+        previousDisabled = currentDisabled;
+        previousIndeterminate = currentIndeterminate;
+        previousReadOnly = ReadOnly;
+        previousRequired = Required;
+        previousValid = fieldState.Valid;
+        previousTouched = fieldState.Touched;
+        previousDirty = fieldState.Dirty;
+        previousFilled = fieldState.Filled;
+        previousFocused = fieldState.Focused;
+    }
+
     private async ValueTask FocusAsync()
     {
         if (!hasRendered || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {

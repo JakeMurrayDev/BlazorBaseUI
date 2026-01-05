@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Utilities.LabelableProvider;
@@ -9,6 +9,7 @@ public sealed class LabelableProvider : ComponentBase
     private string? labelId;
     private List<string> messageIds = [];
     private LabelableContext context = null!;
+    private bool notifyPending;
 
     [Parameter]
     public string? InitialControlId { get; set; }
@@ -26,8 +27,7 @@ public sealed class LabelableProvider : ComponentBase
     {
         builder.OpenComponent<CascadingValue<LabelableContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
-        builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", ChildContent);
+        builder.AddComponentParameter(2, "ChildContent", ChildContent);
         builder.CloseComponent();
     }
 
@@ -39,20 +39,32 @@ public sealed class LabelableProvider : ComponentBase
         MessageIds: messageIds,
         UpdateMessageIds: UpdateMessageIds);
 
+    private void ScheduleStateHasChanged()
+    {
+        if (notifyPending)
+            return;
+
+        notifyPending = true;
+        _ = InvokeAsync(() =>
+        {
+            notifyPending = false;
+            context = CreateContext();
+            StateHasChanged();
+        });
+    }
+
     private void SetControlId(string? id)
     {
         if (controlId == id) return;
         controlId = id;
-        context = CreateContext();
-        _ = InvokeAsync(StateHasChanged);
+        ScheduleStateHasChanged();
     }
 
     private void SetLabelId(string? id)
     {
         if (labelId == id) return;
         labelId = id;
-        context = CreateContext();
-        _ = InvokeAsync(StateHasChanged);
+        ScheduleStateHasChanged();
     }
 
     private void UpdateMessageIds(string id, bool add)
@@ -67,7 +79,6 @@ public sealed class LabelableProvider : ComponentBase
             if (!messageIds.Contains(id)) return;
             messageIds = messageIds.Where(m => m != id).ToList();
         }
-        context = CreateContext();
-        _ = InvokeAsync(StateHasChanged);
+        ScheduleStateHasChanged();
     }
 }

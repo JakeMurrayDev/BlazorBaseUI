@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using BlazorBaseUI.Utilities.LabelableProvider;
@@ -10,8 +9,7 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
     private const string DefaultTag = "p";
 
     private string? defaultId;
-    private Dictionary<string, object>? cachedAttributes;
-    private FieldRootState lastAttributeState;
+    private bool isComponentRenderAs;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -51,7 +49,11 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
 
     protected override void OnParametersSet()
     {
-        cachedAttributes = null;
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -60,43 +62,78 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        var attributes = GetOrBuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        else
-            attributes.Remove("class");
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-        else
-            attributes.Remove("style");
-
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", ResolvedId);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(3, "data-disabled", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(4, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(5, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(6, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(7, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(8, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(9, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(10, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(11, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddAttribute(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.AddContent(15, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     void IFieldStateSubscriber.NotifyStateChanged()
     {
-        cachedAttributes = null;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -104,38 +141,5 @@ public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDi
     {
         FieldContext?.Unsubscribe(this);
         LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
-    }
-
-    private Dictionary<string, object> GetOrBuildAttributes(FieldRootState state)
-    {
-        if (cachedAttributes is not null && lastAttributeState == state)
-            return cachedAttributes;
-
-        cachedAttributes = BuildAttributes(state);
-        lastAttributeState = state;
-        return cachedAttributes;
-    }
-
-    private Dictionary<string, object> BuildAttributes(FieldRootState state)
-    {
-        var dataAttrs = state.GetDataAttributes();
-        var additionalCount = AdditionalAttributes?.Count ?? 0;
-        var attributes = new Dictionary<string, object>(dataAttrs.Count + additionalCount + 1);
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = ResolvedId;
-
-        foreach (var dataAttr in dataAttrs)
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }

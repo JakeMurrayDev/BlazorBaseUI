@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace BlazorBaseUI.Avatar;
 
@@ -9,7 +9,15 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
     private const string DefaultTag = "span";
 
     private CancellationTokenSource? delayCts;
+    private Func<Task> cachedStartDelayCallback = default!;
+
+    private AvatarRootState state = new(ImageLoadingStatus.Idle);
+    private int? previousDelay;
     private bool delayPassed;
+    private bool isComponentRenderAs;
+
+    [Inject]
+    private ILogger<AvatarFallback> Logger { get; set; } = default!;
 
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
@@ -24,21 +32,18 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
     public Type? RenderAs { get; set; }
 
     [Parameter]
-    public Func<AvatarRootState, string>? ClassValue { get; set; }
+    public Func<AvatarRootState, string?>? ClassValue { get; set; }
 
     [Parameter]
-    public Func<AvatarRootState, string>? StyleValue { get; set; }
+    public Func<AvatarRootState, string?>? StyleValue { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)]
-    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
-
-    private AvatarRootState State => Context?.State ?? new(ImageLoadingStatus.Idle);
 
     protected override void OnInitialized()
     {
@@ -49,13 +54,48 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
         }
 
         delayPassed = Delay is null;
+
+        cachedStartDelayCallback = async () =>
+        {
+            try
+            {
+                await StartDelayAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error starting delay in {Component}", nameof(AvatarFallback));
+            }
+        };
     }
 
     protected override void OnParametersSet()
     {
-        if (Delay is not null && !delayPassed)
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
         {
-            _ = StartDelayAsync();
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var currentStatus = Context?.ImageLoadingStatus ?? ImageLoadingStatus.Idle;
+        if (state.ImageLoadingStatus != currentStatus)
+        {
+            state = new AvatarRootState(currentStatus);
+        }
+
+        if (Delay != previousDelay)
+        {
+            previousDelay = Delay;
+            delayCts?.Cancel();
+
+            if (Delay is null)
+            {
+                delayPassed = true;
+            }
+            else
+            {
+                delayPassed = false;
+                _ = InvokeAsync(cachedStartDelayCallback);
+            }
         }
     }
 
@@ -66,27 +106,39 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
             return;
         }
 
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            builder.OpenComponent(1, RenderAs);
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
             builder.AddAttribute(2, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
             builder.AddAttribute(3, "style", resolvedStyle);
-            builder.AddMultipleAttributes(4, AdditionalAttributes);
-            builder.AddAttribute(5, "ChildContent", ChildContent);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddAttribute(4, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(5, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-            builder.OpenElement(6, tag);
-            builder.AddAttribute(7, "class", resolvedClass);
-            builder.AddAttribute(8, "style", resolvedStyle);
-            builder.AddMultipleAttributes(9, AdditionalAttributes);
-            builder.AddElementReferenceCapture(10, e => Element = e);
-            builder.AddContent(11, ChildContent);
+            builder.AddElementReferenceCapture(6, elementReference => Element = elementReference);
+            builder.AddContent(7, ChildContent);
             builder.CloseElement();
         }
     }
@@ -106,7 +158,7 @@ public sealed class AvatarFallback : ComponentBase, IDisposable
         {
         }
     }
-    
+
     public void Dispose()
     {
         delayCts?.Cancel();

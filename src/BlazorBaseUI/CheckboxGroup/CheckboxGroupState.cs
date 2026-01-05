@@ -1,8 +1,8 @@
-﻿using BlazorBaseUI.Field;
+using BlazorBaseUI.Field;
 
 namespace BlazorBaseUI.CheckboxGroup;
 
-public sealed record CheckboxGroupState(
+public readonly record struct CheckboxGroupState(
     bool Disabled,
     bool? Valid,
     bool Touched,
@@ -10,7 +10,7 @@ public sealed record CheckboxGroupState(
     bool Filled,
     bool Focused)
 {
-    public static CheckboxGroupState Default { get; } = new(
+    internal static CheckboxGroupState Default { get; } = new(
         Disabled: false,
         Valid: null,
         Touched: false,
@@ -18,7 +18,7 @@ public sealed record CheckboxGroupState(
         Filled: false,
         Focused: false);
 
-    public static CheckboxGroupState FromFieldState(
+    internal static CheckboxGroupState FromFieldState(
         FieldRootState fieldState,
         bool isDisabled) => new(
             Disabled: isDisabled,
@@ -27,31 +27,4 @@ public sealed record CheckboxGroupState(
             Dirty: fieldState.Dirty,
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
-
-    internal Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (Disabled)
-            attributes[CheckboxGroupDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        if (Valid == true)
-            attributes[CheckboxGroupDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
-        else if (Valid == false)
-            attributes[CheckboxGroupDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
-
-        if (Touched)
-            attributes[CheckboxGroupDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
-
-        if (Dirty)
-            attributes[CheckboxGroupDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
-
-        if (Filled)
-            attributes[CheckboxGroupDataAttribute.Filled.ToDataAttributeString()] = string.Empty;
-
-        if (Focused)
-            attributes[CheckboxGroupDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
-    }
 }
