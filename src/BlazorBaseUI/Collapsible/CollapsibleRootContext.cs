@@ -4,4 +4,5 @@ public sealed record CollapsibleRootContext(
     bool Open,
     bool Disabled,
     string PanelId,
-    Action HandleTrigger);
+    Action HandleTrigger,
+    Action<string> SetPanelId);

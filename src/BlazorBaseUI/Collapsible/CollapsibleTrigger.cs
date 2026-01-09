@@ -9,7 +9,7 @@ public sealed class CollapsibleTrigger : ComponentBase
     private const string DefaultTag = "button";
 
     private bool isComponentRenderAs;
-    private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
+    private CollapsibleRootState state = new(false, false);
     private EventCallback<MouseEventArgs> cachedClickCallback;
 
    [CascadingParameter]
@@ -60,7 +60,7 @@ public sealed class CollapsibleTrigger : ComponentBase
         var currentDisabled = ResolvedDisabled;
         if (state.Open != currentOpen || state.Disabled != currentDisabled)
         {
-            state = new CollapsibleRootState(currentOpen, currentDisabled, TransitionStatus.Undefined);
+            state = state with { Open = currentOpen, Disabled = currentDisabled };
         }
     }
 
@@ -94,7 +94,7 @@ public sealed class CollapsibleTrigger : ComponentBase
         {
             builder.AddAttribute(3, "aria-controls", Context.PanelId);
         }
-        builder.AddAttribute(4, "aria-expanded", Context.Open);
+        builder.AddAttribute(4, "aria-expanded", Context.Open ? "true" : "false");
 
         if (ResolvedDisabled)
         {

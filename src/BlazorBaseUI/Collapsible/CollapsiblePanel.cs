@@ -14,13 +14,11 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
     private string? defaultId;
     private bool hasRendered;
     private bool isMounted;
-    private bool previousOpen;
-    private bool pendingOpen;
-    private bool pendingClose;
     private bool jsInitialized;
     private DotNetObjectReference<CollapsiblePanel>? dotNetRef;
     private bool isComponentRenderAs;
     private CollapsiblePanelState state = new(false, false, TransitionStatus.Undefined);
+    private bool? animationTarget;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -56,11 +54,22 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
 
     private bool CurrentOpen => Context?.Open ?? false;
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != Context?.PanelId)
+            {
+                Context?.SetPanelId(id);
+            }
+            return id;
+        }
+    }
 
     private bool IsPresent => KeepMounted || HiddenUntilFound || isMounted;
 
-    private bool IsHidden => !KeepMounted && !HiddenUntilFound && !CurrentOpen && !pendingClose;
+    private bool IsHidden => !KeepMounted && !HiddenUntilFound && !CurrentOpen && animationTarget != false;
 
     public CollapsiblePanel()
     {
@@ -72,7 +81,6 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
     {
         var initialOpen = Context?.Open ?? false;
         isMounted = initialOpen;
-        previousOpen = initialOpen;
         state = new CollapsiblePanelState(initialOpen, Context?.Disabled ?? false, TransitionStatus.Undefined);
     }
 
@@ -87,23 +95,22 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
         var currentOpen = CurrentOpen;
         var currentDisabled = Context?.Disabled ?? false;
 
-        if (currentOpen && !previousOpen)
+        if (currentOpen != state.Open)
         {
-            isMounted = true;
-            pendingOpen = true;
-            pendingClose = false;
+            if (currentOpen)
+            {
+                isMounted = true;
+                animationTarget = true;
+            }
+            else
+            {
+                animationTarget = false;
+            }
         }
-        else if (!currentOpen && previousOpen)
-        {
-            pendingClose = true;
-            pendingOpen = false;
-        }
-
-        previousOpen = currentOpen;
 
         if (state.Open != currentOpen || state.Disabled != currentDisabled)
         {
-            state = new CollapsiblePanelState(currentOpen, currentDisabled, TransitionStatus.Undefined);
+            state = state with { Open = currentOpen, Disabled = currentDisabled };
         }
     }
 
@@ -130,35 +137,44 @@ public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
             return;
         }
 
-        if (pendingOpen)
+        if (animationTarget == true)
         {
-            pendingOpen = false;
-            await OpenAsync();
+            animationTarget = null;
+            _ = OpenAsync();
         }
-        else if (pendingClose)
+        else if (animationTarget == false)
         {
-            await CloseAsync();
+            animationTarget = null;
+            _ = CloseAsync();
         }
     }
 
     [JSInvokable]
-    public async Task OnOpenAnimationComplete()
+    public void OnTransitionStatusChanged(string status)
     {
-        await InvokeAsync(StateHasChanged);
+        state = status switch
+        {
+            "starting" => state with { TransitionStatus = TransitionStatus.Starting },
+            "ending" => state with { TransitionStatus = TransitionStatus.Ending },
+            "idle" => state with { TransitionStatus = TransitionStatus.Idle },
+            _ => state with { TransitionStatus = TransitionStatus.Undefined }
+        };
     }
 
     [JSInvokable]
-    public async Task OnCloseAnimationComplete()
+    public void OnAnimationEnded(string animationType, bool completed)
     {
-        pendingClose = false;
-        isMounted = false;
-
-        if (!KeepMounted && !HiddenUntilFound)
+        if (animationType == "close")
         {
-            jsInitialized = false;
+            if (completed && !KeepMounted && !HiddenUntilFound)
+            {
+                isMounted = false;
+                jsInitialized = false;
+            }
         }
 
-        await InvokeAsync(StateHasChanged);
+        state = state with { TransitionStatus = TransitionStatus.Idle };
+        StateHasChanged();
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)

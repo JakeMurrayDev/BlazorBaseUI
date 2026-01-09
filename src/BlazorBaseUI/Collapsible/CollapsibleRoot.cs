@@ -8,9 +8,9 @@ public sealed class CollapsibleRoot : ComponentBase
     private const string DefaultTag = "div";
 
     private bool isOpen;
-    private string panelId = null!;
+    private string panelId = string.Empty;
     private bool isComponentRenderAs;
-    private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
+    private CollapsibleRootState state = new(false, false);
     private CollapsibleRootContext context = null!;
 
     [Parameter]
@@ -54,10 +54,17 @@ public sealed class CollapsibleRoot : ComponentBase
 
     protected override void OnInitialized()
     {
-        panelId = Guid.NewGuid().ToIdString();
         isOpen = DefaultOpen;
-        context = new CollapsibleRootContext(CurrentOpen, Disabled, panelId, HandleTrigger);
-        state = new CollapsibleRootState(CurrentOpen, Disabled, TransitionStatus.Undefined);
+        context = new CollapsibleRootContext(CurrentOpen, Disabled, panelId, HandleTrigger, SetPanelId);
+        state = new CollapsibleRootState(CurrentOpen, Disabled);
+    }
+
+    
+
+    internal void SetPanelId(string id)
+    {
+        panelId = id;
+        context = context with { PanelId = id  };
     }
 
     protected override void OnParametersSet()
@@ -68,11 +75,20 @@ public sealed class CollapsibleRoot : ComponentBase
             throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
         }
 
+        if (string.IsNullOrEmpty(panelId))
+        {
+            var id = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id");
+            if (!string.IsNullOrEmpty(id))
+            {
+                SetPanelId(id);
+            }
+        }
+
         var currentOpen = CurrentOpen;
         if (state.Open != currentOpen || state.Disabled != Disabled)
         {
-            state = new CollapsibleRootState(currentOpen, Disabled, TransitionStatus.Undefined);
-            context = new CollapsibleRootContext(currentOpen, Disabled, panelId, HandleTrigger);
+            state = state with { Open = currentOpen, Disabled = Disabled };
+            context = context with { Open = currentOpen, Disabled = Disabled };
         }
     }
 
@@ -141,7 +157,7 @@ public sealed class CollapsibleRoot : ComponentBase
         var nextOpen = !CurrentOpen;
         var args = new CollapsibleOpenChangeEventArgs(nextOpen);
 
-        OnOpenChange.InvokeAsync(args);
+        _ = OnOpenChange.InvokeAsync(args);
 
         if (args.Canceled)
         {
@@ -153,9 +169,9 @@ public sealed class CollapsibleRoot : ComponentBase
             isOpen = nextOpen;
         }
 
-        OpenChanged.InvokeAsync(nextOpen);
-        state = new CollapsibleRootState(nextOpen, Disabled, TransitionStatus.Undefined);
-        context = new CollapsibleRootContext(nextOpen, Disabled, panelId, HandleTrigger);
+        _ = OpenChanged.InvokeAsync(nextOpen);
+        state = state with { Open = nextOpen };
+        context = context with { Open = nextOpen };
         StateHasChanged();
     }
 }
