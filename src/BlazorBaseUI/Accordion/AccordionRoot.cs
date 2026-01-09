@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using BlazorBaseUI.Utilities.CompositeList;
@@ -11,7 +10,9 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
     private const string DefaultTag = "div";
 
     private TValue[] currentValue = [];
+    private bool isComponentRenderAs;
     private AccordionRootContext<TValue> context = null!;
+    private AccordionRootState<TValue> state = null!;
 
     [CascadingParameter]
     private DirectionProviderContext? DirectionContext { get; set; }
@@ -64,7 +65,6 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value is not null;
@@ -74,48 +74,110 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
     protected override void OnInitialized()
     {
         currentValue = DefaultValue;
-        context = CreateContext();
+        var direction = DirectionContext?.Direction ?? Direction.Ltr;
+
+        context = new AccordionRootContext<TValue>(
+            Value: CurrentValue,
+            Disabled: Disabled,
+            Orientation: Orientation,
+            Direction: direction,
+            LoopFocus: LoopFocus,
+            HiddenUntilFound: HiddenUntilFound,
+            KeepMounted: KeepMounted,
+            OnValueChange: HandleValueChange);
+
+        state = new AccordionRootState<TValue>(CurrentValue, Disabled, Orientation);
     }
 
     protected override void OnParametersSet()
     {
-        context = CreateContext();
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var direction = DirectionContext?.Direction ?? Direction.Ltr;
+
+        if (!ReferenceEquals(context.Value, CurrentValue) ||
+            context.Disabled != Disabled ||
+            context.Orientation != Orientation ||
+            context.Direction != direction ||
+            context.LoopFocus != LoopFocus ||
+            context.HiddenUntilFound != HiddenUntilFound ||
+            context.KeepMounted != KeepMounted)
+        {
+            context = context with
+            {
+                Value = CurrentValue,
+                Disabled = Disabled,
+                Orientation = Orientation,
+                Direction = direction,
+                LoopFocus = LoopFocus,
+                HiddenUntilFound = HiddenUntilFound,
+                KeepMounted = KeepMounted
+            };
+        }
+
+        if (!ReferenceEquals(state.Value, CurrentValue) || state.Disabled != Disabled || state.Orientation != Orientation)
+        {
+            state = state with { Value = CurrentValue, Disabled = Disabled, Orientation = Orientation };
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = context.State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
+        var direction = DirectionContext?.Direction ?? Direction.Ltr;
 
         builder.OpenComponent<CascadingValue<IAccordionRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(innerBuilder =>
         {
-            innerBuilder.OpenComponent<CompositeListProvider>(4);
-            innerBuilder.AddComponentParameter(5, "ChildContent", (RenderFragment)(listBuilder =>
+            innerBuilder.OpenComponent<CompositeListProvider>(0);
+            innerBuilder.AddComponentParameter(1, "ChildContent", (RenderFragment)(listBuilder =>
             {
-                if (RenderAs is not null)
+                if (isComponentRenderAs)
                 {
-                    listBuilder.OpenComponent(6, RenderAs);
-                    listBuilder.AddMultipleAttributes(7, attributes);
-                    listBuilder.AddComponentParameter(8, "ChildContent", ChildContent);
+                    listBuilder.OpenComponent(0, RenderAs!);
+                }
+                else
+                {
+                    listBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                }
+
+                listBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+
+                listBuilder.AddAttribute(2, "dir", direction.ToAttributeString());
+                listBuilder.AddAttribute(3, "role", "region");
+                listBuilder.AddAttribute(4, "data-orientation", state.Orientation.ToDataAttributeString());
+
+                if (state.Disabled)
+                {
+                    listBuilder.AddAttribute(5, "data-disabled", string.Empty);
+                }
+
+                if (!string.IsNullOrEmpty(resolvedClass))
+                {
+                    listBuilder.AddAttribute(6, "class", resolvedClass);
+                }
+                if (!string.IsNullOrEmpty(resolvedStyle))
+                {
+                    listBuilder.AddAttribute(7, "style", resolvedStyle);
+                }
+
+                if (isComponentRenderAs)
+                {
+                    listBuilder.AddAttribute(8, "ChildContent", ChildContent);
+                    listBuilder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
                     listBuilder.CloseComponent();
                 }
                 else
                 {
-                    var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-                    listBuilder.OpenElement(9, tag);
-                    listBuilder.AddMultipleAttributes(10, attributes);
-                    listBuilder.AddElementReferenceCapture(11, e => Element = e);
-                    listBuilder.AddContent(12, ChildContent);
+                    listBuilder.AddElementReferenceCapture(10, e => Element = e);
+                    listBuilder.AddContent(11, ChildContent);
                     listBuilder.CloseElement();
                 }
             }));
@@ -123,38 +185,6 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
         }));
         builder.CloseComponent();
     }
-
-    private Dictionary<string, object> BuildAttributes(AccordionRootState<TValue> state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["dir"] = DirectionContext?.Direction.ToAttributeString()!;
-        attributes["role"] = "region";
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
-    private AccordionRootContext<TValue> CreateContext() => new(
-        Value: CurrentValue,
-        Disabled: Disabled,
-        Orientation: Orientation,
-        Direction: DirectionContext?.Direction ?? Direction.Ltr,
-        LoopFocus: LoopFocus,
-        HiddenUntilFound: HiddenUntilFound,
-        KeepMounted: KeepMounted,
-        OnValueChange: HandleValueChange);
 
     private void HandleValueChange(TValue itemValue, bool nextOpen)
     {
@@ -176,18 +206,24 @@ public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
         }
 
         var args = new AccordionValueChangeEventArgs<TValue>(nextValue);
-        OnValueChange.InvokeAsync(args);
+        _ = OnValueChange.InvokeAsync(args);
 
         if (args.Canceled)
+        {
             return;
+        }
 
         if (!IsControlled)
         {
             currentValue = nextValue;
         }
 
-        ValueChanged.InvokeAsync(nextValue);
-        context = CreateContext();
+        _ = ValueChanged.InvokeAsync(nextValue);
+
+        var direction = DirectionContext?.Direction ?? Direction.Ltr;
+        context = context with { Value = nextValue };
+        state = state with { Value = nextValue };
+
         StateHasChanged();
     }
 }
