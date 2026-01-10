@@ -13,7 +13,6 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private string? defaultId;
-    private bool hasRendered;
     private bool isComponentRenderAs;
     private AccordionTriggerState state = new(false, Orientation.Vertical, string.Empty, false);
     private EventCallback<MouseEventArgs> cachedClickCallback;
@@ -107,8 +106,6 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     {
         if (firstRender)
         {
-            hasRendered = true;
-
             if (Element.HasValue)
             {
                 try
