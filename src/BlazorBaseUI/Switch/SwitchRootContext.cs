@@ -1,4 +1,4 @@
-﻿namespace BlazorBaseUI.Switch;
+namespace BlazorBaseUI.Switch;
 
 public interface ISwitchRootContext
 {
@@ -16,7 +16,7 @@ public sealed record SwitchRootContext(
     bool Required,
     SwitchRootState State) : ISwitchRootContext
 {
-    public static SwitchRootContext Default { get; } = new(
+    internal static SwitchRootContext Default { get; } = new(
         Checked: false,
         Disabled: false,
         ReadOnly: false,

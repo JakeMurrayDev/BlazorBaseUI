@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -18,6 +17,7 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private bool hasRendered;
     private bool isChecked;
+    private bool isComponentRenderAs;
     private bool previousChecked;
     private bool previousDisabled;
     private bool previousReadOnly;
@@ -26,6 +26,12 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private string switchId = null!;
     private string inputId = null!;
     private ElementReference inputElement;
+    private SwitchRootState state = SwitchRootState.Default;
+    private SwitchRootContext context = SwitchRootContext.Default;
+    private EventCallback<FocusEventArgs> cachedOnFocus;
+    private EventCallback<FocusEventArgs> cachedOnBlur;
+    private EventCallback<ChangeEventArgs> cachedOnInputChange;
+    private EventCallback<FocusEventArgs> cachedOnInputFocus;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -84,7 +90,6 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Checked.HasValue;
@@ -98,13 +103,6 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
-
-    private SwitchRootState State => SwitchRootState.FromFieldState(
-        FieldState,
-        CurrentChecked,
-        ResolvedDisabled,
-        ReadOnly,
-        Required);
 
     public SwitchRoot()
     {
@@ -133,16 +131,25 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         previousChecked = CurrentChecked;
         previousDisabled = ResolvedDisabled;
         previousReadOnly = ReadOnly;
+
+        cachedOnFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
+        cachedOnBlur = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
+        cachedOnInputChange = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync);
+        cachedOnInputFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync);
     }
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
         var newResolvedId = ResolvedControlId;
         if (newResolvedId != resolvedControlId)
         {
             resolvedControlId = newResolvedId;
             LabelableContext?.SetControlId(resolvedControlId);
         }
+
+        UpdateCachedState();
 
         if (hasRendered)
         {
@@ -163,18 +170,161 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var context = CreateContext(State);
-
         builder.OpenComponent<CascadingValue<SwitchRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
-        {
-            RenderSwitch(contextBuilder, State);
-            RenderHiddenInput(contextBuilder);
-            RenderCheckboxInput(contextBuilder);
-        }));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)BuildInnerContent);
         builder.CloseComponent();
+    }
+
+    private void BuildInnerContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var labelId = LabelableContext?.LabelId;
+        var describedBy = LabelableContext?.GetAriaDescribedBy();
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", switchId);
+        builder.AddAttribute(3, "role", "switch");
+        builder.AddAttribute(4, "aria-checked", CurrentChecked ? "true" : "false");
+        builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
+
+        if (ReadOnly)
+        {
+            builder.AddAttribute(6, "aria-readonly", "true");
+        }
+
+        if (labelId is not null)
+        {
+            builder.AddAttribute(7, "aria-labelledby", labelId);
+        }
+
+        if (describedBy is not null)
+        {
+            builder.AddAttribute(8, "aria-describedby", describedBy);
+        }
+
+        if (state.Valid == false)
+        {
+            builder.AddAttribute(9, "aria-invalid", "true");
+        }
+
+        builder.AddAttribute(10, "onfocus", cachedOnFocus);
+        builder.AddAttribute(11, "onblur", cachedOnBlur);
+
+        if (state.Checked)
+        {
+            builder.AddAttribute(12, "data-checked", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(13, "data-unchecked", string.Empty);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(14, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(15, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(16, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(17, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(18, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(19, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(20, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(21, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(22, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(23, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(24, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(25, "ChildContent", ChildContent);
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(25, elementReference => Element = elementReference);
+            builder.AddContent(26, ChildContent);
+            builder.CloseElement();
+        }
+
+        if (!CurrentChecked && ResolvedName is not null && UncheckedValue is not null)
+        {
+            builder.OpenElement(27, "input");
+            builder.AddAttribute(28, "type", "hidden");
+            builder.AddAttribute(29, "name", ResolvedName);
+            builder.AddAttribute(30, "value", UncheckedValue);
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(31, "input");
+        builder.AddAttribute(32, "type", "checkbox");
+        builder.AddAttribute(33, "id", inputId);
+        builder.AddAttribute(34, "checked", CurrentChecked);
+        builder.AddAttribute(35, "disabled", ResolvedDisabled);
+        builder.AddAttribute(36, "required", Required);
+        builder.AddAttribute(37, "aria-hidden", "true");
+        builder.AddAttribute(38, "tabindex", -1);
+        builder.AddAttribute(39, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+
+        if (ResolvedName is not null)
+        {
+            builder.AddAttribute(40, "name", ResolvedName);
+        }
+
+        builder.AddAttribute(41, "onchange", cachedOnInputChange);
+        builder.AddAttribute(42, "onfocus", cachedOnInputFocus);
+        builder.AddElementReferenceCapture(43, elementReference => inputElement = elementReference);
+        builder.CloseElement();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -191,12 +341,12 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                if (Element.HasValue) await module.InvokeVoidAsync("dispose", Element.Value);
+                await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -210,120 +360,38 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private void RenderSwitch(RenderTreeBuilder builder, SwitchRootState state)
+    private void UpdateCachedState()
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildSwitchAttributes(state);
+        var newState = SwitchRootState.FromFieldState(
+            FieldState,
+            CurrentChecked,
+            ResolvedDisabled,
+            ReadOnly,
+            Required);
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
+        if (state != newState)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
+            state = newState;
+            context = new SwitchRootContext(
+                Checked: CurrentChecked,
+                Disabled: ResolvedDisabled,
+                ReadOnly: ReadOnly,
+                Required: Required,
+                State: state);
         }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
     }
-
-    private void RenderHiddenInput(RenderTreeBuilder builder)
-    {
-        if (CurrentChecked || ResolvedName is null || UncheckedValue is null)
-            return;
-
-        builder.OpenElement(7, "input");
-        builder.AddAttribute(8, "type", "hidden");
-        builder.AddAttribute(9, "name", ResolvedName);
-        builder.AddAttribute(10, "Value", UncheckedValue);
-        builder.CloseElement();
-    }
-
-    private void RenderCheckboxInput(RenderTreeBuilder builder)
-    {
-        builder.OpenElement(11, "input");
-        builder.AddAttribute(12, "type", "checkbox");
-        builder.AddAttribute(13, "id", inputId);
-        builder.AddAttribute(14, "checked", CurrentChecked);
-        builder.AddAttribute(15, "Disabled", ResolvedDisabled);
-        builder.AddAttribute(16, "required", Required);
-        builder.AddAttribute(17, "aria-hidden", true);
-        builder.AddAttribute(18, "tabindex", -1);
-        builder.AddAttribute(19, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
-
-        if (ResolvedName is not null)
-            builder.AddAttribute(20, "name", ResolvedName);
-
-        builder.AddAttribute(21, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
-        builder.AddAttribute(22, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
-        builder.AddElementReferenceCapture(23, e => inputElement = e);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildSwitchAttributes(SwitchRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = switchId;
-        attributes["role"] = "switch";
-        attributes["aria-checked"] = CurrentChecked;
-        attributes["tabindex"] = ResolvedDisabled ? -1 : 0;
-
-        if (ReadOnly)
-            attributes["aria-readonly"] = true;
-
-        if (LabelableContext?.LabelId is not null)
-            attributes["aria-labelledby"] = LabelableContext.LabelId;
-
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
-            attributes["aria-describedby"] = describedBy;
-
-        if (state.Valid == false)
-            attributes["aria-invalid"] = true;
-
-        attributes["onfocus"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        attributes["onblur"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
-    private SwitchRootContext CreateContext(SwitchRootState state) => new(
-        Checked: CurrentChecked,
-        Disabled: ResolvedDisabled,
-        ReadOnly: ReadOnly,
-        Required: Required,
-        State: state);
 
     private async Task InitializeJsAsync()
     {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element, inputElement, ResolvedDisabled, ReadOnly);
+            await module.InvokeVoidAsync("initialize", Element.Value, inputElement, ResolvedDisabled, ReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -332,13 +400,15 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
     private async Task UpdateJsStateAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element, ResolvedDisabled, ReadOnly);
+            await module.InvokeVoidAsync("updateState", Element.Value, ResolvedDisabled, ReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -348,7 +418,9 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private void HandleFocus(FocusEventArgs e)
     {
         if (ResolvedDisabled)
+        {
             return;
+        }
 
         FieldContext?.SetFocused(true);
     }
@@ -356,7 +428,9 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private void HandleBlur(FocusEventArgs e)
     {
         if (ResolvedDisabled)
+        {
             return;
+        }
 
         FieldContext?.SetTouched(true);
         FieldContext?.SetFocused(false);
@@ -370,12 +444,16 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private async Task HandleInputChangeAsync(ChangeEventArgs e)
     {
         if (ReadOnly || ResolvedDisabled)
+        {
             return;
+        }
 
         var nextChecked = e.Value is bool b ? b : bool.TryParse(e.Value?.ToString(), out var parsed) && parsed;
 
         if (nextChecked == CurrentChecked)
+        {
             return;
+        }
 
         await SetChecked(nextChecked);
     }
@@ -411,13 +489,15 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         }
 
         HandleCheckedChanged();
-        StateHasChanged();
+        UpdateCachedState();
     }
 
     private async Task ResetInputCheckedAsync()
     {
         if (!hasRendered)
+        {
             return;
+        }
 
         try
         {
@@ -452,7 +532,9 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private async ValueTask FocusAsync()
     {
         if (!hasRendered || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {

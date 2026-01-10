@@ -8,6 +8,7 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
     private const string DefaultTag = "span";
 
     private bool isMounted;
+    private bool isComponentRenderAs;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private CancellationTokenSource? transitionCts;
     private CheckboxIndicatorState state;
@@ -55,6 +56,12 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         UpdateTransitionStatus();
 
         var rootState = CheckboxContext?.State ?? CheckboxRootState.Default;
@@ -98,14 +105,9 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -191,16 +193,16 @@ public sealed class CheckboxIndicator : ComponentBase, IDisposable
             builder.AddAttribute(17, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            builder.AddAttribute(18, "ChildContent", ChildContent);
+            builder.AddComponentParameter(18, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(19, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddElementReferenceCapture(20, elementReference => Element = elementReference);
-            builder.AddContent(21, ChildContent);
+            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
+            builder.AddContent(19, ChildContent);
             builder.CloseElement();
         }
     }
