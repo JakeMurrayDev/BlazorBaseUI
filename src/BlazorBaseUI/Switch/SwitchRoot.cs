@@ -288,42 +288,43 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         if (isComponentRenderAs)
         {
             builder.AddComponentParameter(25, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(26, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddElementReferenceCapture(25, elementReference => Element = elementReference);
-            builder.AddContent(26, ChildContent);
+            builder.AddElementReferenceCapture(27, elementReference => Element = elementReference);
+            builder.AddContent(28, ChildContent);
             builder.CloseElement();
         }
 
         if (!CurrentChecked && ResolvedName is not null && UncheckedValue is not null)
         {
-            builder.OpenElement(27, "input");
-            builder.AddAttribute(28, "type", "hidden");
-            builder.AddAttribute(29, "name", ResolvedName);
-            builder.AddAttribute(30, "value", UncheckedValue);
+            builder.OpenElement(29, "input");
+            builder.AddAttribute(30, "type", "hidden");
+            builder.AddAttribute(31, "name", ResolvedName);
+            builder.AddAttribute(32, "value", UncheckedValue);
             builder.CloseElement();
         }
 
-        builder.OpenElement(31, "input");
-        builder.AddAttribute(32, "type", "checkbox");
-        builder.AddAttribute(33, "id", inputId);
-        builder.AddAttribute(34, "checked", CurrentChecked);
-        builder.AddAttribute(35, "disabled", ResolvedDisabled);
-        builder.AddAttribute(36, "required", Required);
-        builder.AddAttribute(37, "aria-hidden", "true");
-        builder.AddAttribute(38, "tabindex", -1);
-        builder.AddAttribute(39, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+        builder.OpenElement(33, "input");
+        builder.AddAttribute(34, "type", "checkbox");
+        builder.AddAttribute(35, "id", inputId);
+        builder.AddAttribute(36, "checked", CurrentChecked);
+        builder.AddAttribute(37, "disabled", ResolvedDisabled);
+        builder.AddAttribute(38, "required", Required);
+        builder.AddAttribute(39, "aria-hidden", "true");
+        builder.AddAttribute(40, "tabindex", -1);
+        builder.AddAttribute(41, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
         if (ResolvedName is not null)
         {
-            builder.AddAttribute(40, "name", ResolvedName);
+            builder.AddAttribute(42, "name", ResolvedName);
         }
 
-        builder.AddAttribute(41, "onchange", cachedOnInputChange);
-        builder.AddAttribute(42, "onfocus", cachedOnInputFocus);
-        builder.AddElementReferenceCapture(43, elementReference => inputElement = elementReference);
+        builder.AddAttribute(43, "onchange", cachedOnInputChange);
+        builder.AddAttribute(44, "onfocus", cachedOnInputFocus);
+        builder.AddElementReferenceCapture(45, elementReference => inputElement = elementReference);
         builder.CloseElement();
     }
 

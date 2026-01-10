@@ -126,12 +126,13 @@ public sealed class SwitchThumb : ComponentBase
         if (isComponentRenderAs)
         {
             builder.AddComponentParameter(15, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(16, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
-            builder.AddContent(16, ChildContent);
+            builder.AddElementReferenceCapture(17, elementReference => Element = elementReference);
+            builder.AddContent(18, ChildContent);
             builder.CloseElement();
         }
     }
