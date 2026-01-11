@@ -13,7 +13,7 @@ public sealed record RadioRootState(
     bool Filled,
     bool Focused)
 {
-    public static RadioRootState Default { get; } = new(
+    internal static RadioRootState Default { get; } = new(
         Checked: false,
         Disabled: false,
         ReadOnly: false,
@@ -24,7 +24,7 @@ public sealed record RadioRootState(
         Filled: false,
         Focused: false);
 
-    public static RadioRootState FromFieldState(
+    internal static RadioRootState FromFieldState(
         FieldRootState fieldState,
         bool isChecked,
         bool isDisabled,

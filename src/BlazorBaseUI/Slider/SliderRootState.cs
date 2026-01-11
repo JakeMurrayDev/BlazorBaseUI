@@ -20,7 +20,7 @@ public sealed record SliderRootState(
     bool Filled,
     bool Focused)
 {
-    public static SliderRootState Default { get; } = new(
+    internal static SliderRootState Default { get; } = new(
         ActiveThumbIndex: -1,
         Disabled: false,
         Dragging: false,
@@ -38,7 +38,7 @@ public sealed record SliderRootState(
         Filled: false,
         Focused: false);
 
-    public static SliderRootState FromFieldState(
+    internal static SliderRootState FromFieldState(
         FieldRootState fieldState,
         int activeThumbIndex,
         bool disabled,

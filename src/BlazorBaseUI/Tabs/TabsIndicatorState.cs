@@ -6,7 +6,7 @@ public sealed record TabsIndicatorState(
     TabPosition? ActiveTabPosition,
     TabSize? ActiveTabSize)
 {
-    public static TabsIndicatorState Default { get; } = new(
+    internal static TabsIndicatorState Default { get; } = new(
         Orientation: Orientation.Horizontal,
         ActivationDirection: ActivationDirection.None,
         ActiveTabPosition: null,

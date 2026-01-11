@@ -12,7 +12,7 @@ public sealed record RadioGroupState(
     bool Filled,
     bool Focused)
 {
-    public static RadioGroupState Default { get; } = new(
+    internal static RadioGroupState Default { get; } = new(
         Disabled: false,
         ReadOnly: false,
         Required: false,
@@ -22,7 +22,7 @@ public sealed record RadioGroupState(
         Filled: false,
         Focused: false);
 
-    public static RadioGroupState FromFieldState(
+    internal static RadioGroupState FromFieldState(
         FieldRootState fieldState,
         bool isDisabled,
         bool isReadOnly,

@@ -50,7 +50,7 @@ public interface IFormContext
 
 public sealed class FormContext : IFormContext
 {
-    public static FormContext Default { get; } = new();
+    internal static FormContext Default { get; } = new();
 
     public EditContext? EditContext { get; private set; }
     public ValidationMode ValidationMode { get; private set; } = ValidationMode.OnSubmit;

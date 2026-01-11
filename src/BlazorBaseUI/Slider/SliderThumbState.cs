@@ -12,7 +12,7 @@ public sealed record SliderThumbState(
     bool Dirty,
     bool Focused)
 {
-    public static SliderThumbState Default { get; } = new(
+    internal static SliderThumbState Default { get; } = new(
         Index: 0,
         Disabled: false,
         Dragging: false,
@@ -24,7 +24,7 @@ public sealed record SliderThumbState(
         Dirty: false,
         Focused: false);
 
-    public static SliderThumbState FromRootState(SliderRootState rootState, int index, bool isActive) => new(
+    internal static SliderThumbState FromRootState(SliderRootState rootState, int index, bool isActive) => new(
         Index: index,
         Disabled: rootState.Disabled,
         Dragging: rootState.Dragging && rootState.ActiveThumbIndex == index,

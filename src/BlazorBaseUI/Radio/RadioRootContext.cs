@@ -16,7 +16,7 @@ public sealed record RadioRootContext(
     bool Required,
     RadioRootState State) : IRadioRootContext
 {
-    public static RadioRootContext Default { get; } = new(
+    internal static RadioRootContext Default { get; } = new(
         Checked: false,
         Disabled: false,
         ReadOnly: false,

@@ -88,7 +88,7 @@ public sealed record SliderRootContext(
     Action RegisterRealtimeSubscriberAction,
     Action UnregisterRealtimeSubscriberAction) : ISliderRootContext
 {
-    public static SliderRootContext Default { get; } = new(
+    internal static SliderRootContext Default { get; } = new(
         ActiveThumbIndex: -1,
         LastUsedThumbIndex: -1,
         ControlElement: default,

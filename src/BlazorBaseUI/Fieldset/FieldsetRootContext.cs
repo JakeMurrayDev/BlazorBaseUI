@@ -12,7 +12,7 @@ public sealed record FieldsetRootContext(
     Action<string?> SetLegendId,
     bool Disabled) : IFieldsetRootContext
 {
-    public static FieldsetRootContext Default { get; } = new(
+    internal static FieldsetRootContext Default { get; } = new(
         LegendId: null,
         SetLegendId: _ => { },
         Disabled: false);
