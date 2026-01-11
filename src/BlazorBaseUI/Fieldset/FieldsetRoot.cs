@@ -77,8 +77,14 @@ public sealed class FieldsetRoot : ComponentBase
                     contentBuilder.AddAttribute(3, "disabled", true);
                     contentBuilder.AddAttribute(4, "data-disabled", "");
                 }
-                contentBuilder.AddAttribute(5, "class", resolvedClass);
-                contentBuilder.AddAttribute(6, "style", resolvedStyle);
+                if (!string.IsNullOrEmpty(resolvedClass))
+                {
+                    contentBuilder.AddAttribute(5, "class", resolvedClass);
+                }
+                if (!string.IsNullOrEmpty(resolvedStyle))
+                {
+                    contentBuilder.AddAttribute(6, "style", resolvedStyle);
+                }
                 contentBuilder.AddComponentParameter(7, "ChildContent", ChildContent);
                 contentBuilder.AddComponentReferenceCapture(8, component => Element = ((IReferencableComponent)component).Element);
                 contentBuilder.CloseComponent();
