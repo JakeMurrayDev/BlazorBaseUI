@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -17,6 +16,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
+    private bool isComponentRenderAs;
     private bool hasRendered;
     private bool previousDisabled;
     private bool previousReadOnly;
@@ -27,7 +27,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
     private string inputId = null!;
     private ElementReference inputElement;
 
-    private RadioRootState? cachedState;
+    private RadioRootState state = RadioRootState.Default;
     private RadioRootContext? cachedContext;
     private bool stateDirty = true;
 
@@ -86,7 +86,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsInGroup => GroupContext is not null;
@@ -122,24 +121,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
-    private RadioRootState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = RadioRootState.FromFieldState(
-                    FieldState,
-                    CurrentChecked,
-                    ResolvedDisabled,
-                    ResolvedReadOnly,
-                    ResolvedRequired);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
-
     public RadioRoot()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -171,6 +152,13 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var newResolvedId = ResolvedControlId;
         if (newResolvedId != resolvedControlId)
         {
@@ -207,27 +195,166 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var currentState = State;
+        if (stateDirty)
+        {
+            state = RadioRootState.FromFieldState(
+                FieldState,
+                CurrentChecked,
+                ResolvedDisabled,
+                ResolvedReadOnly,
+                ResolvedRequired);
+            stateDirty = false;
+        }
 
         if (cachedContext is null ||
-            cachedContext.Checked != currentState.Checked ||
-            cachedContext.Disabled != currentState.Disabled ||
-            cachedContext.ReadOnly != currentState.ReadOnly ||
-            cachedContext.Required != currentState.Required ||
-            !ReferenceEquals(cachedContext.State, currentState))
+            cachedContext.Checked != state.Checked ||
+            cachedContext.Disabled != state.Disabled ||
+            cachedContext.ReadOnly != state.ReadOnly ||
+            cachedContext.Required != state.Required ||
+            !ReferenceEquals(cachedContext.State, state))
         {
-            cachedContext = CreateContext(currentState);
+            cachedContext = new RadioRootContext(
+                Checked: CurrentChecked,
+                Disabled: ResolvedDisabled,
+                ReadOnly: ResolvedReadOnly,
+                Required: ResolvedRequired,
+                State: state);
         }
 
         builder.OpenComponent<CascadingValue<RadioRootContext>>(0);
         builder.AddComponentParameter(1, "Value", cachedContext);
         builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
-        {
-            RenderRadio(contextBuilder, currentState);
-            RenderHiddenInput(contextBuilder);
-        }));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderContent);
         builder.CloseComponent();
+    }
+
+    private void RenderContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", radioId);
+        builder.AddAttribute(3, "role", "radio");
+        builder.AddAttribute(4, "aria-checked", CurrentChecked ? "true" : "false");
+
+        if (IsInGroup)
+        {
+            var isActiveItem = CurrentChecked || (GroupContext!.CheckedValue is null && GroupContext.IsFirstEnabledRadio(this));
+            builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : (isActiveItem ? 0 : -1));
+            builder.AddAttribute(6, "data-radio-item", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(7, "tabindex", ResolvedDisabled ? -1 : 0);
+        }
+
+        if (ResolvedReadOnly)
+            builder.AddAttribute(8, "aria-readonly", "true");
+
+        if (ResolvedRequired)
+            builder.AddAttribute(9, "aria-required", "true");
+
+        if (LabelableContext?.LabelId is not null)
+            builder.AddAttribute(10, "aria-labelledby", LabelableContext.LabelId);
+
+        var describedBy = LabelableContext?.GetAriaDescribedBy();
+        if (describedBy is not null)
+            builder.AddAttribute(11, "aria-describedby", describedBy);
+
+        if (state.Valid == false)
+            builder.AddAttribute(12, "aria-invalid", "true");
+
+        builder.AddAttribute(13, "onkeydown", cachedKeyDownCallback);
+        builder.AddAttribute(14, "onclick", cachedClickCallback);
+        builder.AddAttribute(15, "onfocus", cachedFocusCallback);
+        builder.AddAttribute(16, "onblur", cachedBlurCallback);
+
+        if (state.Checked)
+            builder.AddAttribute(17, "data-checked", string.Empty);
+        else
+            builder.AddAttribute(18, "data-unchecked", string.Empty);
+
+        if (state.Disabled)
+            builder.AddAttribute(19, "data-disabled", string.Empty);
+
+        if (state.ReadOnly)
+            builder.AddAttribute(20, "data-readonly", string.Empty);
+
+        if (state.Required)
+            builder.AddAttribute(21, "data-required", string.Empty);
+
+        if (state.Valid == true)
+            builder.AddAttribute(22, "data-valid", string.Empty);
+        else if (state.Valid == false)
+            builder.AddAttribute(23, "data-invalid", string.Empty);
+
+        if (state.Touched)
+            builder.AddAttribute(24, "data-touched", string.Empty);
+
+        if (state.Dirty)
+            builder.AddAttribute(25, "data-dirty", string.Empty);
+
+        if (state.Filled)
+            builder.AddAttribute(26, "data-filled", string.Empty);
+
+        if (state.Focused)
+            builder.AddAttribute(27, "data-focused", string.Empty);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+            builder.AddAttribute(28, "class", resolvedClass);
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+            builder.AddAttribute(29, "style", resolvedStyle);
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(30, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(31, component => Element = ((IReferencableComponent)component).Element);
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(32, elementReference => Element = elementReference);
+            builder.AddContent(33, ChildContent);
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(34, "input");
+        builder.AddAttribute(35, "type", "radio");
+        builder.AddAttribute(36, "id", inputId);
+        builder.AddAttribute(37, "tabindex", -1);
+        builder.AddAttribute(38, "aria-hidden", "true");
+        builder.AddAttribute(39, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+
+        if (CurrentChecked)
+            builder.AddAttribute(40, "checked");
+
+        if (ResolvedDisabled)
+            builder.AddAttribute(41, "disabled");
+
+        if (ResolvedRequired)
+            builder.AddAttribute(42, "required");
+
+        if (ResolvedName is not null)
+            builder.AddAttribute(43, "name", ResolvedName);
+
+        if (Value is not null)
+            builder.AddAttribute(44, "value", Value.ToString());
+
+        builder.AddAttribute(45, "onchange", cachedInputChangeCallback);
+        builder.AddAttribute(46, "onfocus", cachedInputFocusCallback);
+        builder.AddElementReferenceCapture(47, e => inputElement = e);
+        builder.CloseElement();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -251,7 +378,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             try
             {
                 var module = await moduleTask.Value;
-                if(Element.HasValue) await module.InvokeVoidAsync("dispose", Element.Value);
+                await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -280,125 +407,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         {
         }
     }
-
-    private void RenderRadio(RenderTreeBuilder builder, RadioRootState state)
-    {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
-        if (RenderAs is not null)
-        {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildRadioAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
-        }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildRadioAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private void RenderHiddenInput(RenderTreeBuilder builder)
-    {
-        builder.OpenElement(7, "input");
-        builder.AddAttribute(8, "type", "radio");
-        builder.AddAttribute(9, "id", inputId);
-        builder.AddAttribute(10, "tabindex", -1);
-        builder.AddAttribute(11, "aria-hidden", true);
-        builder.AddAttribute(12, "style",
-            "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
-
-        if (CurrentChecked)
-            builder.AddAttribute(13, "checked", true);
-
-        if (ResolvedDisabled)
-            builder.AddAttribute(14, "disabled", true);
-
-        if (ResolvedRequired)
-            builder.AddAttribute(15, "required", true);
-
-        if (ResolvedName is not null)
-            builder.AddAttribute(16, "name", ResolvedName);
-
-        if (Value is not null)
-            builder.AddAttribute(17, "value", Value.ToString());
-
-        builder.AddAttribute(18, "onchange", cachedInputChangeCallback);
-        builder.AddAttribute(19, "onfocus", cachedInputFocusCallback);
-        builder.AddElementReferenceCapture(20, e => inputElement = e);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildRadioAttributes(RadioRootState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = radioId;
-        attributes["role"] = "radio";
-        attributes["aria-checked"] = CurrentChecked ? "true" : "false";
-
-        if (IsInGroup)
-        {
-            var isActiveItem = CurrentChecked || (GroupContext!.CheckedValue is null && GroupContext.IsFirstEnabledRadio(this));
-            attributes["tabindex"] = ResolvedDisabled ? -1 : (isActiveItem ? 0 : -1);
-            attributes["data-radio-item"] = string.Empty;
-        }
-        else
-        {
-            attributes["tabindex"] = ResolvedDisabled ? -1 : 0;
-        }
-
-        if (ResolvedReadOnly)
-            attributes["aria-readonly"] = true;
-
-        if (ResolvedRequired)
-            attributes["aria-required"] = true;
-
-        if (LabelableContext?.LabelId is not null)
-            attributes["aria-labelledby"] = LabelableContext.LabelId;
-
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
-            attributes["aria-describedby"] = describedBy;
-
-        if (state.Valid == false)
-            attributes["aria-invalid"] = true;
-
-        attributes["onkeydown"] = cachedKeyDownCallback;
-        attributes["onclick"] = cachedClickCallback;
-        attributes["onfocus"] = cachedFocusCallback;
-        attributes["onblur"] = cachedBlurCallback;
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
-    }
-
-    private RadioRootContext CreateContext(RadioRootState state) => new(
-        Checked: CurrentChecked,
-        Disabled: ResolvedDisabled,
-        ReadOnly: ResolvedReadOnly,
-        Required: ResolvedRequired,
-        State: state);
 
     private async Task InitializeJsAsync()
     {
