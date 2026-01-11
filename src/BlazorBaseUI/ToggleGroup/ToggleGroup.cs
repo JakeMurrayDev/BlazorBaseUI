@@ -112,51 +112,51 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
             if (isComponentRenderAs)
             {
-                innerBuilder.OpenComponent(4, RenderAs!);
+                innerBuilder.OpenComponent(0, RenderAs!);
             }
             else
             {
-                innerBuilder.OpenElement(5, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                innerBuilder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
             }
 
-            innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
-            innerBuilder.AddAttribute(6, "role", "group");
+            innerBuilder.AddMultipleAttributes(2, AdditionalAttributes);
+            innerBuilder.AddAttribute(3, "role", "group");
 
             if (Disabled)
             {
-                innerBuilder.AddAttribute(7, "data-disabled", string.Empty);
+                innerBuilder.AddAttribute(4, "data-disabled", string.Empty);
             }
 
             if (Multiple)
             {
-                innerBuilder.AddAttribute(8, "data-multiple", string.Empty);
+                innerBuilder.AddAttribute(5, "data-multiple", string.Empty);
             }
 
             if (orientationString is not null)
             {
-                innerBuilder.AddAttribute(9, "data-orientation", orientationString);
+                innerBuilder.AddAttribute(6, "data-orientation", orientationString);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                innerBuilder.AddAttribute(10, "class", resolvedClass);
+                innerBuilder.AddAttribute(7, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                innerBuilder.AddAttribute(11, "style", resolvedStyle);
+                innerBuilder.AddAttribute(8, "style", resolvedStyle);
             }
 
             if (isComponentRenderAs)
             {
-                innerBuilder.AddAttribute(12, "ChildContent", ChildContent);
-                innerBuilder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
+                innerBuilder.AddAttribute(9, "ChildContent", ChildContent);
+                innerBuilder.AddComponentReferenceCapture(10, component => { Element = ((IReferencableComponent)component).Element; });
                 innerBuilder.CloseComponent();
             }
             else
             {
-                innerBuilder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
-                innerBuilder.AddContent(15, ChildContent);
+                innerBuilder.AddElementReferenceCapture(11, elementReference => Element = elementReference);
+                innerBuilder.AddContent(12, ChildContent);
                 innerBuilder.CloseElement();
             }
         }));
