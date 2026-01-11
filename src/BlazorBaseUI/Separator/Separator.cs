@@ -8,7 +8,7 @@ public sealed class Separator : ComponentBase
     private const string DefaultTag = "div";
 
     private bool isComponentRenderAs;
-    private SeparatorState state;
+    private SeparatorState state = default!;
     private Orientation previousOrientation;
 
     [Parameter]

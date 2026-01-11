@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
@@ -14,6 +13,8 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
     private List<string> internalValue = [];
     private ToggleGroupContext? groupContext;
+    private bool isComponentRenderAs;
+    private ToggleGroupState state = ToggleGroupState.Default;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -60,14 +61,11 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value is not null;
 
     private IReadOnlyList<string> CurrentValue => IsControlled ? Value! : internalValue;
-
-    private ToggleGroupState State => new(Disabled, Multiple, Orientation);
 
     public ToggleGroup()
     {
@@ -87,6 +85,17 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        if (state.Disabled != Disabled || state.Multiple != Multiple || state.Orientation != Orientation)
+        {
+            state = new ToggleGroupState(Disabled, Multiple, Orientation);
+        }
+
         groupContext?.UpdateProperties(Disabled, Orientation, LoopFocus);
     }
 
@@ -95,7 +104,62 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
         builder.OpenComponent<CascadingValue<IToggleGroupContext>>(0);
         builder.AddComponentParameter(1, "Value", groupContext);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(RenderGroup));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(innerBuilder =>
+        {
+            var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+            var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+            var orientationString = Orientation.ToDataAttributeString();
+
+            if (isComponentRenderAs)
+            {
+                innerBuilder.OpenComponent(4, RenderAs!);
+            }
+            else
+            {
+                innerBuilder.OpenElement(5, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            }
+
+            innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+            innerBuilder.AddAttribute(6, "role", "group");
+
+            if (Disabled)
+            {
+                innerBuilder.AddAttribute(7, "data-disabled", string.Empty);
+            }
+
+            if (Multiple)
+            {
+                innerBuilder.AddAttribute(8, "data-multiple", string.Empty);
+            }
+
+            if (orientationString is not null)
+            {
+                innerBuilder.AddAttribute(9, "data-orientation", orientationString);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                innerBuilder.AddAttribute(10, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                innerBuilder.AddAttribute(11, "style", resolvedStyle);
+            }
+
+            if (isComponentRenderAs)
+            {
+                innerBuilder.AddAttribute(12, "ChildContent", ChildContent);
+                innerBuilder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
+                innerBuilder.CloseComponent();
+            }
+            else
+            {
+                innerBuilder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+                innerBuilder.AddContent(15, ChildContent);
+                innerBuilder.CloseElement();
+            }
+        }));
         builder.CloseComponent();
     }
 
@@ -109,70 +173,18 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                if (Element.HasValue)
-                {
-                    await module.InvokeVoidAsync("disposeGroup", Element.Value);
-                }
+                await module.InvokeVoidAsync("disposeGroup", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
             }
         }
-    }
-
-    private void RenderGroup(RenderTreeBuilder builder)
-    {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
-        {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
-        }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildAttributes(ToggleGroupState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["role"] = "group";
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 
     private ToggleGroupContext CreateContext() => new(
@@ -184,13 +196,15 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
 
     private async Task InitializeJsAsync()
     {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
         try
         {
-            if (Element.HasValue)
-            {
-                var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("initializeGroup", Element.Value);
-            }
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("initializeGroup", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -207,7 +221,9 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
             if (nextPressed)
             {
                 if (!newGroupValue.Contains(toggleValue))
+                {
                     newGroupValue.Add(toggleValue);
+                }
             }
             else
             {
