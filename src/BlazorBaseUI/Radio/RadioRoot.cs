@@ -230,6 +230,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
 
     private void RenderContent(RenderTreeBuilder builder)
     {
+        var resolvedRootId = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => radioId);
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
@@ -243,7 +244,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         }
 
         builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "id", radioId);
+        builder.AddAttribute(2, "id", resolvedRootId);
         builder.AddAttribute(3, "role", "radio");
         builder.AddAttribute(4, "aria-checked", CurrentChecked ? "true" : "false");
 
