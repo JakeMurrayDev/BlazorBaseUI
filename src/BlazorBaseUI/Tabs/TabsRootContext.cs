@@ -200,10 +200,5 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
         }
         return -1;
     }
-
-    public TValue? GetFirstEnabledTabValue()
-    {
-        var firstEnabled = GetFirstEnabledTab();
-        return firstEnabled is not null ? firstEnabled.Value : default;
-    }
 }
+
