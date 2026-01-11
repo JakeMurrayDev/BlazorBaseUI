@@ -20,7 +20,7 @@ public sealed record ProgressRootContext(
     ProgressStatus Status,
     Action<string?> SetLabelIdAction) : IProgressRootContext
 {
-    public static ProgressRootContext Default { get; } = new(
+    internal static ProgressRootContext Default { get; } = new(
         FormattedValue: string.Empty,
         Max: 100,
         Min: 0,

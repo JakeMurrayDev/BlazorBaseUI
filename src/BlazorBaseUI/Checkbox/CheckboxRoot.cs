@@ -19,6 +19,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
 
     private bool hasRendered;
     private bool isChecked;
+    private bool isComponentRenderAs;
     private string? defaultId;
     private string resolvedControlId = null!;
     private string checkboxId = null!;
@@ -26,6 +27,10 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     private ElementReference inputElement;
     private CheckboxRootState state = CheckboxRootState.Default;
     private CheckboxRootContext context = CheckboxRootContext.Default;
+    private EventCallback<FocusEventArgs> cachedOnFocus;
+    private EventCallback<FocusEventArgs> cachedOnBlur;
+    private EventCallback<ChangeEventArgs> cachedOnInputChange;
+    private EventCallback<FocusEventArgs> cachedOnInputFocus;
     private bool previousChecked;
     private bool previousDisabled;
     private bool previousReadOnly;
@@ -231,10 +236,21 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             Required: Required,
             Indeterminate: CurrentIndeterminate,
             State: state);
+
+        cachedOnFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
+        cachedOnBlur = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync);
+        cachedOnInputChange = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync);
+        cachedOnInputFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync);
     }
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var newResolvedId = ResolvedControlId;
         if (newResolvedId != resolvedControlId)
         {
@@ -325,14 +341,9 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
     {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
             builder.OpenComponent(0, RenderAs!);
         }
         else
@@ -356,13 +367,13 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             builder.AddAttribute(7, "aria-required", "true");
         }
 
-        if (LabelableContext?.LabelId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
         {
             builder.AddAttribute(8, "aria-labelledby", LabelableContext.LabelId);
         }
 
         var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
         {
             builder.AddAttribute(9, "aria-describedby", describedBy);
         }
@@ -377,13 +388,13 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             builder.AddAttribute(11, ParentCheckboxAttribute, string.Empty);
         }
 
-        if (IsGroupedWithParent && Parent && GroupContext!.Parent!.AriaControls is not null)
+        if (IsGroupedWithParent && Parent && !string.IsNullOrEmpty(GroupContext?.Parent?.AriaControls))
         {
             builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
         }
 
-        builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(14, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
+        builder.AddAttribute(13, "onfocus", cachedOnFocus);
+        builder.AddAttribute(14, "onblur", cachedOnBlur);
 
         if (state.Indeterminate)
         {
@@ -452,51 +463,51 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             builder.AddAttribute(28, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            builder.AddAttribute(29, "ChildContent", ChildContent);
+            builder.AddComponentParameter(29, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(30, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddElementReferenceCapture(31, elementReference => Element = elementReference);
-            builder.AddContent(32, ChildContent);
+            builder.AddElementReferenceCapture(29, elementReference => Element = elementReference);
+            builder.AddContent(30, ChildContent);
             builder.CloseElement();
         }
 
         if (!CurrentChecked && GroupContext is null && ResolvedName is not null && !Parent && UncheckedValue is not null)
         {
-            builder.OpenElement(33, "input");
-            builder.AddAttribute(34, "type", "hidden");
-            builder.AddAttribute(35, "name", ResolvedName);
-            builder.AddAttribute(36, "value", UncheckedValue);
+            builder.OpenElement(31, "input");
+            builder.AddAttribute(32, "type", "hidden");
+            builder.AddAttribute(33, "name", ResolvedName);
+            builder.AddAttribute(34, "value", UncheckedValue);
             builder.CloseElement();
         }
 
-        builder.OpenElement(37, "input");
-        builder.AddAttribute(38, "type", "checkbox");
-        builder.AddAttribute(39, "id", inputId);
-        builder.AddAttribute(40, "checked", CurrentChecked);
-        builder.AddAttribute(41, "disabled", ResolvedDisabled);
-        builder.AddAttribute(42, "required", Required);
-        builder.AddAttribute(43, "aria-hidden", "true");
-        builder.AddAttribute(44, "tabindex", -1);
-        builder.AddAttribute(45, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+        builder.OpenElement(35, "input");
+        builder.AddAttribute(36, "type", "checkbox");
+        builder.AddAttribute(37, "id", inputId);
+        builder.AddAttribute(38, "checked", CurrentChecked);
+        builder.AddAttribute(39, "disabled", ResolvedDisabled);
+        builder.AddAttribute(40, "required", Required);
+        builder.AddAttribute(41, "aria-hidden", "true");
+        builder.AddAttribute(42, "tabindex", -1);
+        builder.AddAttribute(43, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
         if (!Parent && ResolvedName is not null)
         {
-            builder.AddAttribute(46, "name", ResolvedName);
+            builder.AddAttribute(44, "name", ResolvedName);
         }
 
         if (ResolvedValue is not null)
         {
-            builder.AddAttribute(47, "value", ResolvedValue);
+            builder.AddAttribute(45, "value", ResolvedValue);
         }
 
-        builder.AddAttribute(48, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
-        builder.AddAttribute(49, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
-        builder.AddElementReferenceCapture(50, e => inputElement = e);
+        builder.AddAttribute(46, "onchange", cachedOnInputChange);
+        builder.AddAttribute(47, "onfocus", cachedOnInputFocus);
+        builder.AddElementReferenceCapture(48, e => inputElement = e);
         builder.CloseElement();
     }
 

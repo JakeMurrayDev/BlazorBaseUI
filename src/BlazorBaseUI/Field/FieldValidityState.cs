@@ -1,4 +1,4 @@
-﻿namespace BlazorBaseUI.Field;
+namespace BlazorBaseUI.Field;
 
 public sealed record FieldValidityState(
     bool BadInput = false,
@@ -13,5 +13,5 @@ public sealed record FieldValidityState(
     bool ValueMissing = false,
     bool? Valid = null)
 {
-    public static FieldValidityState Default { get; } = new();
+    internal static FieldValidityState Default { get; } = new();
 }

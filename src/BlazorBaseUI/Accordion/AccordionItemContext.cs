@@ -1,4 +1,4 @@
-﻿namespace BlazorBaseUI.Accordion;
+namespace BlazorBaseUI.Accordion;
 
 public interface IAccordionItemContext
 {
@@ -9,7 +9,8 @@ public interface IAccordionItemContext
     string? TriggerId { get; }
     string StringValue { get; }
     Orientation Orientation { get; }
-    void SetTriggerId(string? id);
+    void SetPanelId(string id);
+    void SetTriggerId(string id);
     void HandleTrigger();
 }
 
@@ -18,23 +19,28 @@ public sealed record AccordionItemContext<TValue>(
     TValue Value,
     int Index,
     bool Disabled,
-    string PanelId,
-    Action TriggerHandler)
+    Action TriggerHandler,
+    Action<string> PanelIdSetter,
+    Action<string> TriggerIdSetter)
     : IAccordionItemContext
 {
     public bool Open => RootContext.IsValueOpen(Value!);
+    public string PanelId { get; private set; } = string.Empty;
     public string? TriggerId { get; private set; }
     public string StringValue { get; } = Value?.ToString() ?? string.Empty;
     public Orientation Orientation => RootContext.Orientation;
 
-    public void SetTriggerId(string? id) => TriggerId = id;
+    public void SetPanelId(string id)
+    {
+        PanelId = id;
+        PanelIdSetter(id);
+    }
+
+    public void SetTriggerId(string id)
+    {
+        TriggerId = id;
+        TriggerIdSetter(id);
+    }
 
     public void HandleTrigger() => TriggerHandler();
-
-    public AccordionItemState<TValue> GetState() => new(
-        RootContext.Value,
-        Disabled,
-        RootContext.Orientation,
-        Index,
-        Open);
 }

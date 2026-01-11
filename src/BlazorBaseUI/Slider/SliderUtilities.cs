@@ -36,10 +36,10 @@ internal static class SliderUtilities
 
         if (index < 0 || index >= values.Length)
         {
-            return (double[])values.Clone();
+            return [..values];
         }
 
-        var result = (double[])values.Clone();
+        double[] result = [..values];
 
         var lowerBound = index > 0 ? values[index - 1] : double.NegativeInfinity;
         var upperBound = index < values.Length - 1 ? values[index + 1] : double.PositiveInfinity;
@@ -71,7 +71,7 @@ internal static class SliderUtilities
 
     public static double[] ReplaceArrayItemAtIndex(double[] array, int index, double newValue)
     {
-        var output = (double[])array.Clone();
+        double[] output = [..array];
         output[index] = newValue;
         Array.Sort(output);
         return output;
@@ -96,7 +96,7 @@ internal static class SliderUtilities
         if (pressedIndex < 0 || pressedIndex >= activeValues.Length)
         {
             var safeIndex = Math.Clamp(pressedIndex, 0, Math.Max(0, activeValues.Length - 1));
-            return new ResolveThumbCollisionResult((double[])activeValues.Clone(), safeIndex, false);
+            return new ResolveThumbCollisionResult([..activeValues], safeIndex, false);
         }
 
         if (!range)
@@ -137,12 +137,12 @@ internal static class SliderUtilities
     {
         if (pressedIndex < 0 || pressedIndex >= activeValues.Length)
         {
-            return new ResolveThumbCollisionResult((double[])activeValues.Clone(), Math.Max(0, pressedIndex), false);
+            return new ResolveThumbCollisionResult([..activeValues], Math.Max(0, pressedIndex), false);
         }
 
         var pressedInitialValue = activeValues[pressedIndex];
         const double epsilon = 1e-7;
-        var candidateValues = (double[])activeValues.Clone();
+        double[] candidateValues = [..activeValues];
         var previousNeighbor = pressedIndex > 0 ? candidateValues[pressedIndex - 1] : (double?)null;
         var nextNeighbor = pressedIndex < candidateValues.Length - 1 ? candidateValues[pressedIndex + 1] : (double?)null;
 
@@ -225,10 +225,10 @@ internal static class SliderUtilities
     {
         if (pressedIndex < 0 || pressedIndex >= activeValues.Length)
         {
-            return new ResolveThumbCollisionResult((double[])activeValues.Clone(), Math.Max(0, pressedIndex), false);
+            return new ResolveThumbCollisionResult([..activeValues], Math.Max(0, pressedIndex), false);
         }
 
-        var candidateValues = (double[])activeValues.Clone();
+        double[] candidateValues = [..activeValues];
         var previousNeighbor = pressedIndex > 0 ? candidateValues[pressedIndex - 1] : (double?)null;
         var nextNeighbor = pressedIndex < candidateValues.Length - 1 ? candidateValues[pressedIndex + 1] : (double?)null;
 
@@ -258,10 +258,10 @@ internal static class SliderUtilities
 
         if (index < 0 || index >= values.Length)
         {
-            return (double[])values.Clone();
+            return [..values];
         }
 
-        var result = (double[])values.Clone();
+        double[] result = [..values];
         var minDistance = step * minStepsBetweenValues;
 
         result[index] = Clamp(nextValue, min, max);

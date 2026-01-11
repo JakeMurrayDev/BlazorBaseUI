@@ -1,7 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using BlazorBaseUI.Field;
 
 namespace BlazorBaseUI.Switch;
 
@@ -9,11 +7,11 @@ public sealed class SwitchThumb : ComponentBase
 {
     private const string DefaultTag = "span";
 
-    [CascadingParameter]
-    private SwitchRootContext? SwitchContext { get; set; }
+    private bool isComponentRenderAs;
+    private SwitchRootState state = SwitchRootState.Default;
 
     [CascadingParameter]
-    private FieldRootContext? FieldContext { get; set; }
+    private SwitchRootContext? SwitchContext { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -33,55 +31,109 @@ public sealed class SwitchThumb : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
-    private SwitchRootState State => SwitchContext?.State ?? SwitchRootState.Default;
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+
+        var newState = SwitchContext?.State ?? SwitchRootState.Default;
+        if (state != newState)
+        {
+            state = newState;
+        }
+    }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (state.Checked)
+        {
+            builder.AddAttribute(2, "data-checked", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(3, "data-unchecked", string.Empty);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(4, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(5, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(6, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(7, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(8, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(9, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(10, "data-dirty", string.Empty);
+        }
+
+        if (state.Filled)
+        {
+            builder.AddAttribute(11, "data-filled", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(12, "data-focused", string.Empty);
+        }
 
         if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
+        {
+            builder.AddAttribute(13, "class", resolvedClass);
+        }
+
         if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
+            builder.AddAttribute(14, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(15, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(16, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
-            return;
         }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildAttributes(SwitchRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
+        else
         {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+            builder.AddElementReferenceCapture(17, elementReference => Element = elementReference);
+            builder.AddContent(18, ChildContent);
+            builder.CloseElement();
         }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }

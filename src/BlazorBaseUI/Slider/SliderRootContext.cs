@@ -26,6 +26,7 @@ public interface ISliderRootContext
     NumberFormatOptions? FormatOptions { get; }
     string? Locale { get; }
     FieldValidation? Validation { get; }
+    bool HasRealtimeSubscribers { get; }
 
     void SetActiveThumbIndex(int index);
     void SetDragging(bool dragging);
@@ -42,6 +43,8 @@ public interface ISliderRootContext
     ElementReference? GetIndicatorElement();
     void SetIndicatorPosition(double? start, double? end);
     (double? Start, double? End) GetIndicatorPosition();
+    void RegisterRealtimeSubscriber();
+    void UnregisterRealtimeSubscriber();
 }
 
 public sealed record SliderRootContext(
@@ -80,9 +83,12 @@ public sealed record SliderRootContext(
     Action<ElementReference> SetIndicatorElementAction,
     Func<ElementReference?> GetIndicatorElementFunc,
     Action<double?, double?> SetIndicatorPositionAction,
-    Func<(double? Start, double? End)> GetIndicatorPositionFunc) : ISliderRootContext
+    Func<(double? Start, double? End)> GetIndicatorPositionFunc,
+    bool HasRealtimeSubscribers,
+    Action RegisterRealtimeSubscriberAction,
+    Action UnregisterRealtimeSubscriberAction) : ISliderRootContext
 {
-    public static SliderRootContext Default { get; } = new(
+    internal static SliderRootContext Default { get; } = new(
         ActiveThumbIndex: -1,
         LastUsedThumbIndex: -1,
         ControlElement: default,
@@ -118,7 +124,10 @@ public sealed record SliderRootContext(
         SetIndicatorElementAction: _ => { },
         GetIndicatorElementFunc: () => null,
         SetIndicatorPositionAction: (_, _) => { },
-        GetIndicatorPositionFunc: () => (null, null));
+        GetIndicatorPositionFunc: () => (null, null),
+        HasRealtimeSubscribers: false,
+        RegisterRealtimeSubscriberAction: () => { },
+        UnregisterRealtimeSubscriberAction: () => { });
 
     void ISliderRootContext.SetActiveThumbIndex(int index) => SetActiveThumbIndexAction(index);
     void ISliderRootContext.SetDragging(bool dragging) => SetDraggingAction(dragging);
@@ -139,6 +148,8 @@ public sealed record SliderRootContext(
     ElementReference? ISliderRootContext.GetIndicatorElement() => GetIndicatorElementFunc();
     void ISliderRootContext.SetIndicatorPosition(double? start, double? end) => SetIndicatorPositionAction(start, end);
     (double? Start, double? End) ISliderRootContext.GetIndicatorPosition() => GetIndicatorPositionFunc();
+    void ISliderRootContext.RegisterRealtimeSubscriber() => RegisterRealtimeSubscriberAction();
+    void ISliderRootContext.UnregisterRealtimeSubscriber() => UnregisterRealtimeSubscriberAction();
 }
 
 public sealed record NumberFormatOptions(

@@ -846,7 +846,7 @@
 
     private static string SliderThumbClass(SliderThumbState state)
     {
-        var baseClass = "block h-4 w-4 rounded-full border-2 shadow-sm transition-all focus-within:ring-2 focus-within:ring-indigo-400 focus-within:ring-offset-2";
+        var baseClass = "block h-4 w-4 rounded-full border-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-400 focus-within:ring-offset-2";
         if (state.Disabled) return $"{baseClass} border-gray-400 bg-gray-100";
         if (state.Valid == false) return $"{baseClass} border-red-500 bg-white";
         if (state.Dragging) return $"{baseClass} border-indigo-700 bg-indigo-100 scale-110";

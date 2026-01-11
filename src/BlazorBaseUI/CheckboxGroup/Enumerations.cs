@@ -1,15 +1,4 @@
-﻿namespace BlazorBaseUI.CheckboxGroup;
-
-public enum CheckboxGroupDataAttribute
-{
-    Disabled,
-    Valid,
-    Invalid,
-    Touched,
-    Dirty,
-    Filled,
-    Focused
-}
+namespace BlazorBaseUI.CheckboxGroup;
 
 public enum ParentCheckboxStatus
 {

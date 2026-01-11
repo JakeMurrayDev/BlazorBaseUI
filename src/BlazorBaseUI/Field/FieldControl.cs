@@ -146,13 +146,13 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubsc
 
         builder.AddAttribute(5, "value", CurrentValueAsString ?? EmptyValue);
 
-        if (LabelableContext?.LabelId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
         {
             builder.AddAttribute(6, "aria-labelledby", LabelableContext.LabelId);
         }
 
         var ariaDescribedBy = LabelableContext?.GetAriaDescribedBy();
-        if (ariaDescribedBy is not null)
+        if (!string.IsNullOrEmpty(ariaDescribedBy))
         {
             builder.AddAttribute(7, "aria-describedby", ariaDescribedBy);
         }

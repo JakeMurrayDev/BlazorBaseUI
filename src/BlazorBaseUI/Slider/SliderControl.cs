@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -15,9 +14,12 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private bool hasRendered;
+    private bool isComponentRenderAs;
     private bool isProcessingPointerDown;
     private DotNetObjectReference<SliderControl>? dotNetRef;
     private ElementReference element;
+    private SliderRootState state = SliderRootState.Default;
+    private EventCallback<PointerEventArgs> cachedOnPointerDown;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -46,7 +48,6 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsVertical => Context?.Orientation == Orientation.Vertical;
@@ -59,44 +60,129 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
             JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
+    protected override void OnInitialized()
+    {
+        cachedOnPointerDown = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown);
+    }
+
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        if (Context is not null)
+        {
+            state = Context.State;
+        }
+    }
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (Context is null)
             return;
 
-        var state = Context.State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildControlAttributes(state);
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+
+        var baseStyle = "touch-action: none;";
+        var combinedStyle = string.IsNullOrEmpty(resolvedStyle) ? baseStyle : $"{resolvedStyle.TrimEnd().TrimEnd(';')}; {baseStyle}";
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "tabindex", -1);
+        builder.AddAttribute(3, "onpointerdown", cachedOnPointerDown);
+
+        if (state.Dragging)
+        {
+            builder.AddAttribute(4, "data-dragging", string.Empty);
+        }
+
+        builder.AddAttribute(5, "data-orientation", orientationStr);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(6, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(7, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(8, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(9, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(10, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(11, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(12, "data-dirty", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(13, "data-focused", string.Empty);
+        }
 
         if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            attributes["style"] = CombineStyles(
-                attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
-                resolvedStyle);
+            builder.AddAttribute(14, "class", resolvedClass);
         }
 
-        if (RenderAs is not null)
+        builder.AddAttribute(15, "style", combinedStyle);
+
+        if (isComponentRenderAs)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
+            builder.AddComponentParameter(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component =>
+            {
+                Element = ((IReferencableComponent)component).Element;
+                if (Element.HasValue)
+                {
+                    element = Element.Value;
+                    Context?.SetControlElement(element);
+                }
+            });
             builder.CloseComponent();
-            return;
         }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e =>
+        else
         {
-            element = e;
-            Context?.SetControlElement(e);
-        });
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+            builder.AddElementReferenceCapture(18, e =>
+            {
+                element = e;
+                Element = e;
+                Context?.SetControlElement(e);
+            });
+            builder.AddContent(19, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -127,6 +213,15 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
     }
 
     [JSInvokable]
+    public void OnDragMove(double[] values, int thumbIndex)
+    {
+        if (Context is null)
+            return;
+
+        Context.SetValue(values, SliderChangeReason.Drag, thumbIndex);
+    }
+
+    [JSInvokable]
     public void OnDragEnd(double[] values, int thumbIndex)
     {
         if (Context is null)
@@ -136,31 +231,6 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
         Context.CommitValue(values, SliderChangeReason.Drag);
         Context.SetDragging(false);
         Context.SetActiveThumbIndex(-1);
-    }
-
-    private Dictionary<string, object> BuildControlAttributes(SliderRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["tabindex"] = -1;
-        attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
-            "touch-action: none;");
-        attributes["onpointerdown"] = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown);
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 
     private async Task HandlePointerDown(PointerEventArgs e)
@@ -184,7 +254,20 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
                 .Select(kvp => kvp.Value.ThumbElement)
                 .ToArray();
 
-            var config = new SliderDragConfig(Context.Min, Context.Max, Context.Step, Context.MinStepsBetweenValues, Context.Orientation.ToDataAttributeString() ?? "horizontal", IsRtl ? "rtl" : "ltr", Context.ThumbCollisionBehavior.ToDataAttributeString(), Context.ThumbAlignment.ToDataAttributeString(), Context.Values, Context.Disabled, Context.ReadOnly, Context.ThumbAlignment == ThumbAlignment.Edge ? await GetInsetOffsetAsync() : 0);
+            var config = new SliderDragConfig(
+                Context.Min,
+                Context.Max,
+                Context.Step,
+                Context.MinStepsBetweenValues,
+                Context.Orientation.ToDataAttributeString() ?? "horizontal",
+                IsRtl ? "rtl" : "ltr",
+                Context.ThumbCollisionBehavior.ToDataAttributeString(),
+                Context.ThumbAlignment.ToDataAttributeString(),
+                Context.Values,
+                Context.Disabled,
+                Context.ReadOnly,
+                Context.ThumbAlignment == ThumbAlignment.Edge ? await GetInsetOffsetAsync() : 0,
+                Context.HasRealtimeSubscribers);
 
             try
             {
@@ -262,17 +345,5 @@ public sealed class SliderControl : ComponentBase, IAsyncDisposable
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
         }
-    }
-
-    private static string CombineStyles(string? existing, string additional)
-    {
-        if (string.IsNullOrEmpty(existing))
-            return additional;
-
-        var trimmed = existing.TrimEnd();
-        if (!trimmed.EndsWith(';'))
-            trimmed += ";";
-
-        return trimmed + " " + additional;
     }
 }

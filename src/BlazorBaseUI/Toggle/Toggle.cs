@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -21,6 +20,10 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     private Orientation previousOrientation;
     private string? defaultId;
     private string resolvedValue = null!;
+    private bool isComponentRenderAs;
+    private ToggleState state = ToggleState.Default;
+    private EventCallback<MouseEventArgs> cachedOnClick;
+    private EventCallback<KeyboardEventArgs> cachedOnKeyDown;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -67,7 +70,6 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Pressed.HasValue;
@@ -89,8 +91,6 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     private Orientation CurrentOrientation => GroupContext?.Orientation ?? Orientation.Horizontal;
 
-    private ToggleState State => new(CurrentPressed, ResolvedDisabled);
-
     public Toggle()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -99,6 +99,9 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     protected override void OnInitialized()
     {
+        cachedOnClick = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+        cachedOnKeyDown = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
+
         resolvedValue = Value ?? (defaultId ??= Guid.NewGuid().ToIdString());
 
         if (!IsInGroup && !IsControlled)
@@ -113,6 +116,12 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var newValue = Value ?? defaultId!;
         if (newValue != resolvedValue)
         {
@@ -120,16 +129,24 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
             resolvedValue = newValue;
         }
 
+        var currentPressed = CurrentPressed;
+        var resolvedDisabled = ResolvedDisabled;
+
+        if (state.Pressed != currentPressed || state.Disabled != resolvedDisabled)
+        {
+            state = new ToggleState(currentPressed, resolvedDisabled);
+        }
+
         if (hasRendered)
         {
-            if (previousPressed != CurrentPressed)
+            if (previousPressed != currentPressed)
             {
-                previousPressed = CurrentPressed;
+                previousPressed = currentPressed;
             }
 
-            if (ResolvedDisabled != previousDisabled)
+            if (resolvedDisabled != previousDisabled)
             {
-                previousDisabled = ResolvedDisabled;
+                previousDisabled = resolvedDisabled;
                 _ = UpdateJsStateAsync();
             }
 
@@ -143,31 +160,110 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
+        var currentPressed = CurrentPressed;
+        var resolvedDisabled = ResolvedDisabled;
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
+        if (state.Pressed != currentPressed || state.Disabled != resolvedDisabled)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
+            state = new ToggleState(currentPressed, resolvedDisabled);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        int? groupTabIndex = null;
+        if (!resolvedDisabled && IsInGroup)
+        {
+            var isFirstEnabled = GroupContext!.IsFirstEnabledToggle(this);
+            var anyPressed = GroupContext.Value.Count > 0;
+            groupTabIndex = currentPressed ? 0 : (!anyPressed && isFirstEnabled ? 0 : -1);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(2, AdditionalAttributes);
+        builder.AddAttribute(3, "aria-pressed", currentPressed ? "true" : "false");
+
+        if (NativeButton)
+        {
+            builder.AddAttribute(4, "type", "button");
+            if (resolvedDisabled)
+            {
+                builder.AddAttribute(5, "disabled", true);
+            }
+            else if (IsInGroup)
+            {
+                builder.AddAttribute(6, "tabindex", groupTabIndex!.Value);
+            }
+            else
+            {
+                builder.AddAttribute(7, "tabindex", 0);
+            }
+        }
+        else
+        {
+            builder.AddAttribute(8, "role", "button");
+            if (resolvedDisabled)
+            {
+                builder.AddAttribute(9, "aria-disabled", "true");
+                builder.AddAttribute(10, "tabindex", -1);
+            }
+            else if (IsInGroup)
+            {
+                builder.AddAttribute(11, "tabindex", groupTabIndex!.Value);
+            }
+            else
+            {
+                builder.AddAttribute(12, "tabindex", 0);
+            }
+        }
+
+        builder.AddAttribute(13, "onclick", cachedOnClick);
+
+        if (IsInGroup)
+        {
+            builder.AddAttribute(14, "onkeydown", cachedOnKeyDown);
+        }
+
+        if (currentPressed)
+        {
+            builder.AddAttribute(15, "data-pressed", string.Empty);
+        }
+
+        if (resolvedDisabled)
+        {
+            builder.AddAttribute(16, "data-disabled", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(17, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(18, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddAttribute(19, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(20, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(21, elementReference => Element = elementReference);
+            builder.AddContent(22, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -208,23 +304,20 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     {
         GroupContext?.UnregisterToggle(this);
 
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
 
-                if (Element.HasValue)
+                if (IsInGroup)
                 {
-                    if (IsInGroup)
-                    {
-                        await module.InvokeVoidAsync("disposeGroupItem", Element.Value);
-                    }
+                    await module.InvokeVoidAsync("disposeGroupItem", Element.Value);
+                }
 
-                    if (!NativeButton)
-                    {
-                        await module.InvokeVoidAsync("dispose", Element.Value);
-                    }
+                if (!NativeButton)
+                {
+                    await module.InvokeVoidAsync("dispose", Element.Value);
                 }
 
                 await module.DisposeAsync();
@@ -235,81 +328,17 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         }
     }
 
-    private Dictionary<string, object> BuildAttributes(ToggleState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["aria-pressed"] = CurrentPressed;
-
-        if (NativeButton)
-        {
-            attributes["type"] = "button";
-
-            if (ResolvedDisabled)
-            {
-                attributes["Disabled"] = true;
-            }
-        }
-        else
-        {
-            attributes["role"] = "button";
-
-            if (ResolvedDisabled)
-            {
-                attributes["aria-Disabled"] = true;
-                attributes["tabindex"] = -1;
-            }
-        }
-
-        if (!ResolvedDisabled)
-        {
-            if (IsInGroup)
-            {
-                var isFirstEnabled = GroupContext!.IsFirstEnabledToggle(this);
-                var anyPressed = GroupContext.Value.Count > 0;
-                var isCurrentPressed = CurrentPressed;
-
-                if (isCurrentPressed)
-                    attributes["tabindex"] = 0;
-                else if (!anyPressed && isFirstEnabled)
-                    attributes["tabindex"] = 0;
-                else
-                    attributes["tabindex"] = -1;
-            }
-            else
-            {
-                attributes["tabindex"] = 0;
-            }
-        }
-
-        attributes["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-
-        if (IsInGroup)
-        {
-            attributes["onkeydown"] = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
-        }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
     private async Task InitializeJsAsync()
     {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element, ResolvedDisabled);
+            await module.InvokeVoidAsync("initialize", Element.Value, ResolvedDisabled);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -318,11 +347,16 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     private async Task InitializeGroupItemAsync()
     {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
         try
         {
             var module = await moduleTask.Value;
             var orientationString = CurrentOrientation.ToDataAttributeString() ?? "horizontal";
-            await module.InvokeVoidAsync("initializeGroupItem", Element, orientationString);
+            await module.InvokeVoidAsync("initializeGroupItem", Element.Value, orientationString);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -331,13 +365,15 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     private async Task UpdateJsStateAsync()
     {
-        if (!hasRendered || NativeButton)
+        if (!hasRendered || NativeButton || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element, ResolvedDisabled);
+            await module.InvokeVoidAsync("updateState", Element.Value, ResolvedDisabled);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -346,14 +382,16 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
     private async Task UpdateGroupItemOrientationAsync()
     {
-        if (!hasRendered || !IsInGroup)
+        if (!hasRendered || !IsInGroup || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {
             var module = await moduleTask.Value;
             var orientationString = CurrentOrientation.ToDataAttributeString() ?? "horizontal";
-            await module.InvokeVoidAsync("updateGroupItemOrientation", Element, orientationString);
+            await module.InvokeVoidAsync("updateGroupItemOrientation", Element.Value, orientationString);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -363,7 +401,9 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     private async Task HandleClickAsync(MouseEventArgs e)
     {
         if (ResolvedDisabled)
+        {
             return;
+        }
 
         var nextPressed = !CurrentPressed;
 
@@ -380,12 +420,15 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
             await OnPressedChange.InvokeAsync(eventArgs);
 
             if (eventArgs.IsCanceled)
+            {
                 return;
+            }
         }
 
         if (!IsControlled)
         {
             isPressed = nextPressed;
+            state = new ToggleState(isPressed, ResolvedDisabled);
         }
 
         if (PressedChanged.HasDelegate)
@@ -399,7 +442,9 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
         if (!IsInGroup || ResolvedDisabled)
+        {
             return;
+        }
 
         var orientation = GroupContext!.Orientation;
         var isHorizontal = orientation == Orientation.Horizontal;
@@ -423,34 +468,20 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         }
         else if (e.Key == "Home")
         {
-            await NavigateToFirstAsync();
+            await GroupContext.NavigateToFirstAsync();
         }
         else if (e.Key == "End")
         {
-            await NavigateToLastAsync();
+            await GroupContext.NavigateToLastAsync();
         }
-    }
-
-    private async Task NavigateToFirstAsync()
-    {
-        if (GroupContext is null)
-            return;
-
-        await GroupContext.NavigateToFirstAsync();
-    }
-
-    private async Task NavigateToLastAsync()
-    {
-        if (GroupContext is null)
-            return;
-
-        await GroupContext.NavigateToLastAsync();
     }
 
     private async ValueTask FocusAsync()
     {
         if (!hasRendered || !Element.HasValue)
+        {
             return;
+        }
 
         try
         {

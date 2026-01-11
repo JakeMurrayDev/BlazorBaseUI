@@ -1,6 +1,5 @@
 import {
     detectAnimationType,
-    detectTransitionDimension,
     measureDimensions,
     waitForAnimationsToFinish,
     requestAnimationFrameAsync,
@@ -97,7 +96,7 @@ export async function open(panel, skipAnimation) {
             [vars.height]: 'auto',
             [vars.width]: 'auto'
         });
-        invokeCallback(state.dotNetRef, 'OnOpenAnimationComplete');
+        invokeAnimationEnded(state.dotNetRef, 'open', true);
         return;
     }
 
@@ -106,14 +105,21 @@ export async function open(panel, skipAnimation) {
     const signal = abortController.signal;
 
     setDataAttribute(panel, 'starting-style', true);
+    invokeTransitionStatusChanged(state.dotNetRef, 'starting');
 
     const frameOk = await requestAnimationFrameAsync(signal);
-    if (!frameOk) return;
+    if (!frameOk) {
+        invokeAnimationEnded(state.dotNetRef, 'open', false);
+        return;
+    }
 
     setDataAttribute(panel, 'starting-style', false);
 
     const completed = await waitForAnimationsToFinish(panel, signal);
-    if (!completed) return;
+    if (!completed) {
+        invokeAnimationEnded(state.dotNetRef, 'open', false);
+        return;
+    }
 
     if (state.abortController === abortController) {
         state.abortController = null;
@@ -124,7 +130,7 @@ export async function open(panel, skipAnimation) {
         [vars.width]: 'auto'
     });
 
-    invokeCallback(state.dotNetRef, 'OnOpenAnimationComplete');
+    invokeAnimationEnded(state.dotNetRef, 'open', true);
 }
 
 export async function close(panel) {
@@ -141,7 +147,7 @@ export async function close(panel) {
 
     const dims = measureDimensions(panel);
     if (dims.height === 0 && dims.width === 0) {
-        invokeCallback(state.dotNetRef, 'OnCloseAnimationComplete');
+        invokeAnimationEnded(state.dotNetRef, 'close', true);
         return;
     }
 
@@ -157,7 +163,7 @@ export async function close(panel) {
             [vars.height]: '0px',
             [vars.width]: '0px'
         });
-        invokeCallback(state.dotNetRef, 'OnCloseAnimationComplete');
+        invokeAnimationEnded(state.dotNetRef, 'close', true);
         return;
     }
 
@@ -170,14 +176,21 @@ export async function close(panel) {
     }
 
     const frameOk = await requestAnimationFrameAsync(signal);
-    if (!frameOk) return;
+    if (!frameOk) {
+        invokeAnimationEnded(state.dotNetRef, 'close', false);
+        return;
+    }
 
     setDataAttribute(panel, 'ending-style', true);
+    invokeTransitionStatusChanged(state.dotNetRef, 'ending');
 
     const completed = await waitForAnimationsToFinish(panel, signal);
     setDataAttribute(panel, 'ending-style', false);
 
-    if (!completed) return;
+    if (!completed) {
+        invokeAnimationEnded(state.dotNetRef, 'close', false);
+        return;
+    }
 
     if (state.abortController === abortController) {
         state.abortController = null;
@@ -188,7 +201,7 @@ export async function close(panel) {
         [vars.width]: '0px'
     });
 
-    invokeCallback(state.dotNetRef, 'OnCloseAnimationComplete');
+    invokeAnimationEnded(state.dotNetRef, 'close', true);
 }
 
 export function updateDimensions(panel) {
@@ -215,8 +228,14 @@ export function dispose(panel) {
     panelStates.delete(panel);
 }
 
-function invokeCallback(dotNetRef, methodName) {
+function invokeTransitionStatusChanged(dotNetRef, status) {
     try {
-        dotNetRef.invokeMethodAsync(methodName);
+        dotNetRef.invokeMethodAsync('OnTransitionStatusChanged', status);
+    } catch (e) { }
+}
+
+function invokeAnimationEnded(dotNetRef, animationType, completed) {
+    try {
+        dotNetRef.invokeMethodAsync('OnAnimationEnded', animationType, completed);
     } catch (e) { }
 }

@@ -1,4 +1,4 @@
-﻿namespace BlazorBaseUI.Field;
+namespace BlazorBaseUI.Field;
 
 public interface IFieldItemContext
 {
@@ -7,5 +7,5 @@ public interface IFieldItemContext
 
 public sealed record FieldItemContext(bool Disabled) : IFieldItemContext
 {
-    public static FieldItemContext Default { get; } = new(Disabled: false);
+    internal static FieldItemContext Default { get; } = new(Disabled: false);
 }

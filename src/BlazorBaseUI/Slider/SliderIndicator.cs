@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -7,6 +7,9 @@ namespace BlazorBaseUI.Slider;
 public sealed class SliderIndicator : ComponentBase
 {
     private const string DefaultTag = "div";
+
+    private bool isComponentRenderAs;
+    private SliderRootState state = SliderRootState.Default;
 
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
@@ -29,71 +32,128 @@ public sealed class SliderIndicator : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsVertical => Context?.Orientation == Orientation.Vertical;
 
     private bool IsRange => Context?.Values.Length > 1;
 
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        if (Context is not null)
+        {
+            state = Context.State;
+        }
+    }
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (Context is null)
             return;
 
-        var state = Context.State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildIndicatorAttributes(state);
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+        var indicatorStyle = GetIndicatorStyle();
+
+        var combinedStyle = string.IsNullOrEmpty(resolvedStyle)
+            ? indicatorStyle
+            : $"{resolvedStyle.TrimEnd().TrimEnd(';')}; {indicatorStyle}";
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (state.Dragging)
+        {
+            builder.AddAttribute(2, "data-dragging", string.Empty);
+        }
+
+        builder.AddAttribute(3, "data-orientation", orientationStr);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(4, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(5, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(6, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(7, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(8, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(9, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(10, "data-dirty", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(11, "data-focused", string.Empty);
+        }
 
         if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        var indicatorStyle = GetIndicatorStyle();
-        attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
-            indicatorStyle);
-
-        if (RenderAs is not null)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
+            builder.AddAttribute(12, "class", resolvedClass);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e =>
-        {
-            Element = e;
-            Context?.SetIndicatorElement(e);
-        });
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
+        builder.AddAttribute(13, "style", combinedStyle);
 
-    private Dictionary<string, object> BuildIndicatorAttributes(SliderRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
+        if (isComponentRenderAs)
         {
-            foreach (var attr in AdditionalAttributes)
+            builder.AddComponentParameter(14, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(15, component =>
             {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+                Element = ((IReferencableComponent)component).Element;
+                if (Element.HasValue)
+                {
+                    Context?.SetIndicatorElement(Element.Value);
+                }
+            });
+            builder.CloseComponent();
         }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
+        else
+        {
+            builder.AddElementReferenceCapture(16, e =>
+            {
+                Element = e;
+                Context?.SetIndicatorElement(e);
+            });
+            builder.AddContent(17, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     private string GetIndicatorStyle()
@@ -114,33 +174,21 @@ public sealed class SliderIndicator : ComponentBase
         {
             if (!IsRange)
             {
-                return $"position: absolute; width: inherit; bottom: 0; height: {startPercent:F4}%;";
+                return $"position: absolute; width: inherit; bottom: 0; height: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%;";
             }
 
             var size = endPercent - startPercent;
-            return $"position: absolute; width: inherit; bottom: {startPercent:F4}%; height: {size:F4}%;";
+            return $"position: absolute; width: inherit; bottom: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%; height: {size.ToString("F4", CultureInfo.InvariantCulture)}%;";
         }
         else
         {
             if (!IsRange)
             {
-                return $"position: relative; height: inherit; inset-inline-start: 0; width: {startPercent:F4}%;";
+                return $"position: relative; height: inherit; inset-inline-start: 0; width: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%;";
             }
 
             var size = endPercent - startPercent;
-            return $"position: relative; height: inherit; inset-inline-start: {startPercent:F4}%; width: {size:F4}%;";
+            return $"position: relative; height: inherit; inset-inline-start: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%; width: {size.ToString("F4", CultureInfo.InvariantCulture)}%;";
         }
-    }
-
-    private static string CombineStyles(string? existing, string additional)
-    {
-        if (string.IsNullOrEmpty(existing))
-            return additional;
-
-        var trimmed = existing.TrimEnd();
-        if (!trimmed.EndsWith(';'))
-            trimmed += ";";
-
-        return trimmed + " " + additional;
     }
 }

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace BlazorBaseUI.Tabs;
@@ -17,8 +16,8 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
     private bool isObserving;
     private DotNetObjectReference<TabsIndicator<TValue>>? dotNetRef;
     private IndicatorPositionResult? currentPosition;
-    private TabsIndicatorState? cachedState;
-    private bool stateDirty = true;
+    private TabsIndicatorState state = TabsIndicatorState.Default;
+    private bool isComponentRenderAs;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -63,19 +62,6 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         ? new TabSize(currentPosition.Width, currentPosition.Height)
         : null;
 
-    private TabsIndicatorState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = new TabsIndicatorState(Orientation, ActivationDirection, ActiveTabPosition, ActiveTabSize);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
-
     public TabsIndicator()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -84,45 +70,87 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
-        stateDirty = true;
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        state = new TabsIndicatorState(Orientation, ActivationDirection, ActiveTabPosition, ActiveTabSize);
 
         if (hasRendered)
         {
-            _ = UpdateIndicatorPositionAsync();
+            _ = UpdateIndicatorPositionAndRerenderAsync();
         }
+    }
+
+    private async Task UpdateIndicatorPositionAndRerenderAsync()
+    {
+        await UpdateIndicatorPositionAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (RootContext is { Value: null })
+        {
             return;
+        }
 
-        var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
         var positionStyle = BuildPositionStyle();
         var combinedStyle = CombineStyles(resolvedStyle, positionStyle);
+        var orientationValue = Orientation.ToDataAttributeString();
 
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, combinedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, combinedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "role", "presentation");
+
+        if (!HasValidPosition)
+        {
+            builder.AddAttribute(3, "hidden", true);
+        }
+
+        if (orientationValue is not null)
+        {
+            builder.AddAttribute(4, "data-orientation", orientationValue);
+        }
+        builder.AddAttribute(5, "data-activation-direction", ActivationDirection.ToDataAttributeString());
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(6, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(combinedStyle))
+        {
+            builder.AddAttribute(7, "style", combinedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(8, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(9, component =>
+            {
+                Element = ((IReferencableComponent)component).Element;
+            });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(8, elementReference => Element = elementReference);
+            builder.AddContent(9, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -133,6 +161,7 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
             dotNetRef = DotNetObjectReference.Create(this);
             await UpdateIndicatorPositionAsync();
             await StartObservingAsync();
+            StateHasChanged();
         }
     }
 
@@ -161,38 +190,12 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         await InvokeAsync(StateHasChanged);
     }
 
-    private Dictionary<string, object> BuildAttributes(TabsIndicatorState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["role"] = "presentation";
-
-        if (!HasValidPosition)
-            attributes["hidden"] = true;
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
-    }
-
     private string? BuildPositionStyle()
     {
         if (!HasValidPosition || currentPosition is null)
+        {
             return null;
+        }
 
         return string.Create(CultureInfo.InvariantCulture,
             $"--tabs-indicator-active-tab-left:{currentPosition.Left}px;" +
@@ -206,17 +209,25 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
     private static string? CombineStyles(string? style1, string? style2)
     {
         if (string.IsNullOrEmpty(style1) && string.IsNullOrEmpty(style2))
+        {
             return null;
+        }
 
         if (string.IsNullOrEmpty(style1))
+        {
             return style2;
+        }
 
         if (string.IsNullOrEmpty(style2))
+        {
             return style1;
+        }
 
         var s1 = style1.TrimEnd();
         if (!s1.EndsWith(';'))
+        {
             s1 += ";";
+        }
 
         return s1 + style2;
     }
@@ -226,7 +237,7 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         if (!hasRendered || RootContext is null || ListContext?.TabsListElement is null)
         {
             currentPosition = null;
-            stateDirty = true;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
             return;
         }
 
@@ -234,7 +245,7 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         if (activeValue is null)
         {
             currentPosition = null;
-            stateDirty = true;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
             return;
         }
 
@@ -242,7 +253,7 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         if (activeTabElement is null || !activeTabElement.HasValue)
         {
             currentPosition = null;
-            stateDirty = true;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
             return;
         }
 
@@ -250,7 +261,7 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
         if (!listElement.HasValue)
         {
             currentPosition = null;
-            stateDirty = true;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
             return;
         }
 
@@ -261,19 +272,21 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
                 "getIndicatorPosition",
                 listElement.Value,
                 activeTabElement.Value);
-            stateDirty = true;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, ActiveTabPosition, ActiveTabSize);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
             currentPosition = null;
-            stateDirty = true;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
         }
     }
 
     private async Task StartObservingAsync()
     {
         if (isObserving || ListContext?.TabsListElement is null || !ListContext.TabsListElement.HasValue)
+        {
             return;
+        }
 
         try
         {
@@ -289,7 +302,9 @@ public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
     private async Task StopObservingAsync()
     {
         if (!isObserving || !moduleTask.IsValueCreated || ListContext?.TabsListElement is null || !ListContext.TabsListElement.HasValue)
+        {
             return;
+        }
 
         try
         {

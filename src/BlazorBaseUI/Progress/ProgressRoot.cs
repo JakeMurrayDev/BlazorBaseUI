@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -10,6 +9,9 @@ public sealed class ProgressRoot : ComponentBase
     private const string DefaultTag = "div";
 
     private string? labelId;
+    private bool isComponentRenderAs;
+    private ProgressStatus previousStatus;
+    private ProgressRootState state = ProgressRootState.Default;
 
     [Parameter]
     public double? Value { get; set; }
@@ -47,13 +49,26 @@ public sealed class ProgressRoot : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
+
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var status = ComputeStatus();
+        if (status != previousStatus)
+        {
+            previousStatus = status;
+            state = new ProgressRootState(status);
+        }
+    }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var status = ComputeStatus();
-        var state = new ProgressRootState(status);
         var formattedValue = FormatValue(Value);
         var ariaValueText = GetAriaValueText is not null
             ? GetAriaValueText(formattedValue, Value)
@@ -65,38 +80,66 @@ public sealed class ProgressRoot : ComponentBase
             Min: Min,
             Value: Value,
             State: state,
-            Status: status,
+            Status: state.Status,
             SetLabelIdAction: SetLabelId);
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        var attributes = BuildAttributes(state, ariaValueText);
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
         builder.OpenComponent<CascadingValue<ProgressRootContext>>(0);
-        builder.AddComponentParameter(1, "Value", context);
-        builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contentBuilder =>
+        builder.AddAttribute(1, "Value", context);
+        builder.AddAttribute(2, "IsFixed", false);
+        builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
         {
-            if (RenderAs is not null)
+            if (isComponentRenderAs)
             {
-                contentBuilder.OpenComponent(4, RenderAs);
-                contentBuilder.AddMultipleAttributes(5, attributes);
-                contentBuilder.AddComponentParameter(6, "ChildContent", ChildContent);
-                contentBuilder.CloseComponent();
+                innerBuilder.OpenComponent(4, RenderAs!);
             }
             else
             {
-                var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-                contentBuilder.OpenElement(7, tag);
-                contentBuilder.AddMultipleAttributes(8, attributes);
-                contentBuilder.AddElementReferenceCapture(9, e => Element = e);
-                contentBuilder.AddContent(10, ChildContent);
-                contentBuilder.CloseElement();
+                innerBuilder.OpenElement(4, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            }
+
+            innerBuilder.AddMultipleAttributes(5, AdditionalAttributes);
+
+            innerBuilder.AddAttribute(6, "role", "progressbar");
+            innerBuilder.AddAttribute(7, "aria-valuemin", Min);
+            innerBuilder.AddAttribute(8, "aria-valuemax", Max);
+
+            if (Value.HasValue)
+            {
+                innerBuilder.AddAttribute(9, "aria-valuenow", Value.Value);
+            }
+
+            innerBuilder.AddAttribute(10, "aria-valuetext", ariaValueText);
+
+            if (!string.IsNullOrEmpty(labelId))
+            {
+                innerBuilder.AddAttribute(11, "aria-labelledby", labelId);
+            }
+
+            innerBuilder.AddAttribute(12, $"data-{state.Status.ToDataAttributeString()}");
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                innerBuilder.AddAttribute(13, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                innerBuilder.AddAttribute(14, "style", resolvedStyle);
+            }
+
+            if (isComponentRenderAs)
+            {
+                innerBuilder.AddAttribute(15, "ChildContent", ChildContent);
+                innerBuilder.AddComponentReferenceCapture(16, component => { Element = ((IReferencableComponent)component).Element; });
+                innerBuilder.CloseComponent();
+            }
+            else
+            {
+                innerBuilder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
+                innerBuilder.AddContent(16, ChildContent);
+                innerBuilder.CloseElement();
             }
         }));
         builder.CloseComponent();
@@ -105,7 +148,9 @@ public sealed class ProgressRoot : ComponentBase
     private ProgressStatus ComputeStatus()
     {
         if (!Value.HasValue || !double.IsFinite(Value.Value))
+        {
             return ProgressStatus.Indeterminate;
+        }
 
         return Value.Value >= Max ? ProgressStatus.Complete : ProgressStatus.Progressing;
     }
@@ -113,12 +158,16 @@ public sealed class ProgressRoot : ComponentBase
     private string FormatValue(double? value)
     {
         if (!value.HasValue)
+        {
             return string.Empty;
+        }
 
         var provider = FormatProvider ?? CultureInfo.CurrentCulture;
 
         if (!string.IsNullOrEmpty(Format))
+        {
             return value.Value.ToString(Format, provider);
+        }
 
         var percentage = value.Value / 100.0;
         return percentage.ToString("P0", provider);
@@ -127,45 +176,20 @@ public sealed class ProgressRoot : ComponentBase
     private static string GetDefaultAriaValueText(string? formattedValue, double? value)
     {
         if (!value.HasValue)
+        {
             return "indeterminate progress";
+        }
 
         return !string.IsNullOrEmpty(formattedValue) ? formattedValue : $"{value}%";
     }
 
-    private Dictionary<string, object> BuildAttributes(ProgressRootState state, string ariaValueText)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["role"] = "progressbar";
-        attributes["aria-valuemin"] = Min;
-        attributes["aria-valuemax"] = Max;
-
-        if (Value.HasValue)
-            attributes["aria-valuenow"] = Value.Value;
-
-        attributes["aria-valuetext"] = ariaValueText;
-
-        if (!string.IsNullOrEmpty(labelId))
-            attributes["aria-labelledby"] = labelId;
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
     private void SetLabelId(string? id)
     {
-        if (labelId == id) return;
+        if (labelId == id)
+        {
+            return;
+        }
+
         labelId = id;
         StateHasChanged();
     }

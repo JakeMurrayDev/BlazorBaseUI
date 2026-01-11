@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -7,6 +6,8 @@ namespace BlazorBaseUI.Progress;
 public sealed class ProgressTrack : ComponentBase
 {
     private const string DefaultTag = "div";
+
+    private bool isComponentRenderAs;
 
     [CascadingParameter]
     private ProgressRootContext? Context { get; set; }
@@ -29,57 +30,61 @@ public sealed class ProgressTrack : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
+
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+    }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (Context is null)
+        {
             return;
+        }
 
         var state = Context.State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        var attributes = BuildAttributes(state);
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        builder.AddAttribute(2, $"data-{state.Status.ToDataAttributeString()}");
+
         if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
+        {
+            builder.AddAttribute(3, "class", resolvedClass);
+        }
         if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
+            builder.AddAttribute(4, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddAttribute(5, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(6, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
-            return;
         }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildAttributes(ProgressRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
+        else
         {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+            builder.AddElementReferenceCapture(5, elementReference => Element = elementReference);
+            builder.AddContent(6, ChildContent);
+            builder.CloseElement();
         }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }
