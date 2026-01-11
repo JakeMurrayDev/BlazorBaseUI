@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -16,11 +15,11 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     private bool hasRendered;
     private bool previousActive;
     private bool previousDisabled;
+    private Orientation previousOrientation;
     private string? defaultId;
     private string tabId = null!;
-    private TabsTabState? cachedState;
-    private bool stateDirty = true;
-
+    private TabsTabState state = TabsTabState.Default;
+    private bool isComponentRenderAs;
     private EventCallback<MouseEventArgs> cachedClickCallback;
     private EventCallback<FocusEventArgs> cachedFocusCallback;
 
@@ -67,7 +66,9 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         get
         {
             if (RootContext is null)
+            {
                 return false;
+            }
 
             return EqualityComparer<TValue>.Default.Equals(RootContext.Value, Value);
         }
@@ -80,22 +81,30 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         get
         {
             if (Disabled)
+            {
                 return -1;
+            }
 
             if (ListContext is null || RootContext is null)
+            {
                 return 0;
+            }
 
             var highlightedIndex = ListContext.HighlightedTabIndex;
-
             var myIndex = RootContext.GetTabIndex(this);
+
             if (myIndex == highlightedIndex)
+            {
                 return 0;
+            }
 
             if (RootContext.Value is null)
             {
                 var firstEnabled = RootContext.GetFirstEnabledTab();
                 if (firstEnabled is not null && ReferenceEquals(firstEnabled.Tab, this))
+                {
                     return 0;
+                }
             }
 
             return -1;
@@ -103,19 +112,6 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     }
 
     private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
-    private TabsTabState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = new TabsTabState(IsActive, Disabled, Orientation);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
 
     public TabsTab()
     {
@@ -126,12 +122,15 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     protected override void OnInitialized()
     {
         if (RootContext is null)
+        {
             throw new InvalidOperationException("TabsTab must be used within a TabsRoot component.");
+        }
 
         tabId = ResolvedId;
-
         previousActive = IsActive;
         previousDisabled = Disabled;
+        previousOrientation = Orientation;
+        state = new TabsTabState(previousActive, previousDisabled, previousOrientation);
 
         cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
         cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocusAsync);
@@ -139,6 +138,13 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var newId = ResolvedId;
         if (newId != tabId)
         {
@@ -147,41 +153,106 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
 
         var currentActive = IsActive;
         var currentDisabled = Disabled;
+        var currentOrientation = Orientation;
 
-        if (currentActive != previousActive || currentDisabled != previousDisabled)
+        if (currentActive != previousActive ||
+            currentDisabled != previousDisabled ||
+            currentOrientation != previousOrientation)
         {
-            stateDirty = true;
+            state = new TabsTabState(currentActive, currentDisabled, currentOrientation);
             previousActive = currentActive;
             previousDisabled = currentDisabled;
+            previousOrientation = currentOrientation;
         }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientationValue = Orientation.ToDataAttributeString();
+        var isActive = IsActive;
+        var panelId = RootContext?.GetTabPanelIdByValue(Value);
 
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", tabId);
+        builder.AddAttribute(3, "role", "tab");
+        builder.AddAttribute(4, "aria-selected", isActive ? "true" : "false");
+        builder.AddAttribute(5, "tabindex", TabIndex);
+
+        if (panelId is not null)
+        {
+            builder.AddAttribute(6, "aria-controls", panelId);
+        }
+
+        if (NativeButton)
+        {
+            builder.AddAttribute(7, "type", "button");
+
+            if (Disabled)
+            {
+                builder.AddAttribute(8, "disabled", true);
+            }
+        }
+        else
+        {
+            if (Disabled)
+            {
+                builder.AddAttribute(8, "aria-disabled", "true");
+            }
+        }
+
+        builder.AddAttribute(9, "onclick", cachedClickCallback);
+        builder.AddAttribute(10, "onfocus", cachedFocusCallback);
+
+        if (orientationValue is not null)
+        {
+            builder.AddAttribute(11, "data-orientation", orientationValue);
+        }
+
+        if (isActive)
+        {
+            builder.AddAttribute(12, "data-active", string.Empty);
+        }
+
+        if (Disabled)
+        {
+            builder.AddAttribute(13, "data-disabled", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(14, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(15, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component =>
+            {
+                Element = ((IReferencableComponent)component).Element;
+            });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(16, elementReference => Element = elementReference);
+            builder.AddContent(17, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -225,54 +296,6 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         }
     }
 
-    private Dictionary<string, object> BuildAttributes(TabsTabState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = tabId;
-        attributes["role"] = "tab";
-        attributes["aria-selected"] = IsActive ? "true" : "false";
-        attributes["tabindex"] = TabIndex;
-
-        var panelId = RootContext?.GetTabPanelIdByValue(Value);
-        if (panelId is not null)
-            attributes["aria-controls"] = panelId;
-
-        if (NativeButton)
-        {
-            attributes["type"] = "button";
-
-            if (Disabled)
-                attributes["disabled"] = true;
-        }
-        else
-        {
-            if (Disabled)
-                attributes["aria-disabled"] = "true";
-        }
-
-        attributes["onclick"] = cachedClickCallback;
-        attributes["onfocus"] = cachedFocusCallback;
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
-    }
-
     private async Task InitializeJsAsync()
     {
         try
@@ -291,7 +314,9 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     internal async ValueTask FocusAsync()
     {
         if (!hasRendered)
+        {
             return;
+        }
 
         try
         {
@@ -309,7 +334,9 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     private async Task HandleClickAsync(MouseEventArgs e)
     {
         if (Disabled || IsActive)
+        {
             return;
+        }
 
         await ActivateTabAsync();
     }
@@ -317,7 +344,9 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     private async Task HandleFocusAsync(FocusEventArgs e)
     {
         if (Disabled)
+        {
             return;
+        }
 
         if (RootContext is not null && ListContext is not null)
         {
@@ -337,7 +366,9 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     private async Task ActivateTabAsync()
     {
         if (ListContext is null || RootContext is null)
+        {
             return;
+        }
 
         var direction = await DetectActivationDirectionAsync();
         await ListContext.OnTabActivationAsync(Value, direction);
@@ -346,13 +377,17 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
     private async Task<ActivationDirection> DetectActivationDirectionAsync()
     {
         if (!hasRendered || RootContext is null || ListContext?.TabsListElement is null || !Element.HasValue)
+        {
             return ActivationDirection.None;
+        }
 
         var currentValue = RootContext.Value;
         var currentTabElement = RootContext.GetTabElementByValue(currentValue);
 
         if (currentTabElement is null || !currentTabElement.HasValue)
+        {
             return ActivationDirection.None;
+        }
 
         try
         {
@@ -362,7 +397,8 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
             var currentPosition = await module.InvokeAsync<TabPositionResult>("getTabPosition", listElement, currentTabElement.Value);
             var newPosition = await module.InvokeAsync<TabPositionResult>("getTabPosition", listElement, Element.Value);
 
-            var isHorizontal = Orientation == Orientation.Horizontal;
+            var orientation = Orientation;
+            var isHorizontal = orientation == Orientation.Horizontal;
             var currentEdge = isHorizontal ? currentPosition.Left : currentPosition.Top;
             var newEdge = isHorizontal ? newPosition.Left : newPosition.Top;
 

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -13,8 +12,8 @@ public sealed class TabsRoot<TValue> : ComponentBase
     private bool hasExplicitDefaultValue;
     private ActivationDirection activationDirection = ActivationDirection.None;
     private TabsRootContext<TValue>? rootContext;
-    private TabsRootState? cachedState;
-    private bool stateDirty = true;
+    private TabsRootState state = TabsRootState.Default;
+    private bool isComponentRenderAs;
 
     [Parameter]
     public TValue? Value { get; set; }
@@ -55,19 +54,6 @@ public sealed class TabsRoot<TValue> : ComponentBase
 
     private TValue? CurrentValue => IsControlled ? Value : internalValue;
 
-    private TabsRootState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = new TabsRootState(Orientation, activationDirection);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
-
     protected override void OnInitialized()
     {
         hasExplicitDefaultValue = DefaultValue is not null;
@@ -83,10 +69,22 @@ public sealed class TabsRoot<TValue> : ComponentBase
 
     protected override void OnParametersSet()
     {
-        if (!EqualityComparer<TValue>.Default.Equals(CurrentValue, previousValue))
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
         {
-            previousValue = CurrentValue;
-            stateDirty = true;
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var currentValue = CurrentValue;
+        if (!EqualityComparer<TValue>.Default.Equals(currentValue, previousValue))
+        {
+            previousValue = currentValue;
+        }
+
+        if (state.Orientation != Orientation || state.ActivationDirection != activationDirection)
+        {
+            state = new TabsRootState(Orientation, activationDirection);
         }
 
         rootContext?.UpdateProperties(Orientation, activationDirection);
@@ -97,59 +95,57 @@ public sealed class TabsRoot<TValue> : ComponentBase
         builder.OpenComponent<CascadingValue<ITabsRootContext<TValue>>>(0);
         builder.AddComponentParameter(1, "Value", rootContext);
         builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderRoot);
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)BuildInnerContent);
         builder.CloseComponent();
     }
 
-    private void RenderRoot(RenderTreeBuilder builder)
+    private void BuildInnerContent(RenderTreeBuilder builder)
     {
-        var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientationValue = Orientation.ToDataAttributeString();
 
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-    private Dictionary<string, object> BuildAttributes(TabsRootState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
+        if (orientationValue is not null)
         {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+            builder.AddAttribute(2, "data-orientation", orientationValue);
         }
-
-        state.WriteDataAttributes(attributes);
+        builder.AddAttribute(3, "data-activation-direction", activationDirection.ToDataAttributeString());
 
         if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
+        {
+            builder.AddAttribute(4, "class", resolvedClass);
+        }
         if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
+        {
+            builder.AddAttribute(5, "style", resolvedStyle);
+        }
 
-        return attributes;
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(6, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(7, component =>
+            {
+                Element = ((IReferencableComponent)component).Element;
+            });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(6, elementReference => Element = elementReference);
+            builder.AddContent(7, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     private TabsRootContext<TValue> CreateContext() => new(
@@ -174,7 +170,7 @@ public sealed class TabsRoot<TValue> : ComponentBase
         }
 
         activationDirection = direction;
-        stateDirty = true;
+        state = new TabsRootState(Orientation, activationDirection);
 
         if (!IsControlled)
         {

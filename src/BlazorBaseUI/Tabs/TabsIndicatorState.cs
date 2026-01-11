@@ -11,13 +11,4 @@ public sealed record TabsIndicatorState(
         ActivationDirection: ActivationDirection.None,
         ActiveTabPosition: null,
         ActiveTabSize: null);
-
-    internal void WriteDataAttributes(Dictionary<string, object> attributes)
-    {
-        var orientationValue = Orientation.ToDataAttributeString();
-        if (orientationValue is not null)
-            attributes[TabsDataAttribute.Orientation.ToDataAttributeString()] = orientationValue;
-
-        attributes[TabsDataAttribute.ActivationDirection.ToDataAttributeString()] = ActivationDirection.ToDataAttributeString();
-    }
 }
