@@ -367,13 +367,13 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             builder.AddAttribute(7, "aria-required", "true");
         }
 
-        if (LabelableContext?.LabelId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
         {
             builder.AddAttribute(8, "aria-labelledby", LabelableContext.LabelId);
         }
 
         var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
         {
             builder.AddAttribute(9, "aria-describedby", describedBy);
         }
@@ -388,7 +388,7 @@ public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncD
             builder.AddAttribute(11, ParentCheckboxAttribute, string.Empty);
         }
 
-        if (IsGroupedWithParent && Parent && GroupContext!.Parent!.AriaControls is not null)
+        if (IsGroupedWithParent && Parent && !string.IsNullOrEmpty(GroupContext?.Parent?.AriaControls))
         {
             builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
         }

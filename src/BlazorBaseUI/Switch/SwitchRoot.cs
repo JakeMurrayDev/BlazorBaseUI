@@ -204,12 +204,12 @@ public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
             builder.AddAttribute(6, "aria-readonly", "true");
         }
 
-        if (labelId is not null)
+        if (!string.IsNullOrEmpty(labelId))
         {
             builder.AddAttribute(7, "aria-labelledby", labelId);
         }
 
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
         {
             builder.AddAttribute(8, "aria-describedby", describedBy);
         }

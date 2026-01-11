@@ -181,13 +181,13 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
         builder.AddAttribute(3, "id", groupId);
         builder.AddAttribute(4, "role", "group");
 
-        if (LabelableContext?.LabelId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
         {
             builder.AddAttribute(5, "aria-labelledby", LabelableContext.LabelId);
         }
 
         var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
         {
             builder.AddAttribute(6, "aria-describedby", describedBy);
         }

@@ -263,17 +263,17 @@ public sealed class SliderThumb : ComponentBase, IDisposable
             builder.AddAttribute(startSequence + 11, "aria-valuetext", ariaValueText);
         }
 
-        if (Context.LabelId is not null && !IsRange)
+        if (!string.IsNullOrEmpty(Context.LabelId) && !IsRange)
         {
             builder.AddAttribute(startSequence + 12, "aria-labelledby", Context.LabelId);
         }
 
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
         {
             builder.AddAttribute(startSequence + 13, "aria-describedby", describedBy);
         }
 
-        if (Context.Name is not null)
+        if (!string.IsNullOrEmpty(Context.Name))
         {
             var inputName = IsRange ? $"{Context.Name}[{ResolvedIndex}]" : Context.Name;
             builder.AddAttribute(startSequence + 14, "name", inputName);

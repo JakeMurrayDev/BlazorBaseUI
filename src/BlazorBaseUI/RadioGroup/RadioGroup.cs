@@ -265,11 +265,11 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
             builder.AddAttribute(5, "aria-readonly", "true");
 
         var labelledBy = LabelableContext?.LabelId ?? FieldsetContext?.LegendId;
-        if (labelledBy is not null)
+        if (!string.IsNullOrEmpty(labelledBy))
             builder.AddAttribute(6, "aria-labelledby", labelledBy);
 
         var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
             builder.AddAttribute(7, "aria-describedby", describedBy);
 
         builder.AddAttribute(8, "onfocus", cachedFocusCallback);

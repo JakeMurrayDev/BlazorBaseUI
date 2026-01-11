@@ -268,7 +268,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             builder.AddAttribute(10, "aria-labelledby", LabelableContext.LabelId);
 
         var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
             builder.AddAttribute(11, "aria-describedby", describedBy);
 
         if (state.Valid == false)

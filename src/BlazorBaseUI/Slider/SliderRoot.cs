@@ -246,7 +246,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         builder.AddAttribute(2, "id", ResolvedId);
         builder.AddAttribute(3, "role", "group");
 
-        if (LabelableContext?.LabelId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
         {
             builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
         }
