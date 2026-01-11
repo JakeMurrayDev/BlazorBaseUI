@@ -1,12 +1,15 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderValue : ComponentBase
+public sealed class SliderValue : ComponentBase, IDisposable
 {
     private const string DefaultTag = "output";
+
+    private bool isComponentRenderAs;
+    private bool isRegistered;
+    private SliderRootState state = SliderRootState.Default;
 
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
@@ -29,71 +32,134 @@ public sealed class SliderValue : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
+
+    protected override void OnInitialized()
+    {
+        if (Context is not null && !isRegistered)
+        {
+            Context.RegisterRealtimeSubscriber();
+            isRegistered = true;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        if (Context is not null)
+        {
+            state = Context.State;
+        }
+    }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (Context is null)
             return;
 
-        var state = Context.State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildValueAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+        var htmlFor = GetHtmlFor();
         var formattedValues = GetFormattedValues();
         var displayContent = GetDisplayContent(formattedValues);
 
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", displayContent);
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, displayContent);
-        builder.CloseElement();
-    }
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-    private Dictionary<string, object> BuildValueAttributes(SliderRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-        
-        if (attributes.TryGetValue("aria-live", out var ariaLive) && ariaLive is string s &&
-            string.IsNullOrEmpty(s))
-        {
-            attributes["aria-live"] = "off";
-        }
-        
-        var htmlFor = GetHtmlFor();
         if (!string.IsNullOrEmpty(htmlFor))
-            attributes["for"] = htmlFor;
+        {
+            builder.AddAttribute(2, "for", htmlFor);
+        }
 
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
+        var ariaLive = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "aria-live");
+        if (string.IsNullOrEmpty(ariaLive))
+        {
+            builder.AddAttribute(3, "aria-live", "off");
+        }
 
-        return attributes;
+        if (state.Dragging)
+        {
+            builder.AddAttribute(4, "data-dragging", string.Empty);
+        }
+
+        builder.AddAttribute(5, "data-orientation", orientationStr);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(6, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(7, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(8, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(9, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(10, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(11, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(12, "data-dirty", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(13, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(14, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(15, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(16, "ChildContent", displayContent);
+            builder.AddComponentReferenceCapture(17, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
+            builder.AddContent(19, displayContent);
+            builder.CloseElement();
+        }
     }
 
     private string? GetHtmlFor()
@@ -136,5 +202,14 @@ public sealed class SliderValue : ComponentBase
             !string.IsNullOrEmpty(f) ? f : Context.Values[i].ToString(Context.Locale)));
 
         return builder => builder.AddContent(0, displayValue);
+    }
+
+    public void Dispose()
+    {
+        if (Context is not null && isRegistered)
+        {
+            Context.UnregisterRealtimeSubscriber();
+            isRegistered = false;
+        }
     }
 }

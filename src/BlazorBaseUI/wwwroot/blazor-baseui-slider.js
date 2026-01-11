@@ -116,10 +116,7 @@ export function startDrag(controlElement, dotNetRef, config, thumbElements, indi
             elementState.thumbCenterOffset = getThumbCenterOffsetInternal(thumbEl, clientX, clientY, config.orientation);
         } else {
             elementState.thumbCenterOffset = 0;
-        }
-        
-        // Disable CSS transitions during drag
-        setThumbTransitions(thumbArray, false);
+        }       
     }
 
     // Calculate initial value from pointer position
@@ -208,17 +205,13 @@ function findClosestThumbByPosition(thumbElements, clientX, clientY, orientation
     return closestIndex;
 }
 
-function setThumbTransitions(thumbElements, enabled) {
-    if (!thumbElements) return;
-    
-    for (const thumb of thumbElements) {
-        if (!thumb) continue;
-        if (enabled) {
-            thumb.style.removeProperty('transition');
-        } else {
-            thumb.style.transition = 'none';
-        }
+function arraysEqual(a, b) {
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (Math.abs(a[i] - b[i]) > 1e-10) return false;
     }
+    return true;
 }
 
 function handlePointerMove(controlElement, e) {
@@ -234,6 +227,8 @@ function handlePointerMove(controlElement, e) {
 
     if (!validateMinimumDistance(result.values, config.step, config.minStepsBetweenValues)) return;
 
+    const valuesChanged = !arraysEqual(result.values, elementState.latestValues);
+
     if (config.collisionBehavior === 'swap' && result.didSwap) {
         elementState.pressedThumbIndex = result.thumbIndex;
         focusThumbInput(elementState.thumbElements[result.thumbIndex]);
@@ -244,9 +239,13 @@ function handlePointerMove(controlElement, e) {
     updateThumbPositions(elementState, config);
     updateIndicatorPosition(elementState, config);
 
-    // Note: We intentionally do NOT call back to C# during drag.
-    // This prevents Blazor re-renders from fighting with JS direct DOM updates.
-    // State will be synced to C# only on pointer up (OnDragEnd).
+    if (valuesChanged && config.notifyOnMove && elementState.dotNetRef) {
+        const safeValues = result.values.map(v => {
+            const num = Number(v);
+            return Number.isFinite(num) ? num : 0;
+        });
+        elementState.dotNetRef.invokeMethodAsync('OnDragMove', safeValues, elementState.pressedThumbIndex);
+    }
 }
 
 function handlePointerUp(controlElement, e) {
@@ -258,9 +257,6 @@ function handlePointerUp(controlElement, e) {
         document.removeEventListener('pointerup', elementState.boundHandlers.pointerUp);
         document.removeEventListener('pointercancel', elementState.boundHandlers.pointerUp);
     }
-
-    // Re-enable CSS transitions
-    setThumbTransitions(elementState.thumbElements, true);
 
     const wasDragging = elementState.dragging;
     const finalValues = elementState.latestValues ? [...elementState.latestValues] : null;
@@ -727,9 +723,6 @@ export function stopDrag(controlElement) {
         document.removeEventListener('pointerup', elementState.boundHandlers.pointerUp);
         document.removeEventListener('pointercancel', elementState.boundHandlers.pointerUp);
     }
-
-    // Re-enable CSS transitions
-    setThumbTransitions(elementState.thumbElements, true);
 
     elementState.dragging = false;
     elementState.pressedThumbIndex = -1;

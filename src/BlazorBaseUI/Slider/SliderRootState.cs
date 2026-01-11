@@ -67,39 +67,4 @@ public sealed record SliderRootState(
             Dirty: fieldState.Dirty,
             Filled: fieldState.Filled,
             Focused: fieldState.Focused);
-
-    internal Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (Dragging)
-            attributes[SliderDataAttribute.Dragging.ToDataAttributeString()] = string.Empty;
-
-        attributes[SliderDataAttribute.Orientation.ToDataAttributeString()] = Orientation.ToDataAttributeString() ?? "horizontal";
-
-        if (Disabled)
-            attributes[SliderDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        if (ReadOnly)
-            attributes[SliderDataAttribute.ReadOnly.ToDataAttributeString()] = string.Empty;
-
-        if (Required)
-            attributes[SliderDataAttribute.Required.ToDataAttributeString()] = string.Empty;
-
-        if (Valid == true)
-            attributes[SliderDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
-        else if (Valid == false)
-            attributes[SliderDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
-
-        if (Touched)
-            attributes[SliderDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
-
-        if (Dirty)
-            attributes[SliderDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
-
-        if (Focused)
-            attributes[SliderDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
-    }
 }
