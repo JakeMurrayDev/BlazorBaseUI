@@ -119,10 +119,7 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
         builder.AddMultipleAttributes(1, AdditionalAttributes);
         builder.AddAttribute(2, "role", "tablist");
 
-        if (orientation == Orientation.Vertical)
-        {
-            builder.AddAttribute(3, "aria-orientation", "vertical");
-        }
+        builder.AddAttribute(3, "aria-orientation", orientation == Orientation.Vertical ? "vertical" : "horizontal");
 
         builder.AddAttribute(4, "onkeydown", cachedKeyDownCallback);
 

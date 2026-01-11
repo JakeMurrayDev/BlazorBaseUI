@@ -223,10 +223,7 @@ public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
         builder.AddAttribute(2, "id", ResolvedId);
         builder.AddAttribute(3, "role", "region");
 
-        if (ItemContext?.TriggerId is not null)
-        {
-            builder.AddAttribute(4, "aria-labelledby", ItemContext.TriggerId);
-        }
+        builder.AddAttribute(4, "aria-labelledby", ItemContext?.TriggerId ?? string.Empty);
 
         if (IsHidden)
         {

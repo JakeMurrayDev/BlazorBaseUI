@@ -156,10 +156,7 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
         builder.AddAttribute(5, "aria-disabled", ResolvedDisabled ? "true" : "false");
         builder.AddAttribute(6, "aria-expanded", ItemContext.Open ? "true" : "false");
 
-        if (ItemContext.Open)
-        {
-            builder.AddAttribute(7, "aria-controls", ItemContext.PanelId);
-        }
+        builder.AddAttribute(7, "aria-controls", ItemContext.PanelId ?? string.Empty);
 
         if (ResolvedDisabled)
         {
