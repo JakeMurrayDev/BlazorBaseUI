@@ -1,0 +1,1016 @@
+@using BlazorBaseUI.NumberField
+@using BlazorBaseUI.Field
+@using BlazorBaseUI.Form
+@using BlazorBaseUI.Slider
+@using BlazorBaseUI.Demo.Client.Shared.Icons
+
+<ComponentShowcase ComponentName="NumberField"
+                   Description="A numeric input field with increment/decrement buttons and optional scrub area for mouse-drag value changes."
+                   BaseRoute="/number-field"
+                   IsWasmMode="IsWasmMode">
+
+    <DemoSection Title="Basic Number Field"
+                 Description="Uncontrolled number field with DefaultValue.">
+        <div class="w-full max-w-xs">
+            <NumberFieldRoot DefaultValue="50"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldDecrementButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldIncrementButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Controlled Number Field"
+                 Description="Value controlled externally. Can be changed via input or external controls.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot Value="@controlledValue"
+                             ValueChanged="@(value => controlledValue = value)"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-700">Value: @(controlledValue?.ToString("F1") ?? "null")</span>
+                <button type="button"
+                        class="rounded bg-indigo-600 px-3 py-1 text-sm text-white transition hover:bg-indigo-700"
+                        @onclick="@(() => controlledValue = 100)">
+                    Set to 100
+                </button>
+                <button type="button"
+                        class="rounded bg-gray-600 px-3 py-1 text-sm text-white transition hover:bg-gray-700"
+                        @onclick="@(() => controlledValue = null)">
+                    Clear
+                </button>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Min, Max, and Step"
+                 Description="Configure range and step increment.">
+        <div class="w-full max-w-xs space-y-6">
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">Min: 0, Max: 10, Step: 1</span>
+                <NumberFieldRoot DefaultValue="5"
+                                 Min="0"
+                                 Max="10"
+                                 Step="1"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">Min: 0, Max: 1, Step: 0.1 (Decimal)</span>
+                <NumberFieldRoot DefaultValue="0.5"
+                                 Min="0"
+                                 Max="1"
+                                 Step="0.1"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">Min: -50, Max: 50, Step: 5 (Negative allowed)</span>
+                <NumberFieldRoot DefaultValue="0"
+                                 Min="-50"
+                                 Max="50"
+                                 Step="5"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Step Modifiers"
+                 Description="Hold Shift for large step, Alt for small step.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="50"
+                             Step="1"
+                             SmallStep="0.1"
+                             LargeStep="10"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="space-y-1 text-xs text-gray-500">
+                <p>Arrow keys: Step by 1</p>
+                <p>Shift + Arrow: Step by 10</p>
+                <p>Alt + Arrow: Step by 0.1</p>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Disabled State"
+                 Description="Field cannot be interacted with when disabled.">
+        <div class="w-full max-w-xs">
+            <NumberFieldRoot DefaultValue="25"
+                             Disabled="true"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="ReadOnly State"
+                 Description="Field displays value but cannot be changed.">
+        <div class="w-full max-w-xs">
+            <NumberFieldRoot DefaultValue="75"
+                             ReadOnly="true"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Scrub Area"
+                 Description="Click and drag the label to adjust the value.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="50"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <div class="mb-2">
+                    <NumberFieldScrubArea Direction="ScrubDirection.Horizontal"
+                                          PixelSensitivity="2"
+                                          ClassValue="@(state => NumberFieldScrubAreaClass(state))">
+                        <span class="text-sm font-medium text-gray-700 select-none">Drag me to change value</span>
+                        <NumberFieldScrubAreaCursor ClassValue="@(state => NumberFieldScrubAreaCursorClass(state))">
+                            <svg width="26" height="14" viewBox="0 0 26 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 7L0 3.5V10.5L4 7Z" fill="currentColor" />
+                                <path d="M22 7L26 3.5V10.5L22 7Z" fill="currentColor" />
+                                <line x1="4" y1="7" x2="22" y2="7" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </NumberFieldScrubAreaCursor>
+                    </NumberFieldScrubArea>
+                </div>
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <p class="text-xs text-gray-500">Click and drag horizontally on the label above to scrub the value.</p>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Vertical Scrub"
+                 Description="Scrub area with vertical direction.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="50"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <div class="mb-2">
+                    <NumberFieldScrubArea Direction="ScrubDirection.Vertical"
+                                          PixelSensitivity="2"
+                                          ClassValue="@(state => NumberFieldScrubAreaClass(state))">
+                        <span class="text-sm font-medium text-gray-700 select-none">Drag up/down</span>
+                        <NumberFieldScrubAreaCursor ClassValue="@(state => NumberFieldScrubAreaCursorClass(state))">
+                            <svg width="14" height="26" viewBox="0 0 14 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 4L3.5 0H10.5L7 4Z" fill="currentColor" />
+                                <path d="M7 22L3.5 26H10.5L7 22Z" fill="currentColor" />
+                                <line x1="7" y1="4" x2="7" y2="22" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </NumberFieldScrubAreaCursor>
+                    </NumberFieldScrubArea>
+                </div>
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="OnValueChange and OnValueCommitted"
+                 Description="Callbacks fire during change and on commit (blur/enter).">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="50"
+                             OnValueChange="@HandleValueChange"
+                             OnValueCommitted="@HandleValueCommitted"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="space-y-1 text-sm text-gray-700">
+                <p>Change count: @valueChangeCount</p>
+                <p>Commit count: @valueCommitCount</p>
+                <p>Last committed: @(lastCommittedValue?.ToString("F1") ?? "null")</p>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Field Integration"
+                 Description="Integrates with FieldRoot for labels, descriptions, and validation.">
+        <div class="w-full max-w-xs space-y-6">
+            <FieldRoot Name="quantity">
+                <div class="space-y-2">
+                    <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                        Quantity
+                    </FieldLabel>
+                    <NumberFieldRoot DefaultValue="1"
+                                     Min="1"
+                                     Max="99"
+                                     ClassValue="@(state => NumberFieldRootClass(state))">
+                        <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                            <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                <MinusIcon />
+                            </NumberFieldDecrement>
+                            <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                            <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                <PlusIcon />
+                            </NumberFieldIncrement>
+                        </NumberFieldGroup>
+                    </NumberFieldRoot>
+                    <FieldDescription ClassValue="@(_ => "text-xs text-gray-500")">
+                        Select quantity between 1 and 99.
+                    </FieldDescription>
+                </div>
+            </FieldRoot>
+
+            <FieldRoot Name="temperature" Disabled="true">
+                <div class="space-y-2">
+                    <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-500")">
+                        Temperature (Disabled via Field)
+                    </FieldLabel>
+                    <NumberFieldRoot DefaultValue="72"
+                                     ClassValue="@(state => NumberFieldRootClass(state))">
+                        <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                            <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                <MinusIcon />
+                            </NumberFieldDecrement>
+                            <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                            <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                <PlusIcon />
+                            </NumberFieldIncrement>
+                        </NumberFieldGroup>
+                    </NumberFieldRoot>
+                </div>
+            </FieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Field State Tracking"
+                 Description="Tracks touched, dirty, filled, and focused states.">
+        <div class="w-full max-w-xs">
+            <FieldRoot Name="tracking">
+                <div class="space-y-2">
+                    <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                        Track my state
+                    </FieldLabel>
+                    <NumberFieldRoot DefaultValue="0"
+                                     ClassValue="@(state => NumberFieldRootClass(state))">
+                        <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                            <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                <MinusIcon />
+                            </NumberFieldDecrement>
+                            <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                            <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                <PlusIcon />
+                            </NumberFieldIncrement>
+                        </NumberFieldGroup>
+                    </NumberFieldRoot>
+                </div>
+                <FieldStateDisplay Context="fieldState">
+                    <div class="mt-3 space-y-1 text-xs">
+                        <div class="flex gap-4">
+                            <StateIndicator Label="Touched" IsActive="@fieldState.Touched" />
+                            <StateIndicator Label="Dirty" IsActive="@fieldState.Dirty" />
+                            <StateIndicator Label="Filled" IsActive="@fieldState.Filled" />
+                            <StateIndicator Label="Focused" IsActive="@fieldState.Focused" />
+                        </div>
+                    </div>
+                </FieldStateDisplay>
+            </FieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Form Submission"
+                 Description="Number field values are included in form submission data.">
+        <div class="w-full max-w-xs">
+            <Form Model="@formModel" OnFormSubmit="@HandleFormSubmit">
+                <div class="space-y-6">
+                    <FieldRoot Name="age">
+                        <div class="space-y-2">
+                            <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                                Age
+                            </FieldLabel>
+                            <NumberFieldRoot DefaultValue="25"
+                                             Min="0"
+                                             Max="150"
+                                             ClassValue="@(state => NumberFieldRootClass(state))">
+                                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <MinusIcon />
+                                    </NumberFieldDecrement>
+                                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <PlusIcon />
+                                    </NumberFieldIncrement>
+                                </NumberFieldGroup>
+                            </NumberFieldRoot>
+                        </div>
+                    </FieldRoot>
+
+                    <FieldRoot Name="score">
+                        <div class="space-y-2">
+                            <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                                Score (0-100)
+                            </FieldLabel>
+                            <NumberFieldRoot DefaultValue="85"
+                                             Min="0"
+                                             Max="100"
+                                             Step="5"
+                                             ClassValue="@(state => NumberFieldRootClass(state))">
+                                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <MinusIcon />
+                                    </NumberFieldDecrement>
+                                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <PlusIcon />
+                                    </NumberFieldIncrement>
+                                </NumberFieldGroup>
+                            </NumberFieldRoot>
+                        </div>
+                    </FieldRoot>
+
+                    <button type="submit"
+                            class="rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                        Submit
+                    </button>
+                </div>
+            </Form>
+
+            @if (lastFormSubmission is not null)
+            {
+                <div class="mt-4 rounded bg-gray-100 p-3 text-sm">
+                    <strong>Last submission:</strong>
+                    <pre class="mt-1 text-xs">@lastFormSubmission</pre>
+                </div>
+            }
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Validation"
+                 Description="Supports custom validation functions.">
+        <div class="w-full max-w-xs">
+            <Form Model="@(new object())">
+                <FieldRoot Name="validated"
+                           ValidationMode="ValidationMode.OnChange"
+                           Validate="@ValidateMinValue">
+                    <div class="space-y-2">
+                        <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                            Must be at least 10
+                        </FieldLabel>
+                        <NumberFieldRoot DefaultValue="5"
+                                         Min="0"
+                                         ClassValue="@(state => NumberFieldRootClassWithValidation(state))">
+                            <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                    <MinusIcon />
+                                </NumberFieldDecrement>
+                                <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                    <PlusIcon />
+                                </NumberFieldIncrement>
+                            </NumberFieldGroup>
+                        </NumberFieldRoot>
+                        <FieldError ClassValue="@(_ => "text-red-600 text-sm")" />
+                    </div>
+                </FieldRoot>
+            </Form>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Keyboard Navigation"
+                 Description="Full keyboard support for accessibility.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="50"
+                             Step="1"
+                             SmallStep="0.1"
+                             LargeStep="10"
+                             Min="0"
+                             Max="100"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="space-y-1 text-xs text-gray-500">
+                <p>Arrow Up/Down: Increment/decrement by step</p>
+                <p>Shift + Arrow: Large step</p>
+                <p>Alt + Arrow: Small step</p>
+                <p>Home: Go to minimum</p>
+                <p>End: Go to maximum</p>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Input Only (No Buttons)"
+                 Description="Number field can be used without increment/decrement buttons.">
+        <div class="w-full max-w-xs">
+            <NumberFieldRoot DefaultValue="42"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldInput ClassValue="@(state => NumberFieldInputOnlyClass(state))" />
+            </NumberFieldRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Locale Formatting"
+                 Description="Numbers are formatted according to the specified locale.">
+        <div class="w-full max-w-xs space-y-6">
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">German (de-DE): Uses comma as decimal, dot as thousands</span>
+                <NumberFieldRoot DefaultValue="1000.5"
+                                 Locale="de-DE"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">Polish (pl): Uses space as thousands separator</span>
+                <NumberFieldRoot DefaultValue="12345.5"
+                                 Locale="pl"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">French (fr-FR): Uses space as thousands, comma as decimal</span>
+                <NumberFieldRoot DefaultValue="9876.54"
+                                 Locale="fr-FR"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Currency Format"
+                 Description="Display values as currency with locale-specific formatting.">
+        <div class="w-full max-w-xs space-y-6">
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">USD Currency (en-US)</span>
+                <NumberFieldRoot DefaultValue="1000"
+                                 Locale="en-US"
+                                 Format="@(new NumberFormatOptions { Style = "currency", Currency = "USD" })"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputWideClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">EUR Currency (de-DE)</span>
+                <NumberFieldRoot DefaultValue="12.34"
+                                 Locale="de-DE"
+                                 Format="@(new NumberFormatOptions { Style = "currency", Currency = "EUR", MinimumFractionDigits = 2, MaximumFractionDigits = 2 })"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputWideClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+            <div class="space-y-2">
+                <span class="text-sm text-gray-500">GBP Currency (en-GB)</span>
+                <NumberFieldRoot DefaultValue="500.99"
+                                 Locale="en-GB"
+                                 Format="@(new NumberFormatOptions { Style = "currency", Currency = "GBP" })"
+                                 ClassValue="@(state => NumberFieldRootClass(state))">
+                    <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                        <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <MinusIcon />
+                        </NumberFieldDecrement>
+                        <NumberFieldInput ClassValue="@(state => NumberFieldInputWideClass(state))" />
+                        <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                            <PlusIcon />
+                        </NumberFieldIncrement>
+                    </NumberFieldGroup>
+                </NumberFieldRoot>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Percent Format"
+                 Description="Display values as percentages. Input 12 displays as 12% but represents 0.12.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot Value="@percentValue"
+                             ValueChanged="@(v => percentValue = v)"
+                             Format="@(new NumberFormatOptions { Style = "percent" })"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="text-sm text-gray-700">
+                <p>Displayed: @(percentValue.HasValue ? $"{percentValue.Value * 100:F0}%" : "empty")</p>
+                <p>Actual value: @(percentValue?.ToString("F2") ?? "null")</p>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Wheel Scrub"
+                 Description="Use mouse wheel to increment/decrement value when input is focused.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="5"
+                             AllowWheelScrub="true"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <p class="text-xs text-gray-500">Focus the input and use mouse wheel to change the value.</p>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Required Field"
+                 Description="Mark field as required for form validation.">
+        <div class="w-full max-w-xs">
+            <Form Model="@(new object())" OnFormSubmit="@HandleRequiredFormSubmit">
+                <div class="space-y-4">
+                    <FieldRoot Name="requiredQuantity">
+                        <div class="space-y-2">
+                            <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                                Quantity <span class="text-red-500">*</span>
+                            </FieldLabel>
+                            <NumberFieldRoot Required="true"
+                                             ClassValue="@(state => NumberFieldRootClassWithValidation(state))">
+                                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <MinusIcon />
+                                    </NumberFieldDecrement>
+                                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <PlusIcon />
+                                    </NumberFieldIncrement>
+                                </NumberFieldGroup>
+                            </NumberFieldRoot>
+                            <FieldError MatchValidity="valueMissing" ClassValue="@(_ => "text-red-600 text-sm")">
+                                This field is required
+                            </FieldError>
+                        </div>
+                    </FieldRoot>
+                    <button type="submit"
+                            class="rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                        Submit
+                    </button>
+                    @if (requiredFormSubmitted)
+                    {
+                        <p class="text-green-600 text-sm">Form submitted successfully!</p>
+                    }
+                </div>
+            </Form>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Step Mismatch Validation"
+                 Description="Validates that the value matches the step increment.">
+        <div class="w-full max-w-xs">
+            <Form Model="@(new object())" OnFormSubmit="@HandleStepMismatchFormSubmit">
+                <div class="space-y-4">
+                    <FieldRoot Name="steppedValue">
+                        <div class="space-y-2">
+                            <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                                Value (Step: 0.1, Min: 0)
+                            </FieldLabel>
+                            <NumberFieldRoot DefaultValue="0"
+                                             Min="0"
+                                             Step="0.1"
+                                             ClassValue="@(state => NumberFieldRootClassWithValidation(state))">
+                                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <MinusIcon />
+                                    </NumberFieldDecrement>
+                                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                        <PlusIcon />
+                                    </NumberFieldIncrement>
+                                </NumberFieldGroup>
+                            </NumberFieldRoot>
+                            <FieldError MatchValidity="stepMismatch" ClassValue="@(_ => "text-red-600 text-sm")">
+                                Value must be a multiple of 0.1
+                            </FieldError>
+                        </div>
+                    </FieldRoot>
+                    <button type="submit"
+                            class="rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                        Submit
+                    </button>
+                    <p class="text-xs text-gray-500">Try typing 0.11 (invalid) vs 0.1 (valid)</p>
+                    @if (stepMismatchFormSubmitted)
+                    {
+                        <p class="text-green-600 text-sm">Form submitted successfully!</p>
+                    }
+                </div>
+            </Form>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Null and Empty Values"
+                 Description="Handle null/empty states and transitions.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot Value="@nullableValue"
+                             ValueChanged="@(v => nullableValue = v)"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-700">Value: @(nullableValue?.ToString() ?? "null")</span>
+                <button type="button"
+                        class="rounded bg-gray-600 px-3 py-1 text-sm text-white transition hover:bg-gray-700"
+                        @onclick="@(() => nullableValue = null)">
+                    Set to null
+                </button>
+                <button type="button"
+                        class="rounded bg-indigo-600 px-3 py-1 text-sm text-white transition hover:bg-indigo-700"
+                        @onclick="@(() => nullableValue = 5)">
+                    Set to 5
+                </button>
+            </div>
+            <p class="text-xs text-gray-500">Clear the input to see null state. Value changes fire for each parseable input.</p>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Change Reasons"
+                 Description="Track the reason for each value change.">
+        <div class="w-full max-w-xs space-y-4">
+            <NumberFieldRoot DefaultValue="50"
+                             AllowWheelScrub="true"
+                             OnValueChange="@HandleValueChangeWithReason"
+                             ClassValue="@(state => NumberFieldRootClass(state))">
+                <div class="mb-2">
+                    <NumberFieldScrubArea Direction="ScrubDirection.Horizontal"
+                                          PixelSensitivity="2"
+                                          ClassValue="@(state => NumberFieldScrubAreaClass(state))">
+                        <span class="text-sm font-medium text-gray-700 select-none">Scrub label</span>
+                    </NumberFieldScrubArea>
+                </div>
+                <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                    <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <MinusIcon />
+                    </NumberFieldDecrement>
+                    <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                    <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                        <PlusIcon />
+                    </NumberFieldIncrement>
+                </NumberFieldGroup>
+            </NumberFieldRoot>
+            <div class="space-y-1 text-sm text-gray-700">
+                <p>Last change reason: <span class="font-mono bg-gray-100 px-1">@lastChangeReason</span></p>
+                <p>Last value: @(lastChangedValue?.ToString() ?? "null")</p>
+            </div>
+            <div class="text-xs text-gray-500 space-y-1">
+                <p>Try: typing, clicking +/-, arrow keys, wheel, scrubbing</p>
+            </div>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Validation Modes"
+                 Description="Different validation timing options.">
+        <div class="w-full max-w-xs space-y-6">
+            <Form Model="@(new object())">
+                <FieldRoot Name="onChangeValidation"
+                           ValidationMode="ValidationMode.OnChange"
+                           Validate="@ValidateRange">
+                    <div class="space-y-2">
+                        <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                            OnChange (validates as you type)
+                        </FieldLabel>
+                        <NumberFieldRoot DefaultValue="50"
+                                         ClassValue="@(state => NumberFieldRootClassWithValidation(state))">
+                            <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                    <MinusIcon />
+                                </NumberFieldDecrement>
+                                <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                    <PlusIcon />
+                                </NumberFieldIncrement>
+                            </NumberFieldGroup>
+                        </NumberFieldRoot>
+                        <FieldError ClassValue="@(_ => "text-red-600 text-sm")" />
+                    </div>
+                </FieldRoot>
+            </Form>
+
+            <Form Model="@(new object())">
+                <FieldRoot Name="onBlurValidation"
+                           ValidationMode="ValidationMode.OnBlur"
+                           Validate="@ValidateRange">
+                    <div class="space-y-2">
+                        <FieldLabel ClassValue="@(_ => "text-sm font-medium text-gray-700")">
+                            OnBlur (validates when focus leaves)
+                        </FieldLabel>
+                        <NumberFieldRoot DefaultValue="50"
+                                         ClassValue="@(state => NumberFieldRootClassWithValidation(state))">
+                            <NumberFieldGroup ClassValue="@(state => NumberFieldGroupClass(state))">
+                                <NumberFieldDecrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                    <MinusIcon />
+                                </NumberFieldDecrement>
+                                <NumberFieldInput ClassValue="@(state => NumberFieldInputClass(state))" />
+                                <NumberFieldIncrement ClassValue="@(state => NumberFieldButtonClass(state))">
+                                    <PlusIcon />
+                                </NumberFieldIncrement>
+                            </NumberFieldGroup>
+                        </NumberFieldRoot>
+                        <FieldError ClassValue="@(_ => "text-red-600 text-sm")" />
+                    </div>
+                </FieldRoot>
+            </Form>
+
+            <p class="text-xs text-gray-500">Value must be between 10 and 90 (inclusive)</p>
+        </div>
+    </DemoSection>
+
+</ComponentShowcase>
+
+@code {
+    [Parameter]
+    public bool IsWasmMode { get; set; }
+
+    private double? controlledValue = 50;
+    private int valueChangeCount;
+    private int valueCommitCount;
+    private double? lastCommittedValue;
+    private object formModel = new();
+    private string? lastFormSubmission;
+    private double? percentValue = 0.12;
+    private bool requiredFormSubmitted;
+    private bool stepMismatchFormSubmitted;
+    private double? nullableValue = 5;
+    private string lastChangeReason = "None";
+    private double? lastChangedValue;
+
+    private void HandleValueChange(NumberFieldValueChangeEventArgs e)
+    {
+        valueChangeCount++;
+    }
+
+    private void HandleValueCommitted(NumberFieldValueCommittedEventArgs e)
+    {
+        valueCommitCount++;
+        lastCommittedValue = e.Value;
+    }
+
+    private void HandleFormSubmit(FormSubmitEventArgs e)
+    {
+        lastFormSubmission = string.Join("\n", e.Values.Select(kv => $"{kv.Key}: {kv.Value}"));
+    }
+
+    private void HandleRequiredFormSubmit(FormSubmitEventArgs e)
+    {
+        requiredFormSubmitted = true;
+    }
+
+    private void HandleStepMismatchFormSubmit(FormSubmitEventArgs e)
+    {
+        stepMismatchFormSubmitted = true;
+    }
+
+    private void HandleValueChangeWithReason(NumberFieldValueChangeEventArgs e)
+    {
+        lastChangeReason = e.Reason.ToString();
+        lastChangedValue = e.Value;
+    }
+
+    private Task<string[]?> ValidateMinValue(object? value)
+    {
+        if (value is double v && v < 10)
+        {
+            return Task.FromResult<string[]?>(["Value must be at least 10"]);
+        }
+        return Task.FromResult<string[]?>(null);
+    }
+
+    private Task<string[]?> ValidateRange(object? value)
+    {
+        if (value is double v)
+        {
+            if (v < 10 || v > 90)
+            {
+                return Task.FromResult<string[]?>(["Value must be between 10 and 90"]);
+            }
+        }
+        return Task.FromResult<string[]?>(null);
+    }
+
+    private static string NumberFieldRootClass(NumberFieldRootState state)
+    {
+        var baseClass = "relative";
+        if (state.Disabled) return $"{baseClass} opacity-60 cursor-not-allowed";
+        return baseClass;
+    }
+
+    private static string NumberFieldRootClassWithValidation(NumberFieldRootState state)
+    {
+        var baseClass = NumberFieldRootClass(state);
+        if (state.Valid == false) return $"{baseClass} [&_input]:border-red-500 [&_input]:ring-red-500";
+        return baseClass;
+    }
+
+    private static string NumberFieldGroupClass(NumberFieldRootState state)
+    {
+        var baseClass = "inline-flex items-center rounded-lg border shadow-sm overflow-hidden transition-all duration-200";
+        if (state.Disabled) return $"{baseClass} border-gray-200 bg-gray-100";
+        if (state.Valid == false) return $"{baseClass} border-red-400 ring-2 ring-red-100";
+        return $"{baseClass} border-gray-300 bg-white hover:border-gray-400 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500";
+    }
+
+    private static string NumberFieldInputClass(NumberFieldRootState state)
+    {
+        var baseClass = "w-16 text-center py-2.5 border-0 focus:ring-0 focus:outline-none text-sm font-medium tabular-nums";
+        if (state.Disabled) return $"{baseClass} bg-transparent text-gray-400 cursor-not-allowed";
+        if (state.ReadOnly) return $"{baseClass} bg-transparent text-gray-600";
+        return $"{baseClass} bg-transparent text-gray-900";
+    }
+
+    private static string NumberFieldInputWideClass(NumberFieldRootState state)
+    {
+        var baseClass = "w-28 text-center py-2.5 border-0 focus:ring-0 focus:outline-none text-sm font-medium tabular-nums";
+        if (state.Disabled) return $"{baseClass} bg-transparent text-gray-400 cursor-not-allowed";
+        if (state.ReadOnly) return $"{baseClass} bg-transparent text-gray-600";
+        return $"{baseClass} bg-transparent text-gray-900";
+    }
+
+    private static string NumberFieldInputOnlyClass(NumberFieldRootState state)
+    {
+        var baseClass = "w-full px-4 py-2.5 border rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm font-medium tabular-nums transition-all duration-200";
+        if (state.Disabled) return $"{baseClass} border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
+        if (state.ReadOnly) return $"{baseClass} border-gray-200 bg-gray-50 text-gray-600";
+        return $"{baseClass} border-gray-300 bg-white text-gray-900 hover:border-gray-400";
+    }
+
+    private static string NumberFieldButtonClass(NumberFieldRootState state)
+    {
+        var baseClass = "flex items-center justify-center w-10 h-10 transition-all duration-150";
+        if (state.Disabled) return $"{baseClass} text-gray-300 cursor-not-allowed";
+        if (state.ReadOnly) return $"{baseClass} text-gray-300 cursor-default";
+        return $"{baseClass} text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 active:text-indigo-700";
+    }
+
+    private static string NumberFieldDecrementButtonClass(NumberFieldRootState state)
+    {
+        var baseClass = "flex items-center justify-center w-10 h-10 transition-all duration-150 border-r border-gray-200";
+        if (state.Disabled) return $"{baseClass} text-gray-300 cursor-not-allowed";
+        if (state.ReadOnly) return $"{baseClass} text-gray-300 cursor-default";
+        return $"{baseClass} text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 active:text-indigo-700";
+    }
+
+    private static string NumberFieldIncrementButtonClass(NumberFieldRootState state)
+    {
+        var baseClass = "flex items-center justify-center w-10 h-10 transition-all duration-150 border-l border-gray-200";
+        if (state.Disabled) return $"{baseClass} text-gray-300 cursor-not-allowed";
+        if (state.ReadOnly) return $"{baseClass} text-gray-300 cursor-default";
+        return $"{baseClass} text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 active:text-indigo-700";
+    }
+
+    private static string NumberFieldScrubAreaClass(NumberFieldRootState state)
+    {
+        var baseClass = "inline-flex items-center gap-1 cursor-ew-resize select-none transition-colors duration-150";
+        if (state.Disabled) return $"{baseClass} cursor-not-allowed text-gray-400";
+        if (state.ReadOnly) return $"{baseClass} cursor-default text-gray-400";
+        if (state.Scrubbing) return $"{baseClass} text-indigo-600";
+        return $"{baseClass} text-gray-700 hover:text-indigo-600";
+    }
+
+    private static string NumberFieldScrubAreaCursorClass(NumberFieldRootState state)
+    {
+        return "text-indigo-500";
+    }
+}
