@@ -12,7 +12,18 @@ public sealed class FieldsetLegend : ComponentBase, IDisposable
     private bool isComponentRenderAs;
     private bool disabled;
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != FieldsetContext?.LegendId)
+            {
+                FieldsetContext?.SetLegendId(id);
+            }
+            return id;
+        }
+    }
 
     [CascadingParameter]
     private FieldsetRootContext? FieldsetContext { get; set; }
@@ -36,11 +47,6 @@ public sealed class FieldsetLegend : ComponentBase, IDisposable
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    protected override void OnInitialized()
-    {
-        FieldsetContext?.SetLegendId(ResolvedId);
-    }
 
     protected override void OnParametersSet()
     {
