@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -15,9 +14,8 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
 
     private int highlightedTabIndex;
     private TabsListContext<TValue>? listContext;
-    private TabsRootState? cachedState;
-    private bool stateDirty = true;
-
+    private TabsRootState state = TabsRootState.Default;
+    private bool isComponentRenderAs;
     private EventCallback<KeyboardEventArgs> cachedKeyDownCallback;
 
     [Inject]
@@ -56,19 +54,6 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
 
     private ActivationDirection ActivationDirection => RootContext?.ActivationDirection ?? ActivationDirection.None;
 
-    private TabsRootState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = new TabsRootState(Orientation, ActivationDirection);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
-
     public TabsList()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -78,17 +63,32 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
     protected override void OnInitialized()
     {
         if (RootContext is null)
+        {
             throw new InvalidOperationException("TabsList must be used within a TabsRoot component.");
+        }
 
         listContext = CreateContext();
-
         cachedKeyDownCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
     }
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var orientation = Orientation;
+        var activationDirection = ActivationDirection;
+
+        if (state.Orientation != orientation || state.ActivationDirection != activationDirection)
+        {
+            state = new TabsRootState(orientation, activationDirection);
+        }
+
         listContext?.UpdateProperties(ActivateOnFocus, highlightedTabIndex, LoopFocus);
-        stateDirty = true;
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -96,8 +96,63 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
         builder.OpenComponent<CascadingValue<ITabsListContext>>(0);
         builder.AddComponentParameter(1, "Value", listContext);
         builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderList);
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)BuildInnerContent);
         builder.CloseComponent();
+    }
+
+    private void BuildInnerContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientation = Orientation;
+        var orientationValue = orientation.ToDataAttributeString();
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "role", "tablist");
+
+        builder.AddAttribute(3, "aria-orientation", orientation == Orientation.Vertical ? "vertical" : "horizontal");
+
+        builder.AddAttribute(4, "onkeydown", cachedKeyDownCallback);
+
+        if (orientationValue is not null)
+        {
+            builder.AddAttribute(5, "data-orientation", orientationValue);
+        }
+        builder.AddAttribute(6, "data-activation-direction", ActivationDirection.ToDataAttributeString());
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(7, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(8, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(9, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(10, component =>
+            {
+                Element = ((IReferencableComponent)component).Element;
+            });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(9, elementReference => Element = elementReference);
+            builder.AddContent(10, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -122,64 +177,6 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
             {
             }
         }
-    }
-
-    private void RenderList(RenderTreeBuilder builder)
-    {
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
-        if (RenderAs is not null)
-        {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-            return;
-        }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildAttributes(TabsRootState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["role"] = "tablist";
-
-        if (Orientation == Orientation.Vertical)
-            attributes["aria-orientation"] = "vertical";
-
-        attributes["onkeydown"] = cachedKeyDownCallback;
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
     }
 
     private TabsListContext<TValue> CreateContext() => new(
@@ -214,10 +211,13 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
         if (listContext is null || RootContext is null)
+        {
             return;
+        }
 
-        var isHorizontal = Orientation == Orientation.Horizontal;
-        var isVertical = Orientation == Orientation.Vertical;
+        var orientation = Orientation;
+        var isHorizontal = orientation == Orientation.Horizontal;
+        var isVertical = orientation == Orientation.Vertical;
 
         var shouldNavigatePrevious =
             (isHorizontal && e.Key == "ArrowLeft") ||
@@ -231,11 +231,15 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
         {
             var ordered = RootContext.GetOrderedTabs();
             if (ordered.Length == 0)
+            {
                 return;
+            }
 
             var currentIndex = highlightedTabIndex;
             if (currentIndex < 0 || currentIndex >= ordered.Length)
+            {
                 currentIndex = 0;
+            }
 
             var currentTab = ordered[currentIndex].Tab;
 

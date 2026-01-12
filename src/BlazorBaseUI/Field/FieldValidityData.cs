@@ -1,4 +1,4 @@
-﻿namespace BlazorBaseUI.Field;
+namespace BlazorBaseUI.Field;
 
 public sealed record FieldValidityData(
     FieldValidityState State,
@@ -7,7 +7,7 @@ public sealed record FieldValidityData(
     object? Value,
     object? InitialValue)
 {
-    public static FieldValidityData Default { get; } = new(
+    internal static FieldValidityData Default { get; } = new(
         State: FieldValidityState.Default,
         Errors: [],
         Error: string.Empty,

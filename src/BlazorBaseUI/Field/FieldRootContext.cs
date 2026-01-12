@@ -35,7 +35,7 @@ public interface IFieldRootContext
 
 public sealed class FieldRootContext : IFieldRootContext
 {
-    public static FieldRootContext Default { get; } = new();
+    internal static FieldRootContext Default { get; } = new();
 
     public bool? Invalid { get; private set; }
     public string? Name { get; private set; }
@@ -122,8 +122,8 @@ public sealed class FieldRootContext : IFieldRootContext
     public void Subscribe(IFieldStateSubscriber subscriber) => subscribeCallback?.Invoke(subscriber);
     public void Unsubscribe(IFieldStateSubscriber subscriber) => unsubscribeCallback?.Invoke(subscriber);
 
-    public Func<bool> ShouldValidateOnChangeFunc => ShouldValidateOnChange;
-    public Action<Func<ValueTask>> RegisterFocusHandlerFunc => handler => RegisterFocusHandler(handler);
-    public Action<IFieldStateSubscriber> SubscribeFunc => Subscribe;
-    public Action<IFieldStateSubscriber> UnsubscribeFunc => Unsubscribe;
+    internal Func<bool> ShouldValidateOnChangeFunc => ShouldValidateOnChange;
+    internal Action<Func<ValueTask>> RegisterFocusHandlerFunc => handler => RegisterFocusHandler(handler);
+    internal Action<IFieldStateSubscriber> SubscribeFunc => Subscribe;
+    internal Action<IFieldStateSubscriber> UnsubscribeFunc => Unsubscribe;
 }

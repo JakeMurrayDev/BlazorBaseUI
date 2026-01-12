@@ -24,6 +24,7 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     private bool previousDirty;
     private bool previousFilled;
     private bool previousFocused;
+    private bool isComponentRenderAs;
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -112,6 +113,12 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var currentDisabled = ResolvedDisabled;
         var fieldState = FieldState;
 
@@ -160,90 +167,85 @@ public sealed class CheckboxGroup : ComponentBase, IFieldStateSubscriber, IDispo
     {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isComponent = RenderAs is not null;
 
-        if (isComponent)
-        {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
-            }
+        if (isComponentRenderAs)
+        {   
             builder.OpenComponent(0, RenderAs!);
         }
         else
         {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "id", groupId);
-        builder.AddAttribute(3, "role", "group");
+        builder.AddMultipleAttributes(2, AdditionalAttributes);
+        builder.AddAttribute(3, "id", groupId);
+        builder.AddAttribute(4, "role", "group");
 
-        if (LabelableContext?.LabelId is not null)
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
         {
-            builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
+            builder.AddAttribute(5, "aria-labelledby", LabelableContext.LabelId);
         }
 
         var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
+        if (!string.IsNullOrEmpty(describedBy))
         {
-            builder.AddAttribute(5, "aria-describedby", describedBy);
+            builder.AddAttribute(6, "aria-describedby", describedBy);
         }
 
         if (state.Disabled)
         {
-            builder.AddAttribute(6, "data-disabled", string.Empty);
+            builder.AddAttribute(7, "data-disabled", string.Empty);
         }
 
         if (state.Valid == true)
         {
-            builder.AddAttribute(7, "data-valid", string.Empty);
+            builder.AddAttribute(8, "data-valid", string.Empty);
         }
         else if (state.Valid == false)
         {
-            builder.AddAttribute(8, "data-invalid", string.Empty);
+            builder.AddAttribute(9, "data-invalid", string.Empty);
         }
 
         if (state.Touched)
         {
-            builder.AddAttribute(9, "data-touched", string.Empty);
+            builder.AddAttribute(10, "data-touched", string.Empty);
         }
 
         if (state.Dirty)
         {
-            builder.AddAttribute(10, "data-dirty", string.Empty);
+            builder.AddAttribute(11, "data-dirty", string.Empty);
         }
 
         if (state.Filled)
         {
-            builder.AddAttribute(11, "data-filled", string.Empty);
+            builder.AddAttribute(12, "data-filled", string.Empty);
         }
 
         if (state.Focused)
         {
-            builder.AddAttribute(12, "data-focused", string.Empty);
+            builder.AddAttribute(13, "data-focused", string.Empty);
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(13, "class", resolvedClass);
+            builder.AddAttribute(14, "class", resolvedClass);
         }
 
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(14, "style", resolvedStyle);
+            builder.AddAttribute(15, "style", resolvedStyle);
         }
 
-        if (isComponent)
+        if (isComponentRenderAs)
         {
-            builder.AddAttribute(15, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(16, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddAttribute(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddElementReferenceCapture(17, elementReference => Element = elementReference);
-            builder.AddContent(18, ChildContent);
+            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
+            builder.AddContent(19, ChildContent);
             builder.CloseElement();
         }
     }

@@ -12,7 +12,7 @@ public sealed record SliderThumbState(
     bool Dirty,
     bool Focused)
 {
-    public static SliderThumbState Default { get; } = new(
+    internal static SliderThumbState Default { get; } = new(
         Index: 0,
         Disabled: false,
         Dragging: false,
@@ -24,7 +24,7 @@ public sealed record SliderThumbState(
         Dirty: false,
         Focused: false);
 
-    public static SliderThumbState FromRootState(SliderRootState rootState, int index, bool isActive) => new(
+    internal static SliderThumbState FromRootState(SliderRootState rootState, int index, bool isActive) => new(
         Index: index,
         Disabled: rootState.Disabled,
         Dragging: rootState.Dragging && rootState.ActiveThumbIndex == index,
@@ -35,42 +35,4 @@ public sealed record SliderThumbState(
         Touched: rootState.Touched,
         Dirty: rootState.Dirty,
         Focused: isActive);
-
-    internal Dictionary<string, object> GetDataAttributes()
-    {
-        var attributes = new Dictionary<string, object>
-        {
-            [SliderThumbDataAttribute.Index.ToDataAttributeString()] = Index.ToString()
-        };
-
-        if (Dragging)
-            attributes[SliderThumbDataAttribute.Dragging.ToDataAttributeString()] = string.Empty;
-
-        attributes[SliderThumbDataAttribute.Orientation.ToDataAttributeString()] = Orientation.ToDataAttributeString() ?? "horizontal";
-
-        if (Disabled)
-            attributes[SliderThumbDataAttribute.Disabled.ToDataAttributeString()] = string.Empty;
-
-        if (ReadOnly)
-            attributes[SliderThumbDataAttribute.ReadOnly.ToDataAttributeString()] = string.Empty;
-
-        if (Required)
-            attributes[SliderThumbDataAttribute.Required.ToDataAttributeString()] = string.Empty;
-
-        if (Valid == true)
-            attributes[SliderThumbDataAttribute.Valid.ToDataAttributeString()] = string.Empty;
-        else if (Valid == false)
-            attributes[SliderThumbDataAttribute.Invalid.ToDataAttributeString()] = string.Empty;
-
-        if (Touched)
-            attributes[SliderThumbDataAttribute.Touched.ToDataAttributeString()] = string.Empty;
-
-        if (Dirty)
-            attributes[SliderThumbDataAttribute.Dirty.ToDataAttributeString()] = string.Empty;
-
-        if (Focused)
-            attributes[SliderThumbDataAttribute.Focused.ToDataAttributeString()] = string.Empty;
-
-        return attributes;
-    }
 }

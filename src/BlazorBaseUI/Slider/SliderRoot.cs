@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
@@ -17,7 +16,10 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
     private readonly Dictionary<int, ThumbMetadata> thumbRegistry = [];
 
+    private int realtimeSubscriberCount;
+
     private bool hasRendered;
+    private bool isComponentRenderAs;
     private double[] currentValues = null!;
     private double[] previousValues = null!;
     private int activeThumbIndex = -1;
@@ -134,12 +136,18 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Value.HasValue || Values is not null;
 
     private bool IsRange => Values is not null || DefaultValues is not null || currentValues.Length > 1;
+
+    private bool HasRealtimeSubscribers =>
+        realtimeSubscriberCount > 0 ||
+        OnValueChange.HasDelegate ||
+        OnValuesChange.HasDelegate ||
+        ValueChanged.HasDelegate ||
+        ValuesChanged.HasDelegate;
 
     private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
 
@@ -172,7 +180,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     protected override void OnInitialized()
     {
         InitializeValues();
-        
+
         var initialValue = IsRange ? (object)currentValues : currentValues[0];
         const double epsilon = 1e-7;
         FieldContext?.Validation.SetInitialValue(initialValue);
@@ -180,11 +188,18 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         FieldContext?.RegisterFocusHandlerFunc(FocusFirstThumbAsync);
         FieldContext?.SubscribeFunc(this);
 
-        previousValues = (double[])currentValues.Clone();
+        previousValues = [..currentValues];
     }
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         if (IsControlled)
         {
             var newValues = GetControlledValues();
@@ -196,23 +211,114 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
 
         if (hasRendered && !ValuesEqual(currentValues, previousValues))
         {
-            previousValues = (double[])currentValues.Clone();
+            previousValues = [..currentValues];
             HandleValuesChanged();
         }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var context = CreateContext(State);
+        var context = CreateContext();
 
         builder.OpenComponent<CascadingValue<ISliderRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
-        {
-            RenderSlider(contextBuilder, State);
-        }));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(innerBuilder => BuildInnerContent(innerBuilder, State)));
         builder.CloseComponent();
+    }
+
+    private void BuildInnerContent(RenderTreeBuilder builder, SliderRootState state)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", ResolvedId);
+        builder.AddAttribute(3, "role", "group");
+
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+        {
+            builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
+        }
+
+        if (state.Dragging)
+        {
+            builder.AddAttribute(5, "data-dragging", string.Empty);
+        }
+
+        builder.AddAttribute(6, "data-orientation", orientationStr);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(7, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(8, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(9, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(10, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(11, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(12, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(13, "data-dirty", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(14, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(15, "class", resolvedClass);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(16, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(17, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(18, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(19, elementReference => Element = elementReference);
+            builder.AddContent(20, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -298,60 +404,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         return true;
     }
 
-    private void RenderSlider(RenderTreeBuilder builder, SliderRootState state)
-    {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildSliderAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
-        {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
-        }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildSliderAttributes(SliderRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = ResolvedId;
-        attributes["role"] = "group";
-
-        if (LabelableContext?.LabelId is not null)
-            attributes["aria-labelledby"] = LabelableContext.LabelId;
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
-    private SliderRootContext CreateContext(SliderRootState state) => new(
+    private SliderRootContext CreateContext() => new(
         ActiveThumbIndex: activeThumbIndex,
         LastUsedThumbIndex: lastUsedThumbIndex,
         ControlElement: controlElement,
@@ -368,7 +421,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         ThumbCollisionBehavior: ThumbCollisionBehavior,
         ThumbAlignment: ThumbAlignment,
         Values: currentValues,
-        State: state,
+        State: State,
         LabelId: LabelableContext?.LabelId,
         FormatOptions: Format,
         Locale: Locale,
@@ -387,7 +440,10 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         SetIndicatorElementAction: SetIndicatorElement,
         GetIndicatorElementFunc: GetIndicatorElement,
         SetIndicatorPositionAction: SetIndicatorPosition,
-        GetIndicatorPositionFunc: GetIndicatorPosition);
+        GetIndicatorPositionFunc: GetIndicatorPosition,
+        HasRealtimeSubscribers: HasRealtimeSubscribers,
+        RegisterRealtimeSubscriberAction: RegisterRealtimeSubscriber,
+        UnregisterRealtimeSubscriberAction: UnregisterRealtimeSubscriber);
 
     private void SetActiveThumbIndex(int index)
     {
@@ -398,8 +454,6 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
             {
                 lastUsedThumbIndex = index;
             }
-            // During drag, JS controls DOM directly - don't trigger re-render
-            // Re-render will happen when drag ends
             if (!dragging)
             {
                 StateHasChanged();
@@ -412,8 +466,6 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
         if (dragging != value)
         {
             dragging = value;
-            // When starting drag, don't trigger re-render - JS controls DOM directly
-            // When ending drag, re-render to sync Blazor state with final values
             if (!value)
             {
                 StateHasChanged();
@@ -425,7 +477,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     {
         if (!IsControlled)
         {
-            currentValues = newValues;
+            currentValues = [..newValues];
         }
     }
 
@@ -474,7 +526,7 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     {
         if (!IsControlled)
         {
-            currentValues = newValues;
+            currentValues = [..newValues];
         }
 
         if (IsRange && ValuesChanged.HasDelegate)
@@ -563,6 +615,16 @@ public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDis
     }
 
     private (double? Start, double? End) GetIndicatorPosition() => (indicatorStart, indicatorEnd);
+
+    private void RegisterRealtimeSubscriber()
+    {
+        Interlocked.Increment(ref realtimeSubscriberCount);
+    }
+
+    private void UnregisterRealtimeSubscriber()
+    {
+        Interlocked.Decrement(ref realtimeSubscriberCount);
+    }
 
     private void HandleValuesChanged()
     {

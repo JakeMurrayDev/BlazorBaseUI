@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -7,6 +6,9 @@ namespace BlazorBaseUI.Accordion;
 public sealed class AccordionHeader : ComponentBase
 {
     private const string DefaultTag = "h3";
+
+    private bool isComponentRenderAs;
+    private AccordionHeaderState state = new(0, Orientation.Vertical, false, false);
 
     [CascadingParameter]
     private IAccordionItemContext? ItemContext { get; set; }
@@ -29,63 +31,94 @@ public sealed class AccordionHeader : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
-    private AccordionHeaderState State => new(
-        ItemContext?.Index ?? 0,
-        ItemContext?.Orientation ?? Orientation.Vertical,
-        ItemContext?.Disabled ?? false,
-        ItemContext?.Open ?? false);
+    protected override void OnInitialized()
+    {
+        state = new AccordionHeaderState(
+            ItemContext?.Index ?? 0,
+            ItemContext?.Orientation ?? Orientation.Vertical,
+            ItemContext?.Disabled ?? false,
+            ItemContext?.Open ?? false);
+    }
+
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var currentIndex = ItemContext?.Index ?? 0;
+        var currentOrientation = ItemContext?.Orientation ?? Orientation.Vertical;
+        var currentDisabled = ItemContext?.Disabled ?? false;
+        var currentOpen = ItemContext?.Open ?? false;
+
+        if (state.Index != currentIndex || state.Orientation != currentOrientation || state.Disabled != currentDisabled || state.Open != currentOpen)
+        {
+            state = state with { Index = currentIndex, Orientation = currentOrientation, Disabled = currentDisabled, Open = currentOpen };
+        }
+    }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (ItemContext is null)
+        {
             return;
+        }
 
-        
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        builder.AddAttribute(2, "data-index", state.Index.ToString());
+        builder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
+
+        if (state.Open)
+        {
+            builder.AddAttribute(4, "data-open", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(5, "data-closed", string.Empty);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(6, "data-disabled", string.Empty);
+        }
 
         if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
+        {
+            builder.AddAttribute(7, "class", resolvedClass);
+        }
         if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
+            builder.AddAttribute(8, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddAttribute(9, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(10, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
-            return;
         }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private Dictionary<string, object> BuildAttributes(AccordionHeaderState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
+        else
         {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+            builder.AddElementReferenceCapture(11, elementReference => Element = elementReference);
+            builder.AddContent(12, ChildContent);
+            builder.CloseElement();
         }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
     }
 }

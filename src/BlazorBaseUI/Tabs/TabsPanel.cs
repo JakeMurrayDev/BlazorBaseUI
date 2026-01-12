@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -11,8 +10,10 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
     private string? defaultId;
     private string panelId = null!;
     private bool previousHidden;
-    private TabsPanelState? cachedState;
-    private bool stateDirty = true;
+    private Orientation previousOrientation;
+    private ActivationDirection previousActivationDirection;
+    private TabsPanelState state = TabsPanelState.Default;
+    private bool isComponentRenderAs;
     private bool isRegistered;
 
     [CascadingParameter]
@@ -49,7 +50,9 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
         get
         {
             if (RootContext is null)
+            {
                 return true;
+            }
 
             return !EqualityComparer<TValue>.Default.Equals(RootContext.Value, Value);
         }
@@ -61,30 +64,29 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
 
     private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
-    private TabsPanelState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = new TabsPanelState(IsHidden, Orientation, ActivationDirection);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
-
     protected override void OnInitialized()
     {
         if (RootContext is null)
+        {
             throw new InvalidOperationException("TabsPanel must be used within a TabsRoot component.");
+        }
 
         panelId = ResolvedId;
         previousHidden = IsHidden;
+        previousOrientation = Orientation;
+        previousActivationDirection = ActivationDirection;
+        state = new TabsPanelState(previousHidden, previousOrientation, previousActivationDirection);
     }
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var newId = ResolvedId;
         if (newId != panelId)
         {
@@ -97,10 +99,17 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
         }
 
         var currentHidden = IsHidden;
-        if (currentHidden != previousHidden)
+        var currentOrientation = Orientation;
+        var currentActivationDirection = ActivationDirection;
+
+        if (currentHidden != previousHidden ||
+            currentOrientation != previousOrientation ||
+            currentActivationDirection != previousActivationDirection)
         {
-            stateDirty = true;
+            state = new TabsPanelState(currentHidden, currentOrientation, currentActivationDirection);
             previousHidden = currentHidden;
+            previousOrientation = currentOrientation;
+            previousActivationDirection = currentActivationDirection;
         }
 
         var shouldBeRegistered = !currentHidden || KeepMounted;
@@ -119,34 +128,78 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var shouldRender = !IsHidden || KeepMounted;
+        var isHidden = IsHidden;
+        var shouldRender = !isHidden || KeepMounted;
+
         if (!shouldRender)
-            return;
-
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
-        if (RenderAs is not null)
         {
-            if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-            {
-                throw new InvalidOperationException($"Type {RenderAs.Name} must implement IReferencableComponent.");
-            }
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(3, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
             return;
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientationValue = Orientation.ToDataAttributeString();
+        var tabId = RootContext?.GetTabIdByPanelValue(Value);
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "id", panelId);
+        builder.AddAttribute(3, "role", "tabpanel");
+        builder.AddAttribute(4, "tabindex", isHidden ? -1 : 0);
+
+        if (isHidden)
+        {
+            builder.AddAttribute(5, "hidden", true);
+        }
+
+        if (tabId is not null)
+        {
+            builder.AddAttribute(6, "aria-labelledby", tabId);
+        }
+
+        if (orientationValue is not null)
+        {
+            builder.AddAttribute(7, "data-orientation", orientationValue);
+        }
+        builder.AddAttribute(8, "data-activation-direction", ActivationDirection.ToDataAttributeString());
+
+        if (isHidden)
+        {
+            builder.AddAttribute(9, "data-hidden", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(10, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(11, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component =>
+            {
+                Element = ((IReferencableComponent)component).Element;
+            });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(12, elementReference => Element = elementReference);
+            builder.AddContent(13, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     public void Dispose()
@@ -156,39 +209,5 @@ public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
             RootContext?.UnregisterPanel(Value, panelId);
             isRegistered = false;
         }
-    }
-
-    private Dictionary<string, object> BuildAttributes(TabsPanelState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["id"] = panelId;
-        attributes["role"] = "tabpanel";
-        attributes["tabindex"] = IsHidden ? -1 : 0;
-
-        if (IsHidden)
-            attributes["hidden"] = true;
-
-        var tabId = RootContext?.GetTabIdByPanelValue(Value);
-        if (tabId is not null)
-            attributes["aria-labelledby"] = tabId;
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
     }
 }

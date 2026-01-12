@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -14,8 +13,9 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private string? defaultId;
-    private bool hasRendered;
-    private ElementReference element;
+    private bool isComponentRenderAs;
+    private AccordionTriggerState state = new(false, Orientation.Vertical, string.Empty, false);
+    private EventCallback<MouseEventArgs> cachedClickCallback;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -50,18 +50,22 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool ResolvedDisabled => Disabled ?? ItemContext?.Disabled ?? false;
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
-    private AccordionTriggerState State => new(
-        ItemContext?.Open ?? false,
-        ItemContext?.Orientation ?? Orientation.Vertical,
-        ItemContext?.StringValue ?? string.Empty,
-        ResolvedDisabled);
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != ItemContext?.TriggerId)
+            {
+                ItemContext?.SetTriggerId(id);
+            }
+            return id;
+        }
+    }
 
     public AccordionTrigger()
     {
@@ -71,26 +75,51 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
 
     protected override void OnInitialized()
     {
-        ItemContext?.SetTriggerId(ResolvedId);
+        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick);
+        state = new AccordionTriggerState(
+            ItemContext?.Open ?? false,
+            ItemContext?.Orientation ?? Orientation.Vertical,
+            ItemContext?.StringValue ?? string.Empty,
+            ResolvedDisabled);
+    }
+
+    protected override void OnParametersSet()
+    {
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var currentOpen = ItemContext?.Open ?? false;
+        var currentOrientation = ItemContext?.Orientation ?? Orientation.Vertical;
+        var currentValue = ItemContext?.StringValue ?? string.Empty;
+        var currentDisabled = ResolvedDisabled;
+
+        if (state.Open != currentOpen || state.Orientation != currentOrientation || state.Value != currentValue || state.Disabled != currentDisabled)
+        {
+            state = state with { Open = currentOpen, Orientation = currentOrientation, Value = currentValue, Disabled = currentDisabled };
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            hasRendered = true;
-
-            try
+            if (Element.HasValue)
             {
-                var module = await moduleTask.Value;
-                var isHorizontal = RootContext?.Orientation == Orientation.Horizontal;
-                var isRtl = RootContext?.Direction == Direction.Rtl;
-                var loopFocus = RootContext?.LoopFocus ?? true;
+                try
+                {
+                    var module = await moduleTask.Value;
+                    var isHorizontal = RootContext?.Orientation == Orientation.Horizontal;
+                    var isRtl = RootContext?.Direction == Direction.Rtl;
+                    var loopFocus = RootContext?.LoopFocus ?? true;
 
-                await module.InvokeVoidAsync("initialize", element, isHorizontal, isRtl, loopFocus);
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
+                    await module.InvokeVoidAsync("initialize", Element.Value, isHorizontal, isRtl, loopFocus);
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
             }
         }
     }
@@ -98,86 +127,98 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (ItemContext is null)
-            return;
-        
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        if (RenderAs is not null)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
             return;
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, attributes);
-        builder.AddElementReferenceCapture(5, e => element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-    private Dictionary<string, object> BuildAttributes(AccordionTriggerState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
+        if (isComponentRenderAs)
         {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        attributes["id"] = ResolvedId;
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        builder.AddAttribute(2, "id", ResolvedId);
 
         if (NativeButton)
-            attributes["type"] = "button";
+        {
+            builder.AddAttribute(3, "type", "button");
+        }
 
-        attributes["tabindex"] = 0;
-        attributes["aria-Disabled"] = ResolvedDisabled ? "true" : "false";
-        attributes["aria-expanded"] = ItemContext?.Open == true ? "true" : "false";
+        builder.AddAttribute(4, "tabindex", 0);
+        builder.AddAttribute(5, "aria-disabled", ResolvedDisabled ? "true" : "false");
+        builder.AddAttribute(6, "aria-expanded", ItemContext.Open ? "true" : "false");
 
-        if (ItemContext?.Open is true)
-            attributes["aria-controls"] = ItemContext.PanelId;
+        builder.AddAttribute(7, "aria-controls", ItemContext.PanelId);
 
         if (ResolvedDisabled)
-            attributes["Disabled"] = true;
+        {
+            builder.AddAttribute(8, "disabled", true);
+        }
 
-        attributes["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick);
+        builder.AddAttribute(9, "onclick", cachedClickCallback);
 
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
+        builder.AddAttribute(10, "data-value", state.Value);
+        builder.AddAttribute(11, "data-orientation", state.Orientation.ToDataAttributeString());
 
-        return attributes;
+        if (state.Open)
+        {
+            builder.AddAttribute(12, "data-panel-open", string.Empty);
+        }
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(13, "data-disabled", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(14, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(15, "style", resolvedStyle);
+        }
+
+        if (isComponentRenderAs)
+        {
+            builder.AddAttribute(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
+            builder.AddContent(19, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     private void HandleClick(MouseEventArgs args)
     {
         if (ResolvedDisabled)
+        {
             return;
+        }
 
         ItemContext?.HandleTrigger();
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (hasRendered && moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", element);
+                await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

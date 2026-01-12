@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -9,7 +8,9 @@ public sealed class CollapsibleRoot : ComponentBase
     private const string DefaultTag = "div";
 
     private bool isOpen;
-    private string panelId = null!;
+    private string panelId = string.Empty;
+    private bool isComponentRenderAs;
+    private CollapsibleRootState state = new(false, false);
     private CollapsibleRootContext context = null!;
 
     [Parameter]
@@ -45,7 +46,6 @@ public sealed class CollapsibleRoot : ComponentBase
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => Open.HasValue;
@@ -54,98 +54,124 @@ public sealed class CollapsibleRoot : ComponentBase
 
     protected override void OnInitialized()
     {
-        panelId = Guid.NewGuid().ToIdString();
         isOpen = DefaultOpen;
-        context = CreateContext();
+        context = new CollapsibleRootContext(CurrentOpen, Disabled, panelId, HandleTrigger, SetPanelId);
+        state = new CollapsibleRootState(CurrentOpen, Disabled);
+    }
+
+    
+
+    internal void SetPanelId(string id)
+    {
+        panelId = id;
+        context = context with { PanelId = id  };
     }
 
     protected override void OnParametersSet()
     {
-        context = CreateContext();
+        isComponentRenderAs = RenderAs is not null;
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        if (string.IsNullOrEmpty(panelId))
+        {
+            var id = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id");
+            if (!string.IsNullOrEmpty(id))
+            {
+                SetPanelId(id);
+            }
+        }
+
+        var currentOpen = CurrentOpen;
+        if (state.Open != currentOpen || state.Disabled != Disabled)
+        {
+            state = state with { Open = currentOpen, Disabled = Disabled };
+            context = context with { Open = currentOpen, Disabled = Disabled };
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var state = context.State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var attributes = BuildAttributes(state);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
 
         builder.OpenComponent<CascadingValue<CollapsibleRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(innerBuilder =>
         {
-            if (RenderAs is not null)
+            if (isComponentRenderAs)
             {
-                innerBuilder.OpenComponent(4, RenderAs);
-                innerBuilder.AddMultipleAttributes(5, attributes);
-                innerBuilder.AddComponentParameter(6, "ChildContent", ChildContent);
+                innerBuilder.OpenComponent(0, RenderAs!);
+            }
+            else
+            {
+                innerBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            }
+
+            innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (state.Open)
+            {
+                innerBuilder.AddAttribute(2, "data-open", string.Empty);
+            }
+            else
+            {
+                innerBuilder.AddAttribute(3, "data-closed", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                innerBuilder.AddAttribute(4, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                innerBuilder.AddAttribute(5, "style", resolvedStyle);
+            }
+
+            if (isComponentRenderAs)
+            {
+                innerBuilder.AddAttribute(6, "ChildContent", ChildContent);
+                innerBuilder.AddComponentReferenceCapture(7, component => { Element = ((IReferencableComponent)component).Element; });
                 innerBuilder.CloseComponent();
             }
             else
             {
-                var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-                innerBuilder.OpenElement(7, tag);
-                innerBuilder.AddMultipleAttributes(8, attributes);
-                innerBuilder.AddElementReferenceCapture(9, e => Element = e);
-                innerBuilder.AddContent(10, ChildContent);
+                innerBuilder.AddElementReferenceCapture(8, elementReference => Element = elementReference);
+                innerBuilder.AddContent(9, ChildContent);
                 innerBuilder.CloseElement();
             }
         }));
         builder.CloseComponent();
     }
 
-    private Dictionary<string, object> BuildAttributes(CollapsibleRootState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
-    private CollapsibleRootContext CreateContext() => new(
-        Open: CurrentOpen,
-        Disabled: Disabled,
-        PanelId: panelId,
-        HandleTrigger: HandleTrigger);
-
     private void HandleTrigger()
     {
         if (Disabled)
+        {
             return;
+        }
 
         var nextOpen = !CurrentOpen;
         var args = new CollapsibleOpenChangeEventArgs(nextOpen);
 
-        OnOpenChange.InvokeAsync(args);
+        _ = OnOpenChange.InvokeAsync(args);
 
         if (args.Canceled)
+        {
             return;
+        }
 
         if (!IsControlled)
         {
             isOpen = nextOpen;
         }
 
-        OpenChanged.InvokeAsync(nextOpen);
-        context = CreateContext();
+        _ = OpenChanged.InvokeAsync(nextOpen);
+        state = state with { Open = nextOpen };
+        context = context with { Open = nextOpen };
         StateHasChanged();
     }
 }

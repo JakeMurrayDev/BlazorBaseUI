@@ -8,13 +8,3 @@ public enum ActivationDirection
     Up,
     Down
 }
-
-public enum TabsDataAttribute
-{
-    Orientation,
-    ActivationDirection,
-    Disabled,
-    Active,
-    Hidden,
-    Index
-}

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -13,10 +12,17 @@ namespace BlazorBaseUI.Slider;
 public sealed class SliderThumb : ComponentBase, IDisposable
 {
     private const string DefaultTag = "div";
+
     private bool hasRendered;
+    private bool isComponentRenderAs;
     private string inputId = null!;
     private ElementReference element;
     private ElementReference inputElement;
+    private SliderThumbState state = SliderThumbState.Default;
+    private EventCallback<ChangeEventArgs> cachedOnChange;
+    private EventCallback<FocusEventArgs> cachedOnFocus;
+    private EventCallback<FocusEventArgs> cachedOnBlur;
+    private EventCallback<KeyboardEventArgs> cachedOnKeyDown;
 
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
@@ -72,7 +78,6 @@ public sealed class SliderThumb : ComponentBase, IDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private int ResolvedIndex => Index ?? 0;
@@ -89,11 +94,6 @@ public sealed class SliderThumb : ComponentBase, IDisposable
 
     private bool IsActive => Context?.ActiveThumbIndex == ResolvedIndex;
 
-    private SliderThumbState State => SliderThumbState.FromRootState(
-        Context?.State ?? SliderRootState.Default,
-        ResolvedIndex,
-        IsActive);
-
     protected override void OnInitialized()
     {
         inputId = IsRange
@@ -104,10 +104,27 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         {
             LabelableContext?.SetControlId(inputId);
         }
+
+        cachedOnChange = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange);
+        cachedOnFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
+        cachedOnBlur = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
+        cachedOnKeyDown = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown);
     }
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        state = SliderThumbState.FromRootState(
+            Context?.State ?? SliderRootState.Default,
+            ResolvedIndex,
+            IsActive);
+
         if (Context is not null && hasRendered)
         {
             var metadata = new ThumbMetadata(inputId, element, inputElement);
@@ -120,40 +137,154 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         if (Context is null)
             return;
 
-        
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(State));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(State));
-        var attributes = BuildAttributes(State);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
         var positionStyle = GetPositionStyle();
-        attributes["style"] = CombineStyles(
-            attributes.TryGetValue("style", out var existingStyle) ? existingStyle.ToString() : null,
-            positionStyle);
 
-        if (RenderAs is not null)
+        var combinedStyle = string.IsNullOrEmpty(resolvedStyle)
+            ? positionStyle
+            : $"{resolvedStyle.TrimEnd().TrimEnd(';')}; {positionStyle}";
+
+        if (isComponentRenderAs)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, attributes);
-            builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(innerBuilder =>
-            {
-                RenderInput(innerBuilder);
-                innerBuilder.AddContent(3, ChildContent);
-            }));
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(4, tag);
-        builder.AddMultipleAttributes(5, attributes);
-        builder.AddElementReferenceCapture(6, e => element = e);
-        RenderInput(builder);
-        builder.AddContent(7, ChildContent);
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "tabindex", -1);
+        builder.AddAttribute(3, "data-index", state.Index.ToString());
+
+        if (state.Dragging)
+        {
+            builder.AddAttribute(4, "data-dragging", string.Empty);
+        }
+
+        builder.AddAttribute(5, "data-orientation", orientationStr);
+
+        if (state.Disabled)
+        {
+            builder.AddAttribute(6, "data-disabled", string.Empty);
+        }
+
+        if (state.ReadOnly)
+        {
+            builder.AddAttribute(7, "data-readonly", string.Empty);
+        }
+
+        if (state.Required)
+        {
+            builder.AddAttribute(8, "data-required", string.Empty);
+        }
+
+        if (state.Valid == true)
+        {
+            builder.AddAttribute(9, "data-valid", string.Empty);
+        }
+        else if (state.Valid == false)
+        {
+            builder.AddAttribute(10, "data-invalid", string.Empty);
+        }
+
+        if (state.Touched)
+        {
+            builder.AddAttribute(11, "data-touched", string.Empty);
+        }
+
+        if (state.Dirty)
+        {
+            builder.AddAttribute(12, "data-dirty", string.Empty);
+        }
+
+        if (state.Focused)
+        {
+            builder.AddAttribute(13, "data-focused", string.Empty);
+        }
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(14, "class", resolvedClass);
+        }
+
+        builder.AddAttribute(15, "style", combinedStyle);
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(16, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                BuildInput(innerBuilder, 0);
+                innerBuilder.AddContent(21, ChildContent);
+            }));
+            builder.AddComponentReferenceCapture(17, component => { element = ((IReferencableComponent)component).Element ?? default; Element = element; });
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(18, e => { element = e; Element = e; });
+            BuildInput(builder, 19);
+            builder.AddContent(40, ChildContent);
+            builder.CloseElement();
+        }
+    }
+
+    private void BuildInput(RenderTreeBuilder builder, int startSequence)
+    {
+        if (Context is null)
+            return;
+
+        var thumbValue = ThumbValue;
+        var formattedValue = SliderUtilities.FormatNumber(thumbValue, Context.Locale, Context.FormatOptions);
+        var ariaLabel = GetAriaLabel?.Invoke(ResolvedIndex);
+        var ariaValueText = GetAriaValueText?.Invoke(formattedValue, thumbValue, ResolvedIndex) ?? GetDefaultAriaValueText(formattedValue);
+        var describedBy = LabelableContext?.GetAriaDescribedBy();
+
+        builder.OpenElement(startSequence, "input");
+        builder.AddAttribute(startSequence + 1, "type", "range");
+        builder.AddAttribute(startSequence + 2, "id", inputId);
+        builder.AddAttribute(startSequence + 3, "min", Context.Min);
+        builder.AddAttribute(startSequence + 4, "max", Context.Max);
+        builder.AddAttribute(startSequence + 5, "step", Context.Step);
+        builder.AddAttribute(startSequence + 6, "value", thumbValue);
+        builder.AddAttribute(startSequence + 7, "disabled", ResolvedDisabled);
+        builder.AddAttribute(startSequence + 8, "aria-valuenow", thumbValue);
+        builder.AddAttribute(startSequence + 9, "aria-orientation", Context.Orientation.ToDataAttributeString());
+
+        if (!string.IsNullOrEmpty(ariaLabel))
+        {
+            builder.AddAttribute(startSequence + 10, "aria-label", ariaLabel);
+        }
+
+        if (!string.IsNullOrEmpty(ariaValueText))
+        {
+            builder.AddAttribute(startSequence + 11, "aria-valuetext", ariaValueText);
+        }
+
+        if (!string.IsNullOrEmpty(Context.LabelId) && !IsRange)
+        {
+            builder.AddAttribute(startSequence + 12, "aria-labelledby", Context.LabelId);
+        }
+
+        if (!string.IsNullOrEmpty(describedBy))
+        {
+            builder.AddAttribute(startSequence + 13, "aria-describedby", describedBy);
+        }
+
+        if (!string.IsNullOrEmpty(Context.Name))
+        {
+            var inputName = IsRange ? $"{Context.Name}[{ResolvedIndex}]" : Context.Name;
+            builder.AddAttribute(startSequence + 14, "name", inputName);
+        }
+
+        builder.AddAttribute(startSequence + 15, "style", "clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;");
+        builder.AddAttribute(startSequence + 16, "onchange", cachedOnChange);
+        builder.AddAttribute(startSequence + 17, "onfocus", cachedOnFocus);
+        builder.AddAttribute(startSequence + 18, "onblur", cachedOnBlur);
+        builder.AddAttribute(startSequence + 19, "onkeydown", cachedOnKeyDown);
+        builder.AddElementReferenceCapture(startSequence + 20, e => inputElement = e);
         builder.CloseElement();
     }
 
@@ -178,79 +309,6 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         {
             LabelableContext?.SetControlId(null);
         }
-    }
-
-    private Dictionary<string, object> BuildAttributes(SliderThumbState state)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["tabindex"] = -1;
-
-        foreach (var dataAttr in state.GetDataAttributes())
-            attributes[dataAttr.Key] = dataAttr.Value;
-
-        return attributes;
-    }
-
-    private void RenderInput(RenderTreeBuilder builder)
-    {
-        if (Context is null)
-            return;
-
-        var thumbValue = ThumbValue;
-        var formattedValue = SliderUtilities.FormatNumber(thumbValue, Context.Locale, Context.FormatOptions);
-
-        builder.OpenElement(8, "input");
-        builder.AddAttribute(9, "type", "range");
-        builder.AddAttribute(10, "id", inputId);
-        builder.AddAttribute(11, "min", Context.Min);
-        builder.AddAttribute(12, "max", Context.Max);
-        builder.AddAttribute(13, "step", Context.Step);
-        builder.AddAttribute(14, "Value", thumbValue);
-        builder.AddAttribute(15, "Disabled", ResolvedDisabled);
-        builder.AddAttribute(16, "aria-valuenow", thumbValue);
-        builder.AddAttribute(17, "aria-Orientation", Context.Orientation.ToDataAttributeString());
-
-        var ariaLabel = GetAriaLabel?.Invoke(ResolvedIndex);
-        if (!string.IsNullOrEmpty(ariaLabel))
-            builder.AddAttribute(18, "aria-label", ariaLabel);
-
-        var ariaValueText = GetAriaValueText?.Invoke(formattedValue, thumbValue, ResolvedIndex)
-            ?? GetDefaultAriaValueText(formattedValue);
-        if (!string.IsNullOrEmpty(ariaValueText))
-            builder.AddAttribute(19, "aria-valuetext", ariaValueText);
-
-        if (Context.LabelId is not null && !IsRange)
-            builder.AddAttribute(20, "aria-labelledby", Context.LabelId);
-
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
-            builder.AddAttribute(21, "aria-describedby", describedBy);
-
-        if (Context.Name is not null)
-        {
-            var inputName = IsRange ? $"{Context.Name}[{ResolvedIndex}]" : Context.Name;
-            builder.AddAttribute(22, "name", inputName);
-        }
-
-        // Style matches Base-UI: position fixed, full size, clipped for screen reader accessibility
-        builder.AddAttribute(23, "style", "clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;");
-
-        builder.AddAttribute(24, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange));
-        builder.AddAttribute(25, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(26, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-        builder.AddAttribute(27, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
-        builder.AddElementReferenceCapture(28, e => inputElement = e);
-        builder.CloseElement();
     }
 
     private string? GetDefaultAriaValueText(string formattedValue)
@@ -278,11 +336,11 @@ public sealed class SliderThumb : ComponentBase, IDisposable
 
         if (IsVertical)
         {
-            return $"position: absolute; bottom: {percent:F4}%; left: 50%; transform: translate(-50%, 50%);";
+            return $"position: absolute; bottom: {percent.ToString("F4", CultureInfo.InvariantCulture)}%; left: 50%; transform: translate(-50%, 50%);";
         }
         else
         {
-            return $"position: absolute; top: 50%; inset-inline-start: {percent:F4}%; transform: translate(-50%, -50%);";
+            return $"position: absolute; top: 50%; inset-inline-start: {percent.ToString("F4", CultureInfo.InvariantCulture)}%; transform: translate(-50%, -50%);";
         }
     }
 
@@ -423,17 +481,5 @@ public sealed class SliderThumb : ComponentBase, IDisposable
         }
 
         return Context.Max;
-    }
-
-    private static string CombineStyles(string? existing, string additional)
-    {
-        if (string.IsNullOrEmpty(existing))
-            return additional;
-
-        var trimmed = existing.TrimEnd();
-        if (!trimmed.EndsWith(';'))
-            trimmed += ";";
-
-        return trimmed + " " + additional;
     }
 }

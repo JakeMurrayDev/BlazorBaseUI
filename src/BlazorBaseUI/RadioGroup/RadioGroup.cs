@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -19,6 +18,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
+    private bool isComponentRenderAs;
     private bool hasRendered;
     private string? defaultId;
     private string groupId = null!;
@@ -26,7 +26,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     private TValue? previousValue;
     private RadioGroupContext<TValue>? groupContext;
 
-    private RadioGroupState? cachedState;
+    private RadioGroupState state = RadioGroupState.Default;
     private bool stateDirty = true;
 
     private bool contextDisabled;
@@ -102,7 +102,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool IsControlled => ValueChanged.HasDelegate;
@@ -115,25 +114,12 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
-    private RadioGroupState State
-    {
-        get
-        {
-            if (stateDirty || cachedState is null)
-            {
-                cachedState = RadioGroupState.FromFieldState(FieldState, ResolvedDisabled, ReadOnly, Required);
-                stateDirty = false;
-            }
-            return cachedState;
-        }
-    }
-
     private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     public RadioGroup()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
-                                    JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
     protected override void OnInitialized()
@@ -185,6 +171,13 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     protected override void OnParametersSet()
     {
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        {
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
         var currentDisabled = ResolvedDisabled;
         var currentReadOnly = ReadOnly;
         var currentRequired = Required;
@@ -205,6 +198,12 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
+        if (stateDirty)
+        {
+            state = RadioGroupState.FromFieldState(FieldState, ResolvedDisabled, ReadOnly, Required);
+            stateDirty = false;
+        }
+
         var needsContextUpdate = groupContext is null ||
             contextDisabled != ResolvedDisabled ||
             contextReadOnly != ReadOnly ||
@@ -235,12 +234,122 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         builder.OpenComponent<CascadingValue<IRadioGroupContext<TValue>>>(0);
         builder.AddComponentParameter(1, "Value", groupContext);
         builder.AddComponentParameter(2, "IsFixed", true);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(contextBuilder =>
-        {
-            RenderGroup(contextBuilder);
-            RenderHiddenInput(contextBuilder);
-        }));
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderContent);
         builder.CloseComponent();
+    }
+
+    private void RenderContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+        }
+
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "role", "radiogroup");
+
+        if (Required)
+            builder.AddAttribute(3, "aria-required", "true");
+
+        if (ResolvedDisabled)
+            builder.AddAttribute(4, "aria-disabled", "true");
+
+        if (ReadOnly)
+            builder.AddAttribute(5, "aria-readonly", "true");
+
+        var labelledBy = LabelableContext?.LabelId ?? FieldsetContext?.LegendId;
+        if (!string.IsNullOrEmpty(labelledBy))
+            builder.AddAttribute(6, "aria-labelledby", labelledBy);
+
+        var describedBy = LabelableContext?.GetAriaDescribedBy();
+        if (!string.IsNullOrEmpty(describedBy))
+            builder.AddAttribute(7, "aria-describedby", describedBy);
+
+        builder.AddAttribute(8, "onfocus", cachedFocusCallback);
+        builder.AddAttribute(9, "onblur", cachedBlurCallback);
+        builder.AddAttribute(10, "onkeydowncapture", cachedKeyDownCaptureCallback);
+
+        if (state.Disabled)
+            builder.AddAttribute(11, "data-disabled", string.Empty);
+
+        if (state.ReadOnly)
+            builder.AddAttribute(12, "data-readonly", string.Empty);
+
+        if (state.Required)
+            builder.AddAttribute(13, "data-required", string.Empty);
+
+        if (state.Valid == true)
+            builder.AddAttribute(14, "data-valid", string.Empty);
+        else if (state.Valid == false)
+            builder.AddAttribute(15, "data-invalid", string.Empty);
+
+        if (state.Touched)
+            builder.AddAttribute(16, "data-touched", string.Empty);
+
+        if (state.Dirty)
+            builder.AddAttribute(17, "data-dirty", string.Empty);
+
+        if (state.Filled)
+            builder.AddAttribute(18, "data-filled", string.Empty);
+
+        if (state.Focused)
+            builder.AddAttribute(19, "data-focused", string.Empty);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+            builder.AddAttribute(20, "class", resolvedClass);
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+            builder.AddAttribute(21, "style", resolvedStyle);
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(22, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(23, component => Element = ((IReferencableComponent)component).Element);
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(24, elementReference => Element = elementReference);
+            builder.AddContent(25, ChildContent);
+            builder.CloseElement();
+        }
+
+        var serializedValue = SerializeValue(CurrentValue);
+
+        builder.OpenElement(26, "input");
+        builder.AddAttribute(27, "type", "radio");
+        builder.AddAttribute(28, "id", groupId);
+        builder.AddAttribute(29, "tabindex", -1);
+        builder.AddAttribute(30, "aria-hidden", "true");
+        builder.AddAttribute(31, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+
+        if (ResolvedName is not null)
+            builder.AddAttribute(32, "name", ResolvedName);
+
+        builder.AddAttribute(33, "value", serializedValue ?? string.Empty);
+
+        if (CurrentValue is not null)
+            builder.AddAttribute(34, "checked");
+
+        if (ResolvedDisabled)
+            builder.AddAttribute(35, "disabled");
+
+        if (Required)
+            builder.AddAttribute(36, "required");
+
+        if (ReadOnly)
+            builder.AddAttribute(37, "readonly");
+
+        builder.AddAttribute(38, "onchange", cachedHiddenInputChangeCallback);
+        builder.AddAttribute(39, "onfocus", cachedHiddenInputFocusCallback);
+        builder.CloseElement();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -278,149 +387,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
     {
         stateDirty = true;
         _ = InvokeAsync(StateHasChanged);
-    }
-
-    private void RenderGroup(RenderTreeBuilder builder)
-    {
-        var state = State;
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-
-        if (RenderAs is not null)
-        {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
-        }
-
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
-    }
-
-    private void RenderHiddenInput(RenderTreeBuilder builder)
-    {
-        var serializedValue = SerializeValue(CurrentValue);
-
-        builder.OpenElement(7, "input");
-        builder.AddAttribute(8, "type", "radio");
-        builder.AddAttribute(9, "id", groupId);
-        builder.AddAttribute(10, "tabindex", -1);
-        builder.AddAttribute(11, "aria-hidden", true);
-        builder.AddAttribute(12, "style",
-            "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
-
-        if (ResolvedName is not null)
-            builder.AddAttribute(13, "name", ResolvedName);
-
-        builder.AddAttribute(14, "value", serializedValue ?? string.Empty);
-
-        if (CurrentValue is not null)
-            builder.AddAttribute(15, "checked", true);
-
-        if (ResolvedDisabled)
-            builder.AddAttribute(16, "disabled", true);
-
-        if (Required)
-            builder.AddAttribute(17, "required", true);
-
-        if (ReadOnly)
-            builder.AddAttribute(18, "readonly", true);
-
-        builder.AddAttribute(19, "onchange", cachedHiddenInputChangeCallback);
-        builder.AddAttribute(20, "onfocus", cachedHiddenInputFocusCallback);
-        builder.CloseElement();
-    }
-
-    private void HandleHiddenInputChange(ChangeEventArgs e)
-    {
-        if (ResolvedDisabled || ReadOnly)
-            return;
-
-        FieldContext?.SetTouched(true);
-
-        var currentValue = CurrentValue;
-        var initialValue = FieldContext?.ValidityData.InitialValue;
-        var isDirty = initialValue is TValue initial
-            ? !EqualityComparer<TValue>.Default.Equals(currentValue, initial)
-            : currentValue is not null;
-
-        FieldContext?.SetDirty(isDirty);
-        FieldContext?.SetFilled(currentValue is not null);
-    }
-
-    private void HandleHiddenInputFocus(FocusEventArgs e)
-    {
-        _ = FocusFirstRadioAsync();
-    }
-
-    private async Task FocusFirstRadioAsync()
-    {
-        if (groupContext is not null)
-        {
-            var firstRadio = groupContext.GetFirstEnabledRadio();
-            if (firstRadio is not null)
-            {
-                try
-                {
-                    await firstRadio.Focus();
-                }
-                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-                {
-                }
-            }
-        }
-    }
-
-    private Dictionary<string, object> BuildAttributes(RadioGroupState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        attributes["role"] = "radiogroup";
-
-        if (Required)
-            attributes["aria-required"] = true;
-
-        if (ResolvedDisabled)
-            attributes["aria-disabled"] = true;
-
-        if (ReadOnly)
-            attributes["aria-readonly"] = true;
-
-        var labelledBy = LabelableContext?.LabelId ?? FieldsetContext?.LegendId;
-        if (labelledBy is not null)
-            attributes["aria-labelledby"] = labelledBy;
-
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (describedBy is not null)
-            attributes["aria-describedby"] = describedBy;
-
-        attributes["onfocus"] = cachedFocusCallback;
-        attributes["onblur"] = cachedBlurCallback;
-        attributes["onkeydowncapture"] = cachedKeyDownCaptureCallback;
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
     }
 
     private RadioGroupContext<TValue> CreateContext() => new(
@@ -489,6 +455,46 @@ public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, I
         {
             FieldContext?.SetTouched(true);
             FieldContext?.SetFocused(true);
+        }
+    }
+
+    private void HandleHiddenInputChange(ChangeEventArgs e)
+    {
+        if (ResolvedDisabled || ReadOnly)
+            return;
+
+        FieldContext?.SetTouched(true);
+
+        var currentValue = CurrentValue;
+        var initialValue = FieldContext?.ValidityData.InitialValue;
+        var isDirty = initialValue is TValue initial
+            ? !EqualityComparer<TValue>.Default.Equals(currentValue, initial)
+            : currentValue is not null;
+
+        FieldContext?.SetDirty(isDirty);
+        FieldContext?.SetFilled(currentValue is not null);
+    }
+
+    private void HandleHiddenInputFocus(FocusEventArgs e)
+    {
+        _ = FocusFirstRadioAsync();
+    }
+
+    private async Task FocusFirstRadioAsync()
+    {
+        if (groupContext is not null)
+        {
+            var firstRadio = groupContext.GetFirstEnabledRadio();
+            if (firstRadio is not null)
+            {
+                try
+                {
+                    await firstRadio.Focus();
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
+            }
         }
     }
 

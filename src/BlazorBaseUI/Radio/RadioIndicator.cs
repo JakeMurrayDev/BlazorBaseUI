@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -8,11 +7,13 @@ public sealed class RadioIndicator : ComponentBase, IDisposable
 {
     private const string DefaultTag = "span";
 
+    private bool isComponentRenderAs;
     private bool isMounted;
     private bool previousRendered;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private CancellationTokenSource? transitionCts;
-    private RadioIndicatorState? cachedState;
+    private RadioIndicatorState state = new(false, false, false, false, null, false, false, false, false, TransitionStatus.Undefined);
+    private bool stateDirty = true;
 
     [CascadingParameter]
     private RadioRootContext? RadioContext { get; set; }
@@ -38,18 +39,56 @@ public sealed class RadioIndicator : ComponentBase, IDisposable
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    [DisallowNull]
     public ElementReference? Element { get; private set; }
 
     private bool Rendered => RadioContext?.Checked == true;
 
     private bool IsPresent => KeepMounted || isMounted || Rendered;
 
-    private RadioIndicatorState State
+    protected override void OnParametersSet()
     {
-        get
+        isComponentRenderAs = RenderAs is not null;
+
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
         {
-            var newState = new RadioIndicatorState(
+            throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+        }
+
+        var newChecked = RadioContext?.Checked ?? false;
+        var newDisabled = RadioContext?.Disabled ?? false;
+        var newReadOnly = RadioContext?.ReadOnly ?? false;
+        var newRequired = RadioContext?.Required ?? false;
+        var newValid = RadioContext?.State.Valid;
+        var newTouched = RadioContext?.State.Touched ?? false;
+        var newDirty = RadioContext?.State.Dirty ?? false;
+        var newFilled = RadioContext?.State.Filled ?? false;
+        var newFocused = RadioContext?.State.Focused ?? false;
+
+        if (state.Checked != newChecked ||
+            state.Disabled != newDisabled ||
+            state.ReadOnly != newReadOnly ||
+            state.Required != newRequired ||
+            state.Valid != newValid ||
+            state.Touched != newTouched ||
+            state.Dirty != newDirty ||
+            state.Filled != newFilled ||
+            state.Focused != newFocused ||
+            state.TransitionStatus != transitionStatus)
+        {
+            stateDirty = true;
+        }
+
+        UpdateTransitionStatus();
+    }
+
+    protected override void BuildRenderTree(RenderTreeBuilder builder)
+    {
+        if (!IsPresent)
+            return;
+
+        if (stateDirty)
+        {
+            state = new RadioIndicatorState(
                 RadioContext?.Checked ?? false,
                 RadioContext?.Disabled ?? false,
                 RadioContext?.ReadOnly ?? false,
@@ -60,45 +99,77 @@ public sealed class RadioIndicator : ComponentBase, IDisposable
                 RadioContext?.State.Filled ?? false,
                 RadioContext?.State.Focused ?? false,
                 transitionStatus);
-
-            if (cachedState is null || !StatesEqual(cachedState, newState))
-            {
-                cachedState = newState;
-            }
-
-            return cachedState;
+            stateDirty = false;
         }
-    }
 
-    protected override void OnParametersSet()
-    {
-        UpdateTransitionStatus();
-    }
-
-    protected override void BuildRenderTree(RenderTreeBuilder builder)
-    {
-        if (!IsPresent)
-            return;
-
-        var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        if (RenderAs is not null)
+        if (isComponentRenderAs)
         {
-            builder.OpenComponent(0, RenderAs);
-            builder.AddMultipleAttributes(1, BuildAttributes(state, resolvedClass, resolvedStyle));
-            builder.AddComponentParameter(2, "ChildContent", ChildContent);
-            builder.CloseComponent();
-            return;
+            builder.OpenComponent(0, RenderAs!);
+        }
+        else
+        {
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
-        builder.OpenElement(3, tag);
-        builder.AddMultipleAttributes(4, BuildAttributes(state, resolvedClass, resolvedStyle));
-        builder.AddElementReferenceCapture(5, e => Element = e);
-        builder.AddContent(6, ChildContent);
-        builder.CloseElement();
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+        if (state.Checked)
+            builder.AddAttribute(2, "data-checked", string.Empty);
+        else
+            builder.AddAttribute(3, "data-unchecked", string.Empty);
+
+        if (state.Disabled)
+            builder.AddAttribute(4, "data-disabled", string.Empty);
+
+        if (state.ReadOnly)
+            builder.AddAttribute(5, "data-readonly", string.Empty);
+
+        if (state.Required)
+            builder.AddAttribute(6, "data-required", string.Empty);
+
+        if (state.Valid == true)
+            builder.AddAttribute(7, "data-valid", string.Empty);
+        else if (state.Valid == false)
+            builder.AddAttribute(8, "data-invalid", string.Empty);
+
+        if (state.Touched)
+            builder.AddAttribute(9, "data-touched", string.Empty);
+
+        if (state.Dirty)
+            builder.AddAttribute(10, "data-dirty", string.Empty);
+
+        if (state.Filled)
+            builder.AddAttribute(11, "data-filled", string.Empty);
+
+        if (state.Focused)
+            builder.AddAttribute(12, "data-focused", string.Empty);
+
+        if (state.TransitionStatus == TransitionStatus.Starting)
+            builder.AddAttribute(13, "data-starting-style", string.Empty);
+        else if (state.TransitionStatus == TransitionStatus.Ending)
+            builder.AddAttribute(14, "data-ending-style", string.Empty);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+            builder.AddAttribute(15, "class", resolvedClass);
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+            builder.AddAttribute(16, "style", resolvedStyle);
+
+        if (isComponentRenderAs)
+        {
+            builder.AddComponentParameter(17, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(18, component => Element = ((IReferencableComponent)component).Element);
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddElementReferenceCapture(19, elementReference => Element = elementReference);
+            builder.AddContent(20, ChildContent);
+            builder.CloseElement();
+        }
     }
 
     public void Dispose()
@@ -117,11 +188,13 @@ public sealed class RadioIndicator : ComponentBase, IDisposable
         {
             isMounted = true;
             transitionStatus = TransitionStatus.Starting;
+            stateDirty = true;
             ScheduleTransitionEnd();
         }
         else if (!isRendered && wasRendered)
         {
             transitionStatus = TransitionStatus.Ending;
+            stateDirty = true;
             ScheduleUnmount();
         }
     }
@@ -142,6 +215,7 @@ public sealed class RadioIndicator : ComponentBase, IDisposable
             return;
 
         transitionStatus = TransitionStatus.Undefined;
+        stateDirty = true;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -162,41 +236,7 @@ public sealed class RadioIndicator : ComponentBase, IDisposable
 
         isMounted = false;
         transitionStatus = TransitionStatus.Undefined;
+        stateDirty = true;
         await InvokeAsync(StateHasChanged);
     }
-
-    private Dictionary<string, object> BuildAttributes(RadioIndicatorState state, string? resolvedClass, string? resolvedStyle)
-    {
-        var attributes = new Dictionary<string, object>();
-
-        if (AdditionalAttributes is not null)
-        {
-            foreach (var attr in AdditionalAttributes)
-            {
-                if (attr.Key is not "class" and not "style")
-                    attributes[attr.Key] = attr.Value;
-            }
-        }
-
-        state.WriteDataAttributes(attributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-            attributes["class"] = resolvedClass;
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            attributes["style"] = resolvedStyle;
-
-        return attributes;
-    }
-
-    private static bool StatesEqual(RadioIndicatorState a, RadioIndicatorState b) =>
-        a.Checked == b.Checked &&
-        a.Disabled == b.Disabled &&
-        a.ReadOnly == b.ReadOnly &&
-        a.Required == b.Required &&
-        a.Valid == b.Valid &&
-        a.Touched == b.Touched &&
-        a.Dirty == b.Dirty &&
-        a.Filled == b.Filled &&
-        a.Focused == b.Focused &&
-        a.TransitionStatus == b.TransitionStatus;
 }
