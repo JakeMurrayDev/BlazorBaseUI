@@ -90,7 +90,7 @@ public sealed class CollapsibleTrigger : ComponentBase
             builder.AddAttribute(2, "type", "button");
         }
 
-        builder.AddAttribute(3, "aria-controls", Context.PanelId ?? string.Empty);
+        builder.AddAttribute(3, "aria-controls", Context.PanelId);
         builder.AddAttribute(4, "aria-expanded", Context.Open ? "true" : "false");
 
         if (ResolvedDisabled)

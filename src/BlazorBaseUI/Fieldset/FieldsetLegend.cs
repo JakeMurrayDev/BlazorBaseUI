@@ -73,8 +73,14 @@ public sealed class FieldsetLegend : ComponentBase, IDisposable
             {
                 builder.AddAttribute(3, "data-disabled", "");
             }
-            builder.AddAttribute(4, "class", resolvedClass);
-            builder.AddAttribute(5, "style", resolvedStyle);
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(4, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(5, "style", resolvedStyle);
+            }
             builder.AddComponentParameter(6, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(7, component => Element = ((IReferencableComponent)component).Element);
             builder.CloseComponent();

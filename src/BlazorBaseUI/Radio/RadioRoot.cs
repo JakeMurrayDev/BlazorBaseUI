@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
@@ -350,7 +351,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             builder.AddAttribute(43, "name", ResolvedName);
 
         if (Value is not null)
-            builder.AddAttribute(44, "value", Value.ToString());
+            builder.AddAttribute(44, "value", SerializeValue(Value));
 
         builder.AddAttribute(45, "onchange", cachedInputChangeCallback);
         builder.AddAttribute(46, "onfocus", cachedInputFocusCallback);
@@ -520,5 +521,16 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
         {
             await GroupContext.SetCheckedValueAsync(Value);
         }
+    }
+
+    private static string? SerializeValue(TValue? value)
+    {
+        if (value is null)
+            return null;
+
+        if (value is string str)
+            return str;
+
+        return JsonSerializer.Serialize(value);
     }
 }

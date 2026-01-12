@@ -189,7 +189,7 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         builder.AddAttribute(4, "aria-selected", isActive ? "true" : "false");
         builder.AddAttribute(5, "tabindex", TabIndex);
 
-        builder.AddAttribute(6, "aria-controls", panelId ?? string.Empty);
+        builder.AddAttribute(6, "aria-controls", panelId);
 
         if (NativeButton)
         {
