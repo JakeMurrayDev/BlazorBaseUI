@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Progress;
 
-public sealed class ProgressValue : ComponentBase
+public sealed class ProgressValue : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "span";
 

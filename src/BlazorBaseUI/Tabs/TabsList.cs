@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Tabs;
 
-public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
+public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";
@@ -232,6 +232,7 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
             var ordered = RootContext.GetOrderedTabs();
             if (ordered.Length == 0)
             {
+                await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
                 return;
             }
 
@@ -260,5 +261,7 @@ public sealed class TabsList<TValue> : ComponentBase, IAsyncDisposable
                 await listContext.NavigateToLastAsync();
             }
         }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 }

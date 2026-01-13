@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BlazorBaseUI.RadioGroup;
 
-public sealed class RadioGroup<TValue> : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-radio.js";

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Switch;
 
-public sealed class SwitchThumb : ComponentBase
+public sealed class SwitchThumb : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "span";
 

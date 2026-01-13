@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Toolbar;
 
-public sealed class ToolbarGroup : ComponentBase
+public sealed class ToolbarGroup : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 

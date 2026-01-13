@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Toolbar;
 
-public sealed class ToolbarInput : ComponentBase, IDisposable
+public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "input";
 

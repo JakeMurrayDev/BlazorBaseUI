@@ -4,7 +4,7 @@ using BlazorBaseUI.Separator;
 
 namespace BlazorBaseUI.Toolbar;
 
-public sealed class ToolbarSeparator : ComponentBase
+public sealed class ToolbarSeparator : ComponentBase, IReferencableComponent
 {
     [CascadingParameter]
     private ToolbarRootContext? RootContext { get; set; }

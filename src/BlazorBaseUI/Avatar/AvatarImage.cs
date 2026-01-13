@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Avatar;
 
-public sealed class AvatarImage : ComponentBase, IAsyncDisposable
+public sealed class AvatarImage : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "img";
 

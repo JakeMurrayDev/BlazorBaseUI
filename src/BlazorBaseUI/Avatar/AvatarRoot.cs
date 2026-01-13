@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Avatar;
 
-public sealed class AvatarRoot : ComponentBase
+public sealed class AvatarRoot : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "span";
 

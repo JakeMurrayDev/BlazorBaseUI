@@ -4,7 +4,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldDescription : ComponentBase, IFieldStateSubscriber, IDisposable
+public sealed class FieldDescription : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IDisposable
 {
     private const string DefaultTag = "p";
 

@@ -9,7 +9,7 @@ using BlazorBaseUI.CheckboxGroup;
 
 namespace BlazorBaseUI.Checkbox;
 
-public sealed class CheckboxRoot : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "span";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-checkbox.js";

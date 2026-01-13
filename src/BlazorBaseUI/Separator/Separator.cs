@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Separator;
 
-public sealed class Separator : ComponentBase
+public sealed class Separator : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 

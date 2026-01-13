@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Tabs;
 
-public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
+public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";
@@ -336,6 +336,7 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         }
 
         await ActivateTabAsync();
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleFocusAsync(FocusEventArgs e)

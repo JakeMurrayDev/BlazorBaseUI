@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldLabel : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class FieldLabel : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "label";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-label.js";

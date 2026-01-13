@@ -5,7 +5,7 @@ using BlazorBaseUI.Utilities.CompositeList;
 
 namespace BlazorBaseUI.Accordion;
 
-public sealed class AccordionItem<TValue> : ComponentBase, IDisposable where TValue : notnull
+public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponent, IDisposable where TValue : notnull
 {
     private const string DefaultTag = "div";
 

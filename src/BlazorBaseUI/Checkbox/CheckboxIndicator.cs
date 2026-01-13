@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Checkbox;
 
-public sealed class CheckboxIndicator : ComponentBase, IDisposable
+public sealed class CheckboxIndicator : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "span";
 

@@ -6,7 +6,7 @@ using BlazorBaseUI.ToggleGroup;
 
 namespace BlazorBaseUI.Toggle;
 
-public sealed class Toggle : ComponentBase, IAsyncDisposable
+public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
@@ -410,6 +410,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         if (IsInGroup)
         {
             await GroupContext!.SetGroupValueAsync(resolvedValue, nextPressed);
+            await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
             return;
         }
 
@@ -436,6 +437,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
             await PressedChanged.InvokeAsync(nextPressed);
         }
 
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
         StateHasChanged();
     }
 
@@ -474,6 +476,8 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         {
             await GroupContext.NavigateToLastAsync();
         }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
     private async ValueTask FocusAsync()

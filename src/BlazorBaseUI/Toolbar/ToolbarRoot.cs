@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Toolbar;
 
-public sealed class ToolbarRoot : ComponentBase, IAsyncDisposable
+public sealed class ToolbarRoot : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
 

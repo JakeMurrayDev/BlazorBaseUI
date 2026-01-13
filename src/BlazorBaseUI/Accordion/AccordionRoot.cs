@@ -5,7 +5,7 @@ using BlazorBaseUI.DirectionProvider;
 
 namespace BlazorBaseUI.Accordion;
 
-public sealed class AccordionRoot<TValue> : ComponentBase where TValue : notnull
+public sealed class AccordionRoot<TValue> : ComponentBase, IReferencableComponent where TValue : notnull
 {
     private const string DefaultTag = "div";
 

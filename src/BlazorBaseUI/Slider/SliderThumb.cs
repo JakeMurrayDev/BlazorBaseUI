@@ -9,7 +9,7 @@ using BlazorBaseUI.Form;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderThumb : ComponentBase, IDisposable
+public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "div";
 

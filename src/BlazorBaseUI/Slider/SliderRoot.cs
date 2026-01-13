@@ -8,7 +8,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderRoot : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class SliderRoot : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-slider.js";

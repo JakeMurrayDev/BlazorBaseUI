@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.ToggleGroup;
 
-public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
+public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";

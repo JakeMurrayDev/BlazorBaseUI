@@ -10,7 +10,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.NumberField;
 
-public sealed class NumberFieldRoot : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class NumberFieldRoot : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-number-field.js";

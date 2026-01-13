@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Accordion;
 
-public sealed class AccordionPanel : ComponentBase, IAsyncDisposable
+public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-collapsible.js";

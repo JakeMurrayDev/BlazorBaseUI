@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Collapsible;
 
-public sealed class CollapsiblePanel : ComponentBase, IAsyncDisposable
+public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-collapsible.js";

@@ -8,7 +8,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.Switch;
 
-public sealed class SwitchRoot : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "span";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-switch.js";

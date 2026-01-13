@@ -10,7 +10,7 @@ using BlazorBaseUI.Form;
 
 namespace BlazorBaseUI.Radio;
 
-public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IAsyncDisposable
+public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "span";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-radio.js";
@@ -467,16 +467,23 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             return;
 
         if (e.Key == "Enter")
+        {
+            await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
             return;
+        }
 
         if (e.Key == " ")
         {
             await SelectRadioAsync();
+            await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
             return;
         }
 
         if (!IsInGroup)
+        {
+            await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
             return;
+        }
 
         switch (e.Key)
         {
@@ -489,6 +496,8 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
                 await GroupContext!.NavigateToNextAsync(this);
                 break;
         }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleClickAsync(MouseEventArgs e)
@@ -497,6 +506,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IFieldStateSubscriber, IA
             return;
 
         await SelectRadioAsync();
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleInputChangeAsync(ChangeEventArgs e)

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Radio;
 
-public sealed class RadioIndicator : ComponentBase, IDisposable
+public sealed class RadioIndicator : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "span";
 
