@@ -53,16 +53,24 @@ reviews:
 
     - path: "src/**/*.ts"
       instructions: |
-        **Symbol State Pattern (Intentional)**
-        We use `Symbol.for('BlazorBaseUI.ComponentName.State')` for script state management. This prevents state duplication during hot reload. Do not suggest alternatives.
+        **Symbol State Pattern - Module-Level Singleton (Intentional)**
+        We use `Symbol.for('BlazorBaseUI.ComponentName.State')` with `window[STATE_KEY]` for MODULE-LEVEL SINGLETON state that must persist across hot reloads and component lifecycles. This is NOT per-component state.
+
+        IMPORTANT: Do NOT suggest adding cleanup/dispose for Symbol-backed window state. The pattern is intentionally designed to persist. Deleting `window[STATE_KEY]` on component dispose would defeat the purpose of hot reload protection.
+
+        Per-element state uses a DIFFERENT pattern: `WeakMap` keyed by element, which IS cleaned up via a `dispose(element)` function. Do not confuse these two patterns.
 
         **Heavy Logic in JS (Intentional)**
         Complex interactions (dragging, resizing, scroll effects, focus trapping, observers) are intentionally implemented in JavaScript, not C#, to avoid interop latency. Do not suggest moving to C#.
 
     - path: "src/**/*.js"
       instructions: |
-        **Symbol State Pattern (Intentional)**
-        We use `Symbol.for('BlazorBaseUI.ComponentName.State')` for script state management. This prevents state duplication during hot reload. Do not suggest alternatives.
+        **Symbol State Pattern - Module-Level Singleton (Intentional)**
+        We use `Symbol.for('BlazorBaseUI.ComponentName.State')` with `window[STATE_KEY]` for MODULE-LEVEL SINGLETON state that must persist across hot reloads and component lifecycles. This is NOT per-component state.
+
+        IMPORTANT: Do NOT suggest adding cleanup/dispose for Symbol-backed window state. The pattern is intentionally designed to persist. Deleting `window[STATE_KEY]` on component dispose would defeat the purpose of hot reload protection.
+
+        Per-element state uses a DIFFERENT pattern: `WeakMap` keyed by element, which IS cleaned up via a `dispose(element)` function. Do not confuse these two patterns.
 
   auto_review:
     enabled: true
