@@ -209,10 +209,14 @@ public sealed class NumberFieldInput : ComponentBase, IReferencableComponent, ID
 
     private void HandleFocus(FocusEventArgs e)
     {
-        if (RootContext?.ReadOnly == true || RootContext?.Disabled == true || hasTouchedInput)
+        if (RootContext?.ReadOnly == true || RootContext?.Disabled == true)
             return;
 
-        hasTouchedInput = true;
+        if (!hasTouchedInput)
+        {
+            hasTouchedInput = true;
+        }
+
         FieldContext?.SetFocused(true);
     }
 
