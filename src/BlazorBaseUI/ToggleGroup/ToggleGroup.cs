@@ -96,7 +96,12 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
             state = new ToggleGroupState(Disabled, Multiple, Orientation);
         }
 
-        groupContext?.UpdateProperties(Disabled, Orientation, LoopFocus);
+        if (groupContext is not null)
+        {
+            groupContext.Disabled = Disabled;
+            groupContext.Orientation = Orientation;
+            groupContext.LoopFocus = LoopFocus;
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -188,11 +193,12 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
     }
 
     private ToggleGroupContext CreateContext() => new(
-        Disabled: Disabled,
-        Orientation: Orientation,
-        LoopFocus: LoopFocus,
-        GetValue: () => CurrentValue,
-        SetGroupValue: SetGroupValueInternalAsync);
+        disabled: Disabled,
+        orientation: Orientation,
+        loopFocus: LoopFocus,
+        getValue: () => CurrentValue,
+        setGroupValue: SetGroupValueInternalAsync,
+        getGroupElement: () => Element);
 
     private async Task InitializeJsAsync()
     {
@@ -204,7 +210,8 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initializeGroup", Element.Value);
+            var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
+            await module.InvokeVoidAsync("initializeGroup", Element.Value, orientationString, LoopFocus);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

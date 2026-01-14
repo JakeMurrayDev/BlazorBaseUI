@@ -9,6 +9,7 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
 
     private bool hasRegistered;
     private bool isComponentRenderAs;
+    private IReferencableComponent? componentReference;
     private ToolbarInputState state = default!;
 
     [CascadingParameter]
@@ -117,8 +118,7 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
         {
             builder.AddComponentReferenceCapture(10, component =>
             {
-                Element = ((IReferencableComponent)component).Element;
-                RegisterWithToolbar();
+                componentReference = (IReferencableComponent)component;
             });
             builder.CloseComponent();
         }
@@ -130,6 +130,19 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
                 RegisterWithToolbar();
             });
             builder.CloseElement();
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (isComponentRenderAs && componentReference is not null)
+        {
+            var newElement = componentReference.Element;
+            if (newElement.HasValue && !Equals(newElement, Element))
+            {
+                Element = newElement;
+                RegisterWithToolbar();
+            }
         }
     }
 

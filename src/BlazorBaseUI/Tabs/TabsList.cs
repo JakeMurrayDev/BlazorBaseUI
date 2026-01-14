@@ -12,10 +12,11 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
-    private int highlightedTabIndex;
+    private DotNetObjectReference<TabsList<TValue>>? dotNetRef;
     private TabsListContext<TValue>? listContext;
     private TabsRootState state = TabsRootState.Default;
     private bool isComponentRenderAs;
+    private bool hasRendered;
     private EventCallback<KeyboardEventArgs> cachedKeyDownCallback;
 
     [Inject]
@@ -88,7 +89,11 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
             state = new TabsRootState(orientation, activationDirection);
         }
 
-        listContext?.UpdateProperties(ActivateOnFocus, highlightedTabIndex, LoopFocus);
+        if (listContext is not null)
+        {
+            listContext.ActivateOnFocus = ActivateOnFocus;
+            listContext.LoopFocus = LoopFocus;
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -159,6 +164,7 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
     {
         if (firstRender)
         {
+            hasRendered = true;
             await InitializeJsAsync();
         }
     }
@@ -177,12 +183,37 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
             {
             }
         }
+
+        dotNetRef?.Dispose();
+    }
+
+    [JSInvokable]
+    public async Task OnNavigateToTab(string serializedValue)
+    {
+        if (RootContext is null)
+        {
+            return;
+        }
+
+        TValue? value;
+        if (typeof(TValue) == typeof(string))
+        {
+            value = (TValue)(object)serializedValue;
+        }
+        else
+        {
+            value = System.Text.Json.JsonSerializer.Deserialize<TValue>(serializedValue);
+        }
+
+        if (value is not null)
+        {
+            await RootContext.OnValueChangeAsync(value, ActivationDirection.None);
+        }
     }
 
     private TabsListContext<TValue> CreateContext() => new(
         activateOnFocus: ActivateOnFocus,
-        highlightedTabIndex: highlightedTabIndex,
-        setHighlightedTabIndex: SetHighlightedTabIndex,
+        loopFocus: LoopFocus,
         getTabsListElement: () => Element,
         rootContext: RootContext!);
 
@@ -193,8 +224,9 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
             var module = await moduleTask.Value;
             if (Element.HasValue)
             {
+                dotNetRef = DotNetObjectReference.Create(this);
                 var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
-                await module.InvokeVoidAsync("initializeList", Element.Value, orientationString);
+                await module.InvokeVoidAsync("initializeList", Element.Value, orientationString, LoopFocus, ActivateOnFocus, dotNetRef);
             }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -202,15 +234,9 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
         }
     }
 
-    private void SetHighlightedTabIndex(int index)
-    {
-        highlightedTabIndex = index;
-        listContext?.UpdateProperties(ActivateOnFocus, highlightedTabIndex, LoopFocus);
-    }
-
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
-        if (listContext is null || RootContext is null)
+        if (!hasRendered || !Element.HasValue)
         {
             return;
         }
@@ -229,39 +255,51 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
 
         if (shouldNavigatePrevious || shouldNavigateNext || e.Key == "Home" || e.Key == "End")
         {
-            var ordered = RootContext.GetOrderedTabs();
-            if (ordered.Length == 0)
+            var activeElement = await GetActiveTabElementAsync();
+            if (activeElement is null)
             {
                 await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
                 return;
             }
 
-            var currentIndex = highlightedTabIndex;
-            if (currentIndex < 0 || currentIndex >= ordered.Length)
+            try
             {
-                currentIndex = 0;
+                var module = await moduleTask.Value;
+                if (shouldNavigatePrevious)
+                {
+                    await module.InvokeVoidAsync("navigateToPrevious", Element.Value, activeElement);
+                }
+                else if (shouldNavigateNext)
+                {
+                    await module.InvokeVoidAsync("navigateToNext", Element.Value, activeElement);
+                }
+                else if (e.Key == "Home")
+                {
+                    await module.InvokeVoidAsync("navigateToFirst", Element.Value);
+                }
+                else if (e.Key == "End")
+                {
+                    await module.InvokeVoidAsync("navigateToLast", Element.Value);
+                }
             }
-
-            var currentTab = ordered[currentIndex].Tab;
-
-            if (shouldNavigatePrevious)
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
-                await listContext.NavigateToPreviousAsync(currentTab);
-            }
-            else if (shouldNavigateNext)
-            {
-                await listContext.NavigateToNextAsync(currentTab);
-            }
-            else if (e.Key == "Home")
-            {
-                await listContext.NavigateToFirstAsync();
-            }
-            else if (e.Key == "End")
-            {
-                await listContext.NavigateToLastAsync();
             }
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
+    }
+
+    private async Task<IJSObjectReference?> GetActiveTabElementAsync()
+    {
+        try
+        {
+            var module = await moduleTask.Value;
+            return await module.InvokeAsync<IJSObjectReference?>("getActiveElement");
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            return null;
+        }
     }
 }

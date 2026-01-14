@@ -17,35 +17,21 @@ public interface ITabsRootContext<TValue> : ITabsRootContext
 {
     TValue? Value { get; }
     Task OnValueChangeAsync(TValue? value, ActivationDirection direction);
-    void RegisterTab(object tab, ElementReference element, TValue? value, string? id, Func<bool> isDisabled, Func<ValueTask> focus);
-    void UnregisterTab(object tab);
-    TabRegistration<TValue>? GetFirstEnabledTab();
-    TabRegistration<TValue>[] GetOrderedTabs();
-    int GetTabIndex(object tab);
+    void RegisterTabInfo(TValue? value, ElementReference element, string? id);
+    void UnregisterTabInfo(TValue? value);
 }
 
-public sealed class TabRegistration<TValue>(
-    object Tab,
-    ElementReference Element,
-    TValue? Value,
-    string? Id,
-    Func<bool> IsDisabled,
-    Func<ValueTask> Focus)
+public sealed class TabInfo<TValue>(TValue? value, ElementReference element, string? id)
 {
-    public object Tab { get; } = Tab;
-    public ElementReference Element { get; set; } = Element;
-    public TValue? Value { get; } = Value;
-    public string? Id { get; set; } = Id;
-    public Func<bool> IsDisabled { get; } = IsDisabled;
-    public Func<ValueTask> Focus { get; } = Focus;
+    public TValue? Value { get; } = value;
+    public ElementReference Element { get; set; } = element;
+    public string? Id { get; set; } = id;
 }
 
 public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
 {
-    private readonly Dictionary<object, TabRegistration<TValue>> tabsByInstance = [];
-    private readonly List<object> tabRegistrationOrder = [];
+    private readonly Dictionary<object, TabInfo<TValue>> tabsByValue = [];
     private readonly Dictionary<object, string> panelIdsByValue = [];
-    private TabRegistration<TValue>[]? orderedTabsCache;
 
     public TabsRootContext(
         Orientation orientation,
@@ -59,46 +45,40 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
         OnValueChange = onValueChange;
     }
 
-    public Orientation Orientation { get; private set; }
-    public ActivationDirection ActivationDirection { get; private set; }
+    public Orientation Orientation { get; set; }
+    public ActivationDirection ActivationDirection { get; set; }
     private Func<TValue?> GetValue { get; }
     private Func<TValue?, ActivationDirection, Task> OnValueChange { get; }
 
     public TValue? Value => GetValue();
-
-    public void UpdateProperties(Orientation orientation, ActivationDirection activationDirection)
-    {
-        Orientation = orientation;
-        ActivationDirection = activationDirection;
-    }
 
     public async Task OnValueChangeAsync(TValue? value, ActivationDirection direction)
     {
         await OnValueChange(value, direction);
     }
 
-    public void RegisterTab(object tab, ElementReference element, TValue? value, string? id, Func<bool> isDisabled, Func<ValueTask> focus)
+    public void RegisterTabInfo(TValue? value, ElementReference element, string? id)
     {
-        if (tabsByInstance.TryGetValue(tab, out var existing))
+        if (value is null)
+            return;
+
+        if (tabsByValue.TryGetValue(value, out var existing))
         {
             existing.Element = element;
             existing.Id = id;
         }
         else
         {
-            tabsByInstance[tab] = new TabRegistration<TValue>(tab, element, value, id, isDisabled, focus);
-            tabRegistrationOrder.Add(tab);
+            tabsByValue[value] = new TabInfo<TValue>(value, element, id);
         }
-        orderedTabsCache = null;
     }
 
-    public void UnregisterTab(object tab)
+    public void UnregisterTabInfo(TValue? value)
     {
-        if (tabsByInstance.Remove(tab))
-        {
-            tabRegistrationOrder.Remove(tab);
-            orderedTabsCache = null;
-        }
+        if (value is null)
+            return;
+
+        tabsByValue.Remove(value!);
     }
 
     public void RegisterPanel(object? panelValue, string panelId)
@@ -130,75 +110,18 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
 
     public string? GetTabIdByPanelValue(object? panelValue)
     {
-        if (panelValue is null)
+        if (panelValue is not TValue typedValue)
             return null;
 
-        var ordered = GetOrderedTabs();
-        for (var i = 0; i < ordered.Length; i++)
-        {
-            var tab = ordered[i];
-            if (tab.Value is not null && tab.Value.Equals(panelValue))
-            {
-                return tab.Id;
-            }
-        }
-        return null;
+        return tabsByValue.TryGetValue(typedValue, out var info) ? info.Id : null;
     }
 
     public ElementReference? GetTabElementByValue(object? value)
     {
-        if (value is null)
+        if (value is not TValue typedValue)
             return null;
 
-        var ordered = GetOrderedTabs();
-        for (var i = 0; i < ordered.Length; i++)
-        {
-            var tab = ordered[i];
-            if (tab.Value is not null && tab.Value.Equals(value))
-            {
-                return tab.Element;
-            }
-        }
-        return null;
-    }
-
-    public TabRegistration<TValue>? GetFirstEnabledTab()
-    {
-        var ordered = GetOrderedTabs();
-        for (var i = 0; i < ordered.Length; i++)
-        {
-            var tab = ordered[i];
-            if (!tab.IsDisabled())
-            {
-                return tab;
-            }
-        }
-        return null;
-    }
-
-    public TabRegistration<TValue>[] GetOrderedTabs()
-    {
-        if (orderedTabsCache is not null)
-            return orderedTabsCache;
-
-        var result = new TabRegistration<TValue>[tabRegistrationOrder.Count];
-        for (var i = 0; i < tabRegistrationOrder.Count; i++)
-        {
-            result[i] = tabsByInstance[tabRegistrationOrder[i]];
-        }
-        orderedTabsCache = result;
-        return result;
-    }
-
-    public int GetTabIndex(object tab)
-    {
-        var ordered = GetOrderedTabs();
-        for (var i = 0; i < ordered.Length; i++)
-        {
-            if (ReferenceEquals(ordered[i].Tab, tab))
-                return i;
-        }
-        return -1;
+        return tabsByValue.TryGetValue(typedValue, out var info) ? info.Element : null;
     }
 }
 

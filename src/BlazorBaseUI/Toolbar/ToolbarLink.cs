@@ -9,6 +9,7 @@ public sealed class ToolbarLink : ComponentBase, IReferencableComponent, IDispos
 
     private bool hasRegistered;
     private bool isComponentRenderAs;
+    private IReferencableComponent? componentReference;
     private ToolbarLinkState state = default!;
 
     [CascadingParameter]
@@ -89,8 +90,7 @@ public sealed class ToolbarLink : ComponentBase, IReferencableComponent, IDispos
             builder.AddComponentParameter(7, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(8, component =>
             {
-                Element = ((IReferencableComponent)component).Element;
-                RegisterWithToolbar();
+                componentReference = (IReferencableComponent)component;
             });
             builder.CloseComponent();
         }
@@ -103,6 +103,19 @@ public sealed class ToolbarLink : ComponentBase, IReferencableComponent, IDispos
             });
             builder.AddContent(10, ChildContent);
             builder.CloseElement();
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (isComponentRenderAs && componentReference is not null)
+        {
+            var newElement = componentReference.Element;
+            if (newElement.HasValue && !Equals(newElement, Element))
+            {
+                Element = newElement;
+                RegisterWithToolbar();
+            }
         }
     }
 

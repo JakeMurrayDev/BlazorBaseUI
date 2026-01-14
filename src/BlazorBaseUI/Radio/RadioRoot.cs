@@ -251,7 +251,7 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
 
         if (IsInGroup)
         {
-            var isActiveItem = CurrentChecked || (GroupContext!.CheckedValue is null && GroupContext.IsFirstEnabledRadio(this));
+            var isActiveItem = CurrentChecked || GroupContext!.CheckedValue is null;
             builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : (isActiveItem ? 0 : -1));
             builder.AddAttribute(6, "data-radio-item", string.Empty);
         }
@@ -364,8 +364,43 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
         if (firstRender && Element.HasValue)
         {
             hasRendered = true;
-            GroupContext?.RegisterRadio(this, Element.Value, Value, () => ResolvedDisabled, FocusAsync);
             await InitializeJsAsync();
+            await RegisterWithGroupAsync();
+        }
+    }
+
+    private async Task RegisterWithGroupAsync()
+    {
+        if (!IsInGroup || !Element.HasValue || !GroupContext!.GroupElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var serializedValue = SerializeValue(Value);
+            await module.InvokeVoidAsync("registerRadio", GroupContext.GroupElement.Value, Element.Value, serializedValue);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UnregisterFromGroupAsync()
+    {
+        if (!IsInGroup || !Element.HasValue || !GroupContext!.GroupElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("unregisterRadio", GroupContext.GroupElement.Value, Element.Value);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
         }
     }
 
@@ -373,12 +408,12 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
     {
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
-        GroupContext?.UnregisterRadio(this);
 
         if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
+                await UnregisterFromGroupAsync();
                 var module = await moduleTask.Value;
                 await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
@@ -479,22 +514,29 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
             return;
         }
 
-        if (!IsInGroup)
+        if (!IsInGroup || !GroupContext!.GroupElement.HasValue || !Element.HasValue)
         {
             await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
             return;
         }
 
-        switch (e.Key)
+        try
         {
-            case "ArrowUp":
-            case "ArrowLeft":
-                await GroupContext!.NavigateToPreviousAsync(this);
-                break;
-            case "ArrowDown":
-            case "ArrowRight":
-                await GroupContext!.NavigateToNextAsync(this);
-                break;
+            var module = await moduleTask.Value;
+            switch (e.Key)
+            {
+                case "ArrowUp":
+                case "ArrowLeft":
+                    await module.InvokeVoidAsync("navigateToPrevious", GroupContext.GroupElement.Value, Element.Value);
+                    break;
+                case "ArrowDown":
+                case "ArrowRight":
+                    await module.InvokeVoidAsync("navigateToNext", GroupContext.GroupElement.Value, Element.Value);
+                    break;
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);

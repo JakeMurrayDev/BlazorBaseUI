@@ -87,7 +87,11 @@ public sealed class TabsRoot<TValue> : ComponentBase, IReferencableComponent
             state = new TabsRootState(Orientation, activationDirection);
         }
 
-        rootContext?.UpdateProperties(Orientation, activationDirection);
+        if (rootContext is not null)
+        {
+            rootContext.Orientation = Orientation;
+            rootContext.ActivationDirection = activationDirection;
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -182,7 +186,11 @@ public sealed class TabsRoot<TValue> : ComponentBase, IReferencableComponent
             await ValueChanged.InvokeAsync(value);
         }
 
-        rootContext?.UpdateProperties(Orientation, activationDirection);
+        if (rootContext is not null)
+        {
+            rootContext.Orientation = Orientation;
+            rootContext.ActivationDirection = activationDirection;
+        }
         StateHasChanged();
     }
 }

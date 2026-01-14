@@ -7,7 +7,14 @@ const state = window[STATE_KEY];
 function getItems(element) {
     const toolbarState = state.get(element);
     if (!toolbarState) return [];
-    return Array.from(toolbarState.items).filter(item => document.contains(item));
+    const items = Array.from(toolbarState.items).filter(item => document.contains(item));
+    items.sort((a, b) => {
+        const position = a.compareDocumentPosition(b);
+        if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+        if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+        return 0;
+    });
+    return items;
 }
 
 function getFocusableItems(element) {
@@ -116,14 +123,13 @@ export function registerItem(toolbarElement, itemElement) {
     if (!toolbarState) return;
 
     const items = toolbarState.items;
-    const isFirstItem = items.size === 0;
-
     items.add(itemElement);
 
-    if (isFirstItem) {
-        itemElement.tabIndex = 0;
-    } else {
-        itemElement.tabIndex = -1;
+    const sortedItems = getItems(toolbarElement);
+    const firstItem = sortedItems[0];
+
+    for (const item of sortedItems) {
+        item.tabIndex = item === firstItem ? 0 : -1;
     }
 }
 
@@ -135,12 +141,14 @@ export function unregisterItem(toolbarElement, itemElement) {
 
     const items = toolbarState.items;
     const hadFocus = document.activeElement === itemElement;
-    const wasFirst = Array.from(items)[0] === itemElement;
+    const sortedBefore = getItems(toolbarElement);
+    const wasFirst = sortedBefore[0] === itemElement;
 
     items.delete(itemElement);
 
     if (items.size > 0 && (hadFocus || wasFirst)) {
-        const firstItem = Array.from(items)[0];
+        const sortedAfter = getItems(toolbarElement);
+        const firstItem = sortedAfter[0];
         if (firstItem) {
             firstItem.tabIndex = 0;
             if (hadFocus) {

@@ -1,4 +1,6 @@
 const STATE_KEY = Symbol.for('BlazorBaseUI.Tabs.State');
+const LIST_STATE_KEY = Symbol.for('BlazorBaseUI.TabsList.State');
+
 if (!window[STATE_KEY]) {
     window[STATE_KEY] = {
         resizeObservers: new WeakMap(),
@@ -8,16 +10,30 @@ if (!window[STATE_KEY]) {
 }
 const state = window[STATE_KEY];
 
+if (!window[LIST_STATE_KEY]) {
+    window[LIST_STATE_KEY] = new WeakMap();
+}
+const listStateMap = window[LIST_STATE_KEY];
+
 const NAVIGATION_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
 
-export function initializeList(element, orientation) {
+export function initializeList(element, orientation, loopFocus, activateOnFocus, dotNetRef) {
     if (!element) return;
+
+    const listState = {
+        element,
+        orientation,
+        loopFocus,
+        activateOnFocus,
+        dotNetRef,
+        tabs: new Set()
+    };
 
     const handler = (e) => {
         if (!NAVIGATION_KEYS.includes(e.key)) return;
 
-        const isHorizontal = orientation === 'horizontal';
-        const isVertical = orientation === 'vertical';
+        const isHorizontal = listState.orientation === 'horizontal';
+        const isVertical = listState.orientation === 'vertical';
 
         const shouldPrevent =
             (isHorizontal && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) ||
@@ -32,6 +48,18 @@ export function initializeList(element, orientation) {
 
     element.addEventListener('keydown', handler);
     state.listHandlers.set(element, handler);
+    listStateMap.set(element, listState);
+}
+
+export function updateList(element, orientation, loopFocus, activateOnFocus) {
+    if (!element) return;
+
+    const listState = listStateMap.get(element);
+    if (listState) {
+        listState.orientation = orientation;
+        listState.loopFocus = loopFocus;
+        listState.activateOnFocus = activateOnFocus;
+    }
 }
 
 export function disposeList(element) {
@@ -43,7 +71,189 @@ export function disposeList(element) {
         state.listHandlers.delete(element);
     }
 
+    listStateMap.delete(element);
     unobserveResize(element);
+}
+
+export function registerTab(listElement, tabElement, value) {
+    if (!listElement || !tabElement) return;
+
+    const listState = listStateMap.get(listElement);
+    if (!listState) return;
+
+    for (const item of listState.tabs) {
+        if (item.element === tabElement) {
+            item.value = value;
+            updateTabIndexes(listElement);
+            return;
+        }
+    }
+
+    listState.tabs.add({ element: tabElement, value });
+    updateTabIndexes(listElement);
+}
+
+export function unregisterTab(listElement, tabElement) {
+    if (!listElement || !tabElement) return;
+
+    const listState = listStateMap.get(listElement);
+    if (!listState) return;
+
+    for (const item of listState.tabs) {
+        if (item.element === tabElement) {
+            listState.tabs.delete(item);
+            updateTabIndexes(listElement);
+            return;
+        }
+    }
+}
+
+function getOrderedTabs(listElement) {
+    const listState = listStateMap.get(listElement);
+    if (!listState) return [];
+
+    const items = Array.from(listState.tabs).filter(item => document.contains(item.element));
+    items.sort((a, b) => {
+        const position = a.element.compareDocumentPosition(b.element);
+        if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+        if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+        return 0;
+    });
+    return items;
+}
+
+function isTabDisabled(tabElement) {
+    return tabElement.hasAttribute('data-disabled') || tabElement.disabled || tabElement.getAttribute('aria-disabled') === 'true';
+}
+
+function updateTabIndexes(listElement) {
+    const items = getOrderedTabs(listElement);
+    if (items.length === 0) return;
+
+    const hasActive = items.some(item => item.element.getAttribute('aria-selected') === 'true');
+    const firstEnabled = items.find(item => !isTabDisabled(item.element));
+
+    for (const item of items) {
+        const isActive = item.element.getAttribute('aria-selected') === 'true';
+        const isDisabled = isTabDisabled(item.element);
+
+        if (isDisabled) {
+            item.element.tabIndex = -1;
+        } else if (isActive) {
+            item.element.tabIndex = 0;
+        } else if (!hasActive && item === firstEnabled) {
+            item.element.tabIndex = 0;
+        } else {
+            item.element.tabIndex = -1;
+        }
+    }
+}
+
+export async function navigateToPrevious(listElement, currentElement) {
+    const listState = listStateMap.get(listElement);
+    if (!listState) return false;
+
+    const items = getOrderedTabs(listElement);
+    const currentIndex = items.findIndex(item => item.element === currentElement);
+    if (currentIndex < 0) return false;
+
+    for (let i = currentIndex - 1; i >= 0; i--) {
+        if (!isTabDisabled(items[i].element)) {
+            await setFocusedTab(listElement, items[i]);
+            return true;
+        }
+    }
+
+    if (listState.loopFocus) {
+        for (let i = items.length - 1; i > currentIndex; i--) {
+            if (!isTabDisabled(items[i].element)) {
+                await setFocusedTab(listElement, items[i]);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+export async function navigateToNext(listElement, currentElement) {
+    const listState = listStateMap.get(listElement);
+    if (!listState) return false;
+
+    const items = getOrderedTabs(listElement);
+    const currentIndex = items.findIndex(item => item.element === currentElement);
+    if (currentIndex < 0) return false;
+
+    for (let i = currentIndex + 1; i < items.length; i++) {
+        if (!isTabDisabled(items[i].element)) {
+            await setFocusedTab(listElement, items[i]);
+            return true;
+        }
+    }
+
+    if (listState.loopFocus) {
+        for (let i = 0; i < currentIndex; i++) {
+            if (!isTabDisabled(items[i].element)) {
+                await setFocusedTab(listElement, items[i]);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+export async function navigateToFirst(listElement) {
+    const items = getOrderedTabs(listElement);
+    for (const item of items) {
+        if (!isTabDisabled(item.element)) {
+            await setFocusedTab(listElement, item);
+            return true;
+        }
+    }
+    return false;
+}
+
+export async function navigateToLast(listElement) {
+    const items = getOrderedTabs(listElement);
+    for (let i = items.length - 1; i >= 0; i--) {
+        if (!isTabDisabled(items[i].element)) {
+            await setFocusedTab(listElement, items[i]);
+            return true;
+        }
+    }
+    return false;
+}
+
+async function setFocusedTab(listElement, item) {
+    const listState = listStateMap.get(listElement);
+    if (!listState) return;
+
+    const items = getOrderedTabs(listElement);
+    for (const t of items) {
+        t.element.tabIndex = t.element === item.element ? 0 : -1;
+    }
+
+    item.element.focus({ preventScroll: true });
+    item.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+    if (listState.activateOnFocus && listState.dotNetRef) {
+        await listState.dotNetRef.invokeMethodAsync('OnNavigateToTab', item.value);
+    }
+}
+
+export function getFirstEnabledTab(listElement) {
+    const items = getOrderedTabs(listElement);
+    for (const item of items) {
+        if (!isTabDisabled(item.element)) {
+            return item.element;
+        }
+    }
+    return null;
+}
+
+export function getActiveElement() {
+    return document.activeElement;
 }
 
 export function initializeTab(element) {

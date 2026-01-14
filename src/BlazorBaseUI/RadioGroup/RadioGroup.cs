@@ -18,6 +18,7 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
 
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
+    private DotNetObjectReference<RadioGroup<TValue>>? dotNetRef;
     private bool isComponentRenderAs;
     private bool hasRendered;
     private string? defaultId;
@@ -219,16 +220,18 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
             contextName = ResolvedName;
             contextValidation = FieldContext?.Validation;
 
-            groupContext = groupContext is null
-                ? CreateContext()
-                : groupContext with
-                {
-                    Disabled = contextDisabled,
-                    ReadOnly = contextReadOnly,
-                    Required = contextRequired,
-                    Name = contextName,
-                    Validation = contextValidation
-                };
+            if (groupContext is null)
+            {
+                groupContext = CreateContext();
+            }
+            else
+            {
+                groupContext.Disabled = contextDisabled;
+                groupContext.ReadOnly = contextReadOnly;
+                groupContext.Required = contextRequired;
+                groupContext.Name = contextName;
+                groupContext.Validation = contextValidation;
+            }
         }
 
         builder.OpenComponent<CascadingValue<IRadioGroupContext<TValue>>>(0);
@@ -381,6 +384,8 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
             {
             }
         }
+
+        dotNetRef?.Dispose();
     }
 
     public void NotifyStateChanged()
@@ -390,13 +395,14 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
     }
 
     private RadioGroupContext<TValue> CreateContext() => new(
-        Disabled: ResolvedDisabled,
-        ReadOnly: ReadOnly,
-        Required: Required,
-        Name: ResolvedName,
-        Validation: FieldContext?.Validation,
-        GetCheckedValue: () => CurrentValue,
-        SetCheckedValue: SetValueInternalAsync);
+        disabled: ResolvedDisabled,
+        readOnly: ReadOnly,
+        required: Required,
+        name: ResolvedName,
+        validation: FieldContext?.Validation,
+        getCheckedValue: () => CurrentValue,
+        setCheckedValue: SetValueInternalAsync,
+        getGroupElement: () => Element);
 
     private async Task InitializeJsAsync()
     {
@@ -405,11 +411,36 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
             var module = await moduleTask.Value;
             if (Element.HasValue)
             {
-                await module.InvokeVoidAsync("initializeGroup", Element.Value);
+                dotNetRef = DotNetObjectReference.Create(this);
+                await module.InvokeVoidAsync("initializeGroup", Element.Value, dotNetRef);
             }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnNavigateToRadio(string serializedValue)
+    {
+        if (ResolvedDisabled || ReadOnly)
+        {
+            return;
+        }
+
+        TValue? value;
+        if (typeof(TValue) == typeof(string))
+        {
+            value = (TValue)(object)serializedValue;
+        }
+        else
+        {
+            value = JsonSerializer.Deserialize<TValue>(serializedValue);
+        }
+
+        if (value is not null)
+        {
+            await SetValueInternalAsync(value);
         }
     }
 
@@ -482,19 +513,22 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
 
     private async Task FocusFirstRadioAsync()
     {
-        if (groupContext is not null)
+        if (!hasRendered || !Element.HasValue)
         {
-            var firstRadio = groupContext.GetFirstEnabledRadio();
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var firstRadio = await module.InvokeAsync<IJSObjectReference?>("getFirstEnabledRadio", Element.Value);
             if (firstRadio is not null)
             {
-                try
-                {
-                    await firstRadio.Focus();
-                }
-                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-                {
-                }
+                await module.InvokeVoidAsync("focus", firstRadio);
             }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
         }
     }
 
