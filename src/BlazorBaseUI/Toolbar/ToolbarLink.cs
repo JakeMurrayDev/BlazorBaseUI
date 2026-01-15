@@ -7,10 +7,10 @@ public sealed class ToolbarLink : ComponentBase, IReferencableComponent, IDispos
 {
     private const string DefaultTag = "a";
 
-    private bool hasRegistered;
     private bool isComponentRenderAs;
     private IReferencableComponent? componentReference;
     private ToolbarLinkState state = default!;
+    private ElementReference? registeredElement;
 
     [CascadingParameter]
     private ToolbarRootContext? RootContext { get; set; }
@@ -121,20 +121,28 @@ public sealed class ToolbarLink : ComponentBase, IReferencableComponent, IDispos
 
     private void RegisterWithToolbar()
     {
-        if (hasRegistered || !Element.HasValue || RootContext is null)
+        if (!Element.HasValue || RootContext is null)
         {
             return;
         }
 
-        hasRegistered = true;
-        RootContext.RegisterItem(Element.Value);
+        if (registeredElement.HasValue && !registeredElement.Value.Equals(Element.Value))
+        {
+            RootContext.UnregisterItem(registeredElement.Value);
+        }
+
+        if (!registeredElement.HasValue || !registeredElement.Value.Equals(Element.Value))
+        {
+            RootContext.RegisterItem(Element.Value);
+            registeredElement = Element;
+        }
     }
 
     public void Dispose()
     {
-        if (hasRegistered && Element.HasValue && RootContext is not null)
+        if (registeredElement.HasValue && RootContext is not null)
         {
-            RootContext.UnregisterItem(Element.Value);
+            RootContext.UnregisterItem(registeredElement.Value);
         }
     }
 }

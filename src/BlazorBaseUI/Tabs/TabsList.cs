@@ -202,7 +202,14 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
         }
         else
         {
-            value = System.Text.Json.JsonSerializer.Deserialize<TValue>(serializedValue);
+            try
+            {
+                value = System.Text.Json.JsonSerializer.Deserialize<TValue>(serializedValue);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return;
+            }
         }
 
         if (value is not null)
