@@ -292,6 +292,10 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
             }
+            finally
+            {
+                await activeElement.DisposeAsync();
+            }
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);

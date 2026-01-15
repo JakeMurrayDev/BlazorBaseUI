@@ -238,7 +238,10 @@ async function setFocusedTab(listElement, item) {
     item.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 
     if (listState.activateOnFocus && listState.dotNetRef) {
-        await listState.dotNetRef.invokeMethodAsync('OnNavigateToTab', item.value);
+        try {
+            await listState.dotNetRef.invokeMethodAsync('OnNavigateToTab', item.value);
+        } catch {
+        }
     }
 }
 
