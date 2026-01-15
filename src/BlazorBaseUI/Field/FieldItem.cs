@@ -5,7 +5,7 @@ using BlazorBaseUI.CheckboxGroup;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldItem : ComponentBase, IFieldStateSubscriber, IDisposable
+public sealed class FieldItem : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IDisposable
 {
     private const string DefaultTag = "div";
 

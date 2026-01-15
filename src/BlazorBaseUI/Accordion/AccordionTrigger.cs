@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Accordion;
 
-public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
+public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-accordion-trigger.js";
@@ -75,7 +75,7 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
 
     protected override void OnInitialized()
     {
-        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick);
+        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
         state = new AccordionTriggerState(
             ItemContext?.Open ?? false,
             ItemContext?.Orientation ?? Orientation.Vertical,
@@ -201,7 +201,7 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
         }
     }
 
-    private void HandleClick(MouseEventArgs args)
+    private async Task HandleClickAsync(MouseEventArgs args)
     {
         if (ResolvedDisabled)
         {
@@ -209,6 +209,7 @@ public sealed class AccordionTrigger : ComponentBase, IAsyncDisposable
         }
 
         ItemContext?.HandleTrigger();
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
     }
 
     public async ValueTask DisposeAsync()

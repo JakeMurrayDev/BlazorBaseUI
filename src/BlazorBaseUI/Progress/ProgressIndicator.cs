@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Progress;
 
-public sealed class ProgressIndicator : ComponentBase
+public sealed class ProgressIndicator : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 

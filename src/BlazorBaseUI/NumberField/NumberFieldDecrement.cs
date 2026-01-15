@@ -97,7 +97,7 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
 
         builder.AddAttribute(8, "style", "user-select:none;-webkit-user-select:none;" + (resolvedStyle ?? string.Empty));
 
-        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
         builder.AddAttribute(10, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
         builder.AddAttribute(11, "onpointerup", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerUp));
         builder.AddAttribute(12, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnter));
@@ -173,7 +173,7 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
         }
     }
 
-    private void HandleClick(MouseEventArgs e)
+    private async Task HandleClickAsync(MouseEventArgs e)
     {
         if (ResolvedDisabled || RootContext?.ReadOnly == true)
             return;
@@ -187,6 +187,7 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
         var amount = RootContext?.GetStepAmount(e.AltKey, e.ShiftKey) ?? 1;
         RootContext?.IncrementValue(amount, -1, NumberFieldChangeReason.DecrementPress);
         RootContext?.OnValueCommitted(RootContext?.Value, NumberFieldChangeReason.DecrementPress);
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
     private void HandlePointerDown(PointerEventArgs e)

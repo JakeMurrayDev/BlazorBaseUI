@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Form;
 
-public sealed class Form : ComponentBase
+public sealed class Form : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "form";
 

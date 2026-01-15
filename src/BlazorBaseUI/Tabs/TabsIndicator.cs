@@ -5,7 +5,7 @@ using System.Globalization;
 
 namespace BlazorBaseUI.Tabs;
 
-public sealed class TabsIndicator<TValue> : ComponentBase, IAsyncDisposable
+public sealed class TabsIndicator<TValue> : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "span";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";

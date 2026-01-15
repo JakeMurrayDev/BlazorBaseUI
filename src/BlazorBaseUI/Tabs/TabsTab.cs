@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Tabs;
 
-public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
+public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";
@@ -85,26 +85,19 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
                 return -1;
             }
 
-            if (ListContext is null || RootContext is null)
+            if (RootContext is null)
             {
                 return 0;
             }
 
-            var highlightedIndex = ListContext.HighlightedTabIndex;
-            var myIndex = RootContext.GetTabIndex(this);
-
-            if (myIndex == highlightedIndex)
+            if (IsActive)
             {
                 return 0;
             }
 
             if (RootContext.Value is null)
             {
-                var firstEnabled = RootContext.GetFirstEnabledTab();
-                if (firstEnabled is not null && ReferenceEquals(firstEnabled.Tab, this))
-                {
-                    return 0;
-                }
+                return 0;
             }
 
             return -1;
@@ -257,27 +250,31 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         if (firstRender && Element.HasValue)
         {
             hasRendered = true;
-            RootContext?.RegisterTab(this, Element.Value, Value, tabId, () => Disabled, FocusAsync);
+            RootContext?.RegisterTabInfo(Value, Element.Value, tabId);
 
             if (!NativeButton)
             {
                 await InitializeJsAsync();
             }
+
+            await RegisterWithListAsync();
         }
         else if (hasRendered && Element.HasValue)
         {
-            RootContext?.RegisterTab(this, Element.Value, Value, tabId, () => Disabled, FocusAsync);
+            RootContext?.RegisterTabInfo(Value, Element.Value, tabId);
+            await RegisterWithListAsync();
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        RootContext?.UnregisterTab(this);
+        RootContext?.UnregisterTabInfo(Value);
 
         if (moduleTask.IsValueCreated)
         {
             try
             {
+                await UnregisterFromListAsync();
                 var module = await moduleTask.Value;
 
                 if (!NativeButton && Element.HasValue)
@@ -291,6 +288,52 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
             {
             }
         }
+    }
+
+    private async Task RegisterWithListAsync()
+    {
+        if (ListContext?.TabsListElement is null || !ListContext.TabsListElement.HasValue || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var serializedValue = SerializeValue(Value);
+            await module.InvokeVoidAsync("registerTab", ListContext.TabsListElement.Value, Element.Value, serializedValue);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UnregisterFromListAsync()
+    {
+        if (ListContext?.TabsListElement is null || !ListContext.TabsListElement.HasValue || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("unregisterTab", ListContext.TabsListElement.Value, Element.Value);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private static string? SerializeValue(TValue? value)
+    {
+        if (value is null)
+            return null;
+
+        if (value is string str)
+            return str;
+
+        return System.Text.Json.JsonSerializer.Serialize(value);
     }
 
     private async Task InitializeJsAsync()
@@ -336,6 +379,7 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         }
 
         await ActivateTabAsync();
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleFocusAsync(FocusEventArgs e)
@@ -343,15 +387,6 @@ public sealed class TabsTab<TValue> : ComponentBase, IAsyncDisposable
         if (Disabled)
         {
             return;
-        }
-
-        if (RootContext is not null && ListContext is not null)
-        {
-            var myIndex = RootContext.GetTabIndex(this);
-            if (myIndex >= 0)
-            {
-                ListContext.SetHighlightedTabIndex(myIndex);
-            }
         }
 
         if (ListContext?.ActivateOnFocus == true && !IsActive)

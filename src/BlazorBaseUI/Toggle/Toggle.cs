@@ -6,7 +6,7 @@ using BlazorBaseUI.ToggleGroup;
 
 namespace BlazorBaseUI.Toggle;
 
-public sealed class Toggle : ComponentBase, IAsyncDisposable
+public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
@@ -125,7 +125,6 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         var newValue = Value ?? defaultId!;
         if (newValue != resolvedValue)
         {
-            GroupContext?.UnregisterToggle(this);
             resolvedValue = newValue;
         }
 
@@ -174,9 +173,8 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         int? groupTabIndex = null;
         if (!resolvedDisabled && IsInGroup)
         {
-            var isFirstEnabled = GroupContext!.IsFirstEnabledToggle(this);
-            var anyPressed = GroupContext.Value.Count > 0;
-            groupTabIndex = currentPressed ? 0 : (!anyPressed && isFirstEnabled ? 0 : -1);
+            var anyPressed = GroupContext!.Value.Count > 0;
+            groupTabIndex = currentPressed ? 0 : (!anyPressed ? 0 : -1);
         }
 
         if (isComponentRenderAs)
@@ -274,14 +272,8 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
 
             if (IsInGroup && Element.HasValue)
             {
-                GroupContext!.RegisterToggle(
-                    this,
-                    Element.Value,
-                    resolvedValue,
-                    () => ResolvedDisabled,
-                    FocusAsync);
-
                 await InitializeGroupItemAsync();
+                await RegisterWithGroupAsync();
             }
 
             if (!NativeButton)
@@ -291,23 +283,51 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         }
         else if (IsInGroup && Element.HasValue)
         {
-            GroupContext!.RegisterToggle(
-                this,
-                Element.Value,
-                resolvedValue,
-                () => ResolvedDisabled,
-                FocusAsync);
+            await RegisterWithGroupAsync();
+        }
+    }
+
+    private async Task RegisterWithGroupAsync()
+    {
+        if (!IsInGroup || !Element.HasValue || !GroupContext!.GroupElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("registerToggle", GroupContext.GroupElement.Value, Element.Value, resolvedValue);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UnregisterFromGroupAsync()
+    {
+        if (!IsInGroup || !Element.HasValue || !GroupContext!.GroupElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("unregisterToggle", GroupContext.GroupElement.Value, Element.Value);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        GroupContext?.UnregisterToggle(this);
-
         if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
+                await UnregisterFromGroupAsync();
                 var module = await moduleTask.Value;
 
                 if (IsInGroup)
@@ -410,6 +430,7 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
         if (IsInGroup)
         {
             await GroupContext!.SetGroupValueAsync(resolvedValue, nextPressed);
+            await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
             return;
         }
 
@@ -436,17 +457,18 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
             await PressedChanged.InvokeAsync(nextPressed);
         }
 
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
         StateHasChanged();
     }
 
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
-        if (!IsInGroup || ResolvedDisabled)
+        if (!IsInGroup || ResolvedDisabled || !GroupContext!.GroupElement.HasValue || !Element.HasValue)
         {
             return;
         }
 
-        var orientation = GroupContext!.Orientation;
+        var orientation = GroupContext.Orientation;
         var isHorizontal = orientation == Orientation.Horizontal;
         var isVertical = orientation == Orientation.Vertical;
 
@@ -458,22 +480,31 @@ public sealed class Toggle : ComponentBase, IAsyncDisposable
             (isHorizontal && e.Key == "ArrowRight") ||
             (isVertical && e.Key == "ArrowDown");
 
-        if (shouldNavigatePrevious)
+        try
         {
-            await GroupContext.NavigateToPreviousAsync(this);
+            var module = await moduleTask.Value;
+            if (shouldNavigatePrevious)
+            {
+                await module.InvokeVoidAsync("navigateToPrevious", GroupContext.GroupElement.Value, Element.Value);
+            }
+            else if (shouldNavigateNext)
+            {
+                await module.InvokeVoidAsync("navigateToNext", GroupContext.GroupElement.Value, Element.Value);
+            }
+            else if (e.Key == "Home")
+            {
+                await module.InvokeVoidAsync("navigateToFirst", GroupContext.GroupElement.Value);
+            }
+            else if (e.Key == "End")
+            {
+                await module.InvokeVoidAsync("navigateToLast", GroupContext.GroupElement.Value);
+            }
         }
-        else if (shouldNavigateNext)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
-            await GroupContext.NavigateToNextAsync(this);
         }
-        else if (e.Key == "Home")
-        {
-            await GroupContext.NavigateToFirstAsync();
-        }
-        else if (e.Key == "End")
-        {
-            await GroupContext.NavigateToLastAsync();
-        }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
     private async ValueTask FocusAsync()

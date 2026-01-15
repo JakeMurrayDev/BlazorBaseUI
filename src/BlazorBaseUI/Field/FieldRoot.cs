@@ -8,7 +8,7 @@ using FormValidationMode = BlazorBaseUI.Form.ValidationMode;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldRoot : ComponentBase, IDisposable
+public sealed class FieldRoot : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "div";
 

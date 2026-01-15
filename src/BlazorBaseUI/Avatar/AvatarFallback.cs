@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BlazorBaseUI.Avatar;
 
-public sealed class AvatarFallback : ComponentBase, IDisposable
+public sealed class AvatarFallback : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "span";
 

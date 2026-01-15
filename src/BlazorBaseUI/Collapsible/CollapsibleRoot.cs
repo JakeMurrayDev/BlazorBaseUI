@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Collapsible;
 
-public sealed class CollapsibleRoot : ComponentBase
+public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 

@@ -6,7 +6,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Button;
 
-public class Button : ComponentBase, IAsyncDisposable
+public class Button : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
 

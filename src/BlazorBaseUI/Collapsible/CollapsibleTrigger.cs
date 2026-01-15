@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components.Web;
 
 namespace BlazorBaseUI.Collapsible;
 
-public sealed class CollapsibleTrigger : ComponentBase
+public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "button";
 
@@ -45,7 +45,7 @@ public sealed class CollapsibleTrigger : ComponentBase
 
     protected override void OnInitialized()
     {
-        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick);
+        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
     }
 
     protected override void OnParametersSet()
@@ -133,7 +133,7 @@ public sealed class CollapsibleTrigger : ComponentBase
         }
     }
 
-    private void HandleClick(MouseEventArgs args)
+    private async Task HandleClickAsync(MouseEventArgs args)
     {
         if (ResolvedDisabled)
         {
@@ -141,5 +141,6 @@ public sealed class CollapsibleTrigger : ComponentBase
         }
 
         Context?.HandleTrigger();
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
     }
 }

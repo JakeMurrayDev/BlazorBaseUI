@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderTrack : ComponentBase
+public sealed class SliderTrack : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 

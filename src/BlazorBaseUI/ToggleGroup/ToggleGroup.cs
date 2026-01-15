@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.ToggleGroup;
 
-public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
+public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
@@ -96,7 +96,12 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
             state = new ToggleGroupState(Disabled, Multiple, Orientation);
         }
 
-        groupContext?.UpdateProperties(Disabled, Orientation, LoopFocus);
+        if (groupContext is not null)
+        {
+            groupContext.Disabled = Disabled;
+            groupContext.Orientation = Orientation;
+            groupContext.LoopFocus = LoopFocus;
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -188,11 +193,12 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
     }
 
     private ToggleGroupContext CreateContext() => new(
-        Disabled: Disabled,
-        Orientation: Orientation,
-        LoopFocus: LoopFocus,
-        GetValue: () => CurrentValue,
-        SetGroupValue: SetGroupValueInternalAsync);
+        disabled: Disabled,
+        orientation: Orientation,
+        loopFocus: LoopFocus,
+        getValue: () => CurrentValue,
+        setGroupValue: SetGroupValueInternalAsync,
+        getGroupElement: () => Element);
 
     private async Task InitializeJsAsync()
     {
@@ -204,7 +210,8 @@ public sealed class ToggleGroup : ComponentBase, IAsyncDisposable
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initializeGroup", Element.Value);
+            var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
+            await module.InvokeVoidAsync("initializeGroup", Element.Value, orientationString, LoopFocus);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

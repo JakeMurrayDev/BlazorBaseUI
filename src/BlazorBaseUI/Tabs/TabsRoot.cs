@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Tabs;
 
-public sealed class TabsRoot<TValue> : ComponentBase
+public sealed class TabsRoot<TValue> : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 
@@ -87,7 +87,11 @@ public sealed class TabsRoot<TValue> : ComponentBase
             state = new TabsRootState(Orientation, activationDirection);
         }
 
-        rootContext?.UpdateProperties(Orientation, activationDirection);
+        if (rootContext is not null)
+        {
+            rootContext.Orientation = Orientation;
+            rootContext.ActivationDirection = activationDirection;
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -182,7 +186,11 @@ public sealed class TabsRoot<TValue> : ComponentBase
             await ValueChanged.InvokeAsync(value);
         }
 
-        rootContext?.UpdateProperties(Orientation, activationDirection);
+        if (rootContext is not null)
+        {
+            rootContext.Orientation = Orientation;
+            rootContext.ActivationDirection = activationDirection;
+        }
         StateHasChanged();
     }
 }

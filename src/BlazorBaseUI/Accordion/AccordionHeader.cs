@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Accordion;
 
-public sealed class AccordionHeader : ComponentBase
+public sealed class AccordionHeader : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "h3";
 

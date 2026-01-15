@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Tabs;
 
-public sealed class TabsPanel<TValue> : ComponentBase, IDisposable
+public sealed class TabsPanel<TValue> : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "div";
 

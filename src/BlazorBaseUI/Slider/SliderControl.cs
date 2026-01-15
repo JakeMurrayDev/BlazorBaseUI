@@ -6,7 +6,7 @@ using BlazorBaseUI.DirectionProvider;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderControl : ComponentBase, IAsyncDisposable
+public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-slider.js";

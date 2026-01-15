@@ -10,7 +10,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldControl<TValue> : ControlBase<TValue>, IFieldStateSubscriber, IAsyncDisposable
+public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableComponent, IFieldStateSubscriber, IAsyncDisposable
 {
     private const string DefaultTag = "input";
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-field.js";

@@ -6,7 +6,7 @@ using BlazorBaseUI.Utilities.LabelableProvider;
 
 namespace BlazorBaseUI.Field;
 
-public sealed class FieldError : ComponentBase, IFieldStateSubscriber, IDisposable
+public sealed class FieldError : ComponentBase, IReferencableComponent, IFieldStateSubscriber, IDisposable
 {
     private const string DefaultTag = "div";
 

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Fieldset;
 
-public sealed class FieldsetRoot : ComponentBase
+public sealed class FieldsetRoot : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "fieldset";
 

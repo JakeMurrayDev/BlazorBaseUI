@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderValue : ComponentBase, IDisposable
+public sealed class SliderValue : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "output";
 

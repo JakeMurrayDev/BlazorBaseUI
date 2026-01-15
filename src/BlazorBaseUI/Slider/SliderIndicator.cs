@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Slider;
 
-public sealed class SliderIndicator : ComponentBase
+public sealed class SliderIndicator : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
 
