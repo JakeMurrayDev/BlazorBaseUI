@@ -95,18 +95,18 @@ public sealed class Portal : ComponentBase, IReferencableComponent, IAsyncDispos
         }
         else
         {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            builder.AddMultipleAttributes(1, AdditionalAttributes);
-            builder.AddAttribute(2, "data-blazor-base-ui-portal", string.Empty);
-            builder.AddAttribute(3, "id", Id);
+            builder.OpenElement(7, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(8, AdditionalAttributes);
+            builder.AddAttribute(9, "data-blazor-base-ui-portal", string.Empty);
+            builder.AddAttribute(10, "id", Id);
 
             if (!string.IsNullOrEmpty(style))
             {
-                builder.AddAttribute(4, "style", style);
+                builder.AddAttribute(11, "style", style);
             }
 
-            builder.AddContent(5, ChildContent);
-            builder.AddElementReferenceCapture(6, elementReference => Element = elementReference);
+            builder.AddContent(12, ChildContent);
+            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
             builder.CloseElement();
         }
     }

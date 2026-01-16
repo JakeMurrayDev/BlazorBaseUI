@@ -190,6 +190,50 @@ function checkForTransitionOrAnimation(element) {
     return hasTransition || hasAnimation;
 }
 
+function parseCssDuration(durationStr) {
+    if (!durationStr || durationStr === 'none') return 0;
+
+    // Handle comma-separated values (e.g., "0.3s, 0.5s") - take the max
+    const durations = durationStr.split(',').map(d => d.trim());
+    let maxMs = 0;
+
+    for (const duration of durations) {
+        let ms = 0;
+        if (duration.endsWith('ms')) {
+            ms = parseFloat(duration);
+        } else if (duration.endsWith('s')) {
+            ms = parseFloat(duration) * 1000;
+        }
+        if (!isNaN(ms) && ms > maxMs) {
+            maxMs = ms;
+        }
+    }
+
+    return maxMs;
+}
+
+function getMaxTransitionDuration(element) {
+    const style = getComputedStyle(element);
+
+    // Get transition duration + delay
+    const transitionDuration = parseCssDuration(style.transitionDuration);
+    const transitionDelay = parseCssDuration(style.transitionDelay);
+    const totalTransition = transitionDuration + transitionDelay;
+
+    // Get animation duration + delay
+    const animationDuration = parseCssDuration(style.animationDuration);
+    const animationDelay = parseCssDuration(style.animationDelay);
+    const totalAnimation = animationDuration + animationDelay;
+
+    // Return the maximum of transition or animation, with a buffer and bounds
+    const maxDuration = Math.max(totalTransition, totalAnimation);
+    const withBuffer = maxDuration + 50; // Add 50ms buffer
+    const minTimeout = 100;
+    const maxTimeout = 10000;
+
+    return Math.max(minTimeout, Math.min(withBuffer, maxTimeout));
+}
+
 function setupTransitionEndListener(rootState, isOpen) {
     const popupElement = rootState.popupElement;
     if (!popupElement) return;
@@ -225,14 +269,15 @@ function setupTransitionEndListener(rootState, isOpen) {
 
     rootState.transitionCleanup = cleanup;
 
-    // Fallback timeout in case transition event doesn't fire (e.g., element removed)
+    // Fallback timeout based on actual CSS duration
+    const fallbackTimeout = getMaxTransitionDuration(popupElement);
     setTimeout(() => {
         if (!called && rootState.dotNetRef) {
             called = true;
             cleanup();
             rootState.dotNetRef.invokeMethodAsync('OnTransitionEnd', isOpen).catch(() => { });
         }
-    }, 1000);
+    }, fallbackTimeout);
 }
 
 export function setTriggerElement(rootId, element) {

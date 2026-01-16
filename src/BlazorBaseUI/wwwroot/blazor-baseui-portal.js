@@ -11,7 +11,9 @@ export function createPortal(id, target = "body") {
     const container = document.querySelector(target);
 
     if (content && container) {
-        portalMap.set(id, content.parentNode);
+        if (!portalMap.has(id)) {
+            portalMap.set(id, content.parentNode);
+        }
         container.appendChild(content);
     }
 }

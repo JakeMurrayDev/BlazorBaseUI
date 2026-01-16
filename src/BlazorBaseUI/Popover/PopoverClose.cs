@@ -56,7 +56,7 @@ public sealed class PopoverClose : ComponentBase, IReferencableComponent
 
         builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        if (!NativeButton && string.IsNullOrEmpty(As))
+        if (!NativeButton)
         {
             builder.AddAttribute(2, "role", "button");
             if (Disabled)
@@ -64,8 +64,7 @@ public sealed class PopoverClose : ComponentBase, IReferencableComponent
                 builder.AddAttribute(3, "aria-disabled", "true");
             }
         }
-
-        if (NativeButton || string.IsNullOrEmpty(As) || As == "button")
+        else if (NativeButton || As == "button")
         {
             builder.AddAttribute(4, "type", "button");
             if (Disabled)

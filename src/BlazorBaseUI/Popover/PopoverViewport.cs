@@ -56,6 +56,7 @@ public sealed class PopoverViewport : ComponentBase, IReferencableComponent
 
         var open = RootContext.GetOpen();
         var transitionStatus = RootContext.TransitionStatus;
+        state = new PopoverViewportState(open, transitionStatus);
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
