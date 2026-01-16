@@ -153,6 +153,10 @@ function startTransition(rootState, isOpen) {
         // Use double rAF to ensure the browser has painted the initial state
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
+                // Guard against stale state - if pendingOpen changed, abort this transition
+                if (rootState.pendingOpen !== isOpen) {
+                    return;
+                }
                 if (hasTransition) {
                     setupTransitionEndListener(rootState, isOpen);
                 }
@@ -238,10 +242,14 @@ function setupTransitionEndListener(rootState, isOpen) {
     const popupElement = rootState.popupElement;
     if (!popupElement) return;
 
-    // Clean up any existing listener
+    // Clean up any existing listener and cancel pending fallback timeout
     if (rootState.transitionCleanup) {
         rootState.transitionCleanup();
         rootState.transitionCleanup = null;
+    }
+    if (rootState.fallbackTimeoutId) {
+        clearTimeout(rootState.fallbackTimeoutId);
+        rootState.fallbackTimeoutId = null;
     }
 
     let called = false;
@@ -261,6 +269,10 @@ function setupTransitionEndListener(rootState, isOpen) {
     const cleanup = () => {
         popupElement.removeEventListener('transitionend', handleEnd);
         popupElement.removeEventListener('animationend', handleEnd);
+        if (rootState.fallbackTimeoutId) {
+            clearTimeout(rootState.fallbackTimeoutId);
+            rootState.fallbackTimeoutId = null;
+        }
         rootState.transitionCleanup = null;
     };
 
@@ -271,7 +283,7 @@ function setupTransitionEndListener(rootState, isOpen) {
 
     // Fallback timeout based on actual CSS duration
     const fallbackTimeout = getMaxTransitionDuration(popupElement);
-    setTimeout(() => {
+    rootState.fallbackTimeoutId = setTimeout(() => {
         if (!called && rootState.dotNetRef) {
             called = true;
             cleanup();

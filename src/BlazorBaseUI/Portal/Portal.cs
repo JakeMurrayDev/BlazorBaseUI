@@ -135,7 +135,7 @@ public sealed class Portal : ComponentBase, IReferencableComponent, IAsyncDispos
             try
             {
                 var module = await ModuleTask.Value;
-                _ = module.InvokeVoidAsync("restorePortal", Id);
+                await module.InvokeVoidAsync("restorePortal", Id);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
