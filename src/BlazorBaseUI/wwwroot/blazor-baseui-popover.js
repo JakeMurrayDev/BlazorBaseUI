@@ -182,14 +182,14 @@ function startTransition(rootState, isOpen) {
 function checkForTransitionOrAnimation(element) {
     const style = getComputedStyle(element);
 
-    // Check for CSS transitions
-    const transitionDuration = style.transitionDuration;
-    const hasTransition = transitionDuration && transitionDuration !== '0s' && transitionDuration !== 'none';
+    // Check for CSS transitions using parsed duration to handle "0s, 0s" correctly
+    const transitionDuration = parseCssDuration(style.transitionDuration);
+    const hasTransition = transitionDuration > 0;
 
-    // Check for CSS animations
-    const animationDuration = style.animationDuration;
+    // Check for CSS animations using parsed duration
     const animationName = style.animationName;
-    const hasAnimation = animationName && animationName !== 'none' && animationDuration && animationDuration !== '0s';
+    const animationDuration = parseCssDuration(style.animationDuration);
+    const hasAnimation = animationName && animationName !== 'none' && animationDuration > 0;
 
     return hasTransition || hasAnimation;
 }
@@ -606,13 +606,13 @@ function updateArrowPosition(arrowElement, side, triggerRect, positionerElement,
         case 'left':
             // Arrow at right of positioner, pointing right
             arrowLeft = positionerWidth - 1;
-            arrowTop = (positionerHeight - arrowWidth) / 2;
+            arrowTop = (positionerHeight - arrowHeight) / 2;
             arrowElement.style.transform = 'rotate(90deg)';
             break;
         case 'right':
             // Arrow at left of positioner, pointing left
             arrowLeft = -arrowHeight + 1;
-            arrowTop = (positionerHeight - arrowWidth) / 2;
+            arrowTop = (positionerHeight - arrowHeight) / 2;
             arrowElement.style.transform = 'rotate(-90deg)';
             break;
     }
