@@ -161,10 +161,33 @@ If the component contains properties named **`As`** or **`RenderAs`**:
 
 * Use **code-based rendering** (`BuildRenderTree`).
 * Do **not** use Razor markup and do **not** do it in a razor file.
-* **Strict Linear Sequencing:** Every call to a `RenderTreeBuilder` method (`OpenElement`, `AddAttribute`, etc.) must use a hardcoded integer literal sequence number. 
+* **Strict Linear Sequencing:** Every call to a `RenderTreeBuilder` method (`OpenElement`, `AddAttribute`, etc.) must use a hardcoded integer literal sequence number.
 * **Incremental Order:** Sequence numbers must start at `0` and increment by `1` for every subsequent instruction in the source code.
 * **Branching Continuity:** Do **not** reuse sequence numbers across `if/else` or `switch` branches. Indices must continue to climb linearly based on their vertical position in the code to ensure the diffing engine identifies every distinct line as unique.
 * **No Variables:** Never use counter variables or expressions (e.g., `i++`) for sequence numbers.
+
+### OpenRegion/CloseRegion for Complex Render Trees
+
+For long or complex `BuildRenderTree` implementations, use `OpenRegion`/`CloseRegion` to create isolated sequence number spaces:
+
+```csharp
+protected override void BuildRenderTree(RenderTreeBuilder builder)
+{
+    builder.OpenRegion(0);
+    // Sequence numbers restart at 0 within this region
+    builder.OpenElement(0, "div");
+    builder.AddAttribute(1, "class", "header");
+    builder.CloseElement();
+    builder.CloseRegion();
+
+    builder.OpenRegion(1);
+    // Another isolated sequence space
+    builder.OpenElement(0, "div");
+    builder.AddAttribute(1, "class", "content");
+    builder.CloseElement();
+    builder.CloseRegion();
+}
+```
 
 ---
 
@@ -192,7 +215,7 @@ After receiving answers:
 
 1. Enums in `Enumerations.cs`.
 2. Interface and implementation in a single file.
-3. Include internal `Extensions` for `ToDataAttributeString()` mapping.
+3. If applicable, include internal `Extensions.cs` for `ToDataAttributeString()` mapping.
 
 ---
 
@@ -200,7 +223,60 @@ After receiving answers:
 
 * **Non-Blocking:** Never `await` in `OnParametersSetAsync` for non-critical work. Use `_ = SyncMethod();`.
 * **Logged Fire-and-Forget:** Cache callbacks in `OnInitialized` to avoid allocations.
-* **JS Timing:** JS interop cannot be called before the first render. Use `hasRendered` guard.
+* **JS Timing:** JS interop cannot be called before the first render. Use `hasRendered` guard if applicable.
+
+### Async Event Handlers
+
+* **Always return `Task` or `ValueTask`** from async event handlers. Never use `async void`.
+* Blazor does not track void-returning async methods; exceptions will be lost silently.
+
+```csharp
+// WRONG - exceptions are lost
+private async void HandleClick() { ... }
+
+// CORRECT
+private async Task HandleClick() { ... }
+```
+
+### Thread-Blocking Methods (Never Use)
+
+The following methods block the execution thread and must **never** be used in components:
+
+* `Task.Result`
+* `Task.Wait()`
+* `Task.WaitAny()`
+* `Task.WaitAll()`
+* `Thread.Sleep()`
+* `TaskAwaiter.GetResult()`
+
+### Component Re-entrancy
+
+Components are re-entrant at any `await` point. Lifecycle methods may be called before an async operation completes:
+
+* Ensure the component is in a **valid state for rendering** before any `await`
+* `OnParametersSetAsync` or disposal may occur while `OnInitializedAsync` is still running
+* Use guards or null checks for state that may not yet be initialized
+
+### Fire-and-Forget Exception Handling
+
+For fire-and-forget operations, use `DispatchExceptionAsync` to surface exceptions to error boundaries:
+
+```csharp
+private void StartBackgroundWork()
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await SomeLongRunningTask();
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    });
+}
+```
 
 ---
 
@@ -208,6 +284,35 @@ After receiving answers:
 
 * **Only** include `GC.SuppressFinalize(this)` if the class has a destructor (`~ClassName()`).
 * Clean up JS interop objects and event handlers.
+
+### CancellationToken for Background Work
+
+For components with background operations (timers, polling, long-running tasks), use `CancellationTokenSource`:
+
+```csharp
+private CancellationTokenSource? cts;
+
+protected override void OnInitialized()
+{
+    cts = new CancellationTokenSource();
+    _ = DoBackgroundWorkAsync(cts.Token);
+}
+
+private async Task DoBackgroundWorkAsync(CancellationToken cancellationToken)
+{
+    while (!cancellationToken.IsCancellationRequested)
+    {
+        await Task.Delay(1000, cancellationToken);
+        // ... work ...
+    }
+}
+
+public void Dispose()
+{
+    cts?.Cancel();
+    cts?.Dispose();
+}
+```
 
 ---
 
