@@ -20,17 +20,21 @@ internal sealed class DialogRootContext
         string? titleId,
         string? descriptionId,
         string? activeTriggerId,
+        object? payload,
         Func<bool> getOpen,
         Func<bool> getMounted,
+        Func<object?> getPayload,
         Func<ElementReference?> getTriggerElement,
         Func<ElementReference?> getPopupElement,
         Action<string> setTitleId,
         Action<string> setDescriptionId,
-        Action<ElementReference?> setTriggerElement,
+        Action<string, ElementReference?> registerTriggerElement,
+        Action<string> unregisterTriggerElement,
         Action<ElementReference?> setPopupElement,
         Func<bool, OpenChangeReason, Task> setOpenAsync,
         Func<object?, OpenChangeReason, Task> setOpenWithPayloadAsync,
         Func<string?, object?, OpenChangeReason, Task> setOpenWithTriggerIdAsync,
+        Action<string, object?> setTriggerPayload,
         Action close,
         Action forceUnmount)
     {
@@ -49,17 +53,21 @@ internal sealed class DialogRootContext
         TitleId = titleId;
         DescriptionId = descriptionId;
         ActiveTriggerId = activeTriggerId;
+        Payload = payload;
         GetOpen = getOpen;
         GetMounted = getMounted;
+        GetPayload = getPayload;
         GetTriggerElement = getTriggerElement;
         GetPopupElement = getPopupElement;
         SetTitleId = setTitleId;
         SetDescriptionId = setDescriptionId;
-        SetTriggerElement = setTriggerElement;
+        RegisterTriggerElement = registerTriggerElement;
+        UnregisterTriggerElement = unregisterTriggerElement;
         SetPopupElement = setPopupElement;
         SetOpenAsync = setOpenAsync;
         SetOpenWithPayloadAsync = setOpenWithPayloadAsync;
         SetOpenWithTriggerIdAsync = setOpenWithTriggerIdAsync;
+        SetTriggerPayload = setTriggerPayload;
         Close = close;
         ForceUnmount = forceUnmount;
     }
@@ -94,9 +102,13 @@ internal sealed class DialogRootContext
 
     public string? ActiveTriggerId { get; set; }
 
+    public object? Payload { get; set; }
+
     public Func<bool> GetOpen { get; }
 
     public Func<bool> GetMounted { get; }
+
+    public Func<object?> GetPayload { get; }
 
     public Func<ElementReference?> GetTriggerElement { get; }
 
@@ -106,7 +118,9 @@ internal sealed class DialogRootContext
 
     public Action<string> SetDescriptionId { get; }
 
-    public Action<ElementReference?> SetTriggerElement { get; }
+    public Action<string, ElementReference?> RegisterTriggerElement { get; }
+
+    public Action<string> UnregisterTriggerElement { get; }
 
     public Action<ElementReference?> SetPopupElement { get; }
 
@@ -116,7 +130,7 @@ internal sealed class DialogRootContext
 
     public Func<string?, object?, OpenChangeReason, Task> SetOpenWithTriggerIdAsync { get; }
 
-    public object? Payload { get; set; }
+    public Action<string, object?> SetTriggerPayload { get; }
 
     public Action Close { get; }
 

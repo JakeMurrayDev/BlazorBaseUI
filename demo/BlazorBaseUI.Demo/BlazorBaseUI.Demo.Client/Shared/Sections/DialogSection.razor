@@ -388,6 +388,153 @@
         </DialogRoot>
     </DemoSection>
 
+    <DemoSection Title="Handle (Detached Triggers)"
+                 Description="Use a handle to connect triggers placed outside the DialogRoot for shared dialog content.">
+        <div class="flex flex-col gap-4">
+            <div class="flex gap-4">
+                <DialogTypedTrigger TPayload="string"
+                                Handle="@detachedDialogHandle"
+                                Id="action-1"
+                                Payload="@("Edit Profile - Modify your personal information")"
+                                ClassValue="@(s => TriggerClass(s))">
+                    Edit Profile
+                </DialogTypedTrigger>
+                <DialogTypedTrigger TPayload="string"
+                                Handle="@detachedDialogHandle"
+                                Id="action-2"
+                                Payload="@("Change Password - Update your security credentials")"
+                                ClassValue="@(s => TriggerClass(s))">
+                    Change Password
+                </DialogTypedTrigger>
+                <DialogTypedTrigger TPayload="string"
+                                Handle="@detachedDialogHandle"
+                                Id="action-3"
+                                Payload="@("Delete Account - Permanently remove your account")"
+                                ClassValue="@(s => DangerTriggerClass(s))">
+                    Delete Account
+                </DialogTypedTrigger>
+            </div>
+
+            <DialogRoot Handle="@detachedDialogHandle">
+                <ChildContentWithPayload>
+                    @{
+                        var handlePayloadContext = context;
+                    }
+                    <DialogPortal>
+                        <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
+                        <DialogPopup ClassValue="@(s => PopupClass(s))">
+                            <DialogTitle class="text-lg font-semibold text-gray-900">
+                                Action Details
+                            </DialogTitle>
+                            <DialogDescription class="mt-2 text-sm text-gray-600">
+                                @(handlePayloadContext.Payload?.ToString() ?? "Select an action to see details")
+                            </DialogDescription>
+                            <div class="mt-6 flex justify-end gap-3">
+                                <DialogClose ClassValue="@(s => SecondaryButtonClass(s))">
+                                    Cancel
+                                </DialogClose>
+                                <DialogClose ClassValue="@(s => CloseButtonClass(s))">
+                                    Confirm
+                                </DialogClose>
+                            </div>
+                        </DialogPopup>
+                    </DialogPortal>
+                </ChildContentWithPayload>
+            </DialogRoot>
+
+            <div class="flex gap-2">
+                <button class="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+                        @onclick="@(() => detachedDialogHandle.Open("action-1"))">
+                    Open Edit Profile
+                </button>
+                <button class="rounded bg-gray-200 px-3 py-1.5 text-sm hover:bg-gray-300"
+                        @onclick="@(() => detachedDialogHandle.Close())">
+                    Close
+                </button>
+            </div>
+        </div>
+        <div class="mt-3 rounded bg-gray-100 p-3 text-sm text-gray-700">
+            <p>Triggers are placed <strong>outside</strong> the DialogRoot but share a common handle.</p>
+            <p class="mt-1">The handle also allows imperative control via <code>Open(triggerId)</code> and <code>Close()</code>.</p>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Typed Payload with Handle"
+                 Description="Use generics for type-safe payloads with complex data objects.">
+        <div class="flex flex-col gap-4">
+            <div class="flex gap-4">
+                @foreach (var task in sampleTasks)
+                {
+                    <DialogTypedTrigger TPayload="TaskInfo"
+                                    Handle="@typedDialogHandle"
+                                    Id="@($"task-{task.Id}")"
+                                    Payload="@task"
+                                    ClassValue="@(s => TriggerClass(s))">
+                        @task.Title
+                    </DialogTypedTrigger>
+                }
+            </div>
+
+            <DialogRoot Handle="@typedDialogHandle">
+                <ChildContentWithPayload>
+                    @{
+                        var typedPayloadContext = context;
+                        var taskInfo = typedPayloadContext.Payload as TaskInfo;
+                    }
+                    <DialogPortal>
+                        <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
+                        <DialogPopup ClassValue="@(s => PopupClass(s))" StyleValue="@(_ => "max-width: 400px;")">
+                            @if (taskInfo is not null)
+                            {
+                                <DialogTitle class="text-lg font-semibold text-gray-900">
+                                    @taskInfo.Title
+                                </DialogTitle>
+                                <div class="mt-4 space-y-3">
+                                    <DialogDescription class="text-sm text-gray-600">
+                                        @taskInfo.Description
+                                    </DialogDescription>
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium @(GetPriorityClass(taskInfo.Priority))">
+                                            @taskInfo.Priority Priority
+                                        </span>
+                                        <span class="text-gray-400">|</span>
+                                        <span class="text-gray-600">Due: @taskInfo.DueDate.ToString("MMM dd, yyyy")</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="font-medium text-gray-700">Status:</span>
+                                        <span class="ml-1 @(taskInfo.IsComplete ? "text-green-600" : "text-yellow-600")">
+                                            @(taskInfo.IsComplete ? "Completed" : "In Progress")
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <DialogTitle class="text-lg font-semibold text-gray-900">
+                                    Task Details
+                                </DialogTitle>
+                                <DialogDescription class="mt-2 text-sm text-gray-600">
+                                    Click a task to see its details.
+                                </DialogDescription>
+                            }
+                            <div class="mt-6 flex justify-end gap-3">
+                                <DialogClose ClassValue="@(s => SecondaryButtonClass(s))">
+                                    Cancel
+                                </DialogClose>
+                                <DialogClose ClassValue="@(s => CloseButtonClass(s))">
+                                    @(taskInfo?.IsComplete == true ? "Reopen" : "Mark Complete")
+                                </DialogClose>
+                            </div>
+                        </DialogPopup>
+                    </DialogPortal>
+                </ChildContentWithPayload>
+            </DialogRoot>
+        </div>
+        <div class="mt-3 rounded bg-gray-100 p-3 text-sm text-gray-700">
+            <p>Using <code>DialogTypedTrigger&lt;TaskInfo&gt;</code> and <code>DialogHandle&lt;TaskInfo&gt;</code> provides compile-time type safety.</p>
+        </div>
+    </DemoSection>
+
     <DemoSection Title="Confirmation Dialog"
                  Description="A complete example of a confirmation dialog with actions."
                  CodeSnippet="@ConfirmationCodeSnippet">
@@ -425,6 +572,30 @@
 
     [Parameter]
     public bool IsWasmMode { get; set; }
+
+    // Handle for detached triggers demo (string payload)
+    private readonly DialogHandle<string> detachedDialogHandle = new();
+
+    // Handle for typed payload demo
+    private readonly DialogHandle<TaskInfo> typedDialogHandle = new();
+
+    // Sample data for typed payload demo
+    private readonly List<TaskInfo> sampleTasks =
+    [
+        new TaskInfo(1, "Review PR", "Review the pull request for the new feature", "High", DateTime.Now.AddDays(1), false),
+        new TaskInfo(2, "Update Docs", "Update the documentation for the API changes", "Medium", DateTime.Now.AddDays(3), false),
+        new TaskInfo(3, "Fix Bug", "Fix the reported bug in the login flow", "High", DateTime.Now.AddDays(-1), true)
+    ];
+
+    private record TaskInfo(int Id, string Title, string Description, string Priority, DateTime DueDate, bool IsComplete);
+
+    private static string GetPriorityClass(string priority) => priority switch
+    {
+        "High" => "bg-red-100 text-red-700",
+        "Medium" => "bg-yellow-100 text-yellow-700",
+        "Low" => "bg-green-100 text-green-700",
+        _ => "bg-gray-100 text-gray-700"
+    };
 
     private void HandleOpenChange(DialogOpenChangeEventArgs args)
     {
