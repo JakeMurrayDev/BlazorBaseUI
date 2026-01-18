@@ -9,7 +9,7 @@ namespace BlazorBaseUI.Tooltip;
 /// or detached with a handle for typed payloads.
 /// </summary>
 /// <typeparam name="TPayload">The type of payload to pass to the tooltip. Use object for untyped payloads.</typeparam>
-public class TooltipTrigger<TPayload> : ComponentBase, IReferencableComponent, IDisposable
+public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "button";
 
@@ -105,7 +105,7 @@ public class TooltipTrigger<TPayload> : ComponentBase, IReferencableComponent, I
         state = new TooltipTriggerState(open, Disabled);
 
         // Update payload via context if not using handle
-        if (!HasHandle && Payload is not null)
+        if (!HasHandle)
         {
             RootContext?.SetTriggerPayload(triggerId, Payload);
         }
@@ -437,4 +437,9 @@ public class TooltipTrigger<TPayload> : ComponentBase, IReferencableComponent, I
 
         return Task.CompletedTask;
     }
+}
+
+public sealed class TooltipTrigger : TooltipTypedTrigger<object>
+{
+
 }

@@ -116,7 +116,7 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
             {
                 await InitializePositionerAsync();
             }
-            else if (!DisableAnchorTracking)
+            else
             {
                 await UpdatePositionAsync();
             }
