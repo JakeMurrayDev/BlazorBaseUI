@@ -97,74 +97,112 @@ public sealed class DialogTrigger : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
-            AddAttributes(builder, 2, resolvedClass, resolvedStyle, isButton);
-            builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddAttribute(13, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(14, component =>
+            builder.AddAttribute(2, "aria-haspopup", "dialog");
+            builder.AddAttribute(3, "aria-expanded", Context.Open ? "true" : "false");
+
+            if (isButton)
+            {
+                builder.AddAttribute(4, "type", "button");
+                if (Disabled)
+                {
+                    builder.AddAttribute(5, "disabled", true);
+                }
+            }
+            else
+            {
+                if (Disabled)
+                {
+                    builder.AddAttribute(6, "aria-disabled", "true");
+                }
+            }
+
+            if (Context.Open)
+            {
+                builder.AddAttribute(7, "data-popup-open", string.Empty);
+            }
+
+            if (Disabled)
+            {
+                builder.AddAttribute(8, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(9, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(10, "style", resolvedStyle);
+            }
+
+            builder.AddAttribute(11, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddAttribute(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component =>
             {
                 var refComponent = (IReferencableComponent)component;
                 Element = refComponent.Element;
                 Context.SetTriggerElement(Element);
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.OpenElement(15, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            builder.AddMultipleAttributes(16, AdditionalAttributes);
-            AddAttributes(builder, 17, resolvedClass, resolvedStyle, isButton);
-            builder.AddAttribute(27, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddContent(28, ChildContent);
-            builder.AddElementReferenceCapture(29, elementReference =>
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "aria-haspopup", "dialog");
+            builder.AddAttribute(3, "aria-expanded", Context.Open ? "true" : "false");
+
+            if (isButton)
+            {
+                builder.AddAttribute(4, "type", "button");
+                if (Disabled)
+                {
+                    builder.AddAttribute(5, "disabled", true);
+                }
+            }
+            else
+            {
+                if (Disabled)
+                {
+                    builder.AddAttribute(6, "aria-disabled", "true");
+                }
+            }
+
+            if (Context.Open)
+            {
+                builder.AddAttribute(7, "data-popup-open", string.Empty);
+            }
+
+            if (Disabled)
+            {
+                builder.AddAttribute(8, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(9, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(10, "style", resolvedStyle);
+            }
+
+            builder.AddAttribute(11, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddContent(12, ChildContent);
+            builder.AddElementReferenceCapture(13, elementReference =>
             {
                 Element = elementReference;
                 Context.SetTriggerElement(Element);
             });
             builder.CloseElement();
-        }
-    }
-
-    private void AddAttributes(RenderTreeBuilder builder, int startSequence, string? resolvedClass, string? resolvedStyle, bool isButton)
-    {
-        builder.AddAttribute(startSequence, "aria-haspopup", "dialog");
-        builder.AddAttribute(startSequence + 1, "aria-expanded", Context!.Open ? "true" : "false");
-
-        if (isButton)
-        {
-            builder.AddAttribute(startSequence + 2, "type", "button");
-            if (Disabled)
-            {
-                builder.AddAttribute(startSequence + 3, "disabled", true);
-            }
-        }
-        else
-        {
-            if (Disabled)
-            {
-                builder.AddAttribute(startSequence + 4, "aria-disabled", "true");
-            }
-        }
-
-        if (Context.Open)
-        {
-            builder.AddAttribute(startSequence + 5, "data-popup-open", string.Empty);
-        }
-
-        if (Disabled)
-        {
-            builder.AddAttribute(startSequence + 6, "data-disabled", string.Empty);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(startSequence + 7, "class", resolvedClass);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(startSequence + 8, "style", resolvedStyle);
+            builder.CloseRegion();
         }
     }
 

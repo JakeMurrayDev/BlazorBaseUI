@@ -87,15 +87,39 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "role", "presentation");
-            AddDataAttributes(builder, 3, isHidden);
+
+            if (Context.Open)
+            {
+                builder.AddAttribute(3, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(4, "data-closed", string.Empty);
+            }
+
+            if (Context.TransitionStatus == TransitionStatus.Starting)
+            {
+                builder.AddAttribute(5, "data-starting-style", string.Empty);
+            }
+            else if (Context.TransitionStatus == TransitionStatus.Ending)
+            {
+                builder.AddAttribute(6, "data-ending-style", string.Empty);
+            }
+
+            if (isHidden)
+            {
+                builder.AddAttribute(7, "hidden", string.Empty);
+            }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
                 builder.AddAttribute(8, "class", resolvedClass);
             }
+
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
                 builder.AddAttribute(9, "style", resolvedStyle);
@@ -108,53 +132,53 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
                 Element = ((IReferencableComponent)component).Element;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.OpenElement(13, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            builder.AddMultipleAttributes(14, AdditionalAttributes);
-            builder.AddAttribute(15, "role", "presentation");
-            AddDataAttributes(builder, 16, isHidden);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "presentation");
+
+            if (Context.Open)
+            {
+                builder.AddAttribute(3, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(4, "data-closed", string.Empty);
+            }
+
+            if (Context.TransitionStatus == TransitionStatus.Starting)
+            {
+                builder.AddAttribute(5, "data-starting-style", string.Empty);
+            }
+            else if (Context.TransitionStatus == TransitionStatus.Ending)
+            {
+                builder.AddAttribute(6, "data-ending-style", string.Empty);
+            }
+
+            if (isHidden)
+            {
+                builder.AddAttribute(7, "hidden", string.Empty);
+            }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(21, "class", resolvedClass);
+                builder.AddAttribute(8, "class", resolvedClass);
             }
+
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(22, "style", resolvedStyle);
+                builder.AddAttribute(9, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(23, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddContent(24, ChildContent);
-            builder.AddElementReferenceCapture(25, elementReference => Element = elementReference);
+            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddContent(11, ChildContent);
+            builder.AddElementReferenceCapture(12, elementReference => Element = elementReference);
             builder.CloseElement();
-        }
-    }
-
-    private void AddDataAttributes(RenderTreeBuilder builder, int startSequence, bool isHidden)
-    {
-        if (Context!.Open)
-        {
-            builder.AddAttribute(startSequence, "data-open", string.Empty);
-        }
-        else
-        {
-            builder.AddAttribute(startSequence + 1, "data-closed", string.Empty);
-        }
-
-        if (Context.TransitionStatus == TransitionStatus.Starting)
-        {
-            builder.AddAttribute(startSequence + 2, "data-starting-style", string.Empty);
-        }
-        else if (Context.TransitionStatus == TransitionStatus.Ending)
-        {
-            builder.AddAttribute(startSequence + 3, "data-ending-style", string.Empty);
-        }
-
-        if (isHidden)
-        {
-            builder.AddAttribute(startSequence + 4, "hidden", string.Empty);
+            builder.CloseRegion();
         }
     }
 

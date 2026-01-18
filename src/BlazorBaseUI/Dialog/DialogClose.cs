@@ -71,60 +71,92 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
-            AddAttributes(builder, 2, resolvedClass, resolvedStyle, isButton);
-            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddAttribute(11, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(12, component =>
+
+            if (isButton)
+            {
+                builder.AddAttribute(2, "type", "button");
+                if (Disabled)
+                {
+                    builder.AddAttribute(3, "disabled", true);
+                }
+            }
+            else
+            {
+                if (Disabled)
+                {
+                    builder.AddAttribute(4, "aria-disabled", "true");
+                }
+            }
+
+            if (Disabled)
+            {
+                builder.AddAttribute(5, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(6, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(7, "style", resolvedStyle);
+            }
+
+            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddAttribute(9, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(10, component =>
             {
                 Element = ((IReferencableComponent)component).Element;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.OpenElement(13, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            builder.AddMultipleAttributes(14, AdditionalAttributes);
-            AddAttributes(builder, 15, resolvedClass, resolvedStyle, isButton);
-            builder.AddAttribute(23, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddContent(24, ChildContent);
-            builder.AddElementReferenceCapture(25, elementReference => Element = elementReference);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (isButton)
+            {
+                builder.AddAttribute(2, "type", "button");
+                if (Disabled)
+                {
+                    builder.AddAttribute(3, "disabled", true);
+                }
+            }
+            else
+            {
+                if (Disabled)
+                {
+                    builder.AddAttribute(4, "aria-disabled", "true");
+                }
+            }
+
+            if (Disabled)
+            {
+                builder.AddAttribute(5, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(6, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(7, "style", resolvedStyle);
+            }
+
+            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddContent(9, ChildContent);
+            builder.AddElementReferenceCapture(10, elementReference => Element = elementReference);
             builder.CloseElement();
-        }
-    }
-
-    private void AddAttributes(RenderTreeBuilder builder, int startSequence, string? resolvedClass, string? resolvedStyle, bool isButton)
-    {
-        if (isButton)
-        {
-            builder.AddAttribute(startSequence, "type", "button");
-            if (Disabled)
-            {
-                builder.AddAttribute(startSequence + 1, "disabled", true);
-            }
-        }
-        else
-        {
-            if (Disabled)
-            {
-                builder.AddAttribute(startSequence + 2, "aria-disabled", "true");
-            }
-        }
-
-        if (Disabled)
-        {
-            builder.AddAttribute(startSequence + 3, "data-disabled", string.Empty);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(startSequence + 4, "class", resolvedClass);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(startSequence + 5, "style", resolvedStyle);
+            builder.CloseRegion();
         }
     }
 

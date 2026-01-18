@@ -46,6 +46,11 @@ public sealed class DialogTitle : ComponentBase, IReferencableComponent
         {
             throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
         }
+
+        if (Context is not null && AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id") != ResolvedId)
+        {
+            Context.SetTitleId(ResolvedId);
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)

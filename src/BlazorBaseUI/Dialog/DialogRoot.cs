@@ -170,6 +170,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
                 {
+                    // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
                 }
             }
         }
@@ -183,6 +184,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
             }
         }
     }
@@ -327,6 +329,8 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
                 _ => InstantType.None
             };
             transitionStatus = TransitionStatus.Ending;
+            payload = null;
+            context.Payload = null;
         }
 
         context.InstantType = instantType;

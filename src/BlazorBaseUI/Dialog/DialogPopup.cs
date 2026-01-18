@@ -127,97 +127,162 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
         var combinedStyle = CombineStyleStrings(StyleValue?.Invoke(state), nestedDialogsStyle);
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, combinedStyle);
         var isHidden = keepMounted && !Context.Open && (Context.TransitionStatus == TransitionStatus.Undefined || Context.TransitionStatus == TransitionStatus.Idle);
+        var instantValue = Context.InstantType.ToDataAttributeString();
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
-            AddAttributes(builder, 2, resolvedClass, resolvedStyle, isHidden);
-            builder.AddAttribute(16, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(17, component =>
+            builder.AddAttribute(2, "role", Context.Role.ToRoleString());
+            builder.AddAttribute(3, "tabindex", "-1");
+
+            if (Context.Modal != ModalMode.False)
+            {
+                builder.AddAttribute(4, "aria-modal", "true");
+            }
+
+            if (!string.IsNullOrEmpty(Context.TitleId))
+            {
+                builder.AddAttribute(5, "aria-labelledby", Context.TitleId);
+            }
+
+            if (!string.IsNullOrEmpty(Context.DescriptionId))
+            {
+                builder.AddAttribute(6, "aria-describedby", Context.DescriptionId);
+            }
+
+            if (Context.Open)
+            {
+                builder.AddAttribute(7, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(8, "data-closed", string.Empty);
+            }
+
+            if (Context.TransitionStatus == TransitionStatus.Starting)
+            {
+                builder.AddAttribute(9, "data-starting-style", string.Empty);
+            }
+            else if (Context.TransitionStatus == TransitionStatus.Ending)
+            {
+                builder.AddAttribute(10, "data-ending-style", string.Empty);
+            }
+
+            if (Context.Nested)
+            {
+                builder.AddAttribute(11, "data-nested", string.Empty);
+            }
+
+            if (Context.NestedDialogCount > 0)
+            {
+                builder.AddAttribute(12, "data-nested-dialog-open", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(instantValue))
+            {
+                builder.AddAttribute(13, "data-instant", instantValue);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(15, "style", resolvedStyle);
+            }
+
+            if (isHidden)
+            {
+                builder.AddAttribute(16, "hidden", string.Empty);
+            }
+
+            builder.AddAttribute(17, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(18, component =>
             {
                 Element = ((IReferencableComponent)component).Element;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.OpenElement(18, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            builder.AddMultipleAttributes(19, AdditionalAttributes);
-            AddAttributes(builder, 20, resolvedClass, resolvedStyle, isHidden);
-            builder.AddContent(33, ChildContent);
-            builder.AddElementReferenceCapture(34, elementReference => Element = elementReference);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", Context.Role.ToRoleString());
+            builder.AddAttribute(3, "tabindex", "-1");
+
+            if (Context.Modal != ModalMode.False)
+            {
+                builder.AddAttribute(4, "aria-modal", "true");
+            }
+
+            if (!string.IsNullOrEmpty(Context.TitleId))
+            {
+                builder.AddAttribute(5, "aria-labelledby", Context.TitleId);
+            }
+
+            if (!string.IsNullOrEmpty(Context.DescriptionId))
+            {
+                builder.AddAttribute(6, "aria-describedby", Context.DescriptionId);
+            }
+
+            if (Context.Open)
+            {
+                builder.AddAttribute(7, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(8, "data-closed", string.Empty);
+            }
+
+            if (Context.TransitionStatus == TransitionStatus.Starting)
+            {
+                builder.AddAttribute(9, "data-starting-style", string.Empty);
+            }
+            else if (Context.TransitionStatus == TransitionStatus.Ending)
+            {
+                builder.AddAttribute(10, "data-ending-style", string.Empty);
+            }
+
+            if (Context.Nested)
+            {
+                builder.AddAttribute(11, "data-nested", string.Empty);
+            }
+
+            if (Context.NestedDialogCount > 0)
+            {
+                builder.AddAttribute(12, "data-nested-dialog-open", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(instantValue))
+            {
+                builder.AddAttribute(13, "data-instant", instantValue);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(15, "style", resolvedStyle);
+            }
+
+            if (isHidden)
+            {
+                builder.AddAttribute(16, "hidden", string.Empty);
+            }
+
+            builder.AddContent(17, ChildContent);
+            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
             builder.CloseElement();
-        }
-    }
-
-    private void AddAttributes(RenderTreeBuilder builder, int startSequence, string? resolvedClass, string? resolvedStyle, bool isHidden)
-    {
-        builder.AddAttribute(startSequence, "role", Context!.Role.ToRoleString());
-        builder.AddAttribute(startSequence + 1, "tabindex", "-1");
-
-        if (Context!.Modal != ModalMode.False)
-        {
-            builder.AddAttribute(startSequence + 2, "aria-modal", "true");
-        }
-
-        if (!string.IsNullOrEmpty(Context.TitleId))
-        {
-            builder.AddAttribute(startSequence + 3, "aria-labelledby", Context.TitleId);
-        }
-
-        if (!string.IsNullOrEmpty(Context.DescriptionId))
-        {
-            builder.AddAttribute(startSequence + 4, "aria-describedby", Context.DescriptionId);
-        }
-
-        if (Context.Open)
-        {
-            builder.AddAttribute(startSequence + 5, "data-open", string.Empty);
-        }
-        else
-        {
-            builder.AddAttribute(startSequence + 6, "data-closed", string.Empty);
-        }
-
-        if (Context.TransitionStatus == TransitionStatus.Starting)
-        {
-            builder.AddAttribute(startSequence + 7, "data-starting-style", string.Empty);
-        }
-        else if (Context.TransitionStatus == TransitionStatus.Ending)
-        {
-            builder.AddAttribute(startSequence + 8, "data-ending-style", string.Empty);
-        }
-
-        if (Context.Nested)
-        {
-            builder.AddAttribute(startSequence + 9, "data-nested", string.Empty);
-        }
-
-        if (Context.NestedDialogCount > 0)
-        {
-            builder.AddAttribute(startSequence + 10, "data-nested-dialog-open", string.Empty);
-        }
-
-        var instantValue = Context.InstantType.ToDataAttributeString();
-        if (!string.IsNullOrEmpty(instantValue))
-        {
-            builder.AddAttribute(startSequence + 11, "data-instant", instantValue);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(startSequence + 12, "class", resolvedClass);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(startSequence + 13, "style", resolvedStyle);
-        }
-
-        if (isHidden)
-        {
-            builder.AddAttribute(startSequence + 14, "hidden", string.Empty);
+            builder.CloseRegion();
         }
     }
 
@@ -229,6 +294,7 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePopup", Context.RootId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
