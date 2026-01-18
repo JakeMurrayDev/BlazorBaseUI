@@ -22,6 +22,8 @@ public sealed class NumberFieldScrubArea : ComponentBase, IReferencableComponent
     private DotNetObjectReference<NumberFieldScrubArea>? dotNetRef;
     private NumberFieldScrubAreaContext scrubContext = null!;
 
+    private NumberFieldRootState State => RootContext?.State ?? NumberFieldRootState.Default;
+
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -56,8 +58,6 @@ public sealed class NumberFieldScrubArea : ComponentBase, IReferencableComponent
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private NumberFieldRootState State => RootContext?.State ?? NumberFieldRootState.Default;
 
     public NumberFieldScrubArea()
     {
@@ -171,75 +171,68 @@ public sealed class NumberFieldScrubArea : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "presentation");
+            builder.AddAttribute(3, "style", baseStyle + (resolvedStyle ?? string.Empty));
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "role", "presentation");
-        builder.AddAttribute(3, "style", baseStyle + (resolvedStyle ?? string.Empty));
+            builder.AddAttribute(4, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
 
-        builder.AddAttribute(4, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
+            if (state.Scrubbing)
+            {
+                builder.AddAttribute(5, "data-scrubbing", string.Empty);
+            }
 
-        if (state.Scrubbing)
-        {
-            builder.AddAttribute(5, "data-scrubbing", string.Empty);
-        }
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(6, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(7, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(7, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(8, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(8, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(9, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(9, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(10, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(11, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(11, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(12, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(12, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(13, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(13, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(14, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(14, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(15, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(15, "class", resolvedClass);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddComponentParameter(16, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(17, component =>
             {
@@ -247,20 +240,84 @@ public sealed class NumberFieldScrubArea : ComponentBase, IReferencableComponent
                 scrubAreaElement = Element;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(18, elementReference =>
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "presentation");
+            builder.AddAttribute(3, "style", baseStyle + (resolvedStyle ?? string.Empty));
+
+            builder.AddAttribute(4, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
+
+            if (state.Scrubbing)
+            {
+                builder.AddAttribute(5, "data-scrubbing", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(7, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(8, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(9, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(11, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(12, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(13, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(14, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(15, "class", resolvedClass);
+            }
+
+            builder.AddElementReferenceCapture(16, elementReference =>
             {
                 Element = elementReference;
                 scrubAreaElement = elementReference;
             });
-            builder.AddContent(19, ChildContent);
+            builder.AddContent(17, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
-    private async void HandlePointerDown(PointerEventArgs e)
+    private async Task HandlePointerDown(PointerEventArgs e)
     {
         if (RootContext?.Disabled == true || RootContext?.ReadOnly == true)
             return;
