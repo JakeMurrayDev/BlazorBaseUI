@@ -128,26 +128,30 @@ if (isComponent)
       $"Type {RenderAs!.Name} must implement IReferencableComponent."
     );
   }
+  builder.OpenRegion(0);
   builder.OpenComponent(0, RenderAs!);
-  // ... attributes ...
+  // ... attributes (1, 2, 3, etc.) ...
   builder.AddComponentReferenceCapture(
-    14,
+    4,
     component =>
     {
       Element = ((IReferencableComponent)component).Element;
     }
   );
   builder.CloseComponent();
+  builder.CloseRegion();
 }
 else
 {
-  builder.OpenElement(15, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-  // ... attributes ...
+  builder.OpenRegion(1);
+  builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+  // ... attributes (1, 2, 3, etc.) ...
   builder.AddElementReferenceCapture(
-    16,
+    4,
     elementReference => (Element = elementReference)
   );
   builder.CloseElement();
+  builder.CloseRegion();
 }
 ```
 
