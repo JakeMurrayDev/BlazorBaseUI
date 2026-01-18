@@ -198,6 +198,7 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePopup", Element.Value);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

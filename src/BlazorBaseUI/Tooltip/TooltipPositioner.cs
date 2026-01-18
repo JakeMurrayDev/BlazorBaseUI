@@ -241,11 +241,14 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePositioner", positionerId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
             }
         }
+
+        positionerId = null;
     }
 
     private TooltipPositionerContext CreatePositionerContext() => new(

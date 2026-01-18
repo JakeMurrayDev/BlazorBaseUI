@@ -120,7 +120,7 @@ public class TooltipHandle<TPayload> : ITooltipHandle
     {
         registeredTriggers[triggerId] = new TriggerData(element, triggerPayload);
 
-        foreach (var subscriber in subscribers)
+        foreach (var subscriber in subscribers.ToArray())
         {
             subscriber.OnTriggerRegistered(triggerId, element);
         }
@@ -133,7 +133,7 @@ public class TooltipHandle<TPayload> : ITooltipHandle
     {
         registeredTriggers.Remove(triggerId);
 
-        foreach (var subscriber in subscribers)
+        foreach (var subscriber in subscribers.ToArray())
         {
             subscriber.OnTriggerUnregistered(triggerId);
         }
@@ -148,7 +148,7 @@ public class TooltipHandle<TPayload> : ITooltipHandle
         {
             registeredTriggers[triggerId] = data with { Element = element };
 
-            foreach (var subscriber in subscribers)
+            foreach (var subscriber in subscribers.ToArray())
             {
                 subscriber.OnTriggerElementUpdated(triggerId, element);
             }
@@ -296,7 +296,7 @@ public class TooltipHandle<TPayload> : ITooltipHandle
         }
 
         // Notify all subscribers (the root will actually process the state change)
-        foreach (var subscriber in subscribers)
+        foreach (var subscriber in subscribers.ToArray())
         {
             subscriber.OnOpenChangeRequested(nextOpen, reason, triggerId);
         }
@@ -304,7 +304,7 @@ public class TooltipHandle<TPayload> : ITooltipHandle
 
     private void NotifyStateChanged()
     {
-        foreach (var subscriber in subscribers)
+        foreach (var subscriber in subscribers.ToArray())
         {
             subscriber.OnStateChanged();
         }

@@ -224,7 +224,6 @@ public class TooltipTrigger<TPayload> : ComponentBase, IReferencableComponent, I
     {
         CancelHoverDelay();
         UnregisterFromCurrentStore(triggerId);
-        GC.SuppressFinalize(this);
     }
 
     private void OnElementChanged()

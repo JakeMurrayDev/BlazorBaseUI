@@ -295,7 +295,7 @@ function getScrollParents(element) {
 export function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
     if (!positionerElement || !triggerElement) return;
 
-    const positionerId = positionerElement.id || `positioner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const positionerId = positionerElement.id || `positioner-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     const positionerState = {
         positionerId,
