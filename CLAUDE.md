@@ -163,15 +163,18 @@ else
 
 ## 7. Code Placement and Rendering Rules
 
-* **All code must be inside `@code { }`**.
 * Never generate partial classes or code-behind files (`.razor.cs`).
 
 ### Render Mode Rule
 
 If the component contains properties named **`As`** or **`RenderAs`**:
 
-* Use **code-based rendering** (`BuildRenderTree`).
-* Do **not** use Razor markup and do **not** do it in a razor file.
+* Use **code-based rendering** (`BuildRenderTree`) in a pure `.cs` file.
+* Do **not** use Razor markup (`.razor` files).
+
+For simple components **without** `As`/`RenderAs` properties:
+
+* Use `.razor` files with all code inside `@code { }`.
 
 ---
 
