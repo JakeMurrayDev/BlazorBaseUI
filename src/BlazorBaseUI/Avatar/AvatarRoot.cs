@@ -53,47 +53,54 @@ public sealed class AvatarRoot : ComponentBase, IReferencableComponent
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
+        builder.OpenComponent<CascadingValue<AvatarRootContext>>(0);
+        builder.AddComponentParameter(1, "Value", context);
+        builder.AddComponentParameter(2, "IsFixed", false);
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderChildContent);
+        builder.CloseComponent();
+    }
+
+    private void RenderChildContent(RenderTreeBuilder innerBuilder)
+    {
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        builder.OpenComponent<CascadingValue<AvatarRootContext>>(0);
-        builder.AddAttribute(1, "Value", context);
-        builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+        if (isComponentRenderAs)
         {
-            if (isComponentRenderAs)
-            {
-                innerBuilder.OpenComponent(3, RenderAs!);
-            }
-            else
-            {
-                innerBuilder.OpenElement(4, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            }
-
-            innerBuilder.AddMultipleAttributes(5, AdditionalAttributes);
-
+            innerBuilder.OpenRegion(0);
+            innerBuilder.OpenComponent(0, RenderAs!);
+            innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                innerBuilder.AddAttribute(6, "class", resolvedClass);
+                innerBuilder.AddAttribute(2, "class", resolvedClass);
             }
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                innerBuilder.AddAttribute(7, "style", resolvedStyle);
+                innerBuilder.AddAttribute(3, "style", resolvedStyle);
             }
-
-            if (isComponentRenderAs)
+            innerBuilder.AddAttribute(4, "ChildContent", ChildContent);
+            innerBuilder.AddComponentReferenceCapture(5, component => { Element = ((IReferencableComponent)component).Element; });
+            innerBuilder.CloseComponent();
+            innerBuilder.CloseRegion();
+        }
+        else
+        {
+            innerBuilder.OpenRegion(1);
+            innerBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (!string.IsNullOrEmpty(resolvedClass))
             {
-                innerBuilder.AddAttribute(8, "ChildContent", ChildContent);
-                innerBuilder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
-                innerBuilder.CloseComponent();
+                innerBuilder.AddAttribute(2, "class", resolvedClass);
             }
-            else
+            if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                innerBuilder.AddElementReferenceCapture(10, elementReference => Element = elementReference);
-                innerBuilder.AddContent(11, ChildContent);
-                innerBuilder.CloseElement();
+                innerBuilder.AddAttribute(3, "style", resolvedStyle);
             }
-        }));
-        builder.CloseComponent();
+            innerBuilder.AddElementReferenceCapture(4, elementReference => Element = elementReference);
+            innerBuilder.AddContent(5, ChildContent);
+            innerBuilder.CloseElement();
+            innerBuilder.CloseRegion();
+        }
     }
 
     private void SetImageLoadingStatus(ImageLoadingStatus status)
@@ -103,7 +110,7 @@ public sealed class AvatarRoot : ComponentBase, IReferencableComponent
             imageLoadingStatus = status;
             state = new AvatarRootState(imageLoadingStatus);
             context = new AvatarRootContext(imageLoadingStatus, SetImageLoadingStatus);
-            StateHasChanged();
+            _ = InvokeAsync(StateHasChanged);
         }
     }
 }

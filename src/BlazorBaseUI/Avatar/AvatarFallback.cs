@@ -19,6 +19,9 @@ public sealed class AvatarFallback : ComponentBase, IReferencableComponent, IDis
     [Inject]
     private ILogger<AvatarFallback> Logger { get; set; } = default!;
 
+    [Inject]
+    private TimeProvider TimeProvider { get; set; } = default!;
+
     [CascadingParameter]
     private AvatarRootContext? Context { get; set; }
 
@@ -111,35 +114,39 @@ public sealed class AvatarFallback : ComponentBase, IReferencableComponent, IDis
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
-
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(2, "class", resolvedClass);
-        }
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(3, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(2, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(3, "style", resolvedStyle);
+            }
             builder.AddAttribute(4, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(5, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(6, elementReference => Element = elementReference);
-            builder.AddContent(7, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(2, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(3, "style", resolvedStyle);
+            }
+            builder.AddElementReferenceCapture(4, elementReference => Element = elementReference);
+            builder.AddContent(5, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
@@ -150,7 +157,7 @@ public sealed class AvatarFallback : ComponentBase, IReferencableComponent, IDis
 
         try
         {
-            await Task.Delay(Delay!.Value, delayCts.Token);
+            await Task.Delay(TimeSpan.FromMilliseconds(Delay!.Value), TimeProvider, delayCts.Token);
             delayPassed = true;
             await InvokeAsync(StateHasChanged);
         }
