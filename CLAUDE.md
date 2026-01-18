@@ -57,7 +57,7 @@ When a source implementation is provided (e.g., React, Radix, existing TS/JS cod
 ```javascript
 const STATE_KEY = Symbol.for('BlazorBaseUI.SomeComponent.State');
 if (!window[STATE_KEY]) {
-    window[STATE_KEY] = { count: 0 };
+  window[STATE_KEY] = { count: 0 };
 }
 const state = window[STATE_KEY];
 ```
@@ -122,21 +122,32 @@ When using `As` and `RenderAs`, you must capture the reference based on whether 
 ```csharp
 if (isComponent)
 {
-    if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+  if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+  {
+    throw new InvalidOperationException(
+      $"Type {RenderAs!.Name} must implement IReferencableComponent."
+    );
+  }
+  builder.OpenComponent(0, RenderAs!);
+  // ... attributes ...
+  builder.AddComponentReferenceCapture(
+    14,
+    component =>
     {
-        throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
+      Element = ((IReferencableComponent)component).Element;
     }
-    builder.OpenComponent(0, RenderAs!);
-    // ... attributes ...
-    builder.AddComponentReferenceCapture(14, component => { Element = ((IReferencableComponent)component).Element; });
-    builder.CloseComponent();
+  );
+  builder.CloseComponent();
 }
 else
 {
-    builder.OpenElement(15, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-    // ... attributes ...
-    builder.AddElementReferenceCapture(16, elementReference => Element = elementReference);
-    builder.CloseElement();
+  builder.OpenElement(15, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+  // ... attributes ...
+  builder.AddElementReferenceCapture(
+    16,
+    elementReference => (Element = elementReference)
+  );
+  builder.CloseElement();
 }
 ```
 
@@ -155,43 +166,45 @@ else
 * **All code must be inside `@code { }`**.
 * Never generate partial classes or code-behind files (`.razor.cs`).
 
-### Render Mode and Sequencing Rule
+### Render Mode Rule
 
 If the component contains properties named **`As`** or **`RenderAs`**:
 
 * Use **code-based rendering** (`BuildRenderTree`).
 * Do **not** use Razor markup and do **not** do it in a razor file.
-* **Strict Linear Sequencing:** Every call to a `RenderTreeBuilder` method (`OpenElement`, `AddAttribute`, etc.) must use a hardcoded integer literal sequence number.
-* **Incremental Order:** Sequence numbers must start at `0` and increment by `1` for every subsequent instruction in the source code.
+
+---
+
+## 8. RenderTreeBuilder Sequencing (Strict)
+
+When using `BuildRenderTree`, the following sequencing rules apply without exception:
+
+* **Hardcoded Literals:** Every call to a `RenderTreeBuilder` method (`OpenElement`, `AddAttribute`, etc.) must use a hardcoded integer literal sequence number.
+* **Strict Linear Sequencing:** Sequence numbers must start at `0` and increment by `1` for every subsequent instruction in the source code.
 * **Branching Continuity:** Do **not** reuse sequence numbers across `if/else` or `switch` branches. Indices must continue to climb linearly based on their vertical position in the code to ensure the diffing engine identifies every distinct line as unique.
+* **Loop Handling:** Within a loop (e.g., foreach), the sequence numbers must remain constant for each instruction within the loop body. The fact that numbers repeat at runtime informs the diffing system that it is processing a loop.
 * **No Variables:** Never use counter variables or expressions (e.g., `i++`) for sequence numbers.
-
-### OpenRegion/CloseRegion for Complex Render Trees
-
-For long or complex `BuildRenderTree` implementations, use `OpenRegion`/`CloseRegion` to create isolated sequence number spaces:
+* For long or complex `BuildRenderTree` implementations, use `OpenRegion`/`CloseRegion` to create isolated sequence number spaces.
 
 ```csharp
 protected override void BuildRenderTree(RenderTreeBuilder builder)
 {
-    builder.OpenRegion(0);
-    // Sequence numbers restart at 0 within this region
-    builder.OpenElement(0, "div");
-    builder.AddAttribute(1, "class", "header");
-    builder.CloseElement();
-    builder.CloseRegion();
+  builder.OpenRegion(0);
+  // Sequence numbers restart at 0 within this region
+  builder.OpenElement(0, "div");
+  builder.AddAttribute(1, "class", "header");
+  builder.CloseElement();
+  builder.CloseRegion();
 
-    builder.OpenRegion(1);
-    // Another isolated sequence space
-    builder.OpenElement(0, "div");
-    builder.AddAttribute(1, "class", "content");
-    builder.CloseElement();
-    builder.CloseRegion();
+  builder.OpenRegion(1);
+  // Another isolated sequence space
+  builder.OpenElement(0, "div");
+  builder.AddAttribute(1, "class", "content");
+  builder.CloseElement();
+  builder.CloseRegion();
 }
-```
 
----
-
-## 8. Pre-Generation Validation Rule (Mandatory)
+## 9. Pre-Generation Validation Rule (Mandatory)
 
 Before generating any code:
 
@@ -201,7 +214,7 @@ Before generating any code:
 
 ---
 
-## 9. Plan Creation Rule
+## 10. Plan Creation Rule
 
 After receiving answers:
 
@@ -211,7 +224,7 @@ After receiving answers:
 
 ---
 
-## 10. Folder Structure and Files
+## 11. Folder Structure and Files
 
 1. Enums in `Enumerations.cs`.
 2. Interface and implementation in a single file.
@@ -219,7 +232,7 @@ After receiving answers:
 
 ---
 
-## 11. Async Lifecycle and Exception Handling
+## 12. Async Lifecycle and Exception Handling
 
 * **Non-Blocking:** Never `await` in `OnParametersSetAsync` for non-critical work. Use `_ = SyncMethod();`.
 * **Logged Fire-and-Forget:** Cache callbacks in `OnInitialized` to avoid allocations.
@@ -264,23 +277,23 @@ For fire-and-forget operations, use `DispatchExceptionAsync` to surface exceptio
 ```csharp
 private void StartBackgroundWork()
 {
-    _ = Task.Run(async () =>
+  _ = Task.Run(async () =>
+  {
+    try
     {
-        try
-        {
-            await SomeLongRunningTask();
-        }
-        catch (Exception ex)
-        {
-            await DispatchExceptionAsync(ex);
-        }
-    });
+      await SomeLongRunningTask();
+    }
+    catch (Exception ex)
+    {
+      await DispatchExceptionAsync(ex);
+    }
+  });
 }
 ```
 
 ---
 
-## 12. Dispose Method Implementation
+## 13. Dispose Method Implementation
 
 * **Only** include `GC.SuppressFinalize(this)` if the class has a destructor (`~ClassName()`).
 * Clean up JS interop objects and event handlers.
@@ -294,29 +307,29 @@ private CancellationTokenSource? cts;
 
 protected override void OnInitialized()
 {
-    cts = new CancellationTokenSource();
-    _ = DoBackgroundWorkAsync(cts.Token);
+  cts = new CancellationTokenSource();
+  _ = DoBackgroundWorkAsync(cts.Token);
 }
 
 private async Task DoBackgroundWorkAsync(CancellationToken cancellationToken)
 {
-    while (!cancellationToken.IsCancellationRequested)
-    {
-        await Task.Delay(1000, cancellationToken);
-        // ... work ...
-    }
+  while (!cancellationToken.IsCancellationRequested)
+  {
+    await Task.Delay(1000, cancellationToken);
+    // ... work ...
+  }
 }
 
 public void Dispose()
 {
-    cts?.Cancel();
-    cts?.Dispose();
+  cts?.Cancel();
+  cts?.Dispose();
 }
 ```
 
 ---
 
-## 13. ElementReference and Module Guard Checks
+## 14. ElementReference and Module Guard Checks
 
 ### ElementReference Guard
 
@@ -325,7 +338,7 @@ Always check `Element.HasValue` before using `Element.Value` in JS interop calls
 ```csharp
 if (Element.HasValue)
 {
-    await module.InvokeVoidAsync("sync", Element.Value, ...);
+  await module.InvokeVoidAsync("sync", Element.Value, ...);
 }
 ```
 
@@ -336,19 +349,22 @@ Check `moduleTask.IsValueCreated` and `Element.HasValue` before awaiting in `Dis
 ```csharp
 if (moduleTask.IsValueCreated && Element.HasValue)
 {
-    try
-    {
-        var module = await moduleTask.Value;
-        await module.InvokeVoidAsync("sync", Element.Value, ..., true); // dispose: true
-        await module.DisposeAsync();
-    }
-    catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException) { }
+  try
+  {
+    var module = await moduleTask.Value;
+    await module.InvokeVoidAsync("sync", Element.Value, ..., true); // dispose: true
+    await module.DisposeAsync();
+  }
+  catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException
+  )
+  {
+  }
 }
 ```
 
 ---
 
-## 14. Absolute Compliance
+## 15. Absolute Compliance
 
 * All rules must be followed **without exception**.
 * No emojis, no creative deviations, no undocumented changes.
