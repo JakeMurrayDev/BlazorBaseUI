@@ -56,3 +56,9 @@ public enum PositionMethod
     Absolute,
     Fixed
 }
+
+public enum CollisionBoundary
+{
+    Viewport,
+    ClippingAncestors
+}

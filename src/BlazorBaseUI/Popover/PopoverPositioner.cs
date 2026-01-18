@@ -52,6 +52,9 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
     public int CollisionPadding { get; set; } = 5;
 
     [Parameter]
+    public CollisionBoundary CollisionBoundary { get; set; } = CollisionBoundary.ClippingAncestors;
+
+    [Parameter]
     public int ArrowPadding { get; set; } = 5;
 
     [Parameter]
@@ -134,6 +137,8 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
         var instantType = RootContext.InstantType;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        builder.OpenRegion(0);
 
         builder.OpenComponent<CascadingValue<PopoverPositionerContext>>(0);
         builder.AddComponentParameter(1, "Value", positionerContext);
@@ -220,6 +225,8 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
             }
         }));
         builder.CloseComponent();
+
+        builder.CloseRegion();
     }
 
     private PopoverPositionerContext CreatePositionerContext() => new(

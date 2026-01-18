@@ -217,7 +217,7 @@ public sealed class PopoverPopup : ComponentBase, IReferencableComponent, IAsync
 
         if (e.Key == "Escape")
         {
-            await RootContext.SetOpenAsync(false, OpenChangeReason.EscapeKey);
+            await RootContext.SetOpenAsync(false, OpenChangeReason.EscapeKey, null);
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
