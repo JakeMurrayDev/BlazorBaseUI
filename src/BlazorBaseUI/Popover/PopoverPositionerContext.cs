@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Popover;
 
-internal sealed class PopoverPositionerContext
+internal sealed record PopoverPositionerContext
 {
     public PopoverPositionerContext(
         Side side,

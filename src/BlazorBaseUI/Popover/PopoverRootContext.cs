@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Popover;
 
-internal sealed class PopoverRootContext
+internal sealed record PopoverRootContext
 {
     public PopoverRootContext(
         string rootId,
