@@ -199,14 +199,6 @@ public class PopoverHandle<TPayload> : IPopoverHandle
     }
 
     /// <summary>
-    /// Checks if a trigger is registered with this handle.
-    /// </summary>
-    internal bool HasTrigger(string triggerId)
-    {
-        return registeredTriggers.ContainsKey(triggerId);
-    }
-
-    /// <summary>
     /// Subscribes a component to handle state changes.
     /// </summary>
     internal void Subscribe(IPopoverHandleSubscriber subscriber)

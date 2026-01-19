@@ -8,7 +8,6 @@ public sealed class PopoverRoot : ComponentBase, IAsyncDisposable, IPopoverHandl
 {
     private readonly string rootId = Guid.NewGuid().ToIdString();
     private readonly Dictionary<string, ElementReference?> triggerElements = [];
-    private readonly Dictionary<string, object?> triggerPayloads = [];
 
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
@@ -259,89 +258,6 @@ public sealed class PopoverRoot : ComponentBase, IAsyncDisposable, IPopoverHandl
         }
     }
 
-    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, string? triggerId)
-    {
-        if (CurrentOpen == nextOpen)
-        {
-            return;
-        }
-
-        var args = new PopoverOpenChangeEventArgs(nextOpen, reason);
-        await OnOpenChange.InvokeAsync(args);
-
-        if (args.Canceled)
-        {
-            return;
-        }
-
-        openChangeReason = reason;
-        context.OpenChangeReason = reason;
-
-        if (nextOpen)
-        {
-            if (triggerId is not null)
-            {
-                activeTriggerId = triggerId;
-                context.ActiveTriggerId = triggerId;
-
-                // Try to get payload from handle first, then from local storage
-                var handlePayload = GetPayloadFromHandle(triggerId);
-                if (handlePayload is not null)
-                {
-                    payload = handlePayload;
-                }
-                else if (triggerPayloads.TryGetValue(triggerId, out var triggerPayload))
-                {
-                    payload = triggerPayload;
-                }
-                context.Payload = payload;
-            }
-
-            instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
-            transitionStatus = TransitionStatus.Starting;
-            isMounted = true;
-        }
-        else
-        {
-            instantType = reason switch
-            {
-                OpenChangeReason.EscapeKey or OpenChangeReason.OutsidePress => InstantType.Dismiss,
-                OpenChangeReason.TriggerPress or OpenChangeReason.ClosePress => InstantType.Click,
-                _ => InstantType.None
-            };
-            transitionStatus = TransitionStatus.Ending;
-        }
-
-        context.InstantType = instantType;
-        context.TransitionStatus = transitionStatus;
-        context.Mounted = isMounted;
-
-        if (!IsControlled)
-        {
-            isOpen = nextOpen;
-        }
-
-        state = new PopoverRootState(nextOpen);
-        context.Open = nextOpen;
-
-        SyncHandleState(nextOpen, activeTriggerId);
-
-        if (hasRendered)
-        {
-            try
-            {
-                var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen);
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
-            }
-        }
-
-        await OpenChanged.InvokeAsync(nextOpen);
-        StateHasChanged();
-    }
-
     private Task SetOpenAsyncFromContext(bool nextOpen, OpenChangeReason reason, object? payloadFromTrigger)
     {
         // Context calls this with payload from trigger - we ignore the payload here
@@ -433,6 +349,84 @@ public sealed class PopoverRoot : ComponentBase, IAsyncDisposable, IPopoverHandl
         dotNetRef?.Dispose();
     }
 
+    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, string? triggerId)
+    {
+        if (CurrentOpen == nextOpen)
+        {
+            return;
+        }
+
+        var args = new PopoverOpenChangeEventArgs(nextOpen, reason);
+        await OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        openChangeReason = reason;
+        context.OpenChangeReason = reason;
+
+        if (nextOpen)
+        {
+            if (triggerId is not null)
+            {
+                activeTriggerId = triggerId;
+                context.ActiveTriggerId = triggerId;
+
+                var handlePayload = GetPayloadFromHandle(triggerId);
+                if (handlePayload is not null)
+                {
+                    payload = handlePayload;
+                }
+                context.Payload = payload;
+            }
+
+            instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
+            transitionStatus = TransitionStatus.Starting;
+            isMounted = true;
+        }
+        else
+        {
+            instantType = reason switch
+            {
+                OpenChangeReason.EscapeKey or OpenChangeReason.OutsidePress => InstantType.Dismiss,
+                OpenChangeReason.TriggerPress or OpenChangeReason.ClosePress => InstantType.Click,
+                _ => InstantType.None
+            };
+            transitionStatus = TransitionStatus.Ending;
+        }
+
+        context.InstantType = instantType;
+        context.TransitionStatus = transitionStatus;
+        context.Mounted = isMounted;
+
+        if (!IsControlled)
+        {
+            isOpen = nextOpen;
+        }
+
+        state = new PopoverRootState(nextOpen);
+        context.Open = nextOpen;
+
+        SyncHandleState(nextOpen, activeTriggerId);
+
+        if (hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        await OpenChanged.InvokeAsync(nextOpen);
+        StateHasChanged();
+    }
+
     void IPopoverHandleSubscriber.OnTriggerRegistered(string triggerId, ElementReference? element)
     {
         triggerElements[triggerId] = element;
@@ -446,7 +440,6 @@ public sealed class PopoverRoot : ComponentBase, IAsyncDisposable, IPopoverHandl
     void IPopoverHandleSubscriber.OnTriggerUnregistered(string triggerId)
     {
         triggerElements.Remove(triggerId);
-        triggerPayloads.Remove(triggerId);
     }
 
     void IPopoverHandleSubscriber.OnTriggerElementUpdated(string triggerId, ElementReference? element)

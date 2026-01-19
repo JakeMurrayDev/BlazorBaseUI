@@ -133,7 +133,6 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
 
         var open = RootContext.GetOpen();
         var mounted = RootContext.GetMounted();
-        var transitionStatus = RootContext.TransitionStatus;
         var instantType = RootContext.InstantType;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
@@ -331,6 +330,7 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePositioner", positionerId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

@@ -8,7 +8,6 @@ public sealed class PopoverViewport : ComponentBase, IReferencableComponent
     private const string DefaultTag = "div";
 
     private bool isComponentRenderAs;
-    private IReferencableComponent? componentReference;
     private PopoverViewportState state;
 
     [CascadingParameter]
@@ -56,7 +55,6 @@ public sealed class PopoverViewport : ComponentBase, IReferencableComponent
 
         var open = RootContext.GetOpen();
         var transitionStatus = RootContext.TransitionStatus;
-        state = new PopoverViewportState(open, transitionStatus);
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
@@ -104,8 +102,7 @@ public sealed class PopoverViewport : ComponentBase, IReferencableComponent
             builder.AddAttribute(8, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(9, component =>
             {
-                componentReference = (IReferencableComponent)component;
-                Element = componentReference.Element;
+                Element = ((IReferencableComponent)component).Element;
             });
             builder.CloseComponent();
         }

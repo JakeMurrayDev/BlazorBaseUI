@@ -14,11 +14,14 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
     private const string DefaultTag = "button";
 
     private bool isComponentRenderAs;
-    private IReferencableComponent? componentReference;
     private string triggerId = null!;
     private PopoverTriggerState state;
     private CancellationTokenSource? hoverCts;
     private PopoverHandle<TPayload>? registeredHandle;
+
+    private bool HasHandle => Handle is not null;
+
+    private bool HasRootContext => RootContext is not null;
 
     [CascadingParameter]
     private PopoverRootContext? RootContext { get; set; }
@@ -66,10 +69,6 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool HasHandle => Handle is not null;
-
-    private bool HasRootContext => RootContext is not null;
 
     protected override void OnInitialized()
     {
@@ -170,34 +169,39 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
         if (open)
         {
-            builder.AddAttribute(9, "data-open", string.Empty);
+            builder.AddAttribute(9, "data-popup-open", string.Empty);
+
+            var openReason = RootContext?.OpenChangeReason ?? OpenChangeReason.TriggerPress;
+            if (openReason == OpenChangeReason.TriggerPress)
+            {
+                builder.AddAttribute(10, "data-pressed", string.Empty);
+            }
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(10, "class", resolvedClass);
+            builder.AddAttribute(11, "class", resolvedClass);
         }
 
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(11, "style", resolvedStyle);
+            builder.AddAttribute(12, "style", resolvedStyle);
         }
 
-        builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(13, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
         if (OpenOnHover)
         {
-            builder.AddAttribute(13, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(14, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(14, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(15, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
         }
 
         if (isComponentRenderAs)
         {
-            builder.AddAttribute(15, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(16, component =>
+            builder.AddAttribute(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component =>
             {
-                componentReference = (IReferencableComponent)component;
-                var newElement = componentReference.Element;
+                var newElement = ((IReferencableComponent)component).Element;
                 if (!Nullable.Equals(Element, newElement))
                 {
                     Element = newElement;
@@ -208,8 +212,8 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
         else
         {
-            builder.AddContent(17, ChildContent);
-            builder.AddElementReferenceCapture(18, elementReference =>
+            builder.AddContent(18, ChildContent);
+            builder.AddElementReferenceCapture(19, elementReference =>
             {
                 if (!Nullable.Equals(Element, elementReference))
                 {

@@ -223,11 +223,6 @@ public sealed class PopoverPopup : ComponentBase, IReferencableComponent, IAsync
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
-    [JSInvokable]
-    public void OnTransitionEnd()
-    {
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (moduleTask?.IsValueCreated == true && hasRendered && Element.HasValue)
@@ -236,6 +231,7 @@ public sealed class PopoverPopup : ComponentBase, IReferencableComponent, IAsync
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePopup", Element.Value);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

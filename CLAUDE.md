@@ -242,7 +242,6 @@ After receiving answers:
 ## 12. Async Lifecycle and Exception Handling
 
 * **Non-Blocking:** Never `await` in `OnParametersSetAsync` for non-critical work. Use `_ = SyncMethod();`.
-* **Logged Fire-and-Forget:** Cache callbacks in `OnInitialized` to avoid allocations.
 * **JS Timing:** JS interop cannot be called before the first render. Use `hasRendered` guard if applicable.
 
 ### Async Event Handlers

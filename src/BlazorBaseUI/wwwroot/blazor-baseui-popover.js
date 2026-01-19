@@ -552,6 +552,8 @@ function updatePositionInternal(positionerState) {
     positionerElement.style.setProperty('--anchor-height', `${triggerRect.height}px`);
     positionerElement.style.setProperty('--available-width', `${viewportWidth}px`);
     positionerElement.style.setProperty('--available-height', `${viewportHeight}px`);
+    positionerElement.style.setProperty('--positioner-width', `${popupWidth}px`);
+    positionerElement.style.setProperty('--positioner-height', `${popupHeight}px`);
 
     positionerElement.setAttribute('data-side', effectiveSide);
     positionerElement.setAttribute('data-align', effectiveAlign);
@@ -631,10 +633,32 @@ export function initializePopup(popupElement, dotNetRef) {
     };
 
     state.popups.set(popupElement, popupState);
+
+    // Set CSS custom properties for popup dimensions
+    const updatePopupDimensions = () => {
+        const width = popupElement.offsetWidth;
+        const height = popupElement.offsetHeight;
+        popupElement.style.setProperty('--popup-width', `${width}px`);
+        popupElement.style.setProperty('--popup-height', `${height}px`);
+    };
+
+    // Set initial dimensions
+    updatePopupDimensions();
+
+    // Use ResizeObserver to update dimensions when popup size changes
+    if (typeof ResizeObserver !== 'undefined') {
+        const resizeObserver = new ResizeObserver(updatePopupDimensions);
+        resizeObserver.observe(popupElement);
+        popupState.resizeObserver = resizeObserver;
+    }
 }
 
 export function disposePopup(popupElement) {
     if (!popupElement) return;
+    const popupState = state.popups.get(popupElement);
+    if (popupState?.resizeObserver) {
+        popupState.resizeObserver.disconnect();
+    }
     state.popups.delete(popupElement);
 }
 
