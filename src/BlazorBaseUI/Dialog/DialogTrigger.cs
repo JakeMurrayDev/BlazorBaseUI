@@ -19,6 +19,10 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
     private DialogTriggerState state;
     private DialogHandle<TPayload>? registeredHandle;
 
+    private bool HasHandle => Handle is not null;
+
+    private bool HasRootContext => RootContext is not null;
+
     [CascadingParameter]
     private DialogRootContext? RootContext { get; set; }
 
@@ -30,6 +34,9 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
 
     [Parameter]
     public bool Disabled { get; set; }
+
+    [Parameter]
+    public bool NativeButton { get; set; } = true;
 
     [Parameter]
     public string? Id { get; set; }
@@ -53,10 +60,6 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool HasHandle => Handle is not null;
-
-    private bool HasRootContext => RootContext is not null;
 
     protected override void OnInitialized()
     {
@@ -92,7 +95,7 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
         }
 
         var open = IsOpenedByThisTrigger();
-        state = new DialogTriggerState(open, Disabled);
+        state = new DialogTriggerState(Disabled, open);
 
         // Update payload via context if not using handle
         if (!HasHandle)
@@ -127,7 +130,7 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
         var open = IsOpenedByThisTrigger();
-        var isButton = string.IsNullOrEmpty(As) || As == "button";
+        var isNativeButton = NativeButton && (string.IsNullOrEmpty(As) || As == "button");
 
         if (isComponentRenderAs)
         {
@@ -138,7 +141,7 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
             builder.AddAttribute(3, "aria-expanded", open ? "true" : "false");
             builder.AddAttribute(4, "id", triggerId);
 
-            if (isButton)
+            if (isNativeButton)
             {
                 builder.AddAttribute(5, "type", "button");
                 if (Disabled)
@@ -148,35 +151,43 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
             }
             else
             {
+                builder.AddAttribute(7, "role", "button");
+                builder.AddAttribute(8, "tabindex", Disabled ? "-1" : "0");
                 if (Disabled)
                 {
-                    builder.AddAttribute(7, "aria-disabled", "true");
+                    builder.AddAttribute(9, "aria-disabled", "true");
                 }
             }
 
             if (open)
             {
-                builder.AddAttribute(8, "data-open", string.Empty);
+                builder.AddAttribute(10, "data-popup-open", string.Empty);
             }
 
             if (Disabled)
             {
-                builder.AddAttribute(9, "data-disabled", string.Empty);
+                builder.AddAttribute(11, "data-disabled", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(10, "class", resolvedClass);
+                builder.AddAttribute(12, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(11, "style", resolvedStyle);
+                builder.AddAttribute(13, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddAttribute(13, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(14, component =>
+            builder.AddAttribute(14, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+
+            if (!isNativeButton)
+            {
+                builder.AddAttribute(15, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
+            }
+
+            builder.AddAttribute(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component =>
             {
                 componentReference = (IReferencableComponent)component;
                 var newElement = componentReference.Element;
@@ -198,7 +209,7 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
             builder.AddAttribute(3, "aria-expanded", open ? "true" : "false");
             builder.AddAttribute(4, "id", triggerId);
 
-            if (isButton)
+            if (isNativeButton)
             {
                 builder.AddAttribute(5, "type", "button");
                 if (Disabled)
@@ -208,35 +219,43 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
             }
             else
             {
+                builder.AddAttribute(7, "role", "button");
+                builder.AddAttribute(8, "tabindex", Disabled ? "-1" : "0");
                 if (Disabled)
                 {
-                    builder.AddAttribute(7, "aria-disabled", "true");
+                    builder.AddAttribute(9, "aria-disabled", "true");
                 }
             }
 
             if (open)
             {
-                builder.AddAttribute(8, "data-open", string.Empty);
+                builder.AddAttribute(10, "data-popup-open", string.Empty);
             }
 
             if (Disabled)
             {
-                builder.AddAttribute(9, "data-disabled", string.Empty);
+                builder.AddAttribute(11, "data-disabled", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(10, "class", resolvedClass);
+                builder.AddAttribute(12, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(11, "style", resolvedStyle);
+                builder.AddAttribute(13, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddContent(13, ChildContent);
-            builder.AddElementReferenceCapture(14, elementReference =>
+            builder.AddAttribute(14, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+
+            if (!isNativeButton)
+            {
+                builder.AddAttribute(15, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
+            }
+
+            builder.AddContent(16, ChildContent);
+            builder.AddElementReferenceCapture(17, elementReference =>
             {
                 if (!Nullable.Equals(Element, elementReference))
                 {
@@ -318,6 +337,21 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
         var nextOpen = !IsOpenedByThisTrigger();
         await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (Disabled || (!HasRootContext && !HasHandle))
+        {
+            return;
+        }
+
+        // Handle Enter and Space keys for non-native buttons
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            var nextOpen = !IsOpenedByThisTrigger();
+            await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
+        }
     }
 
     private Task RequestOpenAsync(bool open, OpenChangeReason reason)

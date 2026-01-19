@@ -1,16 +1,18 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using Microsoft.AspNetCore.Components.Web;
 
 namespace BlazorBaseUI.Dialog;
 
-public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
+/// <summary>
+/// A positioning container for the dialog popup that can be made scrollable.
+/// Renders a div element.
+/// </summary>
+public sealed class DialogViewport : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "div";
-    private const string UserSelectStyle = "user-select: none; -webkit-user-select: none;";
 
     private bool isComponentRenderAs;
-    private DialogBackdropState state;
+    private DialogViewportState state;
 
     [CascadingParameter]
     private DialogRootContext? Context { get; set; }
@@ -25,13 +27,10 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
     public Type? RenderAs { get; set; }
 
     [Parameter]
-    public bool ForceRender { get; set; }
+    public Func<DialogViewportState, string>? ClassValue { get; set; }
 
     [Parameter]
-    public Func<DialogBackdropState, string>? ClassValue { get; set; }
-
-    [Parameter]
-    public Func<DialogBackdropState, string>? StyleValue { get; set; }
+    public Func<DialogViewportState, string>? StyleValue { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -45,10 +44,10 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
     {
         if (Context is null)
         {
-            throw new InvalidOperationException("DialogBackdrop must be used within a DialogRoot.");
+            throw new InvalidOperationException("DialogViewport must be used within a DialogRoot.");
         }
 
-        state = new DialogBackdropState(Context.Open, Context.TransitionStatus);
+        state = new DialogViewportState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
     }
 
     protected override void OnParametersSet()
@@ -61,23 +60,13 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
 
         if (Context is not null)
         {
-            state = new DialogBackdropState(Context.Open, Context.TransitionStatus);
+            state = new DialogViewportState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
         }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (Context is null)
-        {
-            return;
-        }
-
-        if (Context.Modal == ModalMode.False)
-        {
-            return;
-        }
-
-        if (Context.Nested && !ForceRender)
         {
             return;
         }
@@ -91,9 +80,7 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
         }
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-        var combinedStyle = CombineStyleStrings(StyleValue?.Invoke(state), UserSelectStyle);
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, combinedStyle);
-        var isHidden = keepMounted && !Context.Open && (Context.TransitionStatus == TransitionStatus.Undefined || Context.TransitionStatus == TransitionStatus.Idle);
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
         if (isComponentRenderAs)
         {
@@ -102,42 +89,51 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "role", "presentation");
 
+            if (!Context.Mounted)
+            {
+                builder.AddAttribute(3, "hidden", string.Empty);
+            }
+
             if (Context.Open)
             {
-                builder.AddAttribute(3, "data-open", string.Empty);
+                builder.AddAttribute(4, "data-open", string.Empty);
             }
             else
             {
-                builder.AddAttribute(4, "data-closed", string.Empty);
+                builder.AddAttribute(5, "data-closed", string.Empty);
             }
 
             if (Context.TransitionStatus == TransitionStatus.Starting)
             {
-                builder.AddAttribute(5, "data-starting-style", string.Empty);
+                builder.AddAttribute(6, "data-starting-style", string.Empty);
             }
             else if (Context.TransitionStatus == TransitionStatus.Ending)
             {
-                builder.AddAttribute(6, "data-ending-style", string.Empty);
+                builder.AddAttribute(7, "data-ending-style", string.Empty);
             }
 
-            if (isHidden)
+            if (Context.Nested)
             {
-                builder.AddAttribute(7, "hidden", string.Empty);
+                builder.AddAttribute(8, "data-nested", string.Empty);
+            }
+
+            if (Context.NestedDialogCount > 0)
+            {
+                builder.AddAttribute(9, "data-nested-dialog-open", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(8, "class", resolvedClass);
+                builder.AddAttribute(10, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(9, "style", resolvedStyle);
+                builder.AddAttribute(11, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddAttribute(11, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(12, component =>
+            builder.AddAttribute(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component =>
             {
                 Element = ((IReferencableComponent)component).Element;
             });
@@ -151,73 +147,53 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "role", "presentation");
 
+            if (!Context.Mounted)
+            {
+                builder.AddAttribute(3, "hidden", string.Empty);
+            }
+
             if (Context.Open)
             {
-                builder.AddAttribute(3, "data-open", string.Empty);
+                builder.AddAttribute(4, "data-open", string.Empty);
             }
             else
             {
-                builder.AddAttribute(4, "data-closed", string.Empty);
+                builder.AddAttribute(5, "data-closed", string.Empty);
             }
 
             if (Context.TransitionStatus == TransitionStatus.Starting)
             {
-                builder.AddAttribute(5, "data-starting-style", string.Empty);
+                builder.AddAttribute(6, "data-starting-style", string.Empty);
             }
             else if (Context.TransitionStatus == TransitionStatus.Ending)
             {
-                builder.AddAttribute(6, "data-ending-style", string.Empty);
+                builder.AddAttribute(7, "data-ending-style", string.Empty);
             }
 
-            if (isHidden)
+            if (Context.Nested)
             {
-                builder.AddAttribute(7, "hidden", string.Empty);
+                builder.AddAttribute(8, "data-nested", string.Empty);
+            }
+
+            if (Context.NestedDialogCount > 0)
+            {
+                builder.AddAttribute(9, "data-nested-dialog-open", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(8, "class", resolvedClass);
+                builder.AddAttribute(10, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(9, "style", resolvedStyle);
+                builder.AddAttribute(11, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddContent(11, ChildContent);
-            builder.AddElementReferenceCapture(12, elementReference => Element = elementReference);
+            builder.AddContent(12, ChildContent);
+            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
             builder.CloseElement();
             builder.CloseRegion();
         }
-    }
-
-    private async Task HandleClick()
-    {
-        if (Context is not null && Context.DismissOnOutsidePress)
-        {
-            await Context.SetOpenAsync(false, OpenChangeReason.OutsidePress);
-        }
-    }
-
-    private static string? CombineStyleStrings(string? style1, string? style2)
-    {
-        if (string.IsNullOrEmpty(style1) && string.IsNullOrEmpty(style2))
-        {
-            return null;
-        }
-
-        if (string.IsNullOrEmpty(style1))
-        {
-            return style2;
-        }
-
-        if (string.IsNullOrEmpty(style2))
-        {
-            return style1;
-        }
-
-        var separator = style1.TrimEnd().EndsWith(';') ? " " : "; ";
-        return $"{style1}{separator}{style2}";
     }
 }

@@ -296,10 +296,10 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposeRoot", rootId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
-                // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
             }
         }
 
@@ -408,38 +408,40 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
     }
 
     private DialogRootContext CreateContext() => new(
-        rootId: rootId,
-        open: CurrentOpen,
-        mounted: isMounted,
-        nested: nested,
-        modal: Modal,
-        role: Role,
-        dismissOnEscape: DismissOnEscape,
-        dismissOnOutsidePress: DismissOnOutsidePress,
-        nestedDialogCount: nestedDialogCount,
-        openChangeReason: openChangeReason,
-        transitionStatus: transitionStatus,
-        instantType: instantType,
-        titleId: titleId,
-        descriptionId: descriptionId,
-        activeTriggerId: activeTriggerId,
-        payload: payload,
-        getOpen: () => CurrentOpen,
-        getMounted: () => isMounted,
-        getPayload: () => payload,
-        getTriggerElement: GetTriggerElement,
-        getPopupElement: () => popupElement,
-        setTitleId: SetTitleId,
-        setDescriptionId: SetDescriptionId,
-        registerTriggerElement: RegisterTriggerElement,
-        unregisterTriggerElement: UnregisterTriggerElement,
-        setPopupElement: SetPopupElement,
-        setOpenAsync: SetOpenAsync,
-        setOpenWithPayloadAsync: SetOpenWithPayloadAsync,
-        setOpenWithTriggerIdAsync: SetOpenWithTriggerIdAsync,
-        setTriggerPayload: SetTriggerPayload,
-        close: Close,
-        forceUnmount: ForceUnmount);
+        RootId: rootId,
+        Nested: nested,
+        GetOpen: () => CurrentOpen,
+        GetMounted: () => isMounted,
+        GetPayload: () => payload,
+        GetTriggerElement: GetTriggerElement,
+        GetPopupElement: () => popupElement,
+        SetTitleId: SetTitleId,
+        SetDescriptionId: SetDescriptionId,
+        RegisterTriggerElement: RegisterTriggerElement,
+        UnregisterTriggerElement: UnregisterTriggerElement,
+        SetPopupElement: SetPopupElement,
+        SetOpenAsync: SetOpenAsync,
+        SetOpenWithPayloadAsync: SetOpenWithPayloadAsync,
+        SetOpenWithTriggerIdAsync: SetOpenWithTriggerIdAsync,
+        SetTriggerPayload: SetTriggerPayload,
+        Close: Close,
+        ForceUnmount: ForceUnmount)
+    {
+        Open = CurrentOpen,
+        Mounted = isMounted,
+        Modal = Modal,
+        Role = Role,
+        DismissOnEscape = DismissOnEscape,
+        DismissOnOutsidePress = DismissOnOutsidePress,
+        NestedDialogCount = nestedDialogCount,
+        OpenChangeReason = openChangeReason,
+        TransitionStatus = transitionStatus,
+        InstantType = instantType,
+        TitleId = titleId,
+        DescriptionId = descriptionId,
+        ActiveTriggerId = activeTriggerId,
+        Payload = payload
+    };
 
     private async Task InitializeJsAsync()
     {

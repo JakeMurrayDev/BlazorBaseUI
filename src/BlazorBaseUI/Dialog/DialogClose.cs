@@ -24,6 +24,9 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
     public bool Disabled { get; set; }
 
     [Parameter]
+    public bool NativeButton { get; set; } = true;
+
+    [Parameter]
     public Func<DialogCloseState, string>? ClassValue { get; set; }
 
     [Parameter]
@@ -67,7 +70,7 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var isButton = string.IsNullOrEmpty(As) || As == "button";
+        var isNativeButton = NativeButton && (string.IsNullOrEmpty(As) || As == "button");
 
         if (isComponentRenderAs)
         {
@@ -75,7 +78,7 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-            if (isButton)
+            if (isNativeButton)
             {
                 builder.AddAttribute(2, "type", "button");
                 if (Disabled)
@@ -85,30 +88,38 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
             }
             else
             {
+                builder.AddAttribute(4, "role", "button");
+                builder.AddAttribute(5, "tabindex", Disabled ? "-1" : "0");
                 if (Disabled)
                 {
-                    builder.AddAttribute(4, "aria-disabled", "true");
+                    builder.AddAttribute(6, "aria-disabled", "true");
                 }
             }
 
             if (Disabled)
             {
-                builder.AddAttribute(5, "data-disabled", string.Empty);
+                builder.AddAttribute(7, "data-disabled", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(6, "class", resolvedClass);
+                builder.AddAttribute(8, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(7, "style", resolvedStyle);
+                builder.AddAttribute(9, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddAttribute(9, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(10, component =>
+            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+
+            if (!isNativeButton)
+            {
+                builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+            }
+
+            builder.AddAttribute(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component =>
             {
                 Element = ((IReferencableComponent)component).Element;
             });
@@ -121,7 +132,7 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-            if (isButton)
+            if (isNativeButton)
             {
                 builder.AddAttribute(2, "type", "button");
                 if (Disabled)
@@ -131,30 +142,38 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
             }
             else
             {
+                builder.AddAttribute(4, "role", "button");
+                builder.AddAttribute(5, "tabindex", Disabled ? "-1" : "0");
                 if (Disabled)
                 {
-                    builder.AddAttribute(4, "aria-disabled", "true");
+                    builder.AddAttribute(6, "aria-disabled", "true");
                 }
             }
 
             if (Disabled)
             {
-                builder.AddAttribute(5, "data-disabled", string.Empty);
+                builder.AddAttribute(7, "data-disabled", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(6, "class", resolvedClass);
+                builder.AddAttribute(8, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(7, "style", resolvedStyle);
+                builder.AddAttribute(9, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-            builder.AddContent(9, ChildContent);
-            builder.AddElementReferenceCapture(10, elementReference => Element = elementReference);
+            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+
+            if (!isNativeButton)
+            {
+                builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+            }
+
+            builder.AddContent(12, ChildContent);
+            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
             builder.CloseElement();
             builder.CloseRegion();
         }
@@ -162,11 +181,25 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
 
     private async Task HandleClick()
     {
-        if (Disabled || Context is null)
+        if (Disabled || Context is null || !Context.GetOpen())
         {
             return;
         }
 
         await Context.SetOpenAsync(false, OpenChangeReason.ClosePress);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (Disabled || Context is null || !Context.GetOpen())
+        {
+            return;
+        }
+
+        // Handle Enter and Space keys for non-native buttons
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            await Context.SetOpenAsync(false, OpenChangeReason.ClosePress);
+        }
     }
 }

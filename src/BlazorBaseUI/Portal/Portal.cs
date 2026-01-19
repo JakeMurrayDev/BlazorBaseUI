@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
@@ -75,6 +74,7 @@ public sealed class Portal : ComponentBase, IReferencableComponent, IAsyncDispos
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "data-blazor-base-ui-portal", string.Empty);
@@ -92,22 +92,25 @@ public sealed class Portal : ComponentBase, IReferencableComponent, IAsyncDispos
                 Element = componentReference.Element;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.OpenElement(7, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            builder.AddMultipleAttributes(8, AdditionalAttributes);
-            builder.AddAttribute(9, "data-blazor-base-ui-portal", string.Empty);
-            builder.AddAttribute(10, "id", Id);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "data-blazor-base-ui-portal", string.Empty);
+            builder.AddAttribute(3, "id", Id);
 
             if (!string.IsNullOrEmpty(style))
             {
-                builder.AddAttribute(11, "style", style);
+                builder.AddAttribute(4, "style", style);
             }
 
-            builder.AddContent(12, ChildContent);
-            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
+            builder.AddContent(5, ChildContent);
+            builder.AddElementReferenceCapture(6, elementReference => Element = elementReference);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
