@@ -19,6 +19,10 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
     private TooltipTriggerState state;
     private CancellationTokenSource? hoverCts;
     private TooltipHandle<TPayload>? registeredHandle;
+    private EventCallback<MouseEventArgs> onMouseEnterCallback;
+    private EventCallback<MouseEventArgs> onMouseLeaveCallback;
+    private EventCallback<FocusEventArgs> onFocusCallback;
+    private EventCallback<FocusEventArgs> onBlurCallback;
 
     [CascadingParameter]
     private TooltipRootContext? RootContext { get; set; }
@@ -68,9 +72,15 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private bool HasRootContext => RootContext is not null;
 
+    private bool IsDisabled => Disabled || (RootContext?.Disabled ?? false);
+
     protected override void OnInitialized()
     {
         triggerId = Id ?? Guid.NewGuid().ToIdString();
+        onMouseEnterCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
+        onMouseLeaveCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+        onFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocusAsync);
+        onBlurCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync);
     }
 
     protected override void OnParametersSet()
@@ -102,7 +112,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
 
         var open = IsOpenedByThisTrigger();
-        state = new TooltipTriggerState(open, Disabled);
+        state = new TooltipTriggerState(open, IsDisabled);
 
         // Update payload via context if not using handle
         if (!HasHandle)
@@ -153,12 +163,12 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         if (string.IsNullOrEmpty(As) || As == "button")
         {
             builder.AddAttribute(2, "type", "button");
-            if (Disabled)
+            if (IsDisabled)
             {
                 builder.AddAttribute(3, "disabled", true);
             }
         }
-        else if (Disabled)
+        else if (IsDisabled)
         {
             builder.AddAttribute(4, "aria-disabled", "true");
         }
@@ -185,10 +195,10 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             builder.AddAttribute(9, "style", resolvedStyle);
         }
 
-        builder.AddAttribute(10, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-        builder.AddAttribute(11, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-        builder.AddAttribute(12, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocusAsync));
-        builder.AddAttribute(13, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
+        builder.AddAttribute(10, "onmouseenter", onMouseEnterCallback);
+        builder.AddAttribute(11, "onmouseleave", onMouseLeaveCallback);
+        builder.AddAttribute(12, "onfocus", onFocusCallback);
+        builder.AddAttribute(13, "onblur", onBlurCallback);
 
         if (isComponentRenderAs)
         {
@@ -297,7 +307,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
@@ -335,7 +345,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
@@ -373,7 +383,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleFocusAsync(FocusEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
@@ -390,7 +400,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleBlurAsync(FocusEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }

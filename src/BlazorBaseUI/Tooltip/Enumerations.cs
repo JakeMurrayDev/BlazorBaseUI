@@ -13,7 +13,8 @@ public enum TooltipInstantType
     None,
     Delay,
     Focus,
-    Dismiss
+    Dismiss,
+    TrackingCursor
 }
 
 public enum TooltipOpenChangeReason

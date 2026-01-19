@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Tooltip;
 
-internal sealed class TooltipRootContext
+internal sealed record class TooltipRootContext
 {
     public TooltipRootContext(
         string rootId,

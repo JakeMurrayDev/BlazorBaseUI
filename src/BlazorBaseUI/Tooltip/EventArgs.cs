@@ -14,5 +14,9 @@ public sealed class TooltipOpenChangeEventArgs : EventArgs
 
     public bool Canceled { get; private set; }
 
+    public bool PreventUnmount { get; private set; }
+
     public void Cancel() => Canceled = true;
+
+    public void PreventUnmountOnClose() => PreventUnmount = true;
 }

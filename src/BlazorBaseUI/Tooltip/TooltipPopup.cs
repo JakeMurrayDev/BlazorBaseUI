@@ -17,6 +17,9 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
     private TooltipPopupState state;
     private DotNetObjectReference<TooltipPopup>? dotNetRef;
     private CancellationTokenSource? hoverCts;
+    private EventCallback<KeyboardEventArgs> onKeyDownCallback;
+    private EventCallback<MouseEventArgs> onMouseEnterCallback;
+    private EventCallback<MouseEventArgs> onMouseLeaveCallback;
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
         JSRuntime!.InvokeAsync<IJSObjectReference>(
@@ -50,6 +53,13 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
+
+    protected override void OnInitialized()
+    {
+        onKeyDownCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
+        onMouseEnterCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
+        onMouseLeaveCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+    }
 
     protected override void OnParametersSet()
     {
@@ -145,12 +155,12 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
             builder.AddAttribute(12, "style", resolvedStyle);
         }
 
-        builder.AddAttribute(13, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
+        builder.AddAttribute(13, "onkeydown", onKeyDownCallback);
 
         if (!disableHoverablePopup)
         {
-            builder.AddAttribute(14, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(15, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(14, "onmouseenter", onMouseEnterCallback);
+            builder.AddAttribute(15, "onmouseleave", onMouseLeaveCallback);
         }
 
         if (isComponentRenderAs)
@@ -183,11 +193,6 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
         }
     }
 
-    [JSInvokable]
-    public void OnTransitionEnd()
-    {
-    }
-
     public async ValueTask DisposeAsync()
     {
         CancelHoverDelay();
@@ -198,11 +203,9 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePopup", Element.Value);
-                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
-                // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
             }
         }
 
