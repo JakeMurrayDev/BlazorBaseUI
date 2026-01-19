@@ -179,88 +179,149 @@ public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDispos
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "aria-pressed", currentPressed ? "true" : "false");
 
-        builder.AddMultipleAttributes(2, AdditionalAttributes);
-        builder.AddAttribute(3, "aria-pressed", currentPressed ? "true" : "false");
-
-        if (NativeButton)
-        {
-            builder.AddAttribute(4, "type", "button");
-            if (resolvedDisabled)
+            if (NativeButton)
             {
-                builder.AddAttribute(5, "disabled", true);
-            }
-            else if (IsInGroup)
-            {
-                builder.AddAttribute(6, "tabindex", groupTabIndex!.Value);
-            }
-            else
-            {
-                builder.AddAttribute(7, "tabindex", 0);
-            }
-        }
-        else
-        {
-            builder.AddAttribute(8, "role", "button");
-            if (resolvedDisabled)
-            {
-                builder.AddAttribute(9, "aria-disabled", "true");
-                builder.AddAttribute(10, "tabindex", -1);
-            }
-            else if (IsInGroup)
-            {
-                builder.AddAttribute(11, "tabindex", groupTabIndex!.Value);
+                builder.AddAttribute(3, "type", "button");
+                if (resolvedDisabled)
+                {
+                    builder.AddAttribute(4, "disabled", true);
+                }
+                else if (IsInGroup)
+                {
+                    builder.AddAttribute(5, "tabindex", groupTabIndex!.Value);
+                }
+                else
+                {
+                    builder.AddAttribute(6, "tabindex", 0);
+                }
             }
             else
             {
-                builder.AddAttribute(12, "tabindex", 0);
+                builder.AddAttribute(7, "role", "button");
+                if (resolvedDisabled)
+                {
+                    builder.AddAttribute(8, "aria-disabled", "true");
+                    builder.AddAttribute(9, "tabindex", -1);
+                }
+                else if (IsInGroup)
+                {
+                    builder.AddAttribute(10, "tabindex", groupTabIndex!.Value);
+                }
+                else
+                {
+                    builder.AddAttribute(11, "tabindex", 0);
+                }
             }
-        }
 
-        builder.AddAttribute(13, "onclick", cachedOnClick);
+            builder.AddAttribute(12, "onclick", cachedOnClick);
 
-        if (IsInGroup)
-        {
-            builder.AddAttribute(14, "onkeydown", cachedOnKeyDown);
-        }
+            if (IsInGroup)
+            {
+                builder.AddAttribute(13, "onkeydown", cachedOnKeyDown);
+            }
 
-        if (currentPressed)
-        {
-            builder.AddAttribute(15, "data-pressed", string.Empty);
-        }
+            if (currentPressed)
+            {
+                builder.AddAttribute(14, "data-pressed", string.Empty);
+            }
 
-        if (resolvedDisabled)
-        {
-            builder.AddAttribute(16, "data-disabled", string.Empty);
-        }
+            if (resolvedDisabled)
+            {
+                builder.AddAttribute(15, "data-disabled", string.Empty);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(17, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(16, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(18, "style", resolvedStyle);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(17, "style", resolvedStyle);
+            }
 
-        if (isComponentRenderAs)
-        {
-            builder.AddAttribute(19, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(20, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddAttribute(18, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(19, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(21, elementReference => Element = elementReference);
-            builder.AddContent(22, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "aria-pressed", currentPressed ? "true" : "false");
+
+            if (NativeButton)
+            {
+                builder.AddAttribute(3, "type", "button");
+                if (resolvedDisabled)
+                {
+                    builder.AddAttribute(4, "disabled", true);
+                }
+                else if (IsInGroup)
+                {
+                    builder.AddAttribute(5, "tabindex", groupTabIndex!.Value);
+                }
+                else
+                {
+                    builder.AddAttribute(6, "tabindex", 0);
+                }
+            }
+            else
+            {
+                builder.AddAttribute(7, "role", "button");
+                if (resolvedDisabled)
+                {
+                    builder.AddAttribute(8, "aria-disabled", "true");
+                    builder.AddAttribute(9, "tabindex", -1);
+                }
+                else if (IsInGroup)
+                {
+                    builder.AddAttribute(10, "tabindex", groupTabIndex!.Value);
+                }
+                else
+                {
+                    builder.AddAttribute(11, "tabindex", 0);
+                }
+            }
+
+            builder.AddAttribute(12, "onclick", cachedOnClick);
+
+            if (IsInGroup)
+            {
+                builder.AddAttribute(13, "onkeydown", cachedOnKeyDown);
+            }
+
+            if (currentPressed)
+            {
+                builder.AddAttribute(14, "data-pressed", string.Empty);
+            }
+
+            if (resolvedDisabled)
+            {
+                builder.AddAttribute(15, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(16, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(17, "style", resolvedStyle);
+            }
+
+            builder.AddContent(18, ChildContent);
+            builder.AddElementReferenceCapture(19, elementReference => Element = elementReference);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
@@ -505,22 +566,5 @@ public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDispos
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
-    }
-
-    private async ValueTask FocusAsync()
-    {
-        if (!hasRendered || !Element.HasValue)
-        {
-            return;
-        }
-
-        try
-        {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focus", Element.Value);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
-        }
     }
 }

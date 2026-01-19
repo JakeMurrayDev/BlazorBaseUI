@@ -13,8 +13,11 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
 
     private List<string> internalValue = [];
     private ToggleGroupContext? groupContext;
+    private bool hasRendered;
     private bool isComponentRenderAs;
     private ToggleGroupState state = ToggleGroupState.Default;
+    private Orientation previousOrientation;
+    private bool previousLoopFocus;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -80,6 +83,9 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
             internalValue = [.. DefaultValue];
         }
 
+        previousOrientation = Orientation;
+        previousLoopFocus = LoopFocus;
+
         groupContext = CreateContext();
     }
 
@@ -102,6 +108,13 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
             groupContext.Orientation = Orientation;
             groupContext.LoopFocus = LoopFocus;
         }
+
+        if (hasRendered && (Orientation != previousOrientation || LoopFocus != previousLoopFocus))
+        {
+            previousOrientation = Orientation;
+            previousLoopFocus = LoopFocus;
+            _ = UpdateJsStateAsync();
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -109,69 +122,97 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
         builder.OpenComponent<CascadingValue<IToggleGroupContext>>(0);
         builder.AddComponentParameter(1, "Value", groupContext);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(innerBuilder =>
+        builder.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderContent);
+        builder.CloseComponent();
+    }
+
+    private void RenderContent(RenderTreeBuilder builder)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+        var orientationString = Orientation.ToDataAttributeString();
+
+        if (isComponentRenderAs)
         {
-            var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
-            var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-            var orientationString = Orientation.ToDataAttributeString();
-
-            if (isComponentRenderAs)
-            {
-                innerBuilder.OpenComponent(0, RenderAs!);
-            }
-            else
-            {
-                innerBuilder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            }
-
-            innerBuilder.AddMultipleAttributes(2, AdditionalAttributes);
-            innerBuilder.AddAttribute(3, "role", "group");
+            builder.OpenRegion(0);
+            builder.OpenComponent(0, RenderAs!);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "group");
 
             if (Disabled)
             {
-                innerBuilder.AddAttribute(4, "data-disabled", string.Empty);
+                builder.AddAttribute(3, "data-disabled", string.Empty);
             }
 
             if (Multiple)
             {
-                innerBuilder.AddAttribute(5, "data-multiple", string.Empty);
+                builder.AddAttribute(4, "data-multiple", string.Empty);
             }
 
             if (orientationString is not null)
             {
-                innerBuilder.AddAttribute(6, "data-orientation", orientationString);
+                builder.AddAttribute(5, "data-orientation", orientationString);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                innerBuilder.AddAttribute(7, "class", resolvedClass);
+                builder.AddAttribute(6, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                innerBuilder.AddAttribute(8, "style", resolvedStyle);
+                builder.AddAttribute(7, "style", resolvedStyle);
             }
 
-            if (isComponentRenderAs)
+            builder.AddAttribute(8, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+            builder.CloseRegion();
+        }
+        else
+        {
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "group");
+
+            if (Disabled)
             {
-                innerBuilder.AddAttribute(9, "ChildContent", ChildContent);
-                innerBuilder.AddComponentReferenceCapture(10, component => { Element = ((IReferencableComponent)component).Element; });
-                innerBuilder.CloseComponent();
+                builder.AddAttribute(3, "data-disabled", string.Empty);
             }
-            else
+
+            if (Multiple)
             {
-                innerBuilder.AddElementReferenceCapture(11, elementReference => Element = elementReference);
-                innerBuilder.AddContent(12, ChildContent);
-                innerBuilder.CloseElement();
+                builder.AddAttribute(4, "data-multiple", string.Empty);
             }
-        }));
-        builder.CloseComponent();
+
+            if (orientationString is not null)
+            {
+                builder.AddAttribute(5, "data-orientation", orientationString);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(6, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(7, "style", resolvedStyle);
+            }
+
+            builder.AddContent(8, ChildContent);
+            builder.AddElementReferenceCapture(9, elementReference => Element = elementReference);
+            builder.CloseElement();
+            builder.CloseRegion();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            hasRendered = true;
             await InitializeJsAsync();
         }
     }
@@ -212,6 +253,24 @@ public sealed class ToggleGroup : ComponentBase, IReferencableComponent, IAsyncD
             var module = await moduleTask.Value;
             var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
             await module.InvokeVoidAsync("initializeGroup", Element.Value, orientationString, LoopFocus);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdateJsStateAsync()
+    {
+        if (!hasRendered || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
+            await module.InvokeVoidAsync("updateGroup", Element.Value, orientationString, LoopFocus);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
