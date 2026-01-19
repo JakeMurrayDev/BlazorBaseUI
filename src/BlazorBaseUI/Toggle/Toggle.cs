@@ -22,8 +22,6 @@ public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDispos
     private string resolvedValue = null!;
     private bool isComponentRenderAs;
     private ToggleState state = ToggleState.Default;
-    private EventCallback<MouseEventArgs> cachedOnClick;
-    private EventCallback<KeyboardEventArgs> cachedOnKeyDown;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -99,9 +97,6 @@ public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDispos
 
     protected override void OnInitialized()
     {
-        cachedOnClick = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-        cachedOnKeyDown = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
-
         resolvedValue = Value ?? (defaultId ??= Guid.NewGuid().ToIdString());
 
         if (!IsInGroup && !IsControlled)
@@ -218,11 +213,11 @@ public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDispos
                 }
             }
 
-            builder.AddAttribute(12, "onclick", cachedOnClick);
+            builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
             if (IsInGroup)
             {
-                builder.AddAttribute(13, "onkeydown", cachedOnKeyDown);
+                builder.AddAttribute(13, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
             }
 
             if (currentPressed)
@@ -291,11 +286,11 @@ public sealed class Toggle : ComponentBase, IReferencableComponent, IAsyncDispos
                 }
             }
 
-            builder.AddAttribute(12, "onclick", cachedOnClick);
+            builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
             if (IsInGroup)
             {
-                builder.AddAttribute(13, "onkeydown", cachedOnKeyDown);
+                builder.AddAttribute(13, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
             }
 
             if (currentPressed)

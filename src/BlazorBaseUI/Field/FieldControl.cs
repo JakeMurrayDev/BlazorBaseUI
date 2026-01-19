@@ -23,9 +23,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
     private string resolvedControlId = null!;
     private bool hasRendered;
     private bool isComponentRenderAs;
-    private EventCallback<FocusEventArgs> cachedFocusCallback;
-    private EventCallback<FocusEventArgs> cachedBlurCallback;
-    private EventCallback<ChangeEventArgs> cachedInputCallback;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -77,10 +74,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
     {
         resolvedControlId = ResolvedControlId;
         LabelableContext?.SetControlId(resolvedControlId);
-
-        cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        cachedBlurCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
-        cachedInputCallback = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput);
 
         var initialValue = IsControlled ? Value : DefaultValue;
         FieldContext?.Validation.SetInitialValue(initialValue);
@@ -162,9 +155,9 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
             builder.AddAttribute(8, "aria-invalid", "true");
         }
 
-        builder.AddAttribute(9, "onfocus", cachedFocusCallback);
-        builder.AddAttribute(10, "onblur", cachedBlurCallback);
-        builder.AddAttribute(11, "oninput", cachedInputCallback);
+        builder.AddAttribute(9, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+        builder.AddAttribute(11, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput));
 
         if (state.Disabled)
         {

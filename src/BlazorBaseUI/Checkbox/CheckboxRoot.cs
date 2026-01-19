@@ -27,10 +27,6 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
     private ElementReference inputElement;
     private CheckboxRootState state = CheckboxRootState.Default;
     private CheckboxRootContext context = CheckboxRootContext.Default;
-    private EventCallback<FocusEventArgs> cachedOnFocus;
-    private EventCallback<FocusEventArgs> cachedOnBlur;
-    private EventCallback<ChangeEventArgs> cachedOnInputChange;
-    private EventCallback<FocusEventArgs> cachedOnInputFocus;
     private bool previousChecked;
     private bool previousDisabled;
     private bool previousReadOnly;
@@ -236,11 +232,6 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
             Required: Required,
             Indeterminate: CurrentIndeterminate,
             State: state);
-
-        cachedOnFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        cachedOnBlur = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync);
-        cachedOnInputChange = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync);
-        cachedOnInputFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync);
     }
 
     protected override void OnParametersSet()
@@ -393,8 +384,8 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
             builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
         }
 
-        builder.AddAttribute(13, "onfocus", cachedOnFocus);
-        builder.AddAttribute(14, "onblur", cachedOnBlur);
+        builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(14, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
 
         if (state.Indeterminate)
         {
@@ -505,8 +496,8 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
             builder.AddAttribute(45, "value", ResolvedValue);
         }
 
-        builder.AddAttribute(46, "onchange", cachedOnInputChange);
-        builder.AddAttribute(47, "onfocus", cachedOnInputFocus);
+        builder.AddAttribute(46, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
+        builder.AddAttribute(47, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
         builder.AddElementReferenceCapture(48, e => inputElement = e);
         builder.CloseElement();
     }

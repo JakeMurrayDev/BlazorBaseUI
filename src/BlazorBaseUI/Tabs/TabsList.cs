@@ -17,7 +17,6 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
     private TabsRootState state = TabsRootState.Default;
     private bool isComponentRenderAs;
     private bool hasRendered;
-    private EventCallback<KeyboardEventArgs> cachedKeyDownCallback;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -69,7 +68,6 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
         }
 
         listContext = CreateContext();
-        cachedKeyDownCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
     }
 
     protected override void OnParametersSet()
@@ -126,7 +124,7 @@ public sealed class TabsList<TValue> : ComponentBase, IReferencableComponent, IA
 
         builder.AddAttribute(3, "aria-orientation", orientation == Orientation.Vertical ? "vertical" : "horizontal");
 
-        builder.AddAttribute(4, "onkeydown", cachedKeyDownCallback);
+        builder.AddAttribute(4, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
 
         if (orientationValue is not null)
         {
