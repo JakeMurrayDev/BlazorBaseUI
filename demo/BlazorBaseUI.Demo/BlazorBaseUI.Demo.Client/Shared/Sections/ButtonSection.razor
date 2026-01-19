@@ -1,86 +1,115 @@
-﻿@using BlazorBaseUI.Button
+@using BlazorBaseUI.Button
 
 <ComponentShowcase ComponentName="Button"
                    Description="A versatile button component supporting custom tags, ARIA-compliant disabled states, and focus management."
                    BaseRoute="/button"
                    IsWasmMode="IsWasmMode">
 
-    @* Scenario: Native button vs Custom element disabled behavior *@
+    @* Scenario: Native button vs Custom element disabled behavior (from Button.test.tsx) *@
     <DemoSection Title="Disabled States"
-                 Description="Demonstrates how the component handles the 'disabled' attribute for native buttons versus 'aria-disabled' for custom elements.">
+                 Description="Native buttons use the 'disabled' attribute, while custom elements use 'aria-disabled' and 'tabindex=-1'. Both render 'data-disabled' for CSS styling.">
+        <style>
+            [data-disabled] {
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+        </style>
         <div class="flex flex-wrap gap-4">
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">Native Button (Uses 'disabled' attribute)</p>
+                <p class="text-xs text-gray-500">Native Button (disabled attribute, data-disabled, not focusable)</p>
                 <Button Disabled="true"
-                        class="cursor-not-allowed rounded bg-gray-200 px-4 py-2 text-gray-500">
-                    Native Disabled
+                        class="rounded bg-gray-300 px-4 py-2 text-gray-700"
+                        @onclick="@(() => nativeDisabledClicks++)">
+                    Native Disabled (@nativeDisabledClicks clicks)
                 </Button>
             </div>
 
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">Custom Span (Uses 'aria-disabled' and 'tabindex=-1')</p>
+                <p class="text-xs text-gray-500">Custom Span (aria-disabled, tabindex=-1, data-disabled)</p>
                 <Button Disabled="true"
                         NativeButton="false"
                         As="span"
-                        class="inline-block cursor-not-allowed rounded bg-gray-200 px-4 py-2 text-gray-500">
-                    Custom Disabled
+                        class="inline-block rounded bg-gray-300 px-4 py-2 text-gray-700"
+                        @onclick="@(() => customDisabledClicks++)">
+                    Custom Disabled (@customDisabledClicks clicks)
                 </Button>
             </div>
         </div>
+        <p class="mt-2 text-xs text-gray-400">Try clicking the buttons - clicks are blocked when disabled.</p>
     </DemoSection>
 
-    @* Scenario: The 'focusableWhenDisabled' prop logic *@
+    @* Scenario: focusableWhenDisabled prop (from Button.test.tsx) *@
     <DemoSection Title="Focusable When Disabled"
-                 Description="Allows the button to remain in the tab order while disabled, using aria-disabled='true' and preventing interactions via JS.">
+                 Description="Prevents interactions but remains in the tab order. Uses aria-disabled='true' instead of disabled attribute.">
         <div class="flex flex-wrap gap-4">
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">Native (Tab to me!)</p>
+                <p class="text-xs text-gray-500">Native (aria-disabled, tabindex=0, data-disabled)</p>
                 <Button Disabled="true"
                         FocusableWhenDisabled="true"
-                        class="rounded border border-blue-300 bg-white px-4 py-2 text-blue-300 outline-blue-500"
-                        @onclick="HandleClick">
-                    Focusable Native
+                        class="rounded border border-blue-300 bg-white px-4 py-2 text-blue-400 focus:outline focus:outline-2 focus:outline-blue-500"
+                        @onclick="@(() => focusableNativeClicks++)">
+                    Tab to Focus (@focusableNativeClicks clicks)
                 </Button>
             </div>
 
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">Custom Div (Tab to me!)</p>
+                <p class="text-xs text-gray-500">Custom Span (aria-disabled, tabindex=0, data-disabled)</p>
                 <Button Disabled="true"
                         FocusableWhenDisabled="true"
                         NativeButton="false"
-                        As="div"
-                        class="inline-block rounded border border-purple-300 bg-white px-4 py-2 text-purple-300 outline-purple-500"
-                        @onclick="HandleClick">
-                    Focusable Div
+                        As="span"
+                        class="inline-block rounded border border-purple-300 bg-white px-4 py-2 text-purple-400 focus:outline focus:outline-2 focus:outline-purple-500"
+                        @onclick="@(() => focusableCustomClicks++)">
+                    Tab to Focus (@focusableCustomClicks clicks)
                 </Button>
             </div>
         </div>
+        <p class="mt-2 text-xs text-gray-400">Use Tab to focus these buttons - they receive focus but clicks/keys are blocked.</p>
+    </DemoSection>
+
+    @* Scenario: Loading state pattern from documentation *@
+    <DemoSection Title="Loading State"
+                 Description="Use focusableWhenDisabled to maintain focus during loading, preventing focus loss and preserving tab order.">
+        <div class="flex flex-wrap gap-4 items-end">
+            <div class="space-y-2">
+                <p class="text-xs text-gray-500">Click to trigger loading state</p>
+                <Button Disabled="isLoading"
+                        FocusableWhenDisabled="true"
+                        ClassValue="@(state => state.Disabled
+                            ? "rounded bg-blue-400 px-4 py-2 text-white cursor-wait"
+                            : "rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline focus:outline-2 focus:outline-blue-800")"
+                        @onclick="HandleLoadingClick">
+                    @(isLoading ? "Submitting..." : "Submit")
+                </Button>
+            </div>
+        </div>
+        <p class="mt-2 text-xs text-gray-400">Focus is maintained on the button while loading.</p>
     </DemoSection>
 
     @* Scenario: Dynamic styling via ClassValue and StyleValue *@
-    <DemoSection Title="Dynamic States & Styling"
-                 Description="Using ClassValue and StyleValue callbacks to respond to the component state.">
+    <DemoSection Title="State-Based Styling"
+                 Description="ClassValue and StyleValue callbacks receive the button state for dynamic styling.">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">ClassValue (Dynamic Classes)</p>
+                <p class="text-xs text-gray-500">ClassValue callback</p>
                 <Button ClassValue="@(state => state.Disabled
-                                                                ? "rounded bg-gray-400 px-4 py-2 text-white cursor-wait"
-                                                                : "rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700")"
-                        Disabled="isLoading"
-                        @onclick="HandleOnClick">
-                    @(isLoading ? "Loading..." : "Click to Disable (3s)")
+                            ? "rounded bg-gray-400 px-4 py-2 text-white"
+                            : "rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700")"
+                        Disabled="isClassDisabled"
+                        @onclick="@(() => isClassDisabled = !isClassDisabled)">
+                    @(isClassDisabled ? "Disabled" : "Click to Disable")
                 </Button>
             </div>
 
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">StyleValue (Inline Styles)</p>
+                <p class="text-xs text-gray-500">StyleValue callback</p>
                 <Button class="rounded px-4 py-2 text-white"
                         StyleValue="@(state => state.Disabled
-                                                                ? "background-color: #9ca3af; opacity: 0.5;"
-                                                                : "background-color: #059669;")"
+                            ? "background-color: #9ca3af; opacity: 0.5;"
+                            : "background-color: #7c3aed;")"
                         Disabled="isStyleDisabled"
-                        @onclick="() => isStyleDisabled = !isStyleDisabled">
-                    @(isStyleDisabled ? "Locked" : "Click to Toggle Style")
+                        @onclick="@(() => isStyleDisabled = !isStyleDisabled)">
+                    @(isStyleDisabled ? "Disabled" : "Click to Disable")
                 </Button>
             </div>
         </div>
@@ -88,26 +117,53 @@
 
     @* Scenario: Advanced rendering (TabIndex and RenderAs) *@
     <DemoSection Title="Advanced Configuration"
-                 Description="Customizing tab order and rendering external component wrappers.">
+                 Description="Custom tab order and component composition via RenderAs.">
         <div class="flex flex-wrap gap-4">
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">TabIndex = 1</p>
+                <p class="text-xs text-gray-500">Custom TabIndex</p>
                 <Button TabIndex="1"
-                        class="rounded bg-slate-800 px-4 py-2 text-white"
+                        class="rounded bg-slate-800 px-4 py-2 text-white focus:outline focus:outline-2 focus:outline-slate-500"
                         @onclick="HandleClick">
-                    First in Tab Order
+                    TabIndex = 1
                 </Button>
             </div>
 
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">RenderAs (Custom Component)</p>
+                <p class="text-xs text-gray-500">RenderAs custom component</p>
                 <Button RenderAs="typeof(CustomButtonWrapper)"
                         class="rounded border-2 border-dashed border-gray-400 p-2"
                         @onclick="HandleClick">
-                    Wrapped Component
+                    Wrapped Content
                 </Button>
             </div>
         </div>
+    </DemoSection>
+
+    @* Scenario: Non-native button keyboard accessibility *@
+    <DemoSection Title="Keyboard Accessibility"
+                 Description="Non-native buttons (NativeButton=false) support Enter and Space key activation via JavaScript.">
+        <div class="flex flex-wrap gap-4">
+            <div class="space-y-2">
+                <p class="text-xs text-gray-500">Div as button (role='button')</p>
+                <Button NativeButton="false"
+                        As="div"
+                        class="inline-block rounded bg-amber-500 px-4 py-2 text-white cursor-pointer hover:bg-amber-600 focus:outline focus:outline-2 focus:outline-amber-700"
+                        @onclick="@(() => keyboardClicks++)">
+                    Press Enter or Space (@keyboardClicks)
+                </Button>
+            </div>
+
+            <div class="space-y-2">
+                <p class="text-xs text-gray-500">Anchor without href (role='button')</p>
+                <Button NativeButton="false"
+                        As="a"
+                        class="inline-block rounded bg-rose-500 px-4 py-2 text-white cursor-pointer hover:bg-rose-600 focus:outline focus:outline-2 focus:outline-rose-700"
+                        @onclick="@(() => anchorClicks++)">
+                    Anchor Button (@anchorClicks)
+                </Button>
+            </div>
+        </div>
+        <p class="mt-2 text-xs text-gray-400">Tab to focus, then press Enter or Space to activate.</p>
     </DemoSection>
 
 </ComponentShowcase>
@@ -117,23 +173,25 @@
     public bool IsWasmMode { get; set; }
 
     private bool isLoading;
+    private bool isClassDisabled;
     private bool isStyleDisabled;
-    private int clickCount;
 
-    private async Task HandleOnClick()
+    private int nativeDisabledClicks;
+    private int customDisabledClicks;
+    private int focusableNativeClicks;
+    private int focusableCustomClicks;
+    private int keyboardClicks;
+    private int anchorClicks;
+
+    private async Task HandleLoadingClick()
     {
         isLoading = true;
-        StateHasChanged();
-
         await Task.Delay(3000);
-
         isLoading = false;
-        StateHasChanged();
     }
 
     private void HandleClick()
     {
-        clickCount++;
-        Console.WriteLine($"Button clicked! Count: {clickCount}");
+        Console.WriteLine("Button clicked!");
     }
 }

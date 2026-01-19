@@ -10,6 +10,7 @@ export function sync(element, disabled, focusableWhenDisabled, nativeButton, dis
     if (dispose) {
         if (existingState) {
             element.removeEventListener('click', existingState.clickHandler);
+            element.removeEventListener('mousedown', existingState.mouseDownHandler);
             element.removeEventListener('pointerdown', existingState.pointerDownHandler);
             element.removeEventListener('keydown', existingState.keydownHandler);
             element.removeEventListener('keyup', existingState.keyupHandler);
@@ -30,6 +31,7 @@ export function sync(element, disabled, focusableWhenDisabled, nativeButton, dis
         focusableWhenDisabled,
         nativeButton,
         clickHandler: null,
+        mouseDownHandler: null,
         pointerDownHandler: null,
         keydownHandler: null,
         keyupHandler: null
@@ -38,7 +40,12 @@ export function sync(element, disabled, focusableWhenDisabled, nativeButton, dis
     state.clickHandler = (event) => {
         if (state.disabled) {
             event.preventDefault();
-            event.stopPropagation();
+        }
+    };
+
+    state.mouseDownHandler = (event) => {
+        if (state.disabled) {
+            event.preventDefault();
         }
     };
 
@@ -106,6 +113,7 @@ export function sync(element, disabled, focusableWhenDisabled, nativeButton, dis
     };
 
     element.addEventListener('click', state.clickHandler);
+    element.addEventListener('mousedown', state.mouseDownHandler);
     element.addEventListener('pointerdown', state.pointerDownHandler);
     element.addEventListener('keydown', state.keydownHandler);
     element.addEventListener('keyup', state.keyupHandler);
