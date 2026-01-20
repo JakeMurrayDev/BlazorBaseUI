@@ -370,7 +370,55 @@ if (moduleTask.IsValueCreated && Element.HasValue)
 
 ---
 
-## 15. Absolute Compliance
+## 15. Event Handler Override Prevention
+
+When a component uses `builder.AddMultipleAttributes()` followed by `builder.AddAttribute("onclick", internalHandler)`, the internal handler **overrides** any user-defined handler passed via `AdditionalAttributes`.
+
+### The Problem
+
+```csharp
+// User's onclick from AdditionalAttributes is added first
+builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+// Internal handler OVERWRITES user's handler
+builder.AddAttribute(10, "onclick", internalHandler);
+```
+
+### Solution: Use Explicit EventUtitities Helper Methods
+
+For interactive components (triggers, inputs), add `EventUtiltites` helper method:
+
+```csharp
+await EventUtitities.InvokeOnClickAsync(AdditionalAttributes, e); // Or other event methods
+```
+
+In the handler, call user callback **after** internal logic:
+
+```csharp
+private async Task HandleClickAsync(MouseEventArgs e)
+{
+    // Internal logic first
+    await Context.SetOpenAsync(true, reason);
+
+    // User handler runs after (if provided)
+    await EventUtitities.InvokeOnClickAsync(AdditionalAttributes, e);
+}
+```
+
+### When to Apply
+
+| Component Type | Action |
+|----------------|--------|
+| **Triggers** (Tooltip, Dialog, Popover) | Use `EventUtilities` helper methods as needed |
+| **Input components** | Add focus/blur/paste handlers. **Do NOT** forward `oninput`/`onkeydown` - users should use explicit value-change parameters instead |
+
+### Never Forward
+
+- `oninput` / `onkeydown` on value-editing components (use `OnValueChange`, `OnValueCommitted`) if those parameters exists
+
+---
+
+## 16. Absolute Compliance
 
 * All rules must be followed **without exception**.
 * No emojis, no creative deviations, no undocumented changes.
