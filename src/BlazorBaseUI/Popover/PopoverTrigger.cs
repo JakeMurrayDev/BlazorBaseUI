@@ -321,6 +321,8 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         catch (TaskCanceledException)
         {
         }
+
+        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
@@ -352,6 +354,8 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         catch (TaskCanceledException)
         {
         }
+
+        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
     }
 
     private void CancelHoverDelay()

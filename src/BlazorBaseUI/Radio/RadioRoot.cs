@@ -458,12 +458,13 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         if (ResolvedDisabled)
-            return;
+            return Task.CompletedTask;
 
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlurAsync(FocusEventArgs e)
@@ -480,6 +481,8 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
             var valueToValidate = GroupContext is not null ? (object?)GroupContext.CheckedValue : CurrentChecked;
             await (validation?.CommitAsync(valueToValidate) ?? Task.CompletedTask);
         }
+
+        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)

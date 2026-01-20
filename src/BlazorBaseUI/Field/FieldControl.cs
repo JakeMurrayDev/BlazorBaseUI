@@ -307,9 +307,10 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlur(FocusEventArgs e)
@@ -321,6 +322,8 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
         {
             await (FieldContext?.Validation.CommitAsync(CurrentValue) ?? Task.CompletedTask);
         }
+
+        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleInput(ChangeEventArgs e)

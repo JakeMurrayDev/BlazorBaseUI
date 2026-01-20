@@ -407,21 +407,22 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         if (ResolvedDisabled)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
-    private void HandleBlur(FocusEventArgs e)
+    private Task HandleBlur(FocusEventArgs e)
     {
         if (ResolvedDisabled)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         FieldContext?.SetTouched(true);
@@ -431,6 +432,8 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
         {
             _ = FieldContext.Validation.CommitAsync(CurrentChecked);
         }
+
+        return EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleInputChangeAsync(ChangeEventArgs e)
@@ -453,6 +456,7 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
     private async Task HandleInputFocusAsync(FocusEventArgs e)
     {
         await FocusAsync();
+        await EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task SetChecked(bool value)

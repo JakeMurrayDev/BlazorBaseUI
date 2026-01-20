@@ -440,8 +440,8 @@ public sealed class NumberFieldRoot : ComponentBase, IReferencableComponent, IFi
         builder.AddAttribute(1, "type", "number");
         builder.AddAttribute(2, "name", ResolvedName);
         builder.AddAttribute(3, "value", currentValue?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-        if (Min.HasValue) builder.AddAttribute(4, "min", Min.Value);
-        if (Max.HasValue) builder.AddAttribute(5, "max", Max.Value);
+        builder.AddAttribute(4, "min", Min);
+        builder.AddAttribute(5, "max", Max);
         builder.AddAttribute(6, "step", Step);
         builder.AddAttribute(7, "disabled", ResolvedDisabled);
         builder.AddAttribute(8, "required", Required);

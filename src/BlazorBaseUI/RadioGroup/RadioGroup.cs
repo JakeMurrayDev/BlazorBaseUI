@@ -433,14 +433,16 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
-    private void HandleBlur(FocusEventArgs e)
+    private Task HandleBlur(FocusEventArgs e)
     {
         _ = HandleBlurInternalAsync();
+        return EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlurInternalAsync()
@@ -469,13 +471,15 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         }
     }
 
-    private void HandleKeyDownCapture(KeyboardEventArgs e)
+    private Task HandleKeyDownCapture(KeyboardEventArgs e)
     {
         if (e.Key.StartsWith("Arrow"))
         {
             FieldContext?.SetTouched(true);
             FieldContext?.SetFocused(true);
         }
+
+        return EventUtilities.InvokeOnKeyDownCaptureAsync(AdditionalAttributes, e);
     }
 
     private void HandleHiddenInputChange(ChangeEventArgs e)

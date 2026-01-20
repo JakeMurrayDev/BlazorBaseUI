@@ -27,6 +27,31 @@ public static class EventUtilities
         return InvokeEventAsync(additionalAttributes, "onkeydown", e);
     }
 
+    public static Task InvokeOnMouseEnterAsync(IReadOnlyDictionary<string, object>? additionalAttributes, MouseEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onmouseenter", e);
+    }
+
+    public static Task InvokeOnMouseLeaveAsync(IReadOnlyDictionary<string, object>? additionalAttributes, MouseEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onmouseleave", e);
+    }
+
+    public static Task InvokeOnFocusAsync(IReadOnlyDictionary<string, object>? additionalAttributes, FocusEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onfocus", e);
+    }
+
+    public static Task InvokeOnBlurAsync(IReadOnlyDictionary<string, object>? additionalAttributes, FocusEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onblur", e);
+    }
+
+    public static Task InvokeOnKeyDownCaptureAsync(IReadOnlyDictionary<string, object>? additionalAttributes, KeyboardEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onkeydowncapture", e);
+    }
+
     private static async Task InvokeEventAsync<TEvent>(IReadOnlyDictionary<string, object>? additionalAttributes, string attribute, TEvent e) where TEvent : EventArgs
     {
         if (additionalAttributes is null)

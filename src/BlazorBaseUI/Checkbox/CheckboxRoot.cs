@@ -569,14 +569,15 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         if (ResolvedDisabled)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlurAsync(FocusEventArgs e)
@@ -601,6 +602,8 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
                 await (validation?.CommitAsync(CurrentChecked) ?? Task.CompletedTask);
             }
         }
+
+        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleInputChangeAsync(ChangeEventArgs e)

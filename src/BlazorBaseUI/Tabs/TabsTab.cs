@@ -388,6 +388,8 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
         {
             await ActivateTabAsync();
         }
+
+        await EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task ActivateTabAsync()

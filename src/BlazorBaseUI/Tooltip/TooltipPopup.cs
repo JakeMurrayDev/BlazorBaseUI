@@ -242,7 +242,7 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
     private Task HandleMouseEnterAsync(MouseEventArgs e)
     {
         CancelHoverDelay();
-        return Task.CompletedTask;
+        return EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
@@ -273,6 +273,8 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
         catch (TaskCanceledException)
         {
         }
+
+        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
     }
 
     private void CancelHoverDelay()
