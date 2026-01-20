@@ -335,14 +335,16 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
         }
         else
         {
+            builder.OpenRegion(1);
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
         }
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddMultipleAttributes(2, AdditionalAttributes);
         builder.AddAttribute(2, "id", checkboxId);
         builder.AddAttribute(3, "role", "checkbox");
         builder.AddAttribute(4, "aria-checked", CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false");
@@ -459,46 +461,48 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
             builder.AddComponentParameter(29, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(30, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(29, elementReference => Element = elementReference);
-            builder.AddContent(30, ChildContent);
+            builder.AddElementReferenceCapture(31, elementReference => Element = elementReference);
+            builder.AddContent(32, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
 
         if (!CurrentChecked && GroupContext is null && ResolvedName is not null && !Parent && UncheckedValue is not null)
         {
-            builder.OpenElement(31, "input");
-            builder.AddAttribute(32, "type", "hidden");
-            builder.AddAttribute(33, "name", ResolvedName);
-            builder.AddAttribute(34, "value", UncheckedValue);
+            builder.OpenElement(33, "input");
+            builder.AddAttribute(34, "type", "hidden");
+            builder.AddAttribute(35, "name", ResolvedName);
+            builder.AddAttribute(36, "value", UncheckedValue);
             builder.CloseElement();
         }
 
-        builder.OpenElement(35, "input");
-        builder.AddAttribute(36, "type", "checkbox");
-        builder.AddAttribute(37, "id", inputId);
-        builder.AddAttribute(38, "checked", CurrentChecked);
-        builder.AddAttribute(39, "disabled", ResolvedDisabled);
-        builder.AddAttribute(40, "required", Required);
-        builder.AddAttribute(41, "aria-hidden", "true");
-        builder.AddAttribute(42, "tabindex", -1);
-        builder.AddAttribute(43, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+        builder.OpenElement(37, "input");
+        builder.AddAttribute(38, "type", "checkbox");
+        builder.AddAttribute(39, "id", inputId);
+        builder.AddAttribute(40, "checked", CurrentChecked);
+        builder.AddAttribute(41, "disabled", ResolvedDisabled);
+        builder.AddAttribute(42, "required", Required);
+        builder.AddAttribute(43, "aria-hidden", "true");
+        builder.AddAttribute(44, "tabindex", -1);
+        builder.AddAttribute(45, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
         if (!Parent && ResolvedName is not null)
         {
-            builder.AddAttribute(44, "name", ResolvedName);
+            builder.AddAttribute(46, "name", ResolvedName);
         }
 
         if (ResolvedValue is not null)
         {
-            builder.AddAttribute(45, "value", ResolvedValue);
+            builder.AddAttribute(47, "value", ResolvedValue);
         }
 
-        builder.AddAttribute(46, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
-        builder.AddAttribute(47, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
-        builder.AddElementReferenceCapture(48, e => inputElement = e);
+        builder.AddAttribute(48, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
+        builder.AddAttribute(49, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
+        builder.AddElementReferenceCapture(50, e => inputElement = e);
         builder.CloseElement();
     }
 
