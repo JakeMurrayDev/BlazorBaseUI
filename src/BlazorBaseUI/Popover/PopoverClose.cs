@@ -100,7 +100,7 @@ public sealed class PopoverClose : ComponentBase, IReferencableComponent
             return;
         }
 
-        await RootContext.SetOpenAsync(false, OpenChangeReason.ClosePress);
+        await RootContext.SetOpenAsync(false, OpenChangeReason.ClosePress, null);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 }

@@ -4,9 +4,11 @@ using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Dialog;
 
-public sealed class DialogRoot : ComponentBase, IAsyncDisposable
+public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleSubscriber
 {
     private readonly string rootId = Guid.NewGuid().ToIdString();
+    private readonly Dictionary<string, ElementReference?> triggerElements = new();
+    private readonly Dictionary<string, object?> triggerPayloads = new();
 
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
@@ -18,7 +20,6 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
     private string? titleId;
     private string? descriptionId;
     private string? activeTriggerId;
-    private ElementReference? triggerElement;
     private ElementReference? popupElement;
     private OpenChangeReason openChangeReason = OpenChangeReason.None;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
@@ -27,6 +28,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
     private DialogRootState state;
     private DialogRootContext context = null!;
     private DotNetObjectReference<DialogRoot>? dotNetRef;
+    private IDialogHandle? subscribedHandle;
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
         JSRuntime!.InvokeAsync<IJSObjectReference>(
@@ -60,6 +62,9 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
     public DialogRootActions? ActionsRef { get; set; }
 
     [Parameter]
+    public IDialogHandle? Handle { get; set; }
+
+    [Parameter]
     public EventCallback<bool> OpenChanged { get; set; }
 
     [Parameter]
@@ -76,6 +81,9 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment<DialogRootPayloadContext>? ChildContentWithPayload { get; set; }
 
     private bool IsControlled => Open.HasValue;
 
@@ -95,10 +103,12 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         if (ActionsRef is not null)
         {
             ActionsRef.Unmount = ForceUnmount;
-            ActionsRef.Close = () => _ = SetOpenAsync(false, OpenChangeReason.ImperativeAction);
-            ActionsRef.Open = () => _ = SetOpenAsync(true, OpenChangeReason.ImperativeAction);
-            ActionsRef.OpenWithPayload = p => _ = SetOpenWithPayloadAsync(p, OpenChangeReason.ImperativeAction);
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction);
+            ActionsRef.Open = () => _ = SetOpenWithExceptionHandlingAsync(true, OpenChangeReason.ImperativeAction);
+            ActionsRef.OpenWithPayload = p => _ = SetOpenWithPayloadWithExceptionHandlingAsync(p, OpenChangeReason.ImperativeAction);
         }
+
+        SubscribeToHandle();
     }
 
     protected override void OnParametersSet()
@@ -146,9 +156,16 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         if (ActionsRef is not null)
         {
             ActionsRef.Unmount = ForceUnmount;
-            ActionsRef.Close = () => _ = SetOpenAsync(false, OpenChangeReason.ImperativeAction);
-            ActionsRef.Open = () => _ = SetOpenAsync(true, OpenChangeReason.ImperativeAction);
-            ActionsRef.OpenWithPayload = p => _ = SetOpenWithPayloadAsync(p, OpenChangeReason.ImperativeAction);
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction);
+            ActionsRef.Open = () => _ = SetOpenWithExceptionHandlingAsync(true, OpenChangeReason.ImperativeAction);
+            ActionsRef.OpenWithPayload = p => _ = SetOpenWithPayloadWithExceptionHandlingAsync(p, OpenChangeReason.ImperativeAction);
+        }
+
+        // Handle change of handle parameter
+        if (Handle != subscribedHandle)
+        {
+            UnsubscribeFromHandle();
+            SubscribeToHandle();
         }
     }
 
@@ -194,39 +211,237 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         builder.OpenComponent<CascadingValue<DialogRootContext>>(0);
         builder.AddComponentParameter(1, "Value", context);
         builder.AddComponentParameter(2, "IsFixed", false);
-        builder.AddComponentParameter(3, "ChildContent", ChildContent);
+
+        if (ChildContentWithPayload is not null)
+        {
+            var payloadContext = new DialogRootPayloadContext(payload);
+            builder.AddComponentParameter(3, "ChildContent", ChildContentWithPayload(payloadContext));
+        }
+        else
+        {
+            builder.AddComponentParameter(3, "ChildContent", ChildContent);
+        }
+
         builder.CloseComponent();
     }
 
+    [JSInvokable]
+    public async Task OnOutsidePress()
+    {
+        if (DismissOnOutsidePress)
+        {
+            await SetOpenAsync(false, OpenChangeReason.OutsidePress);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnEscapeKey()
+    {
+        if (DismissOnEscape)
+        {
+            await SetOpenAsync(false, OpenChangeReason.EscapeKey);
+        }
+    }
+
+    [JSInvokable]
+    public void OnStartingStyleApplied()
+    {
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            transitionStatus = TransitionStatus.Idle;
+            context.TransitionStatus = transitionStatus;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnTransitionEnd(bool open)
+    {
+        transitionStatus = TransitionStatus.Idle;
+        context.TransitionStatus = transitionStatus;
+
+        if (!open)
+        {
+            isMounted = false;
+            context.Mounted = false;
+            activeTriggerId = null;
+            context.ActiveTriggerId = null;
+            payload = null;
+            context.Payload = null;
+        }
+
+        instantType = InstantType.None;
+        context.InstantType = instantType;
+
+        _ = InvokeOpenChangeCompleteAsync(open);
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnNestedDialogCountChange(int count)
+    {
+        nestedDialogCount = count;
+        context.NestedDialogCount = count;
+        state = new DialogRootState(CurrentOpen, count);
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        UnsubscribeFromHandle();
+
+        if (moduleTask?.IsValueCreated == true && hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeRoot", rootId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    void IDialogHandleSubscriber.OnTriggerRegistered(string triggerId, ElementReference? element)
+    {
+        triggerElements[triggerId] = element;
+
+        if (hasRendered && element.HasValue && activeTriggerId == triggerId)
+        {
+            _ = SetTriggerElementJsAsync(element.Value);
+        }
+    }
+
+    void IDialogHandleSubscriber.OnTriggerUnregistered(string triggerId)
+    {
+        triggerElements.Remove(triggerId);
+        triggerPayloads.Remove(triggerId);
+    }
+
+    void IDialogHandleSubscriber.OnTriggerElementUpdated(string triggerId, ElementReference? element)
+    {
+        triggerElements[triggerId] = element;
+
+        if (hasRendered && element.HasValue && activeTriggerId == triggerId)
+        {
+            _ = SetTriggerElementJsAsync(element.Value);
+        }
+    }
+
+    void IDialogHandleSubscriber.OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                if (open && triggerId is not null)
+                {
+                    var handlePayload = GetPayloadFromHandle(triggerId);
+                    await SetOpenWithTriggerIdAsync(triggerId, handlePayload, reason);
+                }
+                else
+                {
+                    await SetOpenAsync(open, reason);
+                }
+            }
+            catch (Exception ex)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        });
+    }
+
+    void IDialogHandleSubscriber.OnStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    internal void RegisterTriggerElement(string triggerId, ElementReference? element)
+    {
+        triggerElements[triggerId] = element;
+
+        if (hasRendered && element.HasValue && activeTriggerId == triggerId)
+        {
+            _ = SetTriggerElementJsAsync(element.Value);
+        }
+    }
+
+    internal void UnregisterTriggerElement(string triggerId)
+    {
+        triggerElements.Remove(triggerId);
+        triggerPayloads.Remove(triggerId);
+    }
+
+    internal void SetTriggerPayload(string triggerId, object? triggerPayload)
+    {
+        triggerPayloads[triggerId] = triggerPayload;
+
+        if (activeTriggerId == triggerId && CurrentOpen)
+        {
+            payload = triggerPayload;
+            context.Payload = payload;
+        }
+    }
+
+    internal ElementReference? GetTriggerElement()
+    {
+        if (activeTriggerId is not null && triggerElements.TryGetValue(activeTriggerId, out var element))
+        {
+            return element;
+        }
+
+        // Try to get from handle if available
+        if (Handle is not null && activeTriggerId is not null)
+        {
+            var handleElement = GetTriggerElementFromHandle(activeTriggerId);
+            if (handleElement.HasValue)
+            {
+                return handleElement;
+            }
+        }
+
+        return triggerElements.Values.FirstOrDefault();
+    }
+
     private DialogRootContext CreateContext() => new(
-        rootId: rootId,
-        open: CurrentOpen,
-        mounted: isMounted,
-        nested: nested,
-        modal: Modal,
-        role: Role,
-        dismissOnEscape: DismissOnEscape,
-        dismissOnOutsidePress: DismissOnOutsidePress,
-        nestedDialogCount: nestedDialogCount,
-        openChangeReason: openChangeReason,
-        transitionStatus: transitionStatus,
-        instantType: instantType,
-        titleId: titleId,
-        descriptionId: descriptionId,
-        activeTriggerId: activeTriggerId,
-        getOpen: () => CurrentOpen,
-        getMounted: () => isMounted,
-        getTriggerElement: () => triggerElement,
-        getPopupElement: () => popupElement,
-        setTitleId: SetTitleId,
-        setDescriptionId: SetDescriptionId,
-        setTriggerElement: SetTriggerElement,
-        setPopupElement: SetPopupElement,
-        setOpenAsync: SetOpenAsync,
-        setOpenWithPayloadAsync: SetOpenWithPayloadAsync,
-        setOpenWithTriggerIdAsync: SetOpenWithTriggerIdAsync,
-        close: Close,
-        forceUnmount: ForceUnmount);
+        RootId: rootId,
+        Nested: nested,
+        GetOpen: () => CurrentOpen,
+        GetMounted: () => isMounted,
+        GetPayload: () => payload,
+        GetTriggerElement: GetTriggerElement,
+        GetPopupElement: () => popupElement,
+        SetTitleId: SetTitleId,
+        SetDescriptionId: SetDescriptionId,
+        RegisterTriggerElement: RegisterTriggerElement,
+        UnregisterTriggerElement: UnregisterTriggerElement,
+        SetPopupElement: SetPopupElement,
+        SetOpenAsync: SetOpenAsync,
+        SetOpenWithPayloadAsync: SetOpenWithPayloadAsync,
+        SetOpenWithTriggerIdAsync: SetOpenWithTriggerIdAsync,
+        SetTriggerPayload: SetTriggerPayload,
+        Close: Close,
+        ForceUnmount: ForceUnmount)
+    {
+        Open = CurrentOpen,
+        Mounted = isMounted,
+        Modal = Modal,
+        Role = Role,
+        DismissOnEscape = DismissOnEscape,
+        DismissOnOutsidePress = DismissOnOutsidePress,
+        NestedDialogCount = nestedDialogCount,
+        OpenChangeReason = openChangeReason,
+        TransitionStatus = transitionStatus,
+        InstantType = instantType,
+        TitleId = titleId,
+        DescriptionId = descriptionId,
+        ActiveTriggerId = activeTriggerId,
+        Payload = payload
+    };
 
     private async Task InitializeJsAsync()
     {
@@ -237,6 +452,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
         }
     }
 
@@ -252,17 +468,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         context.DescriptionId = id;
     }
 
-    private void SetTriggerElement(ElementReference? element)
-    {
-        triggerElement = element;
-
-        if (hasRendered && element.HasValue)
-        {
-            _ = SetTriggerElementAsync(element.Value);
-        }
-    }
-
-    private async Task SetTriggerElementAsync(ElementReference element)
+    private async Task SetTriggerElementJsAsync(ElementReference element)
     {
         try
         {
@@ -271,6 +477,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
         }
     }
 
@@ -293,6 +500,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
         }
     }
 
@@ -345,6 +553,8 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         state = new DialogRootState(nextOpen, nestedDialogCount);
         context.Open = nextOpen;
 
+        SyncHandleState(nextOpen, activeTriggerId);
+
         if (hasRendered)
         {
             // Clear pendingOpenChange since we're handling the state change directly
@@ -357,6 +567,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
             }
         }
 
@@ -379,14 +590,52 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
             context.ActiveTriggerId = activeTriggerId;
         }
 
+        // Try to get payload from handle first, then use provided payload
+        if (newPayload is null && triggerId is not null)
+        {
+            var handlePayload = GetPayloadFromHandle(triggerId);
+            if (handlePayload is not null)
+            {
+                newPayload = handlePayload;
+            }
+            else if (triggerPayloads.TryGetValue(triggerId, out var storedPayload))
+            {
+                newPayload = storedPayload;
+            }
+        }
+
         payload = newPayload;
         context.Payload = newPayload;
         await SetOpenAsync(true, reason);
     }
 
+    private async Task SetOpenWithExceptionHandlingAsync(bool nextOpen, OpenChangeReason reason)
+    {
+        try
+        {
+            await SetOpenAsync(nextOpen, reason);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
+    private async Task SetOpenWithPayloadWithExceptionHandlingAsync(object? newPayload, OpenChangeReason reason)
+    {
+        try
+        {
+            await SetOpenWithPayloadAsync(newPayload, reason);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
     private void Close()
     {
-        _ = SetOpenAsync(false, OpenChangeReason.ClosePress);
+        _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ClosePress);
     }
 
     private void ForceUnmount()
@@ -395,81 +644,62 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable
         context.Mounted = false;
         transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
-        _ = OnOpenChangeComplete.InvokeAsync(false);
+        activeTriggerId = null;
+        context.ActiveTriggerId = null;
+        payload = null;
+        context.Payload = null;
+        _ = InvokeOpenChangeCompleteAsync(false);
         StateHasChanged();
     }
 
-    [JSInvokable]
-    public async Task OnOutsidePress()
+    private async Task InvokeOpenChangeCompleteAsync(bool open)
     {
-        if (DismissOnOutsidePress)
+        try
         {
-            await SetOpenAsync(false, OpenChangeReason.OutsidePress);
+            await OnOpenChangeComplete.InvokeAsync(open);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
         }
     }
 
-    [JSInvokable]
-    public async Task OnEscapeKey()
+    private void SubscribeToHandle()
     {
-        if (DismissOnEscape)
+        if (Handle is null)
         {
-            await SetOpenAsync(false, OpenChangeReason.EscapeKey);
-        }
-    }
-
-    [JSInvokable]
-    public void OnStartingStyleApplied()
-    {
-        if (transitionStatus == TransitionStatus.Starting)
-        {
-            transitionStatus = TransitionStatus.Idle;
-            context.TransitionStatus = transitionStatus;
-            StateHasChanged();
-        }
-    }
-
-    [JSInvokable]
-    public void OnTransitionEnd(bool open)
-    {
-        transitionStatus = TransitionStatus.Idle;
-        context.TransitionStatus = transitionStatus;
-
-        if (!open)
-        {
-            isMounted = false;
-            context.Mounted = false;
+            return;
         }
 
-        instantType = InstantType.None;
-        context.InstantType = instantType;
-
-        _ = OnOpenChangeComplete.InvokeAsync(open);
-        StateHasChanged();
+        subscribedHandle = Handle;
+        Handle.Subscribe(this);
     }
 
-    [JSInvokable]
-    public void OnNestedDialogCountChange(int count)
+    private void UnsubscribeFromHandle()
     {
-        nestedDialogCount = count;
-        context.NestedDialogCount = count;
-        state = new DialogRootState(CurrentOpen, count);
-        StateHasChanged();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (moduleTask?.IsValueCreated == true && hasRendered)
+        if (subscribedHandle is null)
         {
-            try
-            {
-                var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("disposeRoot", rootId);
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
-            }
+            return;
         }
 
-        dotNetRef?.Dispose();
+        subscribedHandle.Unsubscribe(this);
+        subscribedHandle = null;
+    }
+
+    private void SyncHandleState(bool open, string? triggerId)
+    {
+        Handle?.SyncState(open, triggerId, payload);
+    }
+
+    private object? GetPayloadFromHandle(string triggerId)
+    {
+        return Handle?.GetTriggerPayloadAsObject(triggerId);
+    }
+
+    private ElementReference? GetTriggerElementFromHandle(string triggerId)
+    {
+        return Handle?.GetTriggerElement(triggerId);
     }
 }
+
+public readonly record struct DialogRootPayloadContext(object? Payload);

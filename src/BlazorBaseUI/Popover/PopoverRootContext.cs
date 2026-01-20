@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Popover;
 
-internal sealed class PopoverRootContext
+internal sealed record PopoverRootContext
 {
     public PopoverRootContext(
         string rootId,
@@ -15,6 +15,7 @@ internal sealed class PopoverRootContext
         string? titleId,
         string? descriptionId,
         string? activeTriggerId,
+        object? payload,
         Func<bool> getOpen,
         Func<bool> getMounted,
         Func<ElementReference?> getTriggerElement,
@@ -25,7 +26,7 @@ internal sealed class PopoverRootContext
         Action<ElementReference?> setTriggerElement,
         Action<ElementReference?> setPositionerElement,
         Action<ElementReference?> setPopupElement,
-        Func<bool, OpenChangeReason, Task> setOpenAsync,
+        Func<bool, OpenChangeReason, object?, Task> setOpenAsync,
         Action close,
         Action forceUnmount)
     {
@@ -39,6 +40,7 @@ internal sealed class PopoverRootContext
         TitleId = titleId;
         DescriptionId = descriptionId;
         ActiveTriggerId = activeTriggerId;
+        Payload = payload;
         GetOpen = getOpen;
         GetMounted = getMounted;
         GetTriggerElement = getTriggerElement;
@@ -74,6 +76,8 @@ internal sealed class PopoverRootContext
 
     public string? ActiveTriggerId { get; set; }
 
+    public object? Payload { get; set; }
+
     public Func<bool> GetOpen { get; }
 
     public Func<bool> GetMounted { get; }
@@ -94,7 +98,7 @@ internal sealed class PopoverRootContext
 
     public Action<ElementReference?> SetPopupElement { get; }
 
-    public Func<bool, OpenChangeReason, Task> SetOpenAsync { get; }
+    public Func<bool, OpenChangeReason, object?, Task> SetOpenAsync { get; }
 
     public Action Close { get; }
 

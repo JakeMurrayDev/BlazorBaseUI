@@ -437,6 +437,125 @@
         </PopoverRoot>
     </DemoSection>
 
+    <DemoSection Title="Handle (Detached Triggers)"
+                 Description="Use a handle to connect triggers placed outside the PopoverRoot for shared popover content.">
+        <div class="flex flex-col gap-4">
+            <div class="flex gap-4">
+                <PopoverTypedTrigger TPayload="string"
+                                Handle="@detachedPopoverHandle"
+                                Id="product-1"
+                                Payload="@("Laptop - $999")"
+                                ClassValue="@(state => TriggerClass(state))">
+                    Laptop
+                </PopoverTypedTrigger>
+                <PopoverTypedTrigger TPayload="string"
+                                Handle="@detachedPopoverHandle"
+                                Id="product-2"
+                                Payload="@("Phone - $599")"
+                                ClassValue="@(state => TriggerClass(state))">
+                    Phone
+                </PopoverTypedTrigger>
+                <PopoverTypedTrigger TPayload="string"
+                                Handle="@detachedPopoverHandle"
+                                Id="product-3"
+                                Payload="@("Tablet - $449")"
+                                ClassValue="@(state => TriggerClass(state))">
+                    Tablet
+                </PopoverTypedTrigger>
+            </div>
+
+            <PopoverRoot Handle="@detachedPopoverHandle">
+                <ChildContentWithPayload>
+                    @{
+                        var handlePayloadContext = context;
+                    }
+                    <PopoverPortal>
+                        <PopoverPositioner SideOffset="8">
+                            <PopoverPopup ClassValue="@(state => PopupClass(state))">
+                                <PopoverTitle class="text-base font-medium">Product Details</PopoverTitle>
+                                <PopoverDescription class="text-sm text-gray-600">
+                                    @(handlePayloadContext.Payload?.ToString() ?? "Click a product to see details")
+                                </PopoverDescription>
+                                <PopoverClose class="mt-3 rounded bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-300">
+                                    Close
+                                </PopoverClose>
+                            </PopoverPopup>
+                        </PopoverPositioner>
+                    </PopoverPortal>
+                </ChildContentWithPayload>
+            </PopoverRoot>
+
+            <div class="flex gap-2">
+                <button class="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+                        @onclick="@(() => detachedPopoverHandle.Open("product-1"))">
+                    Open Laptop
+                </button>
+                <button class="rounded bg-gray-200 px-3 py-1.5 text-sm hover:bg-gray-300"
+                        @onclick="@(() => detachedPopoverHandle.Close())">
+                    Close
+                </button>
+            </div>
+        </div>
+        <div class="mt-3 rounded bg-gray-100 p-3 text-sm text-gray-700">
+            <p>Triggers are placed <strong>outside</strong> the PopoverRoot but share a common handle.</p>
+            <p class="mt-1">The handle also allows imperative control via <code>Open(triggerId)</code> and <code>Close()</code>.</p>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Typed Payload with Handle"
+                 Description="Use generics for type-safe payloads with complex data objects.">
+        <div class="flex flex-col gap-4">
+            <div class="flex gap-4">
+                @foreach (var item in sampleItems)
+                {
+                    <PopoverTypedTrigger TPayload="ItemInfo"
+                                    Handle="@typedPopoverHandle"
+                                    Id="@($"item-{item.Id}")"
+                                    Payload="@item"
+                                    ClassValue="@(state => TriggerClass(state))">
+                        @item.Name
+                    </PopoverTypedTrigger>
+                }
+            </div>
+
+            <PopoverRoot Handle="@typedPopoverHandle">
+                <ChildContentWithPayload>
+                    @{
+                        var typedPayloadContext = context;
+                        var itemInfo = typedPayloadContext.Payload as ItemInfo;
+                    }
+                    <PopoverPortal>
+                        <PopoverPositioner SideOffset="8">
+                            <PopoverPopup ClassValue="@(state => PopupClass(state))" StyleValue="@(_ => "min-width: 220px;")">
+                                @if (itemInfo is not null)
+                                {
+                                    <PopoverTitle class="text-base font-medium">@itemInfo.Name</PopoverTitle>
+                                    <div class="mt-2 space-y-1 text-sm">
+                                        <p class="text-gray-600">@itemInfo.Description</p>
+                                        <p class="font-medium text-green-600">@itemInfo.Price.ToString("C")</p>
+                                        <p class="text-xs text-gray-500">
+                                            @(itemInfo.InStock ? "In Stock" : "Out of Stock")
+                                        </p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-sm text-gray-600">Click a product to see details</p>
+                                }
+                                <PopoverClose class="mt-3 w-full rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">
+                                    Close
+                                </PopoverClose>
+                            </PopoverPopup>
+                        </PopoverPositioner>
+                    </PopoverPortal>
+                </ChildContentWithPayload>
+            </PopoverRoot>
+        </div>
+        <div class="mt-3 rounded bg-gray-100 p-3 text-sm text-gray-700">
+            <p>Using <code>PopoverTypedTrigger&lt;ItemInfo&gt;</code> and <code>PopoverHandle&lt;ItemInfo&gt;</code> provides compile-time type safety.</p>
+        </div>
+    </DemoSection>
+
     <DemoSection Title="Complete Example"
                  Description="A comprehensive example combining multiple features.">
         <PopoverRoot>
@@ -492,6 +611,22 @@
 
     private bool controlledOpen;
     private OpenChangeReason? lastReason;
+
+    // Handle for detached triggers demo (string payload)
+    private readonly PopoverHandle<string> detachedPopoverHandle = new();
+
+    // Handle for typed payload demo
+    private readonly PopoverHandle<ItemInfo> typedPopoverHandle = new();
+
+    // Sample data for typed payload demo
+    private readonly List<ItemInfo> sampleItems =
+    [
+        new ItemInfo(1, "Laptop", "High-performance laptop for professionals", 999.99m, true),
+        new ItemInfo(2, "Phone", "Latest smartphone with advanced features", 599.99m, true),
+        new ItemInfo(3, "Tablet", "Versatile tablet for work and play", 449.99m, false)
+    ];
+
+    private record ItemInfo(int Id, string Name, string Description, decimal Price, bool InStock);
 
     private Task HandleOpenChange(PopoverOpenChangeEventArgs e)
     {

@@ -20,8 +20,6 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
     private string tabId = null!;
     private TabsTabState state = TabsTabState.Default;
     private bool isComponentRenderAs;
-    private EventCallback<MouseEventArgs> cachedClickCallback;
-    private EventCallback<FocusEventArgs> cachedFocusCallback;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -124,9 +122,6 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
         previousDisabled = Disabled;
         previousOrientation = Orientation;
         state = new TabsTabState(previousActive, previousDisabled, previousOrientation);
-
-        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-        cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocusAsync);
     }
 
     protected override void OnParametersSet()
@@ -201,8 +196,8 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
             }
         }
 
-        builder.AddAttribute(9, "onclick", cachedClickCallback);
-        builder.AddAttribute(10, "onfocus", cachedFocusCallback);
+        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(10, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocusAsync));
 
         if (orientationValue is not null)
         {

@@ -51,6 +51,10 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
 
     public ElementReference? Element { get; private set; }
 
+    protected override void OnInitialized()
+    {
+    }
+
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -183,11 +187,6 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
         }
     }
 
-    [JSInvokable]
-    public void OnTransitionEnd()
-    {
-    }
-
     public async ValueTask DisposeAsync()
     {
         CancelHoverDelay();
@@ -198,11 +197,9 @@ public sealed class TooltipPopup : ComponentBase, IReferencableComponent, IAsync
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePopup", Element.Value);
-                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
-                // Circuit-safe: intentionally empty to prevent crashes during Hot Reload or disconnection
             }
         }
 

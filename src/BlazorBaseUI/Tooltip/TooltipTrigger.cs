@@ -68,6 +68,8 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private bool HasRootContext => RootContext is not null;
 
+    private bool IsDisabled => Disabled || (RootContext?.Disabled ?? false);
+
     protected override void OnInitialized()
     {
         triggerId = Id ?? Guid.NewGuid().ToIdString();
@@ -102,7 +104,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
 
         var open = IsOpenedByThisTrigger();
-        state = new TooltipTriggerState(open, Disabled);
+        state = new TooltipTriggerState(open, IsDisabled);
 
         // Update payload via context if not using handle
         if (!HasHandle)
@@ -153,12 +155,12 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         if (string.IsNullOrEmpty(As) || As == "button")
         {
             builder.AddAttribute(2, "type", "button");
-            if (Disabled)
+            if (IsDisabled)
             {
                 builder.AddAttribute(3, "disabled", true);
             }
         }
-        else if (Disabled)
+        else if (IsDisabled)
         {
             builder.AddAttribute(4, "aria-disabled", "true");
         }
@@ -297,7 +299,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
@@ -335,7 +337,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
@@ -373,7 +375,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleFocusAsync(FocusEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
@@ -390,7 +392,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleBlurAsync(FocusEventArgs e)
     {
-        if (Disabled || (!HasRootContext && !HasHandle))
+        if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
         }

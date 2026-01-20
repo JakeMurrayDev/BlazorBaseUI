@@ -9,7 +9,7 @@
     <DemoSection Title="Basic Hover Tooltip"
                  Description="Hover over the trigger to show the tooltip after a 600ms delay.">
         <TooltipRoot>
-            <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+            <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                 Hover me
             </TooltipTrigger>
             <TooltipPortal>
@@ -28,7 +28,7 @@
     <DemoSection Title="Focus Tooltip"
                  Description="Tab to the trigger element to show the tooltip instantly on keyboard focus.">
         <TooltipRoot>
-            <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+            <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                 Tab to focus me
             </TooltipTrigger>
             <TooltipPortal>
@@ -48,7 +48,7 @@
                  Description="Configure open and close delay timings for the tooltip.">
         <div class="flex gap-4">
             <TooltipRoot>
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Delay="0"
                                 CloseDelay="0"
                                 ClassValue="@(state => TriggerClass(state))">
@@ -67,7 +67,7 @@
             </TooltipRoot>
 
             <TooltipRoot>
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Delay="200"
                                 CloseDelay="100"
                                 ClassValue="@(state => TriggerClass(state))">
@@ -86,7 +86,7 @@
             </TooltipRoot>
 
             <TooltipRoot>
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Delay="1000"
                                 CloseDelay="500"
                                 ClassValue="@(state => TriggerClass(state))">
@@ -114,7 +114,7 @@
                 {
                     var index = i;
                     <TooltipRoot>
-                        <TooltipTrigger TPayload="object"
+                        <TooltipTrigger
                                         Delay="600"
                                         ClassValue="@(state => TriggerClass(state))">
                             Tooltip @index
@@ -145,7 +145,7 @@
             @foreach (var side in new[] { Side.Top, Side.Right, Side.Bottom, Side.Left })
             {
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                    <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                         @side
                     </TooltipTrigger>
                     <TooltipPortal>
@@ -169,7 +169,7 @@
             @foreach (var align in new[] { Align.Start, Align.Center, Align.End })
             {
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                    <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                         @align
                     </TooltipTrigger>
                     <TooltipPortal>
@@ -193,7 +193,7 @@
             @foreach (var side in new[] { Side.Top, Side.Right, Side.Bottom, Side.Left })
             {
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                    <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                         @side
                     </TooltipTrigger>
                     <TooltipPortal>
@@ -215,7 +215,7 @@
                  Description="A disabled trigger prevents the tooltip from showing.">
         <div class="flex gap-4">
             <TooltipRoot>
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Disabled="true"
                                 ClassValue="@(state => TriggerClass(state))">
                     Disabled Button
@@ -230,7 +230,7 @@
             </TooltipRoot>
 
             <TooltipRoot Disabled="true">
-                <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                     Root Disabled
                 </TooltipTrigger>
                 <TooltipPortal>
@@ -253,7 +253,7 @@
             <div class="flex gap-4">
                 <TooltipRoot Open="@controlledOpen"
                              OnOpenChange="HandleOpenChange">
-                    <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                    <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                         Controlled Tooltip
                     </TooltipTrigger>
                     <TooltipPortal>
@@ -283,7 +283,7 @@
     <DemoSection Title="Default Open"
                  Description="The tooltip can be rendered in an initially open state using DefaultOpen.">
         <TooltipRoot DefaultOpen="true">
-            <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+            <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                 Default Open
             </TooltipTrigger>
             <TooltipPortal>
@@ -302,7 +302,7 @@
     <DemoSection Title="Escape to Close"
                  Description="Press Escape key while the tooltip is open to close it.">
         <TooltipRoot>
-            <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+            <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                 Open and Press Escape
             </TooltipTrigger>
             <TooltipPortal>
@@ -322,7 +322,7 @@
                  Description="By default, tooltips close when moving to the popup. Enable hoverable popup to allow interaction.">
         <div class="flex gap-4">
             <TooltipRoot>
-                <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                     Default (Not Hoverable)
                 </TooltipTrigger>
                 <TooltipPortal>
@@ -338,7 +338,7 @@
             </TooltipRoot>
 
             <TooltipRoot DisableHoverablePopup="false">
-                <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                     Hoverable Popup
                 </TooltipTrigger>
                 <TooltipPortal>
@@ -359,7 +359,7 @@
                  Description="When KeepMounted is true, the tooltip remains in the DOM when closed (hidden).">
         <div class="flex flex-col gap-4">
             <TooltipRoot>
-                <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+                <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                     Keep Mounted Tooltip
                 </TooltipTrigger>
                 <TooltipPortal KeepMounted="true">
@@ -382,7 +382,7 @@
     <DemoSection Title="Data Attributes"
                  Description="The tooltip components expose data attributes for styling based on state.">
         <TooltipRoot>
-            <TooltipTrigger TPayload="object" ClassValue="@(state => TriggerClass(state))">
+            <TooltipTrigger ClassValue="@(state => TriggerClass(state))">
                 Check Data Attributes
             </TooltipTrigger>
             <TooltipPortal>
@@ -411,7 +411,7 @@
         <TooltipProvider Timeout="400">
             <div class="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     As="button"
                                     class="rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -431,7 +431,7 @@
                 </TooltipRoot>
 
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     As="button"
                                     class="rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -453,7 +453,7 @@
                 <div class="mx-1 w-px bg-gray-200"></div>
 
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     As="button"
                                     class="rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -473,7 +473,7 @@
                 </TooltipRoot>
 
                 <TooltipRoot>
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     As="button"
                                     class="rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -503,19 +503,19 @@
                     var payloadContext = context;
                 }
                 <div class="flex gap-4">
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     Id="user-1"
                                     Payload="@("Alice - Online")"
                                     ClassValue="@(state => TriggerClass(state))">
                         Alice
                     </TooltipTrigger>
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     Id="user-2"
                                     Payload="@("Bob - Away")"
                                     ClassValue="@(state => TriggerClass(state))">
                         Bob
                     </TooltipTrigger>
-                    <TooltipTrigger TPayload="object"
+                    <TooltipTrigger
                                     Id="user-3"
                                     Payload="@("Charlie - Offline")"
                                     ClassValue="@(state => TriggerClass(state))">
@@ -543,21 +543,21 @@
                  Description="Use a handle to connect triggers placed outside the TooltipRoot.">
         <div class="flex flex-col gap-4">
             <div class="flex gap-4">
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Handle="@detachedHandle"
                                 Id="detached-1"
                                 Payload="@("Product A - $99")"
                                 ClassValue="@(state => TriggerClass(state))">
                     Product A
                 </TooltipTrigger>
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Handle="@detachedHandle"
                                 Id="detached-2"
                                 Payload="@("Product B - $149")"
                                 ClassValue="@(state => TriggerClass(state))">
                     Product B
                 </TooltipTrigger>
-                <TooltipTrigger TPayload="object"
+                <TooltipTrigger
                                 Handle="@detachedHandle"
                                 Id="detached-3"
                                 Payload="@("Product C - $199")"
@@ -607,13 +607,13 @@
             <div class="flex gap-4">
                 @foreach (var user in sampleUsers)
                 {
-                    <TooltipTrigger TPayload="UserInfo"
+                    <TooltipTypedTrigger TPayload="UserInfo"
                                     Handle="@typedHandle"
                                     Id="@($"user-{user.Id}")"
                                     Payload="@user"
                                     ClassValue="@(state => TriggerClass(state))">
                         @user.Name
-                    </TooltipTrigger>
+                    </TooltipTypedTrigger>
                 }
             </div>
 
@@ -658,7 +658,7 @@
     <DemoSection Title="Documentation Example"
                  Description="A comprehensive example matching the official base-ui documentation styling.">
         <TooltipRoot>
-            <TooltipTrigger TPayload="object" ClassValue="@(state => DocsTriggerClass(state))">
+            <TooltipTrigger ClassValue="@(state => DocsTriggerClass(state))">
                 <span class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>

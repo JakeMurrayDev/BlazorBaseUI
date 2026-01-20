@@ -51,7 +51,7 @@ public sealed class TooltipViewport : ComponentBase, IReferencableComponent
         }
 
         var instantType = RootContext?.InstantType ?? TooltipInstantType.None;
-        state = new TooltipViewportState(null, false, instantType);
+        state = new TooltipViewportState(instantType);
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -130,8 +130,3 @@ public sealed class TooltipViewport : ComponentBase, IReferencableComponent
         }
     }
 }
-
-public readonly record struct TooltipViewportState(
-    string? ActivationDirection,
-    bool Transitioning,
-    TooltipInstantType Instant);

@@ -217,15 +217,10 @@ public sealed class PopoverPopup : ComponentBase, IReferencableComponent, IAsync
 
         if (e.Key == "Escape")
         {
-            await RootContext.SetOpenAsync(false, OpenChangeReason.EscapeKey);
+            await RootContext.SetOpenAsync(false, OpenChangeReason.EscapeKey, null);
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
-    }
-
-    [JSInvokable]
-    public void OnTransitionEnd()
-    {
     }
 
     public async ValueTask DisposeAsync()
@@ -236,6 +231,7 @@ public sealed class PopoverPopup : ComponentBase, IReferencableComponent, IAsync
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePopup", Element.Value);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

@@ -15,7 +15,6 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
     private string? defaultId;
     private bool isComponentRenderAs;
     private AccordionTriggerState state = new(false, Orientation.Vertical, string.Empty, false);
-    private EventCallback<MouseEventArgs> cachedClickCallback;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -75,7 +74,6 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
 
     protected override void OnInitialized()
     {
-        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
         state = new AccordionTriggerState(
             ItemContext?.Open ?? false,
             ItemContext?.Orientation ?? Orientation.Vertical,
@@ -163,7 +161,7 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
             builder.AddAttribute(8, "disabled", true);
         }
 
-        builder.AddAttribute(9, "onclick", cachedClickCallback);
+        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
         builder.AddAttribute(10, "data-value", state.Value);
         builder.AddAttribute(11, "data-orientation", state.Orientation.ToDataAttributeString());

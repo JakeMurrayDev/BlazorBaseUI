@@ -52,6 +52,9 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
     public int CollisionPadding { get; set; } = 5;
 
     [Parameter]
+    public CollisionBoundary CollisionBoundary { get; set; } = CollisionBoundary.ClippingAncestors;
+
+    [Parameter]
     public int ArrowPadding { get; set; } = 5;
 
     [Parameter]
@@ -130,10 +133,11 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
 
         var open = RootContext.GetOpen();
         var mounted = RootContext.GetMounted();
-        var transitionStatus = RootContext.TransitionStatus;
         var instantType = RootContext.InstantType;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
+
+        builder.OpenRegion(0);
 
         builder.OpenComponent<CascadingValue<PopoverPositionerContext>>(0);
         builder.AddComponentParameter(1, "Value", positionerContext);
@@ -220,6 +224,8 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
             }
         }));
         builder.CloseComponent();
+
+        builder.CloseRegion();
     }
 
     private PopoverPositionerContext CreatePositionerContext() => new(
@@ -270,6 +276,7 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
                 SideOffset,
                 AlignOffset,
                 CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
                 ArrowPadding,
                 arrowElement,
                 Sticky,
@@ -306,6 +313,7 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
                 SideOffset,
                 AlignOffset,
                 CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
                 ArrowPadding,
                 arrowElement,
                 Sticky,
@@ -324,6 +332,7 @@ public sealed class PopoverPositioner : ComponentBase, IReferencableComponent, I
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePositioner", positionerId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

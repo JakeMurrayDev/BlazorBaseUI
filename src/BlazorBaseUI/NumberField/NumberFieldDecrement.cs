@@ -10,7 +10,16 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
 
     private bool isComponentRenderAs;
     private bool isTouchingButton;
+    private bool isPressed;
     private string pointerType = string.Empty;
+
+    private NumberFieldRootState State => RootContext?.State ?? NumberFieldRootState.Default;
+
+    private bool IsDisabled => Disabled || (RootContext?.Disabled ?? false);
+
+    private bool IsAtMin => RootContext?.Value.HasValue == true && RootContext.Value.Value <= RootContext.MinWithDefault;
+
+    private bool ResolvedDisabled => IsDisabled || IsAtMin;
 
     [CascadingParameter]
     private INumberFieldRootContext? RootContext { get; set; }
@@ -41,14 +50,6 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
 
     public ElementReference? Element { get; private set; }
 
-    private NumberFieldRootState State => RootContext?.State ?? NumberFieldRootState.Default;
-
-    private bool IsDisabled => Disabled || (RootContext?.Disabled ?? false);
-
-    private bool IsAtMin => RootContext?.Value.HasValue == true && RootContext.Value.Value <= RootContext.MinWithDefault;
-
-    private bool ResolvedDisabled => IsDisabled || IsAtMin;
-
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -67,109 +68,193 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (NativeButton || string.IsNullOrEmpty(As))
+            {
+                builder.AddAttribute(2, "type", "button");
+            }
 
-        if (NativeButton || string.IsNullOrEmpty(As))
-        {
-            builder.AddAttribute(2, "type", "button");
-        }
+            builder.AddAttribute(3, "disabled", ResolvedDisabled);
+            builder.AddAttribute(4, "tabindex", -1);
+            builder.AddAttribute(5, "aria-label", "Decrease");
 
-        builder.AddAttribute(3, "disabled", ResolvedDisabled);
-        builder.AddAttribute(4, "tabindex", -1);
-        builder.AddAttribute(5, "aria-label", "Decrease");
+            if (!string.IsNullOrEmpty(RootContext?.Id))
+            {
+                builder.AddAttribute(6, "aria-controls", RootContext.Id);
+            }
 
-        if (!string.IsNullOrEmpty(RootContext?.Id))
-        {
-            builder.AddAttribute(6, "aria-controls", RootContext.Id);
-        }
+            if (RootContext?.ReadOnly == true)
+            {
+                builder.AddAttribute(7, "aria-readonly", "true");
+            }
 
-        if (RootContext?.ReadOnly == true)
-        {
-            builder.AddAttribute(7, "aria-readonly", "true");
-        }
+            builder.AddAttribute(8, "style", "user-select:none;-webkit-user-select:none;" + (resolvedStyle ?? string.Empty));
 
-        builder.AddAttribute(8, "style", "user-select:none;-webkit-user-select:none;" + (resolvedStyle ?? string.Empty));
+            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(10, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
+            builder.AddAttribute(11, "onpointerup", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerUp));
+            builder.AddAttribute(12, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnter));
+            builder.AddAttribute(13, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeave));
+            builder.AddAttribute(14, "ontouchstart", EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchStart));
+            builder.AddAttribute(15, "ontouchend", EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchEnd));
+            builder.AddAttribute(16, "onmouseup", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseUp));
 
-        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-        builder.AddAttribute(10, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
-        builder.AddAttribute(11, "onpointerup", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerUp));
-        builder.AddAttribute(12, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnter));
-        builder.AddAttribute(13, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeave));
-        builder.AddAttribute(14, "ontouchstart", EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchStart));
-        builder.AddAttribute(15, "ontouchend", EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchEnd));
+            if (state.Scrubbing)
+            {
+                builder.AddAttribute(17, "data-scrubbing", string.Empty);
+            }
 
-        if (state.Scrubbing)
-        {
-            builder.AddAttribute(16, "data-scrubbing", string.Empty);
-        }
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(18, "data-disabled", string.Empty);
+            }
 
-        if (ResolvedDisabled)
-        {
-            builder.AddAttribute(17, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(19, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(18, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(20, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(19, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(21, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(22, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(20, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(21, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(23, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(22, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(24, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(23, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(25, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(24, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(26, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(25, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(27, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(26, "class", resolvedClass);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddComponentParameter(27, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(28, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddComponentParameter(28, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(29, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(29, elementReference => Element = elementReference);
-            builder.AddContent(30, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (NativeButton || string.IsNullOrEmpty(As))
+            {
+                builder.AddAttribute(2, "type", "button");
+            }
+
+            builder.AddAttribute(3, "disabled", ResolvedDisabled);
+            builder.AddAttribute(4, "tabindex", -1);
+            builder.AddAttribute(5, "aria-label", "Decrease");
+
+            if (!string.IsNullOrEmpty(RootContext?.Id))
+            {
+                builder.AddAttribute(6, "aria-controls", RootContext.Id);
+            }
+
+            if (RootContext?.ReadOnly == true)
+            {
+                builder.AddAttribute(7, "aria-readonly", "true");
+            }
+
+            builder.AddAttribute(8, "style", "user-select:none;-webkit-user-select:none;" + (resolvedStyle ?? string.Empty));
+
+            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(10, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
+            builder.AddAttribute(11, "onpointerup", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerUp));
+            builder.AddAttribute(12, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnter));
+            builder.AddAttribute(13, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeave));
+            builder.AddAttribute(14, "ontouchstart", EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchStart));
+            builder.AddAttribute(15, "ontouchend", EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchEnd));
+            builder.AddAttribute(16, "onmouseup", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseUp));
+
+            if (state.Scrubbing)
+            {
+                builder.AddAttribute(17, "data-scrubbing", string.Empty);
+            }
+
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(18, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(19, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(20, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(21, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(22, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(23, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(24, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(25, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(26, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(27, "class", resolvedClass);
+            }
+
+            builder.AddElementReferenceCapture(28, elementReference => Element = elementReference);
+            builder.AddContent(29, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
@@ -181,6 +266,8 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
         if (pointerType == "touch")
             return;
 
+        // Only handle keyboard/virtual clicks (Detail == 0)
+        // Mouse clicks (Detail != 0) are handled by onPointerDown -> startAutoChange
         if (e.Detail != 0)
             return;
 
@@ -199,6 +286,7 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
             return;
 
         pointerType = e.PointerType;
+        isPressed = true;
 
         if (e.PointerType != "touch")
         {
@@ -209,12 +297,18 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
 
     private void HandlePointerUp(PointerEventArgs e)
     {
+        if (e.PointerType == "touch")
+        {
+            isPressed = false;
+        }
     }
 
     private void HandleMouseEnter(MouseEventArgs e)
     {
-        if (ResolvedDisabled || RootContext?.ReadOnly == true || isTouchingButton || pointerType == "touch")
+        if (ResolvedDisabled || RootContext?.ReadOnly == true || !isPressed || isTouchingButton || pointerType == "touch")
             return;
+
+        RootContext?.StartAutoChange(false);
     }
 
     private void HandleMouseLeave(MouseEventArgs e)
@@ -222,6 +316,15 @@ public sealed class NumberFieldDecrement : ComponentBase, IReferencableComponent
         if (isTouchingButton)
             return;
 
+        RootContext?.StopAutoChange();
+    }
+
+    private void HandleMouseUp(MouseEventArgs e)
+    {
+        if (isTouchingButton)
+            return;
+
+        isPressed = false;
         RootContext?.StopAutoChange();
     }
 

@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Components;
 
-namespace BlazorBaseUI.Tooltip;
+namespace BlazorBaseUI.Popover;
 
 /// <summary>
-/// Non-generic interface for TooltipHandle that allows TooltipRoot to interact with handles
+/// Non-generic interface for PopoverHandle that allows PopoverRoot to interact with handles
 /// without knowing the payload type at compile time.
 /// </summary>
-public interface ITooltipHandle
+public interface IPopoverHandle
 {
     /// <summary>
-    /// Gets a value indicating whether the tooltip is currently open.
+    /// Gets a value indicating whether the popover is currently open.
     /// </summary>
     bool IsOpen { get; }
 
@@ -19,13 +19,13 @@ public interface ITooltipHandle
     string? ActiveTriggerId { get; }
 
     /// <summary>
-    /// Opens the tooltip and associates it with the trigger with the given ID.
+    /// Opens the popover and associates it with the trigger with the given ID.
     /// </summary>
-    /// <param name="triggerId">ID of the trigger to associate with the tooltip.</param>
+    /// <param name="triggerId">ID of the trigger to associate with the popover.</param>
     void Open(string triggerId);
 
     /// <summary>
-    /// Closes the tooltip.
+    /// Closes the popover.
     /// </summary>
     void Close();
 
@@ -42,12 +42,12 @@ public interface ITooltipHandle
     /// <summary>
     /// Subscribes a component to handle state changes.
     /// </summary>
-    internal void Subscribe(ITooltipHandleSubscriber subscriber);
+    internal void Subscribe(IPopoverHandleSubscriber subscriber);
 
     /// <summary>
     /// Unsubscribes a component from handle state changes.
     /// </summary>
-    internal void Unsubscribe(ITooltipHandleSubscriber subscriber);
+    internal void Unsubscribe(IPopoverHandleSubscriber subscriber);
 
     /// <summary>
     /// Called by root to sync state back to handle after processing.
@@ -56,21 +56,21 @@ public interface ITooltipHandle
 }
 
 /// <summary>
-/// A handle to control a tooltip imperatively and to associate detached triggers with it.
-/// The handle owns the tooltip state and coordinates between detached Root and Trigger components.
+/// A handle to control a popover imperatively and to associate detached triggers with it.
+/// The handle owns the popover state and coordinates between detached Root and Trigger components.
 /// </summary>
-/// <typeparam name="TPayload">The type of payload to pass to the tooltip.</typeparam>
-public class TooltipHandle<TPayload> : ITooltipHandle
+/// <typeparam name="TPayload">The type of payload to pass to the popover.</typeparam>
+public class PopoverHandle<TPayload> : IPopoverHandle
 {
-    private readonly Dictionary<string, TriggerData> registeredTriggers = new();
-    private readonly List<ITooltipHandleSubscriber> subscribers = new();
+    private readonly Dictionary<string, TriggerData> registeredTriggers = [];
+    private readonly List<IPopoverHandleSubscriber> subscribers = [];
 
     private bool isOpen;
     private string? activeTriggerId;
     private TPayload? payload;
 
     /// <summary>
-    /// Gets a value indicating whether the tooltip is currently open.
+    /// Gets a value indicating whether the popover is currently open.
     /// </summary>
     public bool IsOpen => isOpen;
 
@@ -85,10 +85,10 @@ public class TooltipHandle<TPayload> : ITooltipHandle
     public TPayload? Payload => payload;
 
     /// <summary>
-    /// Opens the tooltip and associates it with the trigger with the given ID.
-    /// The trigger must be a TooltipTrigger component with this handle passed as a prop.
+    /// Opens the popover and associates it with the trigger with the given ID.
+    /// The trigger must be a PopoverTrigger component with this handle passed as a prop.
     /// </summary>
-    /// <param name="triggerId">ID of the trigger to associate with the tooltip.</param>
+    /// <param name="triggerId">ID of the trigger to associate with the popover.</param>
     /// <exception cref="InvalidOperationException">Thrown when no trigger is found with the given ID.</exception>
     public void Open(string triggerId)
     {
@@ -99,18 +99,18 @@ public class TooltipHandle<TPayload> : ITooltipHandle
 
         if (!registeredTriggers.ContainsKey(triggerId))
         {
-            throw new InvalidOperationException($"TooltipHandle.Open: No trigger found with id \"{triggerId}\".");
+            throw new InvalidOperationException($"PopoverHandle.Open: No trigger found with id \"{triggerId}\".");
         }
 
-        SetOpenInternal(true, TooltipOpenChangeReason.ImperativeAction, triggerId);
+        SetOpenInternal(true, OpenChangeReason.ImperativeAction, triggerId);
     }
 
     /// <summary>
-    /// Closes the tooltip.
+    /// Closes the popover.
     /// </summary>
     public void Close()
     {
-        SetOpenInternal(false, TooltipOpenChangeReason.ImperativeAction, null);
+        SetOpenInternal(false, OpenChangeReason.ImperativeAction, null);
     }
 
     /// <summary>
@@ -164,7 +164,6 @@ public class TooltipHandle<TPayload> : ITooltipHandle
         {
             registeredTriggers[triggerId] = data with { Payload = triggerPayload };
 
-            // If this trigger is active and tooltip is open, update the current payload
             if (activeTriggerId == triggerId && isOpen)
             {
                 payload = triggerPayload;
@@ -202,7 +201,7 @@ public class TooltipHandle<TPayload> : ITooltipHandle
     /// <summary>
     /// Subscribes a component to handle state changes.
     /// </summary>
-    internal void Subscribe(ITooltipHandleSubscriber subscriber)
+    internal void Subscribe(IPopoverHandleSubscriber subscriber)
     {
         if (!subscribers.Contains(subscriber))
         {
@@ -213,23 +212,23 @@ public class TooltipHandle<TPayload> : ITooltipHandle
     /// <summary>
     /// Unsubscribes a component from handle state changes.
     /// </summary>
-    internal void Unsubscribe(ITooltipHandleSubscriber subscriber)
+    internal void Unsubscribe(IPopoverHandleSubscriber subscriber)
     {
         subscribers.Remove(subscriber);
     }
 
     /// <summary>
-    /// Called by triggers to request opening the tooltip.
+    /// Called by triggers to request opening the popover.
     /// </summary>
-    internal void RequestOpen(string triggerId, TooltipOpenChangeReason reason)
+    internal void RequestOpen(string triggerId, OpenChangeReason reason)
     {
         SetOpenInternal(true, reason, triggerId);
     }
 
     /// <summary>
-    /// Called by triggers to request closing the tooltip.
+    /// Called by triggers to request closing the popover.
     /// </summary>
-    internal void RequestClose(TooltipOpenChangeReason reason)
+    internal void RequestClose(OpenChangeReason reason)
     {
         SetOpenInternal(false, reason, null);
     }
@@ -245,36 +244,36 @@ public class TooltipHandle<TPayload> : ITooltipHandle
     }
 
     /// <inheritdoc />
-    ElementReference? ITooltipHandle.GetTriggerElement(string? triggerId)
+    ElementReference? IPopoverHandle.GetTriggerElement(string? triggerId)
     {
         return GetTriggerElement(triggerId);
     }
 
     /// <inheritdoc />
-    object? ITooltipHandle.GetTriggerPayloadAsObject(string? triggerId)
+    object? IPopoverHandle.GetTriggerPayloadAsObject(string? triggerId)
     {
         return GetTriggerPayload(triggerId);
     }
 
     /// <inheritdoc />
-    void ITooltipHandle.Subscribe(ITooltipHandleSubscriber subscriber)
+    void IPopoverHandle.Subscribe(IPopoverHandleSubscriber subscriber)
     {
         Subscribe(subscriber);
     }
 
     /// <inheritdoc />
-    void ITooltipHandle.Unsubscribe(ITooltipHandleSubscriber subscriber)
+    void IPopoverHandle.Unsubscribe(IPopoverHandleSubscriber subscriber)
     {
         Unsubscribe(subscriber);
     }
 
     /// <inheritdoc />
-    void ITooltipHandle.SyncState(bool open, string? triggerId, object? payload)
+    void IPopoverHandle.SyncState(bool open, string? triggerId, object? payload)
     {
         SyncState(open, triggerId, payload is TPayload typedPayload ? typedPayload : default);
     }
 
-    private void SetOpenInternal(bool nextOpen, TooltipOpenChangeReason reason, string? triggerId)
+    private void SetOpenInternal(bool nextOpen, OpenChangeReason reason, string? triggerId)
     {
         if (isOpen == nextOpen && (nextOpen == false || activeTriggerId == triggerId))
         {
@@ -287,7 +286,6 @@ public class TooltipHandle<TPayload> : ITooltipHandle
             payload = GetTriggerPayload(triggerId);
         }
 
-        // Notify all subscribers (the root will actually process the state change)
         foreach (var subscriber in subscribers.ToArray())
         {
             subscriber.OnOpenChangeRequested(nextOpen, reason, triggerId);
@@ -306,16 +304,16 @@ public class TooltipHandle<TPayload> : ITooltipHandle
 }
 
 /// <summary>
-/// Non-generic version of TooltipHandle for scenarios where payload type is not needed.
+/// Non-generic version of PopoverHandle for scenarios where payload type is not needed.
 /// </summary>
-public sealed class TooltipHandle : TooltipHandle<object?>
+public sealed class PopoverHandle : PopoverHandle<object?>
 {
 }
 
 /// <summary>
-/// Interface for components that subscribe to TooltipHandle state changes.
+/// Interface for components that subscribe to PopoverHandle state changes.
 /// </summary>
-internal interface ITooltipHandleSubscriber
+internal interface IPopoverHandleSubscriber
 {
     /// <summary>
     /// Called when a trigger is registered with the handle.
@@ -335,7 +333,7 @@ internal interface ITooltipHandleSubscriber
     /// <summary>
     /// Called when an open/close state change is requested.
     /// </summary>
-    void OnOpenChangeRequested(bool open, TooltipOpenChangeReason reason, string? triggerId);
+    void OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId);
 
     /// <summary>
     /// Called when the handle state has changed.
@@ -344,26 +342,26 @@ internal interface ITooltipHandleSubscriber
 }
 
 /// <summary>
-/// Factory methods for creating tooltip handles.
+/// Factory methods for creating popover handles.
 /// </summary>
-public static class TooltipHandleFactory
+public static class PopoverHandleFactory
 {
     /// <summary>
-    /// Creates a new handle to connect a Tooltip.Root with detached Tooltip.Trigger components.
+    /// Creates a new handle to connect a Popover.Root with detached Popover.Trigger components.
     /// </summary>
-    /// <typeparam name="TPayload">The type of payload to pass to the tooltip.</typeparam>
-    /// <returns>A new TooltipHandle instance.</returns>
-    public static TooltipHandle<TPayload> CreateHandle<TPayload>()
+    /// <typeparam name="TPayload">The type of payload to pass to the popover.</typeparam>
+    /// <returns>A new PopoverHandle instance.</returns>
+    public static PopoverHandle<TPayload> CreateHandle<TPayload>()
     {
-        return new TooltipHandle<TPayload>();
+        return new PopoverHandle<TPayload>();
     }
 
     /// <summary>
-    /// Creates a new handle to connect a Tooltip.Root with detached Tooltip.Trigger components.
+    /// Creates a new handle to connect a Popover.Root with detached Popover.Trigger components.
     /// </summary>
-    /// <returns>A new TooltipHandle instance.</returns>
-    public static TooltipHandle CreateHandle()
+    /// <returns>A new PopoverHandle instance.</returns>
+    public static PopoverHandle CreateHandle()
     {
-        return new TooltipHandle();
+        return new PopoverHandle();
     }
 }

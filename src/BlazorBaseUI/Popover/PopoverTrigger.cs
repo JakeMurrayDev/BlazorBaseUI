@@ -4,14 +4,24 @@ using Microsoft.AspNetCore.Components.Web;
 
 namespace BlazorBaseUI.Popover;
 
-public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDisposable
+/// <summary>
+/// A popover trigger component that can work either nested inside a PopoverRoot
+/// or detached with a handle for typed payloads.
+/// </summary>
+/// <typeparam name="TPayload">The type of payload to pass to the popover. Use object for untyped payloads.</typeparam>
+public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableComponent, IDisposable
 {
     private const string DefaultTag = "button";
 
     private bool isComponentRenderAs;
-    private IReferencableComponent? componentReference;
+    private string triggerId = null!;
     private PopoverTriggerState state;
     private CancellationTokenSource? hoverCts;
+    private PopoverHandle<TPayload>? registeredHandle;
+
+    private bool HasHandle => Handle is not null;
+
+    private bool HasRootContext => RootContext is not null;
 
     [CascadingParameter]
     private PopoverRootContext? RootContext { get; set; }
@@ -41,6 +51,12 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
     public string? Id { get; set; }
 
     [Parameter]
+    public PopoverHandle<TPayload>? Handle { get; set; }
+
+    [Parameter]
+    public TPayload? Payload { get; set; }
+
+    [Parameter]
     public Func<PopoverTriggerState, string>? ClassValue { get; set; }
 
     [Parameter]
@@ -54,6 +70,11 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
 
     public ElementReference? Element { get; private set; }
 
+    protected override void OnInitialized()
+    {
+        triggerId = Id ?? Guid.NewGuid().ToIdString();
+    }
+
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -62,7 +83,27 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
             throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
         }
 
-        var open = RootContext?.GetOpen() ?? false;
+        // Handle Id change - unregister old trigger ID
+        if (Id is not null && Id != triggerId)
+        {
+            UnregisterFromCurrentStore(triggerId);
+            triggerId = Id;
+        }
+
+        // Handle change of handle parameter
+        if (Handle != registeredHandle)
+        {
+            registeredHandle?.UnregisterTrigger(triggerId);
+            registeredHandle = Handle;
+            Handle?.RegisterTrigger(triggerId, Element, Payload);
+        }
+        else if (HasHandle)
+        {
+            // Update payload on existing handle
+            Handle!.UpdateTriggerPayload(triggerId, Payload);
+        }
+
+        var open = IsOpenedByThisTrigger();
         state = new PopoverTriggerState(open, Disabled);
     }
 
@@ -70,20 +111,28 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
     {
         if (firstRender)
         {
-            RootContext?.SetTriggerElement(Element);
+            if (HasHandle)
+            {
+                Handle!.RegisterTrigger(triggerId, Element, Payload);
+                registeredHandle = Handle;
+            }
+            else
+            {
+                RootContext?.SetTriggerElement(Element);
+            }
         }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        if (RootContext is null)
+        if (RootContext is null && !HasHandle)
         {
             return;
         }
 
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var open = RootContext.GetOpen();
+        var open = IsOpenedByThisTrigger();
 
         if (isComponentRenderAs)
         {
@@ -116,87 +165,144 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
 
         builder.AddAttribute(6, "aria-haspopup", "dialog");
         builder.AddAttribute(7, "aria-expanded", open ? "true" : "false");
-
-        if (!string.IsNullOrEmpty(Id))
-        {
-            builder.AddAttribute(8, "id", Id);
-        }
+        builder.AddAttribute(8, "id", triggerId);
 
         if (open)
         {
             builder.AddAttribute(9, "data-popup-open", string.Empty);
+
+            var openReason = RootContext?.OpenChangeReason ?? OpenChangeReason.TriggerPress;
+            if (openReason == OpenChangeReason.TriggerPress)
+            {
+                builder.AddAttribute(10, "data-pressed", string.Empty);
+            }
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(10, "class", resolvedClass);
+            builder.AddAttribute(11, "class", resolvedClass);
         }
 
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(11, "style", resolvedStyle);
+            builder.AddAttribute(12, "style", resolvedStyle);
         }
 
-        builder.AddAttribute(12, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(13, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
         if (OpenOnHover)
         {
-            builder.AddAttribute(13, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(14, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(14, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(15, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
         }
 
         if (isComponentRenderAs)
         {
-            builder.AddAttribute(15, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(16, component =>
+            builder.AddAttribute(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component =>
             {
-                componentReference = (IReferencableComponent)component;
-                var newElement = componentReference.Element;
+                var newElement = ((IReferencableComponent)component).Element;
                 if (!Nullable.Equals(Element, newElement))
                 {
                     Element = newElement;
-                    RootContext?.SetTriggerElement(Element);
+                    OnElementChanged();
                 }
             });
             builder.CloseComponent();
         }
         else
         {
-            builder.AddContent(17, ChildContent);
-            builder.AddElementReferenceCapture(18, elementReference =>
+            builder.AddContent(18, ChildContent);
+            builder.AddElementReferenceCapture(19, elementReference =>
             {
                 if (!Nullable.Equals(Element, elementReference))
                 {
                     Element = elementReference;
-                    RootContext?.SetTriggerElement(Element);
+                    OnElementChanged();
                 }
             });
             builder.CloseElement();
         }
     }
 
+    public void Dispose()
+    {
+        CancelHoverDelay();
+        UnregisterFromCurrentStore(triggerId);
+    }
+
+    private void OnElementChanged()
+    {
+        if (HasHandle)
+        {
+            Handle!.UpdateTriggerElement(triggerId, Element);
+        }
+        else
+        {
+            RootContext?.SetTriggerElement(Element);
+        }
+    }
+
+    private void UnregisterFromCurrentStore(string id)
+    {
+        if (registeredHandle is not null)
+        {
+            registeredHandle.UnregisterTrigger(id);
+        }
+    }
+
+    private bool IsOpenedByThisTrigger()
+    {
+        // Check handle state first if using detached trigger pattern
+        if (HasHandle)
+        {
+            var isOpen = Handle!.IsOpen;
+            if (!isOpen)
+            {
+                return false;
+            }
+            var activeId = Handle.ActiveTriggerId;
+            return activeId == triggerId || (activeId is null && isOpen);
+        }
+
+        // Fall back to root context
+        if (RootContext is null)
+        {
+            return false;
+        }
+
+        var rootOpen = RootContext.GetOpen();
+        if (!rootOpen)
+        {
+            return false;
+        }
+
+        var activeTriggerId = RootContext.ActiveTriggerId;
+        return activeTriggerId == triggerId || (activeTriggerId is null && rootOpen);
+    }
+
     private async Task HandleClickAsync(MouseEventArgs e)
     {
-        if (Disabled || RootContext is null)
+        if (Disabled || (!HasRootContext && !HasHandle))
         {
             return;
         }
 
-        var nextOpen = !RootContext.GetOpen();
-        await RootContext.SetOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
+        var nextOpen = !IsOpenedByThisTrigger();
+        await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
-        if (Disabled || RootContext is null || !OpenOnHover)
+        if (Disabled || (!HasRootContext && !HasHandle) || !OpenOnHover)
         {
             return;
         }
 
         CancelHoverDelay();
 
-        if (RootContext.GetOpen())
+        if (IsOpenedByThisTrigger())
         {
             return;
         }
@@ -209,7 +315,7 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
             await Task.Delay(Delay, token);
             if (!token.IsCancellationRequested)
             {
-                await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerHover);
+                await RequestOpenAsync(true, OpenChangeReason.TriggerHover);
             }
         }
         catch (TaskCanceledException)
@@ -219,14 +325,14 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
-        if (Disabled || RootContext is null || !OpenOnHover)
+        if (Disabled || (!HasRootContext && !HasHandle) || !OpenOnHover)
         {
             return;
         }
 
         CancelHoverDelay();
 
-        if (!RootContext.GetOpen())
+        if (!IsOpenedByThisTrigger())
         {
             return;
         }
@@ -240,7 +346,7 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
             await Task.Delay(effectiveCloseDelay, token);
             if (!token.IsCancellationRequested)
             {
-                await RootContext.SetOpenAsync(false, OpenChangeReason.TriggerHover);
+                await RequestOpenAsync(false, OpenChangeReason.TriggerHover);
             }
         }
         catch (TaskCanceledException)
@@ -258,8 +364,33 @@ public sealed class PopoverTrigger : ComponentBase, IReferencableComponent, IDis
         }
     }
 
-    public void Dispose()
+    private Task RequestOpenAsync(bool open, OpenChangeReason reason)
     {
-        CancelHoverDelay();
+        if (HasHandle)
+        {
+            if (open)
+            {
+                Handle!.RequestOpen(triggerId, reason);
+            }
+            else
+            {
+                Handle!.RequestClose(reason);
+            }
+            return Task.CompletedTask;
+        }
+
+        if (RootContext is not null)
+        {
+            return RootContext.SetOpenAsync(open, reason, open ? Payload : null);
+        }
+
+        return Task.CompletedTask;
     }
+}
+
+/// <summary>
+/// Non-generic version of PopoverTypedTrigger for scenarios where payload type is not needed.
+/// </summary>
+public sealed class PopoverTrigger : PopoverTypedTrigger<object?>
+{
 }

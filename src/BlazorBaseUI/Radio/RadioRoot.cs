@@ -32,13 +32,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
     private RadioRootContext? cachedContext;
     private bool stateDirty = true;
 
-    private EventCallback<KeyboardEventArgs> cachedKeyDownCallback;
-    private EventCallback<MouseEventArgs> cachedClickCallback;
-    private EventCallback<FocusEventArgs> cachedFocusCallback;
-    private EventCallback<FocusEventArgs> cachedBlurCallback;
-    private EventCallback<ChangeEventArgs> cachedInputChangeCallback;
-    private EventCallback<FocusEventArgs> cachedInputFocusCallback;
-
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -142,13 +135,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
         previousDisabled = ResolvedDisabled;
         previousReadOnly = ResolvedReadOnly;
         previousChecked = CurrentChecked;
-
-        cachedKeyDownCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
-        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-        cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        cachedBlurCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync);
-        cachedInputChangeCallback = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync);
-        cachedInputFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync);
     }
 
     protected override void OnParametersSet()
@@ -276,10 +262,10 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
         if (state.Valid == false)
             builder.AddAttribute(12, "aria-invalid", "true");
 
-        builder.AddAttribute(13, "onkeydown", cachedKeyDownCallback);
-        builder.AddAttribute(14, "onclick", cachedClickCallback);
-        builder.AddAttribute(15, "onfocus", cachedFocusCallback);
-        builder.AddAttribute(16, "onblur", cachedBlurCallback);
+        builder.AddAttribute(13, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
+        builder.AddAttribute(14, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(15, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(16, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
 
         if (state.Checked)
             builder.AddAttribute(17, "data-checked", string.Empty);
@@ -353,8 +339,8 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
         if (Value is not null)
             builder.AddAttribute(44, "value", SerializeValue(Value));
 
-        builder.AddAttribute(45, "onchange", cachedInputChangeCallback);
-        builder.AddAttribute(46, "onfocus", cachedInputFocusCallback);
+        builder.AddAttribute(45, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
+        builder.AddAttribute(46, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
         builder.AddElementReferenceCapture(47, e => inputElement = e);
         builder.CloseElement();
     }

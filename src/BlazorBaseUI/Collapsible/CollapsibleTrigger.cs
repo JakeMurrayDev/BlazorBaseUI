@@ -10,7 +10,6 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
 
     private bool isComponentRenderAs;
     private CollapsibleRootState state = new(false, false);
-    private EventCallback<MouseEventArgs> cachedClickCallback;
 
    [CascadingParameter]
     private CollapsibleRootContext? Context { get; set; }
@@ -45,7 +44,6 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
 
     protected override void OnInitialized()
     {
-        cachedClickCallback = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
     }
 
     protected override void OnParametersSet()
@@ -98,7 +96,7 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
             builder.AddAttribute(5, "disabled", true);
         }
 
-        builder.AddAttribute(6, "onclick", cachedClickCallback);
+        builder.AddAttribute(6, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
         if (state.Open)
         {

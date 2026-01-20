@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Dialog;
 
-public sealed class DialogPortal : ComponentBase
+public sealed class DialogPortal : ComponentBase, IReferencableComponent
 {
-    private bool previousMounted;
+    private IReferencableComponent? portalReference;
 
     [CascadingParameter]
     private DialogRootContext? Context { get; set; }
@@ -14,23 +14,18 @@ public sealed class DialogPortal : ComponentBase
     public bool KeepMounted { get; set; }
 
     [Parameter]
+    public string Container { get; set; } = "body";
+
+    [Parameter]
     public RenderFragment? ChildContent { get; set; }
+
+    public ElementReference? Element { get; private set; }
 
     protected override void OnInitialized()
     {
         if (Context is null)
         {
             throw new InvalidOperationException("DialogPortal must be used within a DialogRoot.");
-        }
-
-        previousMounted = Context.Mounted;
-    }
-
-    protected override void OnParametersSet()
-    {
-        if (Context is not null)
-        {
-            previousMounted = Context.Mounted;
         }
     }
 
@@ -58,7 +53,13 @@ public sealed class DialogPortal : ComponentBase
     private void RenderPortal(RenderTreeBuilder builder)
     {
         builder.OpenComponent<Portal.Portal>(0);
-        builder.AddAttribute(1, "ChildContent", ChildContent);
+        builder.AddAttribute(1, "Target", Container);
+        builder.AddAttribute(2, "ChildContent", ChildContent);
+        builder.AddComponentReferenceCapture(3, component =>
+        {
+            portalReference = (IReferencableComponent)component;
+            Element = portalReference.Element;
+        });
         builder.CloseComponent();
     }
 }

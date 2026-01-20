@@ -19,10 +19,6 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
     private ElementReference element;
     private ElementReference inputElement;
     private SliderThumbState state = SliderThumbState.Default;
-    private EventCallback<ChangeEventArgs> cachedOnChange;
-    private EventCallback<FocusEventArgs> cachedOnFocus;
-    private EventCallback<FocusEventArgs> cachedOnBlur;
-    private EventCallback<KeyboardEventArgs> cachedOnKeyDown;
 
     [CascadingParameter]
     private ISliderRootContext? Context { get; set; }
@@ -104,11 +100,6 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         {
             LabelableContext?.SetControlId(inputId);
         }
-
-        cachedOnChange = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange);
-        cachedOnFocus = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        cachedOnBlur = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
-        cachedOnKeyDown = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown);
     }
 
     protected override void OnParametersSet()
@@ -280,10 +271,10 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         }
 
         builder.AddAttribute(startSequence + 15, "style", "clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;");
-        builder.AddAttribute(startSequence + 16, "onchange", cachedOnChange);
-        builder.AddAttribute(startSequence + 17, "onfocus", cachedOnFocus);
-        builder.AddAttribute(startSequence + 18, "onblur", cachedOnBlur);
-        builder.AddAttribute(startSequence + 19, "onkeydown", cachedOnKeyDown);
+        builder.AddAttribute(startSequence + 16, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange));
+        builder.AddAttribute(startSequence + 17, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(startSequence + 18, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+        builder.AddAttribute(startSequence + 19, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
         builder.AddElementReferenceCapture(startSequence + 20, e => inputElement = e);
         builder.CloseElement();
     }

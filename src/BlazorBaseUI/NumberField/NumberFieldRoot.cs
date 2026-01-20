@@ -28,6 +28,45 @@ public sealed class NumberFieldRoot : ComponentBase, IReferencableComponent, IFi
     private NumberFieldRootContext context = null!;
     private NumberFieldRootState state = NumberFieldRootState.Default;
 
+    private bool IsControlled => Value.HasValue;
+
+    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
+
+    private string? ResolvedName => Name ?? FieldContext?.Name;
+
+    private string ResolvedId => Id ?? AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    private double MinWithDefault => Min ?? double.MinValue;
+
+    private double MaxWithDefault => Max ?? double.MaxValue;
+
+    private double MinWithZeroDefault => Min ?? 0;
+
+    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
+
+    private string InputMode
+    {
+        get
+        {
+            if (MinWithDefault >= 0)
+                return "decimal";
+            return "text";
+        }
+    }
+
+    private CultureInfo ResolvedCulture
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(Locale))
+            {
+                try { return CultureInfo.GetCultureInfo(Locale); }
+                catch { return CultureInfo.CurrentCulture; }
+            }
+            return CultureInfo.CurrentCulture;
+        }
+    }
+
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -117,45 +156,6 @@ public sealed class NumberFieldRoot : ComponentBase, IReferencableComponent, IFi
 
     public ElementReference? Element { get; private set; }
 
-    private bool IsControlled => Value.HasValue;
-
-    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
-
-    private string? ResolvedName => Name ?? FieldContext?.Name;
-
-    private string ResolvedId => Id ?? AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
-    private double MinWithDefault => Min ?? double.MinValue;
-
-    private double MaxWithDefault => Max ?? double.MaxValue;
-
-    private double MinWithZeroDefault => Min ?? 0;
-
-    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
-
-    private string InputMode
-    {
-        get
-        {
-            if (MinWithDefault >= 0)
-                return "decimal";
-            return "text";
-        }
-    }
-
-    private CultureInfo ResolvedCulture
-    {
-        get
-        {
-            if (!string.IsNullOrEmpty(Locale))
-            {
-                try { return CultureInfo.GetCultureInfo(Locale); }
-                catch { return CultureInfo.CurrentCulture; }
-            }
-            return CultureInfo.CurrentCulture;
-        }
-    }
-
     public NumberFieldRoot()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -217,109 +217,6 @@ public sealed class NumberFieldRoot : ComponentBase, IReferencableComponent, IFi
         builder.AddComponentParameter(2, "IsFixed", false);
         builder.AddComponentParameter(3, "ChildContent", (RenderFragment)(innerBuilder => BuildInnerContent(innerBuilder, state)));
         builder.CloseComponent();
-    }
-
-    private void BuildInnerContent(RenderTreeBuilder builder, NumberFieldRootState currentState)
-    {
-        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(currentState));
-        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(currentState));
-
-        if (isComponentRenderAs)
-        {
-            builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
-
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-
-        if (currentState.Scrubbing)
-        {
-            builder.AddAttribute(2, "data-scrubbing", string.Empty);
-        }
-
-        if (currentState.Disabled)
-        {
-            builder.AddAttribute(3, "data-disabled", string.Empty);
-        }
-
-        if (currentState.ReadOnly)
-        {
-            builder.AddAttribute(4, "data-readonly", string.Empty);
-        }
-
-        if (currentState.Required)
-        {
-            builder.AddAttribute(5, "data-required", string.Empty);
-        }
-
-        if (currentState.Valid == true)
-        {
-            builder.AddAttribute(6, "data-valid", string.Empty);
-        }
-        else if (currentState.Valid == false)
-        {
-            builder.AddAttribute(7, "data-invalid", string.Empty);
-        }
-
-        if (currentState.Touched)
-        {
-            builder.AddAttribute(8, "data-touched", string.Empty);
-        }
-
-        if (currentState.Dirty)
-        {
-            builder.AddAttribute(9, "data-dirty", string.Empty);
-        }
-
-        if (currentState.Filled)
-        {
-            builder.AddAttribute(10, "data-filled", string.Empty);
-        }
-
-        if (currentState.Focused)
-        {
-            builder.AddAttribute(11, "data-focused", string.Empty);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(12, "class", resolvedClass);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(13, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddComponentParameter(14, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(15, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-        }
-        else
-        {
-            builder.AddElementReferenceCapture(16, elementReference => Element = elementReference);
-            builder.AddContent(17, ChildContent);
-            builder.CloseElement();
-        }
-
-        builder.OpenElement(18, "input");
-        builder.AddAttribute(19, "type", "number");
-        builder.AddAttribute(20, "name", ResolvedName);
-        builder.AddAttribute(21, "value", currentValue?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-        if (Min.HasValue) builder.AddAttribute(22, "min", Min.Value);
-        if (Max.HasValue) builder.AddAttribute(23, "max", Max.Value);
-        builder.AddAttribute(24, "step", Step);
-        builder.AddAttribute(25, "disabled", ResolvedDisabled);
-        builder.AddAttribute(26, "required", Required);
-        builder.AddAttribute(27, "aria-hidden", "true");
-        builder.AddAttribute(28, "tabindex", -1);
-        builder.AddAttribute(29, "style", "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0");
-        builder.CloseElement();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -390,6 +287,169 @@ public sealed class NumberFieldRoot : ComponentBase, IReferencableComponent, IFi
     public void OnAutoChangeEnd(bool isIncrement)
     {
         HandleValueCommitted(currentValue, isIncrement ? NumberFieldChangeReason.IncrementPress : NumberFieldChangeReason.DecrementPress);
+    }
+
+    private void BuildInnerContent(RenderTreeBuilder builder, NumberFieldRootState currentState)
+    {
+        var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(currentState));
+        var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(currentState));
+
+        if (isComponentRenderAs)
+        {
+            builder.OpenRegion(0);
+            builder.OpenComponent(0, RenderAs!);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (currentState.Scrubbing)
+            {
+                builder.AddAttribute(2, "data-scrubbing", string.Empty);
+            }
+
+            if (currentState.Disabled)
+            {
+                builder.AddAttribute(3, "data-disabled", string.Empty);
+            }
+
+            if (currentState.ReadOnly)
+            {
+                builder.AddAttribute(4, "data-readonly", string.Empty);
+            }
+
+            if (currentState.Required)
+            {
+                builder.AddAttribute(5, "data-required", string.Empty);
+            }
+
+            if (currentState.Valid == true)
+            {
+                builder.AddAttribute(6, "data-valid", string.Empty);
+            }
+            else if (currentState.Valid == false)
+            {
+                builder.AddAttribute(7, "data-invalid", string.Empty);
+            }
+
+            if (currentState.Touched)
+            {
+                builder.AddAttribute(8, "data-touched", string.Empty);
+            }
+
+            if (currentState.Dirty)
+            {
+                builder.AddAttribute(9, "data-dirty", string.Empty);
+            }
+
+            if (currentState.Filled)
+            {
+                builder.AddAttribute(10, "data-filled", string.Empty);
+            }
+
+            if (currentState.Focused)
+            {
+                builder.AddAttribute(11, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(12, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(13, "style", resolvedStyle);
+            }
+
+            builder.AddComponentParameter(14, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(15, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+            builder.CloseRegion();
+        }
+        else
+        {
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (currentState.Scrubbing)
+            {
+                builder.AddAttribute(2, "data-scrubbing", string.Empty);
+            }
+
+            if (currentState.Disabled)
+            {
+                builder.AddAttribute(3, "data-disabled", string.Empty);
+            }
+
+            if (currentState.ReadOnly)
+            {
+                builder.AddAttribute(4, "data-readonly", string.Empty);
+            }
+
+            if (currentState.Required)
+            {
+                builder.AddAttribute(5, "data-required", string.Empty);
+            }
+
+            if (currentState.Valid == true)
+            {
+                builder.AddAttribute(6, "data-valid", string.Empty);
+            }
+            else if (currentState.Valid == false)
+            {
+                builder.AddAttribute(7, "data-invalid", string.Empty);
+            }
+
+            if (currentState.Touched)
+            {
+                builder.AddAttribute(8, "data-touched", string.Empty);
+            }
+
+            if (currentState.Dirty)
+            {
+                builder.AddAttribute(9, "data-dirty", string.Empty);
+            }
+
+            if (currentState.Filled)
+            {
+                builder.AddAttribute(10, "data-filled", string.Empty);
+            }
+
+            if (currentState.Focused)
+            {
+                builder.AddAttribute(11, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(12, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(13, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.AddContent(15, ChildContent);
+            builder.CloseElement();
+            builder.CloseRegion();
+        }
+
+        builder.OpenRegion(2);
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "type", "number");
+        builder.AddAttribute(2, "name", ResolvedName);
+        builder.AddAttribute(3, "value", currentValue?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+        if (Min.HasValue) builder.AddAttribute(4, "min", Min.Value);
+        if (Max.HasValue) builder.AddAttribute(5, "max", Max.Value);
+        builder.AddAttribute(6, "step", Step);
+        builder.AddAttribute(7, "disabled", ResolvedDisabled);
+        builder.AddAttribute(8, "required", Required);
+        builder.AddAttribute(9, "aria-hidden", "true");
+        builder.AddAttribute(10, "tabindex", -1);
+        builder.AddAttribute(11, "style", "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0");
+        builder.CloseElement();
+        builder.CloseRegion();
     }
 
     private void InitializeValue()

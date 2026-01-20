@@ -19,7 +19,6 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
     private DotNetObjectReference<SliderControl>? dotNetRef;
     private ElementReference element;
     private SliderRootState state = SliderRootState.Default;
-    private EventCallback<PointerEventArgs> cachedOnPointerDown;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -62,7 +61,6 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
 
     protected override void OnInitialized()
     {
-        cachedOnPointerDown = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown);
     }
 
     protected override void OnParametersSet()
@@ -103,7 +101,7 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
 
         builder.AddMultipleAttributes(1, AdditionalAttributes);
         builder.AddAttribute(2, "tabindex", -1);
-        builder.AddAttribute(3, "onpointerdown", cachedOnPointerDown);
+        builder.AddAttribute(3, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
 
         if (state.Dragging)
         {

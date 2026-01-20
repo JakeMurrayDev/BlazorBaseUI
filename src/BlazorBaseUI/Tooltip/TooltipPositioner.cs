@@ -28,9 +28,6 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
     [CascadingParameter]
     private TooltipRootContext? RootContext { get; set; }
 
-    [CascadingParameter]
-    private TooltipPortalContext? PortalContext { get; set; }
-
     [Parameter]
     public string? As { get; set; }
 
@@ -51,6 +48,9 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
 
     [Parameter]
     public int CollisionPadding { get; set; } = 5;
+
+    [Parameter]
+    public CollisionBoundary CollisionBoundary { get; set; } = CollisionBoundary.ClippingAncestors;
 
     [Parameter]
     public int ArrowPadding { get; set; } = 5;
@@ -95,7 +95,10 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
         }
 
         var open = RootContext?.GetOpen() ?? false;
-        var instant = RootContext?.InstantType ?? TooltipInstantType.None;
+        var trackCursorAxis = RootContext?.TrackCursorAxis ?? TrackCursorAxis.None;
+        var instant = trackCursorAxis != TrackCursorAxis.None
+            ? TooltipInstantType.TrackingCursor
+            : RootContext?.InstantType ?? TooltipInstantType.None;
         state = new TooltipPositionerState(open, Side, Align, false, instant);
 
         positionerContext.Side = Side;
@@ -132,9 +135,11 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
 
         var open = RootContext.GetOpen();
         var mounted = RootContext.GetMounted();
-        var instantType = RootContext.InstantType;
         var disableHoverablePopup = RootContext.DisableHoverablePopup;
         var trackCursorAxis = RootContext.TrackCursorAxis;
+        var instantType = trackCursorAxis != TrackCursorAxis.None
+            ? TooltipInstantType.TrackingCursor
+            : RootContext.InstantType;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
@@ -241,7 +246,6 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposePositioner", positionerId);
-                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -299,6 +303,7 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
                 SideOffset,
                 AlignOffset,
                 CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
                 ArrowPadding,
                 arrowElement,
                 Sticky,
@@ -335,6 +340,7 @@ public sealed class TooltipPositioner : ComponentBase, IReferencableComponent, I
                 SideOffset,
                 AlignOffset,
                 CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
                 ArrowPadding,
                 arrowElement,
                 Sticky,

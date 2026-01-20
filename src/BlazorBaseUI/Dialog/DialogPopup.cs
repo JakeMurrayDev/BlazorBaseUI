@@ -60,7 +60,7 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
             throw new InvalidOperationException("DialogPopup must be used within a DialogRoot.");
         }
 
-        state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.InstantType, Context.NestedDialogCount);
+        state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
     }
 
     protected override void OnParametersSet()
@@ -73,7 +73,7 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
 
         if (Context is not null)
         {
-            state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.InstantType, Context.NestedDialogCount);
+            state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
         }
     }
 

@@ -18,7 +18,6 @@ public sealed class Form : ComponentBase, IReferencableComponent
     private Dictionary<string, string[]> errors = new(4);
     private Dictionary<string, string[]>? previousExternalErrors;
     private FormContext formContext = null!;
-    private EventCallback<EventArgs> cachedSubmitCallback;
 
     [Parameter]
 #pragma warning disable BL0007
@@ -76,8 +75,6 @@ public sealed class Form : ComponentBase, IReferencableComponent
 
     protected override void OnInitialized()
     {
-        cachedSubmitCallback = EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync);
-
         formContext = new FormContext(
             editContext: editContext,
             fieldRegistry: fieldRegistry,
@@ -148,7 +145,7 @@ public sealed class Form : ComponentBase, IReferencableComponent
 
         builder.AddMultipleAttributes(1, AdditionalAttributes);
         builder.AddAttribute(2, "novalidate", true);
-        builder.AddAttribute(3, "onsubmit", cachedSubmitCallback);
+        builder.AddAttribute(3, "onsubmit", EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync));
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {

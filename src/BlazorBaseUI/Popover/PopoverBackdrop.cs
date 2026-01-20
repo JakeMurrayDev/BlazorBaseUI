@@ -78,29 +78,27 @@ public sealed class PopoverBackdrop : ComponentBase, IReferencableComponent
             builder.AddAttribute(3, "hidden", true);
         }
 
-        builder.AddAttribute(4, "style", "user-select: none; -webkit-user-select: none;");
-
         if (open)
         {
-            builder.AddAttribute(5, "data-open", string.Empty);
+            builder.AddAttribute(4, "data-open", string.Empty);
         }
         else
         {
-            builder.AddAttribute(6, "data-closed", string.Empty);
+            builder.AddAttribute(5, "data-closed", string.Empty);
         }
 
         if (transitionStatus == TransitionStatus.Starting)
         {
-            builder.AddAttribute(7, "data-starting-style", string.Empty);
+            builder.AddAttribute(6, "data-starting-style", string.Empty);
         }
         else if (transitionStatus == TransitionStatus.Ending)
         {
-            builder.AddAttribute(8, "data-ending-style", string.Empty);
+            builder.AddAttribute(7, "data-ending-style", string.Empty);
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(9, "class", resolvedClass);
+            builder.AddAttribute(8, "class", resolvedClass);
         }
 
         var combinedStyle = "user-select: none; -webkit-user-select: none;";
@@ -108,14 +106,14 @@ public sealed class PopoverBackdrop : ComponentBase, IReferencableComponent
         {
             combinedStyle = $"{combinedStyle} {resolvedStyle}";
         }
-        builder.AddAttribute(10, "style", combinedStyle);
+        builder.AddAttribute(9, "style", combinedStyle);
 
-        builder.AddAttribute(11, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
         if (isComponentRenderAs)
         {
-            builder.AddAttribute(12, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(13, component =>
+            builder.AddAttribute(11, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(12, component =>
             {
                 componentReference = (IReferencableComponent)component;
                 Element = componentReference.Element;
@@ -124,8 +122,8 @@ public sealed class PopoverBackdrop : ComponentBase, IReferencableComponent
         }
         else
         {
-            builder.AddContent(14, ChildContent);
-            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
+            builder.AddContent(13, ChildContent);
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
             builder.CloseElement();
         }
     }
@@ -137,7 +135,7 @@ public sealed class PopoverBackdrop : ComponentBase, IReferencableComponent
             return;
         }
 
-        await RootContext.SetOpenAsync(false, OpenChangeReason.OutsidePress);
+        await RootContext.SetOpenAsync(false, OpenChangeReason.OutsidePress, null);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 }

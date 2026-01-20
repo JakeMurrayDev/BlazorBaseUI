@@ -36,11 +36,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
     private string? contextName;
     private FieldValidation? contextValidation;
 
-    private EventCallback<FocusEventArgs> cachedFocusCallback;
-    private EventCallback<FocusEventArgs> cachedBlurCallback;
-    private EventCallback<KeyboardEventArgs> cachedKeyDownCaptureCallback;
-    private EventCallback<ChangeEventArgs> cachedHiddenInputChangeCallback;
-    private EventCallback<FocusEventArgs> cachedHiddenInputFocusCallback;
     private Func<Task> cachedValueChangedCallback = default!;
 
     [Inject]
@@ -150,12 +145,6 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         contextValidation = FieldContext?.Validation;
 
         groupContext = CreateContext();
-
-        cachedFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus);
-        cachedBlurCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur);
-        cachedKeyDownCaptureCallback = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture);
-        cachedHiddenInputChangeCallback = EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange);
-        cachedHiddenInputFocusCallback = EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus);
 
         cachedValueChangedCallback = async () =>
         {
@@ -275,9 +264,9 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         if (!string.IsNullOrEmpty(describedBy))
             builder.AddAttribute(7, "aria-describedby", describedBy);
 
-        builder.AddAttribute(8, "onfocus", cachedFocusCallback);
-        builder.AddAttribute(9, "onblur", cachedBlurCallback);
-        builder.AddAttribute(10, "onkeydowncapture", cachedKeyDownCaptureCallback);
+        builder.AddAttribute(8, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(9, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+        builder.AddAttribute(10, "onkeydowncapture", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture));
 
         if (state.Disabled)
             builder.AddAttribute(11, "data-disabled", string.Empty);
@@ -350,8 +339,8 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         if (ReadOnly)
             builder.AddAttribute(37, "readonly");
 
-        builder.AddAttribute(38, "onchange", cachedHiddenInputChangeCallback);
-        builder.AddAttribute(39, "onfocus", cachedHiddenInputFocusCallback);
+        builder.AddAttribute(38, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange));
+        builder.AddAttribute(39, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus));
         builder.CloseElement();
     }
 
