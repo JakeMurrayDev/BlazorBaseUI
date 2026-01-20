@@ -3,18 +3,6 @@ using BlazorBaseUI.Checkbox;
 
 namespace BlazorBaseUI.CheckboxGroup;
 
-public interface ICheckboxGroupContext
-{
-    string[]? Value { get; }
-    string[]? DefaultValue { get; }
-    string[]? AllValues { get; }
-    bool Disabled { get; }
-    CheckboxGroupParent? Parent { get; }
-    FieldValidation? Validation { get; }
-    void SetValue(string[] value);
-    void RegisterControlRef(CheckboxRoot checkbox);
-}
-
 public sealed record CheckboxGroupContext(
     string[]? Value,
     string[]? DefaultValue,
@@ -23,7 +11,7 @@ public sealed record CheckboxGroupContext(
     CheckboxGroupParent? Parent,
     FieldValidation? Validation,
     Func<string[], Task> SetValueFunc,
-    Action<CheckboxRoot> RegisterControlAction) : ICheckboxGroupContext
+    Action<CheckboxRoot> RegisterControlAction)
 {
     public void SetValue(string[] value) => SetValueFunc(value);
     public void RegisterControlRef(CheckboxRoot checkbox) => RegisterControlAction(checkbox);

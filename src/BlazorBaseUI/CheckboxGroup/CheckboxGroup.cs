@@ -26,6 +26,18 @@ public sealed class CheckboxGroup : ComponentBase, IReferencableComponent, IFiel
     private bool previousFocused;
     private bool isComponentRenderAs;
 
+    private bool IsControlled => Value is not null;
+
+    private string[]? CurrentValue => IsControlled ? Value : internalValue;
+
+    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
+
+    private string? ResolvedName => FieldContext?.Name;
+
+    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
+
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
 
@@ -72,18 +84,6 @@ public sealed class CheckboxGroup : ComponentBase, IReferencableComponent, IFiel
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool IsControlled => Value is not null;
-
-    private string[]? CurrentValue => IsControlled ? Value : internalValue;
-
-    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
-
-    private string? ResolvedName => FieldContext?.Name;
-
-    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
-
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     protected override void OnInitialized()
     {
@@ -151,7 +151,17 @@ public sealed class CheckboxGroup : ComponentBase, IReferencableComponent, IFiel
         if (valueChanged)
         {
             previousValue = CurrentValue;
-            _ = HandleValueChangedAsync();
+            _ = InvokeAsync(async () =>
+            {
+                try
+                {
+                    await HandleValueChangedAsync();
+                }
+                catch (Exception ex)
+                {
+                    await DispatchExceptionAsync(ex);
+                }
+            });
         }
     }
 
@@ -169,84 +179,140 @@ public sealed class CheckboxGroup : ComponentBase, IReferencableComponent, IFiel
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
         if (isComponentRenderAs)
-        {   
+        {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", groupId);
+            builder.AddAttribute(3, "role", "group");
 
-        builder.AddMultipleAttributes(2, AdditionalAttributes);
-        builder.AddAttribute(3, "id", groupId);
-        builder.AddAttribute(4, "role", "group");
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
+            }
 
-        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
-        {
-            builder.AddAttribute(5, "aria-labelledby", LabelableContext.LabelId);
-        }
+            var describedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(5, "aria-describedby", describedBy);
+            }
 
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (!string.IsNullOrEmpty(describedBy))
-        {
-            builder.AddAttribute(6, "aria-describedby", describedBy);
-        }
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(7, "data-disabled", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(7, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(8, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(8, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(9, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(9, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(10, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(10, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(11, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(11, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(12, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(12, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(13, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(13, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(14, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(14, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(15, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddAttribute(16, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(17, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddComponentParameter(15, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(16, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
-            builder.AddContent(19, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", groupId);
+            builder.AddAttribute(3, "role", "group");
+
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
+            }
+
+            var describedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(5, "aria-describedby", describedBy);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(7, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(8, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(9, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(10, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(11, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(12, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(13, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(14, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
+            builder.AddContent(16, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
