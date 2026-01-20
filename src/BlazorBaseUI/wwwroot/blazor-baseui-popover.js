@@ -356,16 +356,52 @@ function getScrollParents(element) {
         current = current.parentElement;
     }
 
-    // Always include window for document scroll
     scrollParents.push(window);
 
     return scrollParents;
 }
 
-export function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
+function getCollisionBounds(element, collisionBoundary) {
+    const viewportBounds = {
+        top: 0,
+        left: 0,
+        right: window.innerWidth,
+        bottom: window.innerHeight,
+        width: window.innerWidth,
+        height: window.innerHeight
+    };
+
+    if (collisionBoundary === 'viewport') {
+        return viewportBounds;
+    }
+
+    let bounds = { ...viewportBounds };
+    let current = element.parentElement;
+
+    while (current && current !== document.body) {
+        const style = getComputedStyle(current);
+        const overflow = style.overflow + style.overflowX + style.overflowY;
+
+        if (/auto|scroll|hidden/.test(overflow)) {
+            const rect = current.getBoundingClientRect();
+            bounds = {
+                top: Math.max(bounds.top, rect.top),
+                left: Math.max(bounds.left, rect.left),
+                right: Math.min(bounds.right, rect.right),
+                bottom: Math.min(bounds.bottom, rect.bottom),
+                width: Math.min(bounds.right, rect.right) - Math.max(bounds.left, rect.left),
+                height: Math.min(bounds.bottom, rect.bottom) - Math.max(bounds.top, rect.top)
+            };
+        }
+        current = current.parentElement;
+    }
+
+    return bounds;
+}
+
+export function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
     if (!positionerElement || !triggerElement) return;
 
-    // Generate a unique ID for this positioner
     const positionerId = positionerElement.id || `positioner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const positionerState = {
@@ -377,6 +413,7 @@ export function initializePositioner(positionerElement, triggerElement, side, al
         sideOffset,
         alignOffset,
         collisionPadding,
+        collisionBoundary: collisionBoundary || 'clipping-ancestors',
         arrowPadding,
         arrowElement,
         sticky: sticky || false,
@@ -395,7 +432,7 @@ export function initializePositioner(positionerElement, triggerElement, side, al
     return positionerId;
 }
 
-export function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, arrowPadding, arrowElement, sticky, positionMethod) {
+export function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod) {
     if (!positionerId || !triggerElement) return;
 
     let positionerState = state.positioners.get(positionerId);
@@ -409,6 +446,7 @@ export function updatePosition(positionerId, triggerElement, side, align, sideOf
     positionerState.sideOffset = sideOffset;
     positionerState.alignOffset = alignOffset;
     positionerState.collisionPadding = collisionPadding;
+    positionerState.collisionBoundary = collisionBoundary || 'clipping-ancestors';
     positionerState.arrowPadding = arrowPadding;
     positionerState.arrowElement = arrowElement;
     positionerState.sticky = sticky || false;
@@ -428,13 +466,12 @@ export function disposePositioner(positionerId) {
 }
 
 function updatePositionInternal(positionerState) {
-    const { positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, arrowElement, sticky, positionMethod } = positionerState;
+    const { positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowElement, sticky, positionMethod } = positionerState;
 
     if (!positionerElement || !triggerElement) return;
 
     const triggerRect = triggerElement.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const bounds = getCollisionBounds(triggerElement, collisionBoundary);
 
     let effectiveSide = side;
     let effectiveAlign = align;
@@ -445,50 +482,42 @@ function updatePositionInternal(positionerState) {
     const popupWidth = positionerElement.offsetWidth || 200;
     const popupHeight = positionerElement.offsetHeight || 100;
 
-    // Check if anchor is hidden (outside viewport)
-    const anchorHidden = triggerRect.right < 0 ||
-        triggerRect.bottom < 0 ||
-        triggerRect.left > viewportWidth ||
-        triggerRect.top > viewportHeight;
+    const anchorHidden = triggerRect.right < bounds.left ||
+        triggerRect.bottom < bounds.top ||
+        triggerRect.left > bounds.right ||
+        triggerRect.top > bounds.bottom;
 
-    // Calculate position based on side (using viewport coordinates for fixed positioning)
-    // Flip to opposite side only if trigger is visible and popup doesn't fit
     switch (effectiveSide) {
         case 'top':
             top = triggerRect.top - popupHeight - sideOffset;
-            // Only flip if both the trigger is in viewport AND there's not enough space
-            if (top < collisionPadding && triggerRect.bottom > 0 && triggerRect.bottom + popupHeight + sideOffset < viewportHeight - collisionPadding) {
+            if (top < bounds.top + collisionPadding && triggerRect.bottom > bounds.top && triggerRect.bottom + popupHeight + sideOffset < bounds.bottom - collisionPadding) {
                 effectiveSide = 'bottom';
                 top = triggerRect.bottom + sideOffset;
             }
             break;
         case 'bottom':
             top = triggerRect.bottom + sideOffset;
-            // Only flip if both the trigger is in viewport AND there's not enough space
-            if (top + popupHeight > viewportHeight - collisionPadding && triggerRect.top > popupHeight + sideOffset + collisionPadding) {
+            if (top + popupHeight > bounds.bottom - collisionPadding && triggerRect.top > popupHeight + sideOffset + bounds.top + collisionPadding) {
                 effectiveSide = 'top';
                 top = triggerRect.top - popupHeight - sideOffset;
             }
             break;
         case 'left':
             left = triggerRect.left - popupWidth - sideOffset;
-            // Only flip if both the trigger is in viewport AND there's not enough space
-            if (left < collisionPadding && triggerRect.right > 0 && triggerRect.right + popupWidth + sideOffset < viewportWidth - collisionPadding) {
+            if (left < bounds.left + collisionPadding && triggerRect.right > bounds.left && triggerRect.right + popupWidth + sideOffset < bounds.right - collisionPadding) {
                 effectiveSide = 'right';
                 left = triggerRect.right + sideOffset;
             }
             break;
         case 'right':
             left = triggerRect.right + sideOffset;
-            // Only flip if both the trigger is in viewport AND there's not enough space
-            if (left + popupWidth > viewportWidth - collisionPadding && triggerRect.left > popupWidth + sideOffset + collisionPadding) {
+            if (left + popupWidth > bounds.right - collisionPadding && triggerRect.left > popupWidth + sideOffset + bounds.left + collisionPadding) {
                 effectiveSide = 'left';
                 left = triggerRect.left - popupWidth - sideOffset;
             }
             break;
     }
 
-    // Calculate alignment
     if (effectiveSide === 'top' || effectiveSide === 'bottom') {
         switch (effectiveAlign) {
             case 'start':
@@ -502,12 +531,11 @@ function updatePositionInternal(positionerState) {
                 break;
         }
 
-        // Collision avoidance for alignment axis - only if sticky is true
         if (sticky) {
-            if (left < collisionPadding) {
-                left = collisionPadding;
-            } else if (left + popupWidth > viewportWidth - collisionPadding) {
-                left = viewportWidth - popupWidth - collisionPadding;
+            if (left < bounds.left + collisionPadding) {
+                left = bounds.left + collisionPadding;
+            } else if (left + popupWidth > bounds.right - collisionPadding) {
+                left = bounds.right - popupWidth - collisionPadding;
             }
         }
     } else {
@@ -523,17 +551,15 @@ function updatePositionInternal(positionerState) {
                 break;
         }
 
-        // Collision avoidance for alignment axis - only if sticky is true
         if (sticky) {
-            if (top < collisionPadding) {
-                top = collisionPadding;
-            } else if (top + popupHeight > viewportHeight - collisionPadding) {
-                top = viewportHeight - popupHeight - collisionPadding;
+            if (top < bounds.top + collisionPadding) {
+                top = bounds.top + collisionPadding;
+            } else if (top + popupHeight > bounds.bottom - collisionPadding) {
+                top = bounds.bottom - popupHeight - collisionPadding;
             }
         }
     }
 
-    // For absolute positioning, adjust coordinates relative to containing block
     if (positionMethod === 'absolute') {
         const scrollX = window.scrollX || document.documentElement.scrollLeft;
         const scrollY = window.scrollY || document.documentElement.scrollTop;
@@ -541,17 +567,15 @@ function updatePositionInternal(positionerState) {
         left += scrollX;
     }
 
-    // Apply position
     positionerElement.style.position = positionMethod === 'absolute' ? 'absolute' : 'fixed';
     positionerElement.style.top = `${top}px`;
     positionerElement.style.left = `${left}px`;
     positionerElement.style.zIndex = '1000';
 
-    // Set CSS custom properties for dimensions
     positionerElement.style.setProperty('--anchor-width', `${triggerRect.width}px`);
     positionerElement.style.setProperty('--anchor-height', `${triggerRect.height}px`);
-    positionerElement.style.setProperty('--available-width', `${viewportWidth}px`);
-    positionerElement.style.setProperty('--available-height', `${viewportHeight}px`);
+    positionerElement.style.setProperty('--available-width', `${bounds.width}px`);
+    positionerElement.style.setProperty('--available-height', `${bounds.height}px`);
     positionerElement.style.setProperty('--positioner-width', `${popupWidth}px`);
     positionerElement.style.setProperty('--positioner-height', `${popupHeight}px`);
 

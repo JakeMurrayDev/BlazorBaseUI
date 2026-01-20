@@ -34,4 +34,11 @@ internal static class Extensions
         InstantType.Dismiss => "dismiss",
         _ => null
     };
+
+    public static string ToDataAttributeString(this CollisionBoundary collisionBoundary) => collisionBoundary switch
+    {
+        CollisionBoundary.Viewport => "viewport",
+        CollisionBoundary.ClippingAncestors => "clipping-ancestors",
+        _ => "clipping-ancestors"
+    };
 }

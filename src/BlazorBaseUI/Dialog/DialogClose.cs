@@ -111,11 +111,11 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
                 builder.AddAttribute(9, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
             if (!isNativeButton)
             {
-                builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+                builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
             }
 
             builder.AddAttribute(12, "ChildContent", ChildContent);
@@ -165,11 +165,11 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
                 builder.AddAttribute(9, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
+            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
             if (!isNativeButton)
             {
-                builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+                builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
             }
 
             builder.AddContent(12, ChildContent);
@@ -179,7 +179,7 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
         }
     }
 
-    private async Task HandleClick()
+    private async Task HandleClickAsync(MouseEventArgs e)
     {
         if (Disabled || Context is null || !Context.GetOpen())
         {
@@ -187,16 +187,16 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
         }
 
         await Context.SetOpenAsync(false, OpenChangeReason.ClosePress);
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
-    private async Task HandleKeyDown(KeyboardEventArgs e)
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
         if (Disabled || Context is null || !Context.GetOpen())
         {
             return;
         }
 
-        // Handle Enter and Space keys for non-native buttons
         if (e.Key == "Enter" || e.Key == " ")
         {
             await Context.SetOpenAsync(false, OpenChangeReason.ClosePress);
