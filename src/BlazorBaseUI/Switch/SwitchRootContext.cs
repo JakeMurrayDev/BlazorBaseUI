@@ -1,20 +1,11 @@
 namespace BlazorBaseUI.Switch;
 
-public interface ISwitchRootContext
-{
-    bool Checked { get; }
-    bool Disabled { get; }
-    bool ReadOnly { get; }
-    bool Required { get; }
-    SwitchRootState State { get; }
-}
-
 public sealed record SwitchRootContext(
     bool Checked,
     bool Disabled,
     bool ReadOnly,
     bool Required,
-    SwitchRootState State) : ISwitchRootContext
+    SwitchRootState State)
 {
     internal static SwitchRootContext Default { get; } = new(
         Checked: false,
