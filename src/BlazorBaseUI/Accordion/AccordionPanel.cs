@@ -16,10 +16,34 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
     private bool hasRendered;
     private bool isMounted;
     private bool jsInitialized;
+    private bool closePending;
     private DotNetObjectReference<AccordionPanel>? dotNetRef;
     private bool isComponentRenderAs;
-    private AccordionPanelState state = new(false, false, 0, Orientation.Vertical, TransitionStatus.Undefined);
+    private AccordionPanelState state = null!;
     private bool? animationTarget;
+
+    private bool CurrentOpen => ItemContext?.Open ?? false;
+
+    private bool ResolvedKeepMounted => KeepMounted ?? RootContext?.KeepMounted ?? false;
+
+    private bool ResolvedHiddenUntilFound => HiddenUntilFound ?? RootContext?.HiddenUntilFound ?? false;
+
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != ItemContext?.PanelId)
+            {
+                ItemContext?.SetPanelId(id);
+            }
+            return id;
+        }
+    }
+
+    private bool IsPresent => ResolvedKeepMounted || ResolvedHiddenUntilFound || isMounted;
+
+    private bool IsHidden => !ResolvedKeepMounted && !ResolvedHiddenUntilFound && !CurrentOpen && animationTarget != false;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -55,29 +79,6 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool CurrentOpen => ItemContext?.Open ?? false;
-
-    private bool ResolvedKeepMounted => KeepMounted ?? RootContext?.KeepMounted ?? false;
-
-    private bool ResolvedHiddenUntilFound => HiddenUntilFound ?? RootContext?.HiddenUntilFound ?? false;
-
-    private string ResolvedId
-    {
-        get
-        {
-            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-            if (id != ItemContext?.PanelId)
-            {
-                ItemContext?.SetPanelId(id);
-            }
-            return id;
-        }
-    }
-
-    private bool IsPresent => ResolvedKeepMounted || ResolvedHiddenUntilFound || isMounted;
-
-    private bool IsHidden => !ResolvedKeepMounted && !ResolvedHiddenUntilFound && !CurrentOpen && animationTarget != false;
 
     public AccordionPanel()
     {
@@ -120,6 +121,7 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
             else
             {
                 animationTarget = false;
+                closePending = true;
             }
         }
 
@@ -155,12 +157,12 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
         if (animationTarget == true)
         {
             animationTarget = null;
-            _ = OpenAsync();
+            await OpenAsync();
         }
-        else if (animationTarget == false)
+        else if (closePending)
         {
-            animationTarget = null;
-            _ = CloseAsync();
+            closePending = false;
+            await CloseAsync();
         }
     }
 
@@ -181,6 +183,7 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
     {
         if (animationType == "close")
         {
+            animationTarget = null;
             if (completed && !ResolvedKeepMounted && !ResolvedHiddenUntilFound)
             {
                 isMounted = false;
@@ -189,7 +192,6 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
         }
 
         state = state with { TransitionStatus = TransitionStatus.Idle };
-        StateHasChanged();
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -211,65 +213,125 @@ public sealed class AccordionPanel : ComponentBase, IReferencableComponent, IAsy
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
+            builder.AddAttribute(3, "role", "region");
+            builder.AddAttribute(4, "aria-labelledby", ItemContext?.TriggerId ?? string.Empty);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-
-        builder.AddAttribute(2, "id", ResolvedId);
-        builder.AddAttribute(3, "role", "region");
-
-        builder.AddAttribute(4, "aria-labelledby", ItemContext?.TriggerId ?? string.Empty);
-
-        if (IsHidden)
-        {
-            if (ResolvedHiddenUntilFound)
+            if (IsHidden)
             {
-                builder.AddAttribute(5, "hidden", "until-found");
+                if (ResolvedHiddenUntilFound)
+                {
+                    builder.AddAttribute(5, "hidden", "until-found");
+                }
+                else
+                {
+                    builder.AddAttribute(6, "hidden", true);
+                }
+            }
+
+            builder.AddAttribute(7, "data-index", state.Index.ToString());
+            builder.AddAttribute(8, "data-orientation", state.Orientation.ToDataAttributeString());
+
+            if (state.Open)
+            {
+                builder.AddAttribute(9, "data-open", string.Empty);
             }
             else
             {
-                builder.AddAttribute(6, "hidden", true);
+                builder.AddAttribute(10, "data-closed", string.Empty);
             }
-        }
 
-        builder.AddAttribute(7, "data-index", state.Index.ToString());
-        builder.AddAttribute(8, "data-orientation", state.Orientation.ToDataAttributeString());
+            if (state.Disabled)
+            {
+                builder.AddAttribute(11, "data-disabled", string.Empty);
+            }
 
-        if (state.Open)
-        {
-            builder.AddAttribute(9, "data-open", string.Empty);
-        }
+            if (state.TransitionStatus == TransitionStatus.Starting)
+            {
+                builder.AddAttribute(12, "data-starting-style", string.Empty);
+            }
+            if (state.TransitionStatus == TransitionStatus.Ending)
+            {
+                builder.AddAttribute(13, "data-ending-style", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(10, "data-disabled", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(15, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(11, "class", resolvedClass);
-        }
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(12, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddAttribute(13, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(14, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddAttribute(16, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(17, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
-            builder.AddContent(16, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
+            builder.AddAttribute(3, "role", "region");
+            builder.AddAttribute(4, "aria-labelledby", ItemContext?.TriggerId ?? string.Empty);
+
+            if (IsHidden)
+            {
+                if (ResolvedHiddenUntilFound)
+                {
+                    builder.AddAttribute(5, "hidden", "until-found");
+                }
+                else
+                {
+                    builder.AddAttribute(6, "hidden", true);
+                }
+            }
+
+            builder.AddAttribute(7, "data-index", state.Index.ToString());
+            builder.AddAttribute(8, "data-orientation", state.Orientation.ToDataAttributeString());
+
+            if (state.Open)
+            {
+                builder.AddAttribute(9, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(10, "data-closed", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(11, "data-disabled", string.Empty);
+            }
+
+            if (state.TransitionStatus == TransitionStatus.Starting)
+            {
+                builder.AddAttribute(12, "data-starting-style", string.Empty);
+            }
+            if (state.TransitionStatus == TransitionStatus.Ending)
+            {
+                builder.AddAttribute(13, "data-ending-style", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(15, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(16, elementReference => Element = elementReference);
+            builder.AddContent(17, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 

@@ -14,7 +14,22 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
 
     private string? defaultId;
     private bool isComponentRenderAs;
-    private AccordionTriggerState state = new(false, Orientation.Vertical, string.Empty, false);
+    private AccordionTriggerState state = null!;
+
+    private bool ResolvedDisabled => Disabled ?? ItemContext?.Disabled ?? false;
+
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != ItemContext?.TriggerId)
+            {
+                ItemContext?.SetTriggerId(id);
+            }
+            return id;
+        }
+    }
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -51,34 +66,10 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
 
     public ElementReference? Element { get; private set; }
 
-    private bool ResolvedDisabled => Disabled ?? ItemContext?.Disabled ?? false;
-
-    private string ResolvedId
-    {
-        get
-        {
-            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-            if (id != ItemContext?.TriggerId)
-            {
-                ItemContext?.SetTriggerId(id);
-            }
-            return id;
-        }
-    }
-
     public AccordionTrigger()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
             JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
-    }
-
-    protected override void OnInitialized()
-    {
-        state = new AccordionTriggerState(
-            ItemContext?.Open ?? false,
-            ItemContext?.Orientation ?? Orientation.Vertical,
-            ItemContext?.StringValue ?? string.Empty,
-            ResolvedDisabled);
     }
 
     protected override void OnParametersSet()
@@ -94,7 +85,11 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
         var currentValue = ItemContext?.StringValue ?? string.Empty;
         var currentDisabled = ResolvedDisabled;
 
-        if (state.Open != currentOpen || state.Orientation != currentOrientation || state.Value != currentValue || state.Disabled != currentDisabled)
+        if (state is null)
+        {
+            state = new AccordionTriggerState(currentOpen, currentOrientation, currentValue, currentDisabled);
+        }
+        else if (state.Open != currentOpen || state.Orientation != currentOrientation || state.Value != currentValue || state.Disabled != currentDisabled)
         {
             state = state with { Open = currentOpen, Orientation = currentOrientation, Value = currentValue, Disabled = currentDisabled };
         }
@@ -134,68 +129,129 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (NativeButton)
+            {
+                builder.AddAttribute(3, "type", "button");
+            }
+            else
+            {
+                builder.AddAttribute(3, "role", "button");
+            }
 
-        builder.AddAttribute(2, "id", ResolvedId);
+            builder.AddAttribute(4, "tabindex", 0);
 
-        if (NativeButton)
-        {
-            builder.AddAttribute(3, "type", "button");
-        }
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(5, "aria-disabled", "true");
+            }
 
-        builder.AddAttribute(4, "tabindex", 0);
-        builder.AddAttribute(5, "aria-disabled", ResolvedDisabled ? "true" : "false");
-        builder.AddAttribute(6, "aria-expanded", ItemContext.Open ? "true" : "false");
+            builder.AddAttribute(6, "aria-expanded", ItemContext.Open ? "true" : "false");
 
-        builder.AddAttribute(7, "aria-controls", ItemContext.PanelId);
+            if (ItemContext.Open)
+            {
+                builder.AddAttribute(7, "aria-controls", ItemContext.PanelId);
+            }
 
-        if (ResolvedDisabled)
-        {
-            builder.AddAttribute(8, "disabled", true);
-        }
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(8, "disabled", true);
+            }
 
-        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(10, "data-value", state.Value);
+            builder.AddAttribute(11, "data-orientation", state.Orientation.ToDataAttributeString());
 
-        builder.AddAttribute(10, "data-value", state.Value);
-        builder.AddAttribute(11, "data-orientation", state.Orientation.ToDataAttributeString());
+            if (state.Open)
+            {
+                builder.AddAttribute(12, "data-panel-open", string.Empty);
+            }
 
-        if (state.Open)
-        {
-            builder.AddAttribute(12, "data-panel-open", string.Empty);
-        }
+            if (state.Disabled)
+            {
+                builder.AddAttribute(13, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(13, "data-disabled", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(15, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(14, "class", resolvedClass);
-        }
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(15, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddAttribute(16, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(17, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
-            builder.AddContent(19, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
+
+            if (NativeButton)
+            {
+                builder.AddAttribute(3, "type", "button");
+            }
+            else
+            {
+                builder.AddAttribute(3, "role", "button");
+            }
+
+            builder.AddAttribute(4, "tabindex", 0);
+
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(5, "aria-disabled", "true");
+            }
+
+            builder.AddAttribute(6, "aria-expanded", ItemContext.Open ? "true" : "false");
+
+            if (ItemContext.Open)
+            {
+                builder.AddAttribute(7, "aria-controls", ItemContext.PanelId);
+            }
+
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(8, "disabled", true);
+            }
+
+            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(10, "data-value", state.Value);
+            builder.AddAttribute(11, "data-orientation", state.Orientation.ToDataAttributeString());
+
+            if (state.Open)
+            {
+                builder.AddAttribute(12, "data-panel-open", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(13, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(15, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(16, elementReference => Element = elementReference);
+            builder.AddContent(17, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 

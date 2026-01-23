@@ -1,3 +1,5 @@
+using BlazorBaseUI.Collapsible;
+
 namespace BlazorBaseUI.Accordion;
 
 public sealed record AccordionItemState<TValue>(
@@ -5,4 +7,5 @@ public sealed record AccordionItemState<TValue>(
     bool Disabled,
     Orientation Orientation,
     int Index,
-    bool Open);
+    bool Open,
+    TransitionStatus TransitionStatus);
