@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace BlazorBaseUI.Toolbar;
 
@@ -23,6 +24,9 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
 
     [Parameter]
     public bool FocusableWhenDisabled { get; set; } = true;
+
+    [Parameter]
+    public string? DefaultValue { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -71,65 +75,112 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        builder.AddMultipleAttributes(2, AdditionalAttributes);
+            if (state.Disabled)
+            {
+                if (FocusableWhenDisabled)
+                {
+                    builder.AddAttribute(2, "aria-disabled", "true");
+                }
+                else
+                {
+                    builder.AddAttribute(3, "disabled", true);
+                }
+            }
 
-        if (state.Disabled)
-        {
+            if (!string.IsNullOrEmpty(DefaultValue))
+            {
+                builder.AddAttribute(4, "value", DefaultValue);
+            }
+
+            builder.AddAttribute(5, "data-orientation", orientationString);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", "");
+            }
+
             if (FocusableWhenDisabled)
             {
-                builder.AddAttribute(3, "aria-disabled", "true");
+                builder.AddAttribute(7, "data-focusable", "");
             }
-            else
+
+            if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(4, "disabled", true);
+                builder.AddAttribute(8, "class", resolvedClass);
             }
-        }
 
-        builder.AddAttribute(5, "data-orientation", orientationString);
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(9, "style", resolvedStyle);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(6, "data-disabled", "");
-        }
-
-        if (FocusableWhenDisabled)
-        {
-            builder.AddAttribute(7, "data-focusable", "");
-        }
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(8, "class", resolvedClass);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(9, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddComponentReferenceCapture(10, component =>
             {
                 componentReference = (IReferencableComponent)component;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(11, elementReference =>
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (state.Disabled)
+            {
+                if (FocusableWhenDisabled)
+                {
+                    builder.AddAttribute(2, "aria-disabled", "true");
+                }
+                else
+                {
+                    builder.AddAttribute(3, "disabled", true);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(DefaultValue))
+            {
+                builder.AddAttribute(4, "value", DefaultValue);
+            }
+
+            builder.AddAttribute(5, "data-orientation", orientationString);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", "");
+            }
+
+            if (FocusableWhenDisabled)
+            {
+                builder.AddAttribute(7, "data-focusable", "");
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(8, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(9, "style", resolvedStyle);
+            }
+
+            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
+            builder.AddAttribute(12, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDownAsync));
+
+            builder.AddElementReferenceCapture(13, elementReference =>
             {
                 Element = elementReference;
                 RegisterWithToolbar();
             });
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
@@ -171,5 +222,35 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
         {
             RootContext.UnregisterItem(registeredElement.Value);
         }
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (state.Disabled)
+        {
+            return;
+        }
+
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (state.Disabled && e.Key != "ArrowLeft" && e.Key != "ArrowRight")
+        {
+            return;
+        }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandlePointerDownAsync(PointerEventArgs e)
+    {
+        if (state.Disabled)
+        {
+            return;
+        }
+
+        await EventUtilities.InvokeOnPointerDownAsync(AdditionalAttributes, e);
     }
 }

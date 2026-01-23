@@ -77,76 +77,118 @@ public sealed class ToolbarButton : ComponentBase, IReferencableComponent, IDisp
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        builder.AddMultipleAttributes(2, AdditionalAttributes);
+            if (NativeButton)
+            {
+                builder.AddAttribute(2, "type", "button");
+                if (state.Disabled && FocusableWhenDisabled)
+                {
+                    builder.AddAttribute(3, "aria-disabled", "true");
+                }
+                else if (state.Disabled)
+                {
+                    builder.AddAttribute(4, "disabled", true);
+                }
+            }
+            else
+            {
+                builder.AddAttribute(5, "role", "button");
+                if (state.Disabled)
+                {
+                    builder.AddAttribute(6, "aria-disabled", "true");
+                }
+            }
 
-        if (NativeButton)
-        {
-            builder.AddAttribute(3, "type", "button");
-            if (state.Disabled && FocusableWhenDisabled)
-            {
-                builder.AddAttribute(4, "aria-disabled", "true");
-            }
-            else if (state.Disabled)
-            {
-                builder.AddAttribute(5, "disabled", true);
-            }
-        }
-        else
-        {
-            builder.AddAttribute(6, "role", "button");
+            builder.AddAttribute(7, "data-orientation", orientationString);
+
             if (state.Disabled)
             {
-                builder.AddAttribute(7, "aria-disabled", "true");
+                builder.AddAttribute(8, "data-disabled", "");
             }
-        }
 
-        builder.AddAttribute(8, "data-orientation", orientationString);
+            if (FocusableWhenDisabled)
+            {
+                builder.AddAttribute(9, "data-focusable", "");
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(9, "data-disabled", "");
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(10, "class", resolvedClass);
+            }
 
-        if (FocusableWhenDisabled)
-        {
-            builder.AddAttribute(10, "data-focusable", "");
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(11, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(11, "class", resolvedClass);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(12, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddComponentParameter(13, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(14, component =>
+            builder.AddComponentParameter(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component =>
             {
                 componentReference = (IReferencableComponent)component;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(15, elementReference =>
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (NativeButton)
+            {
+                builder.AddAttribute(2, "type", "button");
+                if (state.Disabled && FocusableWhenDisabled)
+                {
+                    builder.AddAttribute(3, "aria-disabled", "true");
+                }
+                else if (state.Disabled)
+                {
+                    builder.AddAttribute(4, "disabled", true);
+                }
+            }
+            else
+            {
+                builder.AddAttribute(5, "role", "button");
+                if (state.Disabled)
+                {
+                    builder.AddAttribute(6, "aria-disabled", "true");
+                }
+            }
+
+            builder.AddAttribute(7, "data-orientation", orientationString);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(8, "data-disabled", "");
+            }
+
+            if (FocusableWhenDisabled)
+            {
+                builder.AddAttribute(9, "data-focusable", "");
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(10, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(11, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(12, elementReference =>
             {
                 Element = elementReference;
                 RegisterWithToolbar();
             });
-            builder.AddContent(16, ChildContent);
+            builder.AddContent(13, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 

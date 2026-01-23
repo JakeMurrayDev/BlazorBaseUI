@@ -64,45 +64,54 @@ public sealed class ToolbarLink : ComponentBase, IReferencableComponent, IDispos
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(1, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "data-orientation", orientationString);
 
-        builder.AddMultipleAttributes(2, AdditionalAttributes);
-        builder.AddAttribute(3, "data-orientation", orientationString);
-        builder.AddAttribute(4, "data-focusable", "");
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(3, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(5, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(4, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(6, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddComponentParameter(7, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(8, component =>
+            builder.AddComponentParameter(5, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(6, component =>
             {
                 componentReference = (IReferencableComponent)component;
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(9, elementReference =>
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "data-orientation", orientationString);
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(3, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(4, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(5, elementReference =>
             {
                 Element = elementReference;
                 RegisterWithToolbar();
             });
-            builder.AddContent(10, ChildContent);
+            builder.AddContent(6, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 

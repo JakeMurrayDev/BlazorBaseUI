@@ -73,43 +73,59 @@ public sealed class ToolbarGroup : ComponentBase, IReferencableComponent
         {
             if (isComponentRenderAs)
             {
-                childBuilder.OpenComponent(4, RenderAs!);
-            }
-            else
-            {
-                childBuilder.OpenElement(5, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            }
+                childBuilder.OpenRegion(0);
+                childBuilder.OpenComponent(0, RenderAs!);
+                childBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                childBuilder.AddAttribute(2, "role", "group");
+                childBuilder.AddAttribute(3, "data-orientation", orientationString);
 
-            childBuilder.AddMultipleAttributes(6, AdditionalAttributes);
-            childBuilder.AddAttribute(7, "role", "group");
-            childBuilder.AddAttribute(8, "data-orientation", orientationString);
+                if (state.Disabled)
+                {
+                    childBuilder.AddAttribute(4, "data-disabled", "");
+                }
 
-            if (state.Disabled)
-            {
-                childBuilder.AddAttribute(9, "data-disabled", "");
-            }
+                if (!string.IsNullOrEmpty(resolvedClass))
+                {
+                    childBuilder.AddAttribute(5, "class", resolvedClass);
+                }
 
-            if (!string.IsNullOrEmpty(resolvedClass))
-            {
-                childBuilder.AddAttribute(10, "class", resolvedClass);
-            }
+                if (!string.IsNullOrEmpty(resolvedStyle))
+                {
+                    childBuilder.AddAttribute(6, "style", resolvedStyle);
+                }
 
-            if (!string.IsNullOrEmpty(resolvedStyle))
-            {
-                childBuilder.AddAttribute(11, "style", resolvedStyle);
-            }
-
-            if (isComponentRenderAs)
-            {
-                childBuilder.AddComponentParameter(12, "ChildContent", ChildContent);
-                childBuilder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
+                childBuilder.AddComponentParameter(7, "ChildContent", ChildContent);
+                childBuilder.AddComponentReferenceCapture(8, component => { Element = ((IReferencableComponent)component).Element; });
                 childBuilder.CloseComponent();
+                childBuilder.CloseRegion();
             }
             else
             {
-                childBuilder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
-                childBuilder.AddContent(15, ChildContent);
+                childBuilder.OpenRegion(1);
+                childBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                childBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                childBuilder.AddAttribute(2, "role", "group");
+                childBuilder.AddAttribute(3, "data-orientation", orientationString);
+
+                if (state.Disabled)
+                {
+                    childBuilder.AddAttribute(4, "data-disabled", "");
+                }
+
+                if (!string.IsNullOrEmpty(resolvedClass))
+                {
+                    childBuilder.AddAttribute(5, "class", resolvedClass);
+                }
+
+                if (!string.IsNullOrEmpty(resolvedStyle))
+                {
+                    childBuilder.AddAttribute(6, "style", resolvedStyle);
+                }
+
+                childBuilder.AddElementReferenceCapture(7, elementReference => Element = elementReference);
+                childBuilder.AddContent(8, ChildContent);
                 childBuilder.CloseElement();
+                childBuilder.CloseRegion();
             }
         }));
         builder.CloseComponent();
