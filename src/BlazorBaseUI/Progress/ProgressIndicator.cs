@@ -107,7 +107,7 @@ public sealed class ProgressIndicator : ComponentBase, IReferencableComponent
         var percentageValue = ValueToPercent(value.Value, Context.Min, Context.Max);
 
         return string.Create(CultureInfo.InvariantCulture,
-            $"inset-inline-start:0;height:inherit;width:{percentageValue:F4}%");
+            $"inset-inline-start:0;height:inherit;width:{percentageValue}%");
     }
 
     private static double ValueToPercent(double value, double min, double max)
