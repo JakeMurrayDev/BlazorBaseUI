@@ -62,14 +62,6 @@ export function focus(element) {
     element.focus({ preventScroll: true });
 }
 
-export function blur(element) {
-    if (!element) {
-        return;
-    }
-
-    element.blur();
-}
-
 export function dispose(element) {
     if (!element) {
         return;
@@ -282,11 +274,6 @@ export function getFirstEnabledRadio(groupElement) {
         }
     }
     return null;
-}
-
-export function isFirstEnabledRadio(groupElement, radioElement) {
-    const firstEnabled = getFirstEnabledRadio(groupElement);
-    return firstEnabled === radioElement;
 }
 
 export function isBlurWithinGroup(groupElement) {

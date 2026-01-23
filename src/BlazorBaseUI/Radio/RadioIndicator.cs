@@ -15,6 +15,10 @@ public sealed class RadioIndicator : ComponentBase, IReferencableComponent, IDis
     private RadioIndicatorState state = new(false, false, false, false, null, false, false, false, false, TransitionStatus.Undefined);
     private bool stateDirty = true;
 
+    private bool Rendered => RadioContext?.Checked == true;
+
+    private bool IsPresent => KeepMounted || isMounted || Rendered;
+
     [CascadingParameter]
     private RadioRootContext? RadioContext { get; set; }
 
@@ -40,10 +44,6 @@ public sealed class RadioIndicator : ComponentBase, IReferencableComponent, IDis
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool Rendered => RadioContext?.Checked == true;
-
-    private bool IsPresent => KeepMounted || isMounted || Rendered;
 
     protected override void OnParametersSet()
     {
