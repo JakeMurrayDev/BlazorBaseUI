@@ -41,8 +41,6 @@ public interface ISliderRootContext
     void SetControlElement(ElementReference element);
     void SetIndicatorElement(ElementReference element);
     ElementReference? GetIndicatorElement();
-    void SetIndicatorPosition(double? start, double? end);
-    (double? Start, double? End) GetIndicatorPosition();
     void RegisterRealtimeSubscriber();
     void UnregisterRealtimeSubscriber();
 }
@@ -82,8 +80,6 @@ public sealed record SliderRootContext(
     Action<ElementReference> SetControlElementAction,
     Action<ElementReference> SetIndicatorElementAction,
     Func<ElementReference?> GetIndicatorElementFunc,
-    Action<double?, double?> SetIndicatorPositionAction,
-    Func<(double? Start, double? End)> GetIndicatorPositionFunc,
     bool HasRealtimeSubscribers,
     Action RegisterRealtimeSubscriberAction,
     Action UnregisterRealtimeSubscriberAction) : ISliderRootContext
@@ -123,8 +119,6 @@ public sealed record SliderRootContext(
         SetControlElementAction: _ => { },
         SetIndicatorElementAction: _ => { },
         GetIndicatorElementFunc: () => null,
-        SetIndicatorPositionAction: (_, _) => { },
-        GetIndicatorPositionFunc: () => (null, null),
         HasRealtimeSubscribers: false,
         RegisterRealtimeSubscriberAction: () => { },
         UnregisterRealtimeSubscriberAction: () => { });
@@ -146,8 +140,6 @@ public sealed record SliderRootContext(
     void ISliderRootContext.SetControlElement(ElementReference element) => SetControlElementAction(element);
     void ISliderRootContext.SetIndicatorElement(ElementReference element) => SetIndicatorElementAction(element);
     ElementReference? ISliderRootContext.GetIndicatorElement() => GetIndicatorElementFunc();
-    void ISliderRootContext.SetIndicatorPosition(double? start, double? end) => SetIndicatorPositionAction(start, end);
-    (double? Start, double? End) ISliderRootContext.GetIndicatorPosition() => GetIndicatorPositionFunc();
     void ISliderRootContext.RegisterRealtimeSubscriber() => RegisterRealtimeSubscriberAction();
     void ISliderRootContext.UnregisterRealtimeSubscriber() => UnregisterRealtimeSubscriberAction();
 }

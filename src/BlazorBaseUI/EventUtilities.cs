@@ -52,6 +52,11 @@ public static class EventUtilities
         return InvokeEventAsync(additionalAttributes, "onkeydowncapture", e);
     }
 
+    public static Task InvokeOnPointerDownAsync(IReadOnlyDictionary<string, object>? additionalAttributes, PointerEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onpointerdown", e);
+    }
+
     private static async Task InvokeEventAsync<TEvent>(IReadOnlyDictionary<string, object>? additionalAttributes, string attribute, TEvent e) where TEvent : EventArgs
     {
         if (additionalAttributes is null)

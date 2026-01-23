@@ -62,79 +62,129 @@ public sealed class SliderTrack : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (state.Dragging)
+            {
+                builder.AddAttribute(2, "data-dragging", string.Empty);
+            }
 
-        if (state.Dragging)
-        {
-            builder.AddAttribute(2, "data-dragging", string.Empty);
-        }
+            builder.AddAttribute(3, "data-orientation", orientationStr);
 
-        builder.AddAttribute(3, "data-orientation", orientationStr);
+            if (state.Disabled)
+            {
+                builder.AddAttribute(4, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(4, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(5, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(5, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(6, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(6, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(7, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(8, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(7, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(8, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(9, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(9, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(10, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(10, "data-dirty", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(11, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(11, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(12, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(12, "class", resolvedClass);
-        }
-
-        builder.AddAttribute(13, "style", combinedStyle);
-
-        if (isComponentRenderAs)
-        {
+            builder.AddAttribute(13, "style", combinedStyle);
             builder.AddComponentParameter(14, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(15, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(16, elementReference => Element = elementReference);
-            builder.AddContent(17, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (state.Dragging)
+            {
+                builder.AddAttribute(2, "data-dragging", string.Empty);
+            }
+
+            builder.AddAttribute(3, "data-orientation", orientationStr);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(4, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(5, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(6, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(7, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(8, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(9, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(10, "data-dirty", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(11, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(12, "class", resolvedClass);
+            }
+
+            builder.AddAttribute(13, "style", combinedStyle);
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.AddContent(15, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 }

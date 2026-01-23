@@ -66,17 +66,6 @@ internal static class SliderUtilities
         return true;
     }
 
-    public static (double X, double Y) GetMidpoint(double left, double right, double top, double bottom) =>
-        ((left + right) / 2, (top + bottom) / 2);
-
-    public static double[] ReplaceArrayItemAtIndex(double[] array, int index, double newValue)
-    {
-        double[] output = [..array];
-        output[index] = newValue;
-        Array.Sort(output);
-        return output;
-    }
-
     public static ResolveThumbCollisionResult ResolveThumbCollision(
         ThumbCollisionBehavior behavior,
         double[] values,
