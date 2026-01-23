@@ -20,6 +20,25 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
     private CollapsiblePanelState state = new(false, false, TransitionStatus.Undefined);
     private bool? animationTarget;
 
+    private bool CurrentOpen => Context?.Open ?? false;
+
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != Context?.PanelId)
+            {
+                Context?.SetPanelId(id);
+            }
+            return id;
+        }
+    }
+
+    private bool IsPresent => KeepMounted || HiddenUntilFound || isMounted;
+
+    private bool IsHidden => !KeepMounted && !HiddenUntilFound && !CurrentOpen && animationTarget != false;
+
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -51,25 +70,6 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool CurrentOpen => Context?.Open ?? false;
-
-    private string ResolvedId
-    {
-        get
-        {
-            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-            if (id != Context?.PanelId)
-            {
-                Context?.SetPanelId(id);
-            }
-            return id;
-        }
-    }
-
-    private bool IsPresent => KeepMounted || HiddenUntilFound || isMounted;
-
-    private bool IsHidden => !KeepMounted && !HiddenUntilFound && !CurrentOpen && animationTarget != false;
 
     public CollapsiblePanel()
     {
@@ -152,6 +152,10 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
     [JSInvokable]
     public void OnTransitionStatusChanged(string status)
     {
+        // Note: We don't call StateHasChanged() here because the JS is controlling
+        // the data-starting-style and data-ending-style attributes directly on the DOM.
+        // Calling StateHasChanged() during animation would cause re-renders that
+        // interfere with the animation timing.
         state = status switch
         {
             "starting" => state with { TransitionStatus = TransitionStatus.Starting },
@@ -196,15 +200,34 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            RenderCommonAttributes(builder);
+            RenderDataAttributes(builder);
+            RenderClassAndStyle(builder, resolvedClass, resolvedStyle);
+            builder.AddAttribute(12, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
+            builder.OpenRegion(1);
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            RenderCommonAttributes(builder);
+            RenderDataAttributes(builder);
+            RenderClassAndStyle(builder, resolvedClass, resolvedStyle);
+            builder.AddElementReferenceCapture(12, elementReference => Element = elementReference);
+            builder.AddContent(13, ChildContent);
+            builder.CloseElement();
+            builder.CloseRegion();
         }
+    }
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-
+    private void RenderCommonAttributes(RenderTreeBuilder builder)
+    {
         builder.AddAttribute(2, "id", ResolvedId);
 
         if (IsHidden)
@@ -218,7 +241,10 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
                 builder.AddAttribute(4, "hidden", true);
             }
         }
+    }
 
+    private void RenderDataAttributes(RenderTreeBuilder builder)
+    {
         if (state.Open)
         {
             builder.AddAttribute(5, "data-open", string.Empty);
@@ -228,31 +254,26 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
             builder.AddAttribute(6, "data-closed", string.Empty);
         }
 
-        if (state.Disabled)
+        if (state.TransitionStatus == TransitionStatus.Starting)
         {
-            builder.AddAttribute(7, "data-disabled", string.Empty);
+            builder.AddAttribute(7, "data-starting-style", string.Empty);
         }
 
+        if (state.TransitionStatus == TransitionStatus.Ending)
+        {
+            builder.AddAttribute(8, "data-ending-style", string.Empty);
+        }
+    }
+
+    private void RenderClassAndStyle(RenderTreeBuilder builder, string? resolvedClass, string? resolvedStyle)
+    {
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(8, "class", resolvedClass);
+            builder.AddAttribute(9, "class", resolvedClass);
         }
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(9, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddAttribute(10, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(11, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-        }
-        else
-        {
-            builder.AddElementReferenceCapture(12, elementReference => Element = elementReference);
-            builder.AddContent(13, ChildContent);
-            builder.CloseElement();
+            builder.AddAttribute(10, "style", resolvedStyle);
         }
     }
 

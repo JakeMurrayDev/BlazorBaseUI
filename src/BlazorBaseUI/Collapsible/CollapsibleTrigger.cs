@@ -9,9 +9,13 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
     private const string DefaultTag = "button";
 
     private bool isComponentRenderAs;
-    private CollapsibleRootState state = new(false, false);
+    private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
 
-   [CascadingParameter]
+    private bool ResolvedDisabled => Disabled ?? Context?.Disabled ?? false;
+
+    private bool IsNativeButton => NativeButton && string.IsNullOrEmpty(As) && RenderAs is null;
+
+    [CascadingParameter]
     private CollapsibleRootContext? Context { get; set; }
 
     [Parameter]
@@ -40,12 +44,6 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
 
     public ElementReference? Element { get; private set; }
 
-    private bool ResolvedDisabled => Disabled ?? Context?.Disabled ?? false;
-
-    protected override void OnInitialized()
-    {
-    }
-
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -56,9 +54,10 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
 
         var currentOpen = Context?.Open ?? false;
         var currentDisabled = ResolvedDisabled;
-        if (state.Open != currentOpen || state.Disabled != currentDisabled)
+        var currentTransitionStatus = Context?.TransitionStatus ?? TransitionStatus.Undefined;
+        if (state.Open != currentOpen || state.Disabled != currentDisabled || state.TransitionStatus != currentTransitionStatus)
         {
-            state = state with { Open = currentOpen, Disabled = currentDisabled };
+            state = state with { Open = currentOpen, Disabled = currentDisabled, TransitionStatus = currentTransitionStatus };
         }
     }
 
@@ -74,60 +73,90 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            RenderCommonAttributes(builder);
+            RenderDataAttributes(builder);
+            RenderClassAndStyle(builder, resolvedClass, resolvedStyle);
+            builder.AddAttribute(14, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(15, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
+            builder.OpenRegion(1);
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            RenderCommonAttributes(builder);
+            RenderDataAttributes(builder);
+            RenderClassAndStyle(builder, resolvedClass, resolvedStyle);
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.AddContent(15, ChildContent);
+            builder.CloseElement();
+            builder.CloseRegion();
         }
+    }
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-
-        if (NativeButton)
+    private void RenderCommonAttributes(RenderTreeBuilder builder)
+    {
+        if (IsNativeButton)
         {
             builder.AddAttribute(2, "type", "button");
         }
+        else
+        {
+            builder.AddAttribute(3, "role", "button");
+        }
 
-        builder.AddAttribute(3, "aria-controls", Context.PanelId);
-        builder.AddAttribute(4, "aria-expanded", Context.Open ? "true" : "false");
+        if (Context!.Open)
+        {
+            builder.AddAttribute(4, "aria-controls", Context.PanelId);
+        }
+
+        builder.AddAttribute(5, "aria-expanded", Context.Open ? "true" : "false");
 
         if (ResolvedDisabled)
         {
-            builder.AddAttribute(5, "disabled", true);
+            builder.AddAttribute(6, "disabled", true);
         }
 
-        builder.AddAttribute(6, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(7, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+    }
 
+    private void RenderDataAttributes(RenderTreeBuilder builder)
+    {
         if (state.Open)
         {
-            builder.AddAttribute(7, "data-panel-open", string.Empty);
+            builder.AddAttribute(8, "data-panel-open", string.Empty);
         }
 
         if (state.Disabled)
         {
-            builder.AddAttribute(8, "data-disabled", string.Empty);
+            builder.AddAttribute(9, "data-disabled", string.Empty);
         }
 
+        if (state.TransitionStatus == TransitionStatus.Starting)
+        {
+            builder.AddAttribute(10, "data-starting-style", string.Empty);
+        }
+
+        if (state.TransitionStatus == TransitionStatus.Ending)
+        {
+            builder.AddAttribute(11, "data-ending-style", string.Empty);
+        }
+    }
+
+    private void RenderClassAndStyle(RenderTreeBuilder builder, string? resolvedClass, string? resolvedStyle)
+    {
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(9, "class", resolvedClass);
+            builder.AddAttribute(12, "class", resolvedClass);
         }
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(10, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddAttribute(11, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });
-            builder.CloseComponent();
-        }
-        else
-        {
-            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
-            builder.AddContent(14, ChildContent);
-            builder.CloseElement();
+            builder.AddAttribute(13, "style", resolvedStyle);
         }
     }
 
