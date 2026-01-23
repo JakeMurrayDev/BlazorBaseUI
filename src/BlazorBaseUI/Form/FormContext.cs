@@ -50,15 +50,13 @@ public interface IFormContext
 
 public sealed class FormContext : IFormContext
 {
-    internal static FormContext Default { get; } = new();
+    private Dictionary<string, string[]> errors = new(4);
+    private Action<string?>? clearErrorsCallback;
+    private Func<bool>? getSubmitAttemptedCallback;
 
     public EditContext? EditContext { get; private set; }
     public ValidationMode ValidationMode { get; private set; } = ValidationMode.OnSubmit;
     public FieldRegistry FieldRegistry { get; private set; } = new();
-
-    private Dictionary<string, string[]> errors = new(4);
-    private Action<string?>? clearErrorsCallback;
-    private Func<bool>? getSubmitAttemptedCallback;
 
     private FormContext() { }
 

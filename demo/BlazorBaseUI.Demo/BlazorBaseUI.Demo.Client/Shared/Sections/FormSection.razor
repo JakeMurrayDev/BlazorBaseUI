@@ -338,11 +338,96 @@
             </button>
         </Form>
     </DemoSection>
+
+    <DemoSection Title="ActionsRef (Imperative Form Validation)"
+                 Description="Validate form or specific field programmatically via ActionsRef">
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <Form Model="@actionsRefModel"
+                  ActionsRef="@(actions => formActions = actions)">
+                <FieldRoot Name="username"
+                           Validate="ValidateRequired"
+                           ClassValue="@(_ => "mb-4")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Username (required)
+                    </FieldLabel>
+                    <FieldControl @bind-Value="actionsRefModel.Username"
+                                  placeholder="Leave empty to test validation"
+                                  ClassValue="@(s => "w-full px-4 py-2.5 rounded-lg border transition outline-none " + (s.Valid == false ? "border-red-400 bg-red-50" : "border-gray-300 focus:border-blue-500"))" />
+                    <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-2 font-medium")" />
+                </FieldRoot>
+                <FieldRoot Name="email"
+                           Validate="ValidateEmailFormat"
+                           ClassValue="@(_ => "mb-4")">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-semibold text-gray-800 mb-2")">
+                        Email (must contain @@)
+                    </FieldLabel>
+                    <FieldControl @bind-Value="actionsRefModel.Email"
+                                  placeholder="Enter invalid email to test"
+                                  ClassValue="@(s => "w-full px-4 py-2.5 rounded-lg border transition outline-none " + (s.Valid == false ? "border-red-400 bg-red-50" : "border-gray-300 focus:border-blue-500"))" />
+                    <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-2 font-medium")" />
+                </FieldRoot>
+            </Form>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button"
+                        @onclick="ValidateEntireForm"
+                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
+                    Validate All Fields
+                </button>
+                <button type="button"
+                        @onclick="ValidateUsernameOnly"
+                        class="rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700">
+                    Validate Username Only
+                </button>
+                <button type="button"
+                        @onclick="ValidateEmailOnly"
+                        class="rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700">
+                    Validate Email Only
+                </button>
+            </div>
+        </div>
+    </DemoSection>
 </ComponentShowcase>
 
 @code {
     [Parameter]
     public bool IsWasmMode { get; set; }
+
+    private FormActions? formActions;
+    private ActionsRefModel actionsRefModel = new();
+
+    private async Task ValidateEntireForm()
+    {
+        if (formActions is not null)
+        {
+            await formActions.ValidateAsync();
+        }
+    }
+
+    private async Task ValidateUsernameOnly()
+    {
+        if (formActions is not null)
+        {
+            await formActions.ValidateAsync("username");
+        }
+    }
+
+    private async Task ValidateEmailOnly()
+    {
+        if (formActions is not null)
+        {
+            await formActions.ValidateAsync("email");
+        }
+    }
+
+    private Task<string[]?> ValidateEmailFormat(object? value)
+    {
+        var str = value?.ToString() ?? string.Empty;
+        if (string.IsNullOrEmpty(str))
+            return Task.FromResult<string[]?>(null);
+        if (!str.Contains('@'))
+            return Task.FromResult<string[]?>(["Email must contain @"]);
+        return Task.FromResult<string[]?>(null);
+    }
 
     private BasicModel basicModel = new();
     private string? basicSubmitResult;
@@ -508,5 +593,11 @@
     {
         public string Field1 { get; set; } = string.Empty;
         public string Field2 { get; set; } = string.Empty;
+    }
+
+    private class ActionsRefModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 }

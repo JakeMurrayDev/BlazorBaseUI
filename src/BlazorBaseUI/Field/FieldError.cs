@@ -14,6 +14,12 @@ public sealed class FieldError : ComponentBase, IReferencableComponent, IFieldSt
     private bool wasRendered;
     private bool isComponentRenderAs;
 
+    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
+
+    private string? FieldName => FieldContext?.Name;
+
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
 
@@ -52,12 +58,6 @@ public sealed class FieldError : ComponentBase, IReferencableComponent, IFieldSt
 
     public ElementReference? Element { get; private set; }
 
-    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
-
-    private string? FieldName => FieldContext?.Name;
-
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
     protected override void OnInitialized()
     {
         FieldContext?.Subscribe(this);
@@ -92,96 +92,151 @@ public sealed class FieldError : ComponentBase, IReferencableComponent, IFieldSt
         var state = State;
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
-        var errors = GetAllErrors();
+        var errorContent = GetErrorContent();
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "id", ResolvedId);
+            if (state.Disabled)
+            {
+                builder.AddAttribute(3, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(3, "data-disabled", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(4, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(5, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(4, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(5, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(6, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(6, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(7, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(7, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(8, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(8, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(9, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(9, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(10, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(10, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(11, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(11, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddAttribute(12, "ChildContent", ChildContent ?? BuildErrorContent(errors));
+            builder.AddAttribute(12, "ChildContent", ChildContent ?? BuildErrorContent(errorContent));
             builder.AddComponentReferenceCapture(13, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(3, "data-disabled", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(4, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(5, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(6, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(7, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(8, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(9, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(10, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(11, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(12, elementReference => Element = elementReference);
 
             if (ChildContent is not null)
             {
-                builder.AddContent(15, ChildContent);
+                builder.AddContent(13, ChildContent);
             }
-            else if (errors.Length == 1)
+            else if (errorContent.formError is not null)
             {
-                builder.AddContent(16, errors[0]);
+                builder.AddContent(14, errorContent.formError);
             }
-            else if (errors.Length > 1)
+            else if (errorContent.validityErrors.Length > 1)
             {
-                builder.OpenElement(17, "ul");
-                foreach (var error in errors)
+                builder.OpenElement(15, "ul");
+                foreach (var error in errorContent.validityErrors)
                 {
-                    builder.OpenElement(18, "li");
-                    builder.AddContent(19, error);
+                    builder.OpenElement(16, "li");
+                    builder.AddContent(17, error);
                     builder.CloseElement();
                 }
                 builder.CloseElement();
             }
+            else if (!string.IsNullOrEmpty(errorContent.validityError))
+            {
+                builder.AddContent(18, errorContent.validityError);
+            }
 
             builder.CloseElement();
+            builder.CloseRegion();
         }
+    }
+
+    public void Dispose()
+    {
+        FieldContext?.Unsubscribe(this);
+        if (wasRendered)
+            LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
     }
 
     void IFieldStateSubscriber.NotifyStateChanged()
@@ -189,22 +244,17 @@ public sealed class FieldError : ComponentBase, IReferencableComponent, IFieldSt
         _ = InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose()
-    {
-        FieldContext?.Unsubscribe(this);
-        LabelableContext?.UpdateMessageIds.Invoke(ResolvedId, false);
-    }
-
     private bool ShouldRenderError()
     {
-        if (Match == true)
+        var formError = GetFormError();
+        if (formError is not null || Match == true)
             return true;
 
         if (MatchValidity is not null)
             return MatchValidityState(MatchValidity);
 
-        var errors = GetAllErrors();
-        return errors.Length > 0;
+        var validityData = FieldContext?.ValidityData ?? FieldValidityData.Default;
+        return validityData.State.Valid == false;
     }
 
     private bool MatchValidityState(string validity)
@@ -226,47 +276,58 @@ public sealed class FieldError : ComponentBase, IReferencableComponent, IFieldSt
         };
     }
 
-    private string[] GetAllErrors()
+    private string? GetFormError()
     {
-        var errors = new List<string>();
+        if (FieldName is null)
+            return null;
 
-        if (EditContext is not null && FieldName is not null)
+        if (FormContext is not null)
+        {
+            var formErrors = FormContext.GetErrors(FieldName);
+            if (formErrors.Length > 0)
+                return formErrors[0];
+        }
+
+        if (EditContext is not null)
         {
             var fieldIdentifier = EditContext.Field(FieldName);
-            errors.AddRange(EditContext.GetValidationMessages(fieldIdentifier));
+            var editContextErrors = EditContext.GetValidationMessages(fieldIdentifier).ToArray();
+            if (editContextErrors.Length > 0)
+                return editContextErrors[0];
         }
 
-        if (FormContext is not null && FieldName is not null)
-        {
-            errors.AddRange(FormContext.GetErrors(FieldName));
-        }
-
-        if (FieldContext?.ValidityData.Errors is { Length: > 0 } validityErrors)
-        {
-            errors.AddRange(validityErrors);
-        }
-
-        return [.. errors.Distinct()];
+        return null;
     }
 
-    private RenderFragment BuildErrorContent(string[] errors)
+    private (string? formError, string[] validityErrors, string? validityError) GetErrorContent()
+    {
+        var formError = GetFormError();
+        var validityData = FieldContext?.ValidityData ?? FieldValidityData.Default;
+        return (formError, validityData.Errors, validityData.Error);
+    }
+
+    private RenderFragment BuildErrorContent((string? formError, string[] validityErrors, string? validityError) errorContent)
     {
         return builder =>
         {
-            if (errors.Length == 1)
+            if (errorContent.formError is not null)
             {
-                builder.AddContent(0, errors[0]);
+                builder.AddContent(0, errorContent.formError);
             }
-            else if (errors.Length > 1)
+            else if (errorContent.validityErrors.Length > 1)
             {
                 builder.OpenElement(1, "ul");
-                foreach (var error in errors)
+                foreach (var error in errorContent.validityErrors)
                 {
                     builder.OpenElement(2, "li");
                     builder.AddContent(3, error);
                     builder.CloseElement();
                 }
                 builder.CloseElement();
+            }
+            else if (!string.IsNullOrEmpty(errorContent.validityError))
+            {
+                builder.AddContent(4, errorContent.validityError);
             }
         };
     }

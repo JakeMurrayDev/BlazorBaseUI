@@ -35,7 +35,15 @@ public interface IFieldRootContext
 
 public sealed class FieldRootContext : IFieldRootContext
 {
-    internal static FieldRootContext Default { get; } = new();
+    private Action<FieldValidityData>? setValidityDataCallback;
+    private Action<bool>? setTouchedCallback;
+    private Action<bool>? setDirtyCallback;
+    private Action<bool>? setFilledCallback;
+    private Action<bool>? setFocusedCallback;
+    private Func<bool>? shouldValidateOnChangeCallback;
+    private Action<Func<ValueTask>>? registerFocusHandlerCallback;
+    private Action<IFieldStateSubscriber>? subscribeCallback;
+    private Action<IFieldStateSubscriber>? unsubscribeCallback;
 
     public bool? Invalid { get; private set; }
     public string? Name { get; private set; }
@@ -49,16 +57,6 @@ public sealed class FieldRootContext : IFieldRootContext
     public int ValidationDebounceTime { get; private set; }
     public FieldRootState State { get; private set; } = FieldRootState.Default;
     public FieldValidation Validation { get; private set; } = null!;
-
-    private Action<FieldValidityData>? setValidityDataCallback;
-    private Action<bool>? setTouchedCallback;
-    private Action<bool>? setDirtyCallback;
-    private Action<bool>? setFilledCallback;
-    private Action<bool>? setFocusedCallback;
-    private Func<bool>? shouldValidateOnChangeCallback;
-    private Action<Func<ValueTask>>? registerFocusHandlerCallback;
-    private Action<IFieldStateSubscriber>? subscribeCallback;
-    private Action<IFieldStateSubscriber>? unsubscribeCallback;
 
     private FieldRootContext() { }
 

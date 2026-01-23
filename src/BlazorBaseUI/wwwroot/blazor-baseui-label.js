@@ -34,3 +34,12 @@ export function removeLabelMouseDownListener(element) {
         state.labelListeners.delete(element);
     }
 }
+
+export function focusControlById(controlId) {
+    if (!controlId) return;
+
+    const controlElement = document.getElementById(controlId);
+    if (controlElement) {
+        controlElement.focus({ focusVisible: true });
+    }
+}
