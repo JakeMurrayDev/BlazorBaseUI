@@ -36,7 +36,7 @@ public sealed class SwitchThumb : ComponentBase, IReferencableComponent
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
-        if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
+        if (isComponentRenderAs && !typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
         {
             throw new InvalidOperationException(
                 $"Type {RenderAs!.Name} must implement IReferencableComponent.");
