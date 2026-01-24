@@ -1,7 +1,7 @@
 /**
- * BlazorBaseUI Popover Component
+ * BlazorBaseUI Menu Component
  *
- * Popover-specific functionality that builds on the shared floating infrastructure.
+ * Menu-specific functionality that builds on the shared floating infrastructure.
  */
 
 // Reference to shared floating module (loaded separately)
@@ -14,13 +14,12 @@ async function ensureFloatingModule() {
     return floatingModule;
 }
 
-const STATE_KEY = Symbol.for('BlazorBaseUI.Popover.State');
+const STATE_KEY = Symbol.for('BlazorBaseUI.Menu.State');
 
 if (!window[STATE_KEY]) {
     window[STATE_KEY] = {
         roots: new Map(),
         positioners: new Map(),
-        popups: new WeakMap(),
         globalListenersInitialized: false
     };
 }
@@ -29,9 +28,173 @@ const state = window[STATE_KEY];
 function initGlobalListeners() {
     if (state.globalListenersInitialized) return;
 
-    document.addEventListener('keydown', handleGlobalKeyDown);
+    document.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
     document.addEventListener('mousedown', handleGlobalMouseDown);
     state.globalListenersInitialized = true;
+}
+
+function handleGlobalKeyDown(e) {
+    // Find the topmost open menu
+    let topmostRoot = null;
+    for (const [id, rootState] of state.roots) {
+        if (rootState.isOpen && rootState.dotNetRef) {
+            topmostRoot = rootState;
+        }
+    }
+
+    if (!topmostRoot) return;
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+        return;
+    }
+
+    // Handle arrow key navigation
+    if (topmostRoot.popupElement) {
+        const items = getMenuItems(topmostRoot.popupElement);
+        if (items.length === 0) return;
+
+        const currentIndex = topmostRoot.activeIndex ?? -1;
+        let newIndex = currentIndex;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                newIndex = currentIndex < items.length - 1 ? currentIndex + 1 : (topmostRoot.loopFocus ? 0 : currentIndex);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                newIndex = currentIndex > 0 ? currentIndex - 1 : (topmostRoot.loopFocus ? items.length - 1 : currentIndex);
+                break;
+            case 'Home':
+                e.preventDefault();
+                newIndex = 0;
+                break;
+            case 'End':
+                e.preventDefault();
+                newIndex = items.length - 1;
+                break;
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                if (currentIndex >= 0 && currentIndex < items.length) {
+                    items[currentIndex].click();
+                }
+                return;
+            default:
+                // Typeahead: find item starting with pressed character
+                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    const char = e.key.toLowerCase();
+                    const startIndex = currentIndex + 1;
+                    for (let i = 0; i < items.length; i++) {
+                        const idx = (startIndex + i) % items.length;
+                        const label = items[idx].getAttribute('data-label');
+                        const text = (label ?? items[idx].textContent)?.trim().toLowerCase() || '';
+                        if (text.startsWith(char)) {
+                            newIndex = idx;
+                            break;
+                        }
+                    }
+                }
+                break;
+        }
+
+        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < items.length) {
+            topmostRoot.activeIndex = newIndex;
+            highlightItem(topmostRoot.popupElement, items, newIndex);
+            topmostRoot.dotNetRef.invokeMethodAsync('OnActiveIndexChange', newIndex).catch(() => { });
+        }
+    }
+}
+
+function getMenuItems(popupElement) {
+    if (!popupElement) return [];
+
+    const selector = '[role="menuitem"]:not([aria-disabled="true"]):not([disabled]), ' +
+                     '[role="menuitemcheckbox"]:not([aria-disabled="true"]):not([disabled]), ' +
+                     '[role="menuitemradio"]:not([aria-disabled="true"]):not([disabled])';
+
+    return Array.from(popupElement.querySelectorAll(selector));
+}
+
+function highlightItem(popupElement, items, index) {
+    items.forEach((item, i) => {
+        if (i === index) {
+            item.setAttribute('data-highlighted', '');
+            item.setAttribute('tabindex', '0');
+            item.focus();
+        } else {
+            item.removeAttribute('data-highlighted');
+            item.setAttribute('tabindex', '-1');
+        }
+    });
+}
+
+function handleGlobalMouseDown(e) {
+    for (const [id, rootState] of state.roots) {
+        if (!rootState.isOpen || !rootState.dotNetRef) continue;
+
+        const { triggerElement, popupElement } = rootState;
+
+        let clickedInsidePopup = false;
+        let clickedOnTrigger = false;
+
+        if (popupElement && popupElement.contains(e.target)) {
+            clickedInsidePopup = true;
+        }
+
+        if (triggerElement && triggerElement.contains(e.target)) {
+            clickedOnTrigger = true;
+        }
+
+        const allMenuPopups = document.querySelectorAll('[role="menu"]');
+        for (const popup of allMenuPopups) {
+            if (popup.contains(e.target)) {
+                clickedInsidePopup = true;
+                break;
+            }
+        }
+
+        if (!clickedInsidePopup && !clickedOnTrigger) {
+            rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
+        }
+    }
+}
+
+// ============================================================================
+// Root Management
+// ============================================================================
+
+export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal) {
+    initGlobalListeners();
+
+    state.roots.set(rootId, {
+        dotNetRef,
+        isOpen: false,
+        triggerElement: null,
+        positionerElement: null,
+        popupElement: null,
+        activeIndex: -1,
+        loopFocus: loopFocus ?? true,
+        closeParentOnEsc: closeParentOnEsc || false,
+        modal: modal ?? true,
+        scrollLocked: false,
+        hoverInteraction: null
+    });
+}
+
+export function disposeRoot(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        unlockScroll(rootState);
+        // Clean up hover interaction
+        if (rootState.hoverInteraction) {
+            rootState.hoverInteraction.cleanup();
+        }
+    }
+    state.roots.delete(rootId);
 }
 
 // ============================================================================
@@ -63,7 +226,7 @@ export async function initializeHoverInteraction(rootId, triggerElement, openDel
     }
 
     rootState.hoverInteraction = floating.createHoverInteraction({
-        interactionId: `popover-hover-${rootId}`,
+        interactionId: `menu-hover-${rootId}`,
         triggerElement: rootState.triggerElement,
         floatingElement: rootState.popupElement,
         openDelay: openDelay || 0,
@@ -106,82 +269,58 @@ export function setHoverInteractionOpen(rootId, isOpen) {
     }
 }
 
-function handleGlobalKeyDown(e) {
-    if (e.key !== 'Escape') return;
+// ============================================================================
+// Scroll Lock
+// ============================================================================
 
-    // Close the topmost open popover
-    for (const [id, rootState] of state.roots) {
-        if (rootState.isOpen && rootState.dotNetRef) {
-            rootState.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
-            break;
+if (!state.scrollLock) {
+    state.scrollLock = {
+        lockCount: 0,
+        originalStyles: null
+    };
+}
+
+function lockScroll(rootState) {
+    if (rootState.scrollLocked) return;
+
+    rootState.scrollLocked = true;
+    state.scrollLock.lockCount++;
+
+    if (state.scrollLock.lockCount === 1) {
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+        state.scrollLock.originalStyles = {
+            overflow: document.body.style.overflow,
+            paddingRight: document.body.style.paddingRight
+        };
+
+        document.body.style.overflow = 'hidden';
+        if (scrollbarWidth > 0) {
+            document.body.style.paddingRight = `${scrollbarWidth}px`;
         }
+
+        document.documentElement.setAttribute('data-scroll-locked', '');
     }
 }
 
-function handleGlobalMouseDown(e) {
-    // Check each popover root to see if click was outside
-    for (const [id, rootState] of state.roots) {
-        if (!rootState.isOpen || !rootState.dotNetRef) continue;
+function unlockScroll(rootState) {
+    if (!rootState.scrollLocked) return;
 
-        const { triggerElement, popupElement } = rootState;
+    rootState.scrollLocked = false;
+    state.scrollLock.lockCount--;
 
-        let clickedInsidePopup = false;
-        let clickedOnTrigger = false;
-        let clickedOnBackdrop = false;
+    if (state.scrollLock.lockCount === 0 && state.scrollLock.originalStyles) {
+        document.body.style.overflow = state.scrollLock.originalStyles.overflow;
+        document.body.style.paddingRight = state.scrollLock.originalStyles.paddingRight;
+        state.scrollLock.originalStyles = null;
 
-        // Check if clicked inside any popup with role="dialog"
-        if (popupElement && popupElement.contains(e.target)) {
-            clickedInsidePopup = true;
-        }
-
-        // Check if clicked on the trigger
-        if (triggerElement && triggerElement.contains(e.target)) {
-            clickedOnTrigger = true;
-        }
-
-        // Check if clicked on a backdrop
-        const backdrops = document.querySelectorAll('[role="presentation"]');
-        for (const backdrop of backdrops) {
-            if (backdrop === e.target || backdrop.contains(e.target)) {
-                clickedOnBackdrop = true;
-                break;
-            }
-        }
-
-        // If click was outside this popover's elements, close it
-        if (!clickedInsidePopup && !clickedOnTrigger && !clickedOnBackdrop) {
-            rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
-        }
+        document.documentElement.removeAttribute('data-scroll-locked');
     }
 }
 
 // ============================================================================
-// Root Management
+// Open/Close State
 // ============================================================================
-
-export function initializeRoot(rootId, dotNetRef) {
-    initGlobalListeners();
-
-    state.roots.set(rootId, {
-        dotNetRef,
-        isOpen: false,
-        triggerElement: null,
-        positionerElement: null,
-        popupElement: null,
-        hoverInteraction: null
-    });
-}
-
-export function disposeRoot(rootId) {
-    const rootState = state.roots.get(rootId);
-    if (rootState) {
-        // Clean up hover interaction
-        if (rootState.hoverInteraction) {
-            rootState.hoverInteraction.cleanup();
-        }
-    }
-    state.roots.delete(rootId);
-}
 
 export function setRootOpen(rootId, isOpen, reason) {
     const rootState = state.roots.get(rootId);
@@ -197,9 +336,31 @@ export function setRootOpen(rootId, isOpen, reason) {
     }
 
     if (isOpen) {
+        rootState.activeIndex = -1;
+
+        // Apply scroll lock if modal and not opened via hover
+        if (rootState.modal && reason !== 'trigger-hover') {
+            lockScroll(rootState);
+        }
+
         waitForPopupAndStartTransition(rootState, isOpen);
     } else {
+        unlockScroll(rootState);
         startTransition(rootState, isOpen);
+    }
+}
+
+export function setActiveIndex(rootId, index) {
+    const rootState = state.roots.get(rootId);
+    if (!rootState) return;
+
+    rootState.activeIndex = index;
+
+    if (rootState.popupElement) {
+        const items = getMenuItems(rootState.popupElement);
+        if (index >= 0 && index < items.length) {
+            highlightItem(rootState.popupElement, items, index);
+        }
     }
 }
 
@@ -370,7 +531,7 @@ export async function initializePositioner(positionerElement, triggerElement, si
         arrowPadding,
         arrowElement,
         sticky: sticky || false,
-        positionMethod: positionMethod || 'fixed',
+        positionMethod: positionMethod || 'absolute',
         disableAnchorTracking: disableAnchorTracking || false
     });
 
@@ -395,7 +556,7 @@ export async function updatePosition(positionerId, triggerElement, side, align, 
         arrowPadding,
         arrowElement,
         sticky: sticky || false,
-        positionMethod: positionMethod || 'fixed'
+        positionMethod: positionMethod || 'absolute'
     });
 }
 
@@ -403,52 +564,4 @@ export async function disposePositioner(positionerId) {
     const floating = await ensureFloatingModule();
     floating.disposePositioner(positionerId);
     state.positioners.delete(positionerId);
-}
-
-// ============================================================================
-// Popup Management
-// ============================================================================
-
-export function initializePopup(popupElement, dotNetRef) {
-    if (!popupElement) return;
-
-    const popupState = {
-        popupElement,
-        dotNetRef
-    };
-
-    state.popups.set(popupElement, popupState);
-
-    const updatePopupDimensions = () => {
-        const width = popupElement.offsetWidth;
-        const height = popupElement.offsetHeight;
-        popupElement.style.setProperty('--popup-width', `${width}px`);
-        popupElement.style.setProperty('--popup-height', `${height}px`);
-    };
-
-    updatePopupDimensions();
-
-    if (typeof ResizeObserver !== 'undefined') {
-        const resizeObserver = new ResizeObserver(updatePopupDimensions);
-        resizeObserver.observe(popupElement);
-        popupState.resizeObserver = resizeObserver;
-    }
-}
-
-export function disposePopup(popupElement) {
-    if (!popupElement) return;
-    const popupState = state.popups.get(popupElement);
-    if (popupState?.resizeObserver) {
-        popupState.resizeObserver.disconnect();
-    }
-    state.popups.delete(popupElement);
-}
-
-// ============================================================================
-// Focus Management
-// ============================================================================
-
-export function focusElement(element) {
-    if (!element) return;
-    element.focus();
 }

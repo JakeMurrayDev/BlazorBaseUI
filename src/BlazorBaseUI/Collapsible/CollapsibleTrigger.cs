@@ -160,14 +160,14 @@ public sealed class CollapsibleTrigger : ComponentBase, IReferencableComponent
         }
     }
 
-    private async Task HandleClickAsync(MouseEventArgs args)
+    private Task HandleClickAsync(MouseEventArgs args)
     {
         if (ResolvedDisabled)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         Context?.HandleTrigger();
-        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
+        return EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
     }
 }

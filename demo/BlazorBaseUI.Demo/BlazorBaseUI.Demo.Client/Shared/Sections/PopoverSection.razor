@@ -652,8 +652,7 @@
 
     private static string ArrowClass(PopoverArrowState state)
     {
-        // Position is handled by JS, just need to ensure proper display
-        return "";
+        return "flex data-[side=bottom]:top-[-8px] data-[side=top]:bottom-[-8px] data-[side=top]:rotate-180 data-[side=left]:right-[-13px] data-[side=left]:rotate-90 data-[side=right]:left-[-13px] data-[side=right]:-rotate-90";
     }
 
     private static string BackdropClass(PopoverBackdropState state)
@@ -686,6 +685,6 @@
 
     private static string NotificationArrowClass(PopoverArrowState state)
     {
-        return "data-[side=bottom]:top-[-10px] data-[side=left]:right-[-10px] data-[side=left]:rotate-90 data-[side=right]:left-[-10px] data-[side=right]:-rotate-90 data-[side=top]:bottom-[-10px] data-[side=top]:rotate-180";
+        return "flex data-[side=bottom]:top-[-8px] data-[side=top]:bottom-[-8px] data-[side=top]:rotate-180 data-[side=left]:right-[-13px] data-[side=left]:rotate-90 data-[side=right]:left-[-13px] data-[side=right]:-rotate-90";
     }
 }

@@ -255,15 +255,15 @@ public sealed class AccordionTrigger : ComponentBase, IReferencableComponent, IA
         }
     }
 
-    private async Task HandleClickAsync(MouseEventArgs args)
+    private Task HandleClickAsync(MouseEventArgs args)
     {
         if (ResolvedDisabled)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         ItemContext?.HandleTrigger();
-        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
+        return EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
     }
 
     public async ValueTask DisposeAsync()

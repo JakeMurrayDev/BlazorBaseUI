@@ -170,11 +170,7 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
                 builder.AddAttribute(9, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(10, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddAttribute(11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
-            builder.AddAttribute(12, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDownAsync));
-
-            builder.AddElementReferenceCapture(13, elementReference =>
+            builder.AddElementReferenceCapture(10, elementReference =>
             {
                 Element = elementReference;
                 RegisterWithToolbar();
@@ -222,35 +218,5 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
         {
             RootContext.UnregisterItem(registeredElement.Value);
         }
-    }
-
-    private async Task HandleClickAsync(MouseEventArgs e)
-    {
-        if (state.Disabled)
-        {
-            return;
-        }
-
-        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
-    }
-
-    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
-    {
-        if (state.Disabled && e.Key != "ArrowLeft" && e.Key != "ArrowRight")
-        {
-            return;
-        }
-
-        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
-    }
-
-    private async Task HandlePointerDownAsync(PointerEventArgs e)
-    {
-        if (state.Disabled)
-        {
-            return;
-        }
-
-        await EventUtilities.InvokeOnPointerDownAsync(AdditionalAttributes, e);
     }
 }

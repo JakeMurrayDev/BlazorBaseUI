@@ -37,6 +37,11 @@ public static class EventUtilities
         return InvokeEventAsync(additionalAttributes, "onmouseleave", e);
     }
 
+    public static Task InvokeOnMouseMoveAsync(IReadOnlyDictionary<string, object>? additionalAttributes, MouseEventArgs e)
+    {
+        return InvokeEventAsync(additionalAttributes, "onmousemove", e);
+    }
+
     public static Task InvokeOnFocusAsync(IReadOnlyDictionary<string, object>? additionalAttributes, FocusEventArgs e)
     {
         return InvokeEventAsync(additionalAttributes, "onfocus", e);

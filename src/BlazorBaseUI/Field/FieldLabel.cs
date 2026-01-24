@@ -98,55 +98,54 @@ public sealed class FieldLabel : ComponentBase, IReferencableComponent, IFieldSt
             else
             {
                 builder.AddAttribute(4, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-                builder.AddAttribute(5, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
             }
 
             if (state.Disabled)
             {
-                builder.AddAttribute(6, "data-disabled", string.Empty);
+                builder.AddAttribute(5, "data-disabled", string.Empty);
             }
 
             if (state.Valid == true)
             {
-                builder.AddAttribute(7, "data-valid", string.Empty);
+                builder.AddAttribute(6, "data-valid", string.Empty);
             }
             else if (state.Valid == false)
             {
-                builder.AddAttribute(8, "data-invalid", string.Empty);
+                builder.AddAttribute(7, "data-invalid", string.Empty);
             }
 
             if (state.Touched)
             {
-                builder.AddAttribute(9, "data-touched", string.Empty);
+                builder.AddAttribute(8, "data-touched", string.Empty);
             }
 
             if (state.Dirty)
             {
-                builder.AddAttribute(10, "data-dirty", string.Empty);
+                builder.AddAttribute(9, "data-dirty", string.Empty);
             }
 
             if (state.Filled)
             {
-                builder.AddAttribute(11, "data-filled", string.Empty);
+                builder.AddAttribute(10, "data-filled", string.Empty);
             }
 
             if (state.Focused)
             {
-                builder.AddAttribute(12, "data-focused", string.Empty);
+                builder.AddAttribute(11, "data-focused", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(13, "class", resolvedClass);
+                builder.AddAttribute(12, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(14, "style", resolvedStyle);
+                builder.AddAttribute(13, "style", resolvedStyle);
             }
 
-            builder.AddAttribute(15, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(16, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddAttribute(14, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(15, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
             builder.CloseRegion();
         }
@@ -167,55 +166,54 @@ public sealed class FieldLabel : ComponentBase, IReferencableComponent, IFieldSt
             else
             {
                 builder.AddAttribute(4, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClick));
-                builder.AddAttribute(5, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
             }
 
             if (state.Disabled)
             {
-                builder.AddAttribute(6, "data-disabled", string.Empty);
+                builder.AddAttribute(5, "data-disabled", string.Empty);
             }
 
             if (state.Valid == true)
             {
-                builder.AddAttribute(7, "data-valid", string.Empty);
+                builder.AddAttribute(6, "data-valid", string.Empty);
             }
             else if (state.Valid == false)
             {
-                builder.AddAttribute(8, "data-invalid", string.Empty);
+                builder.AddAttribute(7, "data-invalid", string.Empty);
             }
 
             if (state.Touched)
             {
-                builder.AddAttribute(9, "data-touched", string.Empty);
+                builder.AddAttribute(8, "data-touched", string.Empty);
             }
 
             if (state.Dirty)
             {
-                builder.AddAttribute(10, "data-dirty", string.Empty);
+                builder.AddAttribute(9, "data-dirty", string.Empty);
             }
 
             if (state.Filled)
             {
-                builder.AddAttribute(11, "data-filled", string.Empty);
+                builder.AddAttribute(10, "data-filled", string.Empty);
             }
 
             if (state.Focused)
             {
-                builder.AddAttribute(12, "data-focused", string.Empty);
+                builder.AddAttribute(11, "data-focused", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(13, "class", resolvedClass);
+                builder.AddAttribute(12, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(14, "style", resolvedStyle);
+                builder.AddAttribute(13, "style", resolvedStyle);
             }
 
-            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
-            builder.AddContent(16, ChildContent);
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.AddContent(15, ChildContent);
             builder.CloseElement();
             builder.CloseRegion();
         }
@@ -279,10 +277,5 @@ public sealed class FieldLabel : ComponentBase, IReferencableComponent, IFieldSt
         }
 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
-    }
-
-    private Task HandlePointerDown(PointerEventArgs e)
-    {
-        return EventUtilities.InvokeOnPointerDownAsync(AdditionalAttributes, e);
     }
 }
