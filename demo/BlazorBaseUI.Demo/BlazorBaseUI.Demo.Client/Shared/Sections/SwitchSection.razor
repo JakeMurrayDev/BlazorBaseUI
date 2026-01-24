@@ -655,10 +655,16 @@
 
     private async Task ToggleViaInputElement()
     {
-        if (inputElementRef is not null)
+        if (inputElementRef?.InputElement is not null)
         {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("clickElement", inputElementRef.InputElement);
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("clickElement", inputElementRef.InputElement);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
         }
     }
 

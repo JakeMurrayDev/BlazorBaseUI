@@ -152,6 +152,7 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
         if (newResolvedId != resolvedControlId)
         {
             resolvedControlId = newResolvedId;
+            inputId = newResolvedId;
             LabelableContext?.SetControlId(resolvedControlId);
         }
 
