@@ -519,7 +519,7 @@ export function setPopupElement(rootId, element) {
 export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
     const floating = await ensureFloatingModule();
 
-    const positionerId = floating.initializePositioner({
+    const positionerId = await floating.initializePositioner({
         positionerElement,
         triggerElement,
         side,
@@ -545,7 +545,7 @@ export async function initializePositioner(positionerElement, triggerElement, si
 export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod) {
     const floating = await ensureFloatingModule();
 
-    floating.updatePositioner(positionerId, {
+    await floating.updatePositioner(positionerId, {
         triggerElement,
         side,
         align,

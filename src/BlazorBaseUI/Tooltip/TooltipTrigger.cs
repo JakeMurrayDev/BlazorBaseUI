@@ -23,6 +23,8 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
     private TooltipTriggerState state;
     private CancellationTokenSource? hoverCts;
     private TooltipHandle<TPayload>? registeredHandle;
+    private int lastEffectiveDelay = -1;
+    private int lastEffectiveCloseDelay = -1;
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
         JSRuntime!.InvokeAsync<IJSObjectReference>(
@@ -129,6 +131,17 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         if (!HasHandle)
         {
             RootContext?.SetTriggerPayload(triggerId, Payload);
+        }
+
+        // Re-initialize JS hover if effective delays changed
+        if (UseJsHover && hoverInitialized && !HasHandle && RootContext is not null && Element.HasValue)
+        {
+            var effectiveDelay = GetEffectiveDelay();
+            var effectiveCloseDelay = GetEffectiveCloseDelay();
+            if (effectiveDelay != lastEffectiveDelay || effectiveCloseDelay != lastEffectiveCloseDelay)
+            {
+                _ = InitializeHoverInteractionAsync();
+            }
         }
     }
 
@@ -492,6 +505,8 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             var disableHoverablePopup = RootContext.DisableHoverablePopup;
             await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, effectiveDelay, effectiveCloseDelay, disableHoverablePopup);
             hoverInitialized = true;
+            lastEffectiveDelay = effectiveDelay;
+            lastEffectiveCloseDelay = effectiveCloseDelay;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

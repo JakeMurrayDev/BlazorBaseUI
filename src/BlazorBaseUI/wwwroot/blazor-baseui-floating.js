@@ -27,14 +27,25 @@ const FLOATING_UI_KEY = Symbol.for('BlazorBaseUI.FloatingUI');
 
 async function loadScript(src) {
     return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-            resolve();
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            // If already loaded, resolve immediately
+            if (existing.dataset.loaded === 'true') {
+                resolve();
+                return;
+            }
+            // If still loading, wait for it
+            existing.addEventListener('load', resolve);
+            existing.addEventListener('error', reject);
             return;
         }
 
         const script = document.createElement('script');
         script.src = src;
-        script.onload = resolve;
+        script.onload = () => {
+            script.dataset.loaded = 'true';
+            resolve();
+        };
         script.onerror = reject;
         document.head.appendChild(script);
     });
