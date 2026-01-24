@@ -79,23 +79,28 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
                 builder.AddAttribute(6, "data-highlighted", string.Empty);
             }
 
-            builder.AddAttribute(7, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(9, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-            builder.AddAttribute(10, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
+            if (!string.IsNullOrEmpty(Label))
+            {
+                builder.AddAttribute(7, "data-label", Label);
+            }
+
+            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(9, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(10, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(11, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(11, "class", resolvedClass);
+                builder.AddAttribute(12, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(12, "style", resolvedStyle);
+                builder.AddAttribute(13, "style", resolvedStyle);
             }
 
-            builder.AddComponentParameter(13, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(14, component => Element = ((IReferencableComponent)component).Element);
+            builder.AddComponentParameter(14, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(15, component => Element = ((IReferencableComponent)component).Element);
             builder.CloseComponent();
             builder.CloseRegion();
         }
@@ -118,23 +123,28 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
                 builder.AddAttribute(6, "data-highlighted", string.Empty);
             }
 
-            builder.AddAttribute(7, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(9, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-            builder.AddAttribute(10, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
+            if (!string.IsNullOrEmpty(Label))
+            {
+                builder.AddAttribute(7, "data-label", Label);
+            }
+
+            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(9, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(10, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(11, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(11, "class", resolvedClass);
+                builder.AddAttribute(12, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(12, "style", resolvedStyle);
+                builder.AddAttribute(13, "style", resolvedStyle);
             }
 
-            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
-            builder.AddContent(14, ChildContent);
+            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
+            builder.AddContent(15, ChildContent);
             builder.CloseElement();
             builder.CloseRegion();
         }

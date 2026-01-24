@@ -19,6 +19,8 @@ public sealed class MenuPortal : ComponentBase
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    public ElementReference? Element { get; private set; }
+
     protected override void OnInitialized()
     {
         portalContext = new MenuPortalContext(KeepMounted);
@@ -55,6 +57,13 @@ public sealed class MenuPortal : ComponentBase
             innerBuilder.OpenComponent<Portal.Portal>(0);
             innerBuilder.AddAttribute(1, "Target", Container);
             innerBuilder.AddAttribute(2, "ChildContent", ChildContent);
+            innerBuilder.AddComponentReferenceCapture(3, component =>
+            {
+                if (component is IReferencableComponent referencable)
+                {
+                    Element = referencable.Element;
+                }
+            });
             innerBuilder.CloseComponent();
         }));
         builder.CloseComponent();

@@ -69,12 +69,14 @@ function handleGlobalKeyDown(e) {
                 return;
             default:
                 // Typeahead: find item starting with pressed character
+                // Use data-label attribute if set, otherwise fall back to textContent
                 if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
                     const char = e.key.toLowerCase();
                     const startIndex = currentIndex + 1;
                     for (let i = 0; i < items.length; i++) {
                         const idx = (startIndex + i) % items.length;
-                        const text = items[idx].textContent?.trim().toLowerCase() || '';
+                        const label = items[idx].getAttribute('data-label');
+                        const text = (label ?? items[idx].textContent)?.trim().toLowerCase() || '';
                         if (text.startsWith(char)) {
                             newIndex = idx;
                             break;
