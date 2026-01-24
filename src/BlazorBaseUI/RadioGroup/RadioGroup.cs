@@ -261,42 +261,41 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
 
             builder.AddAttribute(8, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
             builder.AddAttribute(9, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-            builder.AddAttribute(10, "onkeydowncapture", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture));
 
             if (state.Disabled)
-                builder.AddAttribute(11, "data-disabled", string.Empty);
+                builder.AddAttribute(10, "data-disabled", string.Empty);
 
             if (state.ReadOnly)
-                builder.AddAttribute(12, "data-readonly", string.Empty);
+                builder.AddAttribute(11, "data-readonly", string.Empty);
 
             if (state.Required)
-                builder.AddAttribute(13, "data-required", string.Empty);
+                builder.AddAttribute(12, "data-required", string.Empty);
 
             if (state.Valid == true)
-                builder.AddAttribute(14, "data-valid", string.Empty);
+                builder.AddAttribute(13, "data-valid", string.Empty);
             else if (state.Valid == false)
-                builder.AddAttribute(15, "data-invalid", string.Empty);
+                builder.AddAttribute(14, "data-invalid", string.Empty);
 
             if (state.Touched)
-                builder.AddAttribute(16, "data-touched", string.Empty);
+                builder.AddAttribute(15, "data-touched", string.Empty);
 
             if (state.Dirty)
-                builder.AddAttribute(17, "data-dirty", string.Empty);
+                builder.AddAttribute(16, "data-dirty", string.Empty);
 
             if (state.Filled)
-                builder.AddAttribute(18, "data-filled", string.Empty);
+                builder.AddAttribute(17, "data-filled", string.Empty);
 
             if (state.Focused)
-                builder.AddAttribute(19, "data-focused", string.Empty);
+                builder.AddAttribute(18, "data-focused", string.Empty);
 
             if (!string.IsNullOrEmpty(resolvedClass))
-                builder.AddAttribute(20, "class", resolvedClass);
+                builder.AddAttribute(19, "class", resolvedClass);
 
             if (!string.IsNullOrEmpty(resolvedStyle))
-                builder.AddAttribute(21, "style", resolvedStyle);
+                builder.AddAttribute(20, "style", resolvedStyle);
 
-            builder.AddComponentParameter(22, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(23, component => Element = ((IReferencableComponent)component).Element);
+            builder.AddComponentParameter(21, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(22, component => Element = ((IReferencableComponent)component).Element);
             builder.CloseComponent();
             builder.CloseRegion();
         }
@@ -326,42 +325,41 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
 
             builder.AddAttribute(8, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
             builder.AddAttribute(9, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-            builder.AddAttribute(10, "onkeydowncapture", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture));
 
             if (state.Disabled)
-                builder.AddAttribute(11, "data-disabled", string.Empty);
+                builder.AddAttribute(10, "data-disabled", string.Empty);
 
             if (state.ReadOnly)
-                builder.AddAttribute(12, "data-readonly", string.Empty);
+                builder.AddAttribute(11, "data-readonly", string.Empty);
 
             if (state.Required)
-                builder.AddAttribute(13, "data-required", string.Empty);
+                builder.AddAttribute(12, "data-required", string.Empty);
 
             if (state.Valid == true)
-                builder.AddAttribute(14, "data-valid", string.Empty);
+                builder.AddAttribute(13, "data-valid", string.Empty);
             else if (state.Valid == false)
-                builder.AddAttribute(15, "data-invalid", string.Empty);
+                builder.AddAttribute(14, "data-invalid", string.Empty);
 
             if (state.Touched)
-                builder.AddAttribute(16, "data-touched", string.Empty);
+                builder.AddAttribute(15, "data-touched", string.Empty);
 
             if (state.Dirty)
-                builder.AddAttribute(17, "data-dirty", string.Empty);
+                builder.AddAttribute(16, "data-dirty", string.Empty);
 
             if (state.Filled)
-                builder.AddAttribute(18, "data-filled", string.Empty);
+                builder.AddAttribute(17, "data-filled", string.Empty);
 
             if (state.Focused)
-                builder.AddAttribute(19, "data-focused", string.Empty);
+                builder.AddAttribute(18, "data-focused", string.Empty);
 
             if (!string.IsNullOrEmpty(resolvedClass))
-                builder.AddAttribute(20, "class", resolvedClass);
+                builder.AddAttribute(19, "class", resolvedClass);
 
             if (!string.IsNullOrEmpty(resolvedStyle))
-                builder.AddAttribute(21, "style", resolvedStyle);
+                builder.AddAttribute(20, "style", resolvedStyle);
 
-            builder.AddElementReferenceCapture(22, elementReference => Element = elementReference);
-            builder.AddContent(23, ChildContent);
+            builder.AddElementReferenceCapture(21, elementReference => Element = elementReference);
+            builder.AddContent(22, ChildContent);
             builder.CloseElement();
             builder.CloseRegion();
         }
@@ -522,15 +520,11 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         }
     }
 
-    private Task HandleKeyDownCapture(KeyboardEventArgs e)
+    [JSInvokable]
+    public void OnArrowKeyPressed()
     {
-        if (e.Key.StartsWith("Arrow"))
-        {
-            FieldContext?.SetTouched(true);
-            FieldContext?.SetFocused(true);
-        }
-
-        return EventUtilities.InvokeOnKeyDownCaptureAsync(AdditionalAttributes, e);
+        FieldContext?.SetTouched(true);
+        FieldContext?.SetFocused(true);
     }
 
     private void HandleHiddenInputChange(ChangeEventArgs e)

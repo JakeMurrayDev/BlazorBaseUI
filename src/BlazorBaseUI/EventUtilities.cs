@@ -47,11 +47,6 @@ public static class EventUtilities
         return InvokeEventAsync(additionalAttributes, "onblur", e);
     }
 
-    public static Task InvokeOnKeyDownCaptureAsync(IReadOnlyDictionary<string, object>? additionalAttributes, KeyboardEventArgs e)
-    {
-        return InvokeEventAsync(additionalAttributes, "onkeydowncapture", e);
-    }
-
     public static Task InvokeOnPointerDownAsync(IReadOnlyDictionary<string, object>? additionalAttributes, PointerEventArgs e)
     {
         return InvokeEventAsync(additionalAttributes, "onpointerdown", e);

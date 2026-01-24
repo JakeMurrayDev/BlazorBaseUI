@@ -91,7 +91,7 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
                 }
             }
 
-            if (!string.IsNullOrEmpty(DefaultValue))
+            if (DefaultValue is not null)
             {
                 builder.AddAttribute(4, "value", DefaultValue);
             }
@@ -143,7 +143,7 @@ public sealed class ToolbarInput : ComponentBase, IReferencableComponent, IDispo
                 }
             }
 
-            if (!string.IsNullOrEmpty(DefaultValue))
+            if (DefaultValue is not null)
             {
                 builder.AddAttribute(4, "value", DefaultValue);
             }

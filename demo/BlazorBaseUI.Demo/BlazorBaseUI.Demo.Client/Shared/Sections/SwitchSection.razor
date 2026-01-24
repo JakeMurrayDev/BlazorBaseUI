@@ -1,6 +1,7 @@
 ﻿@using BlazorBaseUI.Switch
 @using BlazorBaseUI.Field
 @using BlazorBaseUI.Form
+@using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
 
 <ComponentShowcase ComponentName="Switch"
@@ -592,9 +593,13 @@
     </DemoSection>
 </ComponentShowcase>
 
+@implements IAsyncDisposable
+
 @code {
     [Parameter]
     public bool IsWasmMode { get; set; }
+
+    private Lazy<Task<IJSObjectReference>> moduleTask = null!;
 
     private bool controlledChecked;
     private int changeCount;
@@ -612,6 +617,12 @@
     private SwitchRoot? inputElementRef;
 
     private Dictionary<string, string[]> externalErrors = new();
+
+    protected override void OnInitialized()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", "./demo-utilities.js").AsTask());
+    }
 
     private void HandleCheckedChange(SwitchCheckedChangeEventArgs e)
     {
@@ -644,9 +655,10 @@
 
     private async Task ToggleViaInputElement()
     {
-        if (inputElementRef?.InputElement.Id is not null)
+        if (inputElementRef is not null)
         {
-            await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{inputElementRef.InputElement.Id}')?.click()");
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("clickElement", inputElementRef.InputElement);
         }
     }
 
@@ -698,5 +710,20 @@
             return $"{baseClass} translate-x-5";
 
         return $"{baseClass} translate-x-0";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
     }
 }

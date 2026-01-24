@@ -85,14 +85,15 @@ export function initializeGroup(element, dotNetRef) {
         element,
         dotNetRef,
         items: new Set(),
-        keydownHandler: null
+        keydownCaptureHandler: null
     };
 
-    state.keydownHandler = (e) => {
+    state.keydownCaptureHandler = (e) => {
         const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
         if (arrowKeys.includes(e.key)) {
             e.preventDefault();
+            dotNetRef.invokeMethodAsync('OnArrowKeyPressed');
         }
 
         if (e.key === ' ') {
@@ -100,7 +101,7 @@ export function initializeGroup(element, dotNetRef) {
         }
     };
 
-    element.addEventListener('keydown', state.keydownHandler, { capture: true });
+    element.addEventListener('keydown', state.keydownCaptureHandler, { capture: true });
     groupState.set(element, state);
 }
 
@@ -111,8 +112,8 @@ export function disposeGroup(element) {
 
     const state = groupState.get(element);
     if (state) {
-        if (state.keydownHandler) {
-            element.removeEventListener('keydown', state.keydownHandler, { capture: true });
+        if (state.keydownCaptureHandler) {
+            element.removeEventListener('keydown', state.keydownCaptureHandler, { capture: true });
         }
         groupState.delete(element);
     }

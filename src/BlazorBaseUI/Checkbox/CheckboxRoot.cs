@@ -337,127 +337,118 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
         {
             builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenRegion(1);
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", checkboxId);
+            builder.AddAttribute(3, "role", "checkbox");
+            builder.AddAttribute(4, "aria-checked", CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false");
+            builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
 
-        builder.AddMultipleAttributes(2, AdditionalAttributes);
-        builder.AddAttribute(2, "id", checkboxId);
-        builder.AddAttribute(3, "role", "checkbox");
-        builder.AddAttribute(4, "aria-checked", CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false");
-        builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
+            if (ReadOnly)
+            {
+                builder.AddAttribute(6, "aria-readonly", "true");
+            }
 
-        if (ReadOnly)
-        {
-            builder.AddAttribute(6, "aria-readonly", "true");
-        }
+            if (Required)
+            {
+                builder.AddAttribute(7, "aria-required", "true");
+            }
 
-        if (Required)
-        {
-            builder.AddAttribute(7, "aria-required", "true");
-        }
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(8, "aria-labelledby", LabelableContext.LabelId);
+            }
 
-        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
-        {
-            builder.AddAttribute(8, "aria-labelledby", LabelableContext.LabelId);
-        }
+            var describedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(9, "aria-describedby", describedBy);
+            }
 
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (!string.IsNullOrEmpty(describedBy))
-        {
-            builder.AddAttribute(9, "aria-describedby", describedBy);
-        }
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "aria-invalid", "true");
+            }
 
-        if (state.Valid == false)
-        {
-            builder.AddAttribute(10, "aria-invalid", "true");
-        }
+            if (Parent)
+            {
+                builder.AddAttribute(11, ParentCheckboxAttribute, string.Empty);
+            }
 
-        if (Parent)
-        {
-            builder.AddAttribute(11, ParentCheckboxAttribute, string.Empty);
-        }
+            if (IsGroupedWithParent && Parent && !string.IsNullOrEmpty(GroupContext?.Parent?.AriaControls))
+            {
+                builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
+            }
 
-        if (IsGroupedWithParent && Parent && !string.IsNullOrEmpty(GroupContext?.Parent?.AriaControls))
-        {
-            builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
-        }
+            builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(14, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
 
-        builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(14, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
+            if (state.Indeterminate)
+            {
+                builder.AddAttribute(15, "data-indeterminate", string.Empty);
+            }
+            else if (state.Checked)
+            {
+                builder.AddAttribute(16, "data-checked", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(17, "data-unchecked", string.Empty);
+            }
 
-        if (state.Indeterminate)
-        {
-            builder.AddAttribute(15, "data-indeterminate", string.Empty);
-        }
-        else if (state.Checked)
-        {
-            builder.AddAttribute(16, "data-checked", string.Empty);
-        }
-        else
-        {
-            builder.AddAttribute(17, "data-unchecked", string.Empty);
-        }
+            if (state.Disabled)
+            {
+                builder.AddAttribute(18, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(18, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(19, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(19, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(20, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(20, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(21, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(22, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(21, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(22, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(23, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(23, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(24, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(24, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(25, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(25, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(26, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(26, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(27, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(27, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(28, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(28, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddComponentParameter(29, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(30, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
@@ -465,44 +456,158 @@ public sealed class CheckboxRoot : ComponentBase, IReferencableComponent, IField
         }
         else
         {
-            builder.AddElementReferenceCapture(31, elementReference => Element = elementReference);
-            builder.AddContent(32, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", checkboxId);
+            builder.AddAttribute(3, "role", "checkbox");
+            builder.AddAttribute(4, "aria-checked", CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false");
+            builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
+
+            if (ReadOnly)
+            {
+                builder.AddAttribute(6, "aria-readonly", "true");
+            }
+
+            if (Required)
+            {
+                builder.AddAttribute(7, "aria-required", "true");
+            }
+
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(8, "aria-labelledby", LabelableContext.LabelId);
+            }
+
+            var describedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(9, "aria-describedby", describedBy);
+            }
+
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "aria-invalid", "true");
+            }
+
+            if (Parent)
+            {
+                builder.AddAttribute(11, ParentCheckboxAttribute, string.Empty);
+            }
+
+            if (IsGroupedWithParent && Parent && !string.IsNullOrEmpty(GroupContext?.Parent?.AriaControls))
+            {
+                builder.AddAttribute(12, "aria-controls", GroupContext.Parent.AriaControls);
+            }
+
+            builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(14, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
+
+            if (state.Indeterminate)
+            {
+                builder.AddAttribute(15, "data-indeterminate", string.Empty);
+            }
+            else if (state.Checked)
+            {
+                builder.AddAttribute(16, "data-checked", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(17, "data-unchecked", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(18, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(19, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(20, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(21, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(22, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(23, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(24, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(25, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(26, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(27, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(28, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(29, elementReference => Element = elementReference);
+            builder.AddContent(30, ChildContent);
             builder.CloseElement();
             builder.CloseRegion();
         }
 
         if (!CurrentChecked && GroupContext is null && ResolvedName is not null && !Parent && UncheckedValue is not null)
         {
-            builder.OpenElement(33, "input");
-            builder.AddAttribute(34, "type", "hidden");
-            builder.AddAttribute(35, "name", ResolvedName);
-            builder.AddAttribute(36, "value", UncheckedValue);
+            builder.OpenElement(2, "input");
+            builder.AddAttribute(3, "type", "hidden");
+            builder.AddAttribute(4, "name", ResolvedName);
+            builder.AddAttribute(5, "value", UncheckedValue);
             builder.CloseElement();
         }
 
-        builder.OpenElement(37, "input");
-        builder.AddAttribute(38, "type", "checkbox");
-        builder.AddAttribute(39, "id", inputId);
-        builder.AddAttribute(40, "checked", CurrentChecked);
-        builder.AddAttribute(41, "disabled", ResolvedDisabled);
-        builder.AddAttribute(42, "required", Required);
-        builder.AddAttribute(43, "aria-hidden", "true");
-        builder.AddAttribute(44, "tabindex", -1);
-        builder.AddAttribute(45, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+        builder.OpenElement(6, "input");
+        builder.AddAttribute(7, "type", "checkbox");
+        builder.AddAttribute(8, "id", inputId);
+        builder.AddAttribute(9, "checked", CurrentChecked);
+        builder.AddAttribute(10, "disabled", ResolvedDisabled);
+        builder.AddAttribute(11, "required", Required);
+        builder.AddAttribute(12, "aria-hidden", "true");
+        builder.AddAttribute(13, "tabindex", -1);
+        builder.AddAttribute(14, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
         if (!Parent && ResolvedName is not null)
         {
-            builder.AddAttribute(46, "name", ResolvedName);
+            builder.AddAttribute(15, "name", ResolvedName);
         }
 
         if (ResolvedValue is not null)
         {
-            builder.AddAttribute(47, "value", ResolvedValue);
+            builder.AddAttribute(16, "value", ResolvedValue);
         }
 
-        builder.AddAttribute(48, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
-        builder.AddAttribute(49, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
-        builder.AddElementReferenceCapture(50, e => inputElement = e);
+        builder.AddAttribute(17, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
+        builder.AddAttribute(18, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
+        builder.AddElementReferenceCapture(19, e => inputElement = e);
         builder.CloseElement();
     }
 

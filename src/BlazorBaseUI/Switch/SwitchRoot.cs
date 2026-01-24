@@ -191,23 +191,11 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
         var labelId = LabelableContext?.LabelId;
         var describedBy = LabelableContext?.GetAriaDescribedBy();
 
-        if (isComponentRenderAs)
-        {
-            builder.OpenComponent(0, RenderAs!);
-        }
-        else if (NativeButton)
-        {
-            builder.OpenElement(0, "button");
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
-
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-
         if (NativeButton)
         {
+            builder.OpenRegion(0);
+            builder.OpenElement(0, "button");
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "id", resolvedControlId);
             builder.AddAttribute(3, "type", "button");
             builder.AddAttribute(4, "role", "switch");
@@ -217,157 +205,358 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
             {
                 builder.AddAttribute(6, "disabled", true);
             }
+
+            if (ReadOnly)
+            {
+                builder.AddAttribute(7, "aria-readonly", "true");
+            }
+
+            if (Required)
+            {
+                builder.AddAttribute(8, "aria-required", "true");
+            }
+
+            if (!string.IsNullOrEmpty(labelId))
+            {
+                builder.AddAttribute(9, "aria-labelledby", labelId);
+            }
+
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(10, "aria-describedby", describedBy);
+            }
+
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(11, "aria-invalid", "true");
+            }
+
+            builder.AddAttribute(12, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(13, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+
+            if (state.Checked)
+            {
+                builder.AddAttribute(14, "data-checked", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(15, "data-unchecked", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(16, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(17, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(18, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(19, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(20, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(21, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(22, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(23, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(24, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(25, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(26, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(27, elementReference => Element = elementReference);
+            builder.AddContent(28, ChildContent);
+            builder.CloseElement();
+            builder.CloseRegion();
         }
-        else
+        else if (isComponentRenderAs)
         {
+            builder.OpenRegion(1);
+            builder.OpenComponent(0, RenderAs!);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "id", switchId);
             builder.AddAttribute(3, "role", "switch");
             builder.AddAttribute(4, "aria-checked", CurrentChecked ? "true" : "false");
             builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
-        }
 
-        if (ReadOnly)
-        {
-            builder.AddAttribute(6, "aria-readonly", "true");
-        }
+            if (ReadOnly)
+            {
+                builder.AddAttribute(6, "aria-readonly", "true");
+            }
 
-        if (Required)
-        {
-            builder.AddAttribute(7, "aria-required", "true");
-        }
+            if (Required)
+            {
+                builder.AddAttribute(7, "aria-required", "true");
+            }
 
-        if (!string.IsNullOrEmpty(labelId))
-        {
-            builder.AddAttribute(8, "aria-labelledby", labelId);
-        }
+            if (!string.IsNullOrEmpty(labelId))
+            {
+                builder.AddAttribute(8, "aria-labelledby", labelId);
+            }
 
-        if (!string.IsNullOrEmpty(describedBy))
-        {
-            builder.AddAttribute(9, "aria-describedby", describedBy);
-        }
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(9, "aria-describedby", describedBy);
+            }
 
-        if (state.Valid == false)
-        {
-            builder.AddAttribute(10, "aria-invalid", "true");
-        }
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "aria-invalid", "true");
+            }
 
-        builder.AddAttribute(11, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(12, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+            builder.AddAttribute(11, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(12, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
 
-        if (state.Checked)
-        {
-            builder.AddAttribute(13, "data-checked", string.Empty);
-        }
-        else
-        {
-            builder.AddAttribute(14, "data-unchecked", string.Empty);
-        }
+            if (state.Checked)
+            {
+                builder.AddAttribute(13, "data-checked", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(14, "data-unchecked", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(15, "data-disabled", string.Empty);
-        }
+            if (state.Disabled)
+            {
+                builder.AddAttribute(15, "data-disabled", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(16, "data-readonly", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(16, "data-readonly", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(17, "data-required", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(17, "data-required", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(18, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(19, "data-invalid", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(18, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(19, "data-invalid", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(20, "data-touched", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(20, "data-touched", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(21, "data-dirty", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(21, "data-dirty", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(22, "data-filled", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(22, "data-filled", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(23, "data-focused", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(23, "data-focused", string.Empty);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(24, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(24, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(25, "style", resolvedStyle);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(25, "style", resolvedStyle);
+            }
 
-        if (isComponentRenderAs)
-        {
             builder.AddComponentParameter(26, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(27, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(28, elementReference => Element = elementReference);
-            builder.AddContent(29, ChildContent);
+            builder.OpenRegion(2);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", switchId);
+            builder.AddAttribute(3, "role", "switch");
+            builder.AddAttribute(4, "aria-checked", CurrentChecked ? "true" : "false");
+            builder.AddAttribute(5, "tabindex", ResolvedDisabled ? -1 : 0);
+
+            if (ReadOnly)
+            {
+                builder.AddAttribute(6, "aria-readonly", "true");
+            }
+
+            if (Required)
+            {
+                builder.AddAttribute(7, "aria-required", "true");
+            }
+
+            if (!string.IsNullOrEmpty(labelId))
+            {
+                builder.AddAttribute(8, "aria-labelledby", labelId);
+            }
+
+            if (!string.IsNullOrEmpty(describedBy))
+            {
+                builder.AddAttribute(9, "aria-describedby", describedBy);
+            }
+
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "aria-invalid", "true");
+            }
+
+            builder.AddAttribute(11, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(12, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+
+            if (state.Checked)
+            {
+                builder.AddAttribute(13, "data-checked", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(14, "data-unchecked", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(15, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(16, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(17, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(18, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(19, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(20, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(21, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(22, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(23, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(24, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(25, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(26, elementReference => Element = elementReference);
+            builder.AddContent(27, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
 
+        builder.OpenRegion(3);
         if (!CurrentChecked && ResolvedName is not null && UncheckedValue is not null)
         {
-            builder.OpenElement(30, "input");
-            builder.AddAttribute(31, "type", "hidden");
-            builder.AddAttribute(32, "name", ResolvedName);
-            builder.AddAttribute(33, "value", UncheckedValue);
+            builder.OpenElement(0, "input");
+            builder.AddAttribute(1, "type", "hidden");
+            builder.AddAttribute(2, "name", ResolvedName);
+            builder.AddAttribute(3, "value", UncheckedValue);
             builder.CloseElement();
         }
+        builder.CloseRegion();
 
-        builder.OpenElement(34, "input");
-        builder.AddAttribute(35, "type", "checkbox");
+        builder.OpenRegion(4);
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "type", "checkbox");
 
         if (!NativeButton)
         {
-            builder.AddAttribute(36, "id", inputId);
+            builder.AddAttribute(2, "id", inputId);
         }
 
-        builder.AddAttribute(37, "checked", CurrentChecked);
-        builder.AddAttribute(38, "disabled", ResolvedDisabled);
-        builder.AddAttribute(39, "required", Required);
-        builder.AddAttribute(40, "aria-hidden", "true");
-        builder.AddAttribute(41, "tabindex", -1);
-        builder.AddAttribute(42, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+        builder.AddAttribute(3, "checked", CurrentChecked);
+        builder.AddAttribute(4, "disabled", ResolvedDisabled);
+        builder.AddAttribute(5, "required", Required);
+        builder.AddAttribute(6, "aria-hidden", "true");
+        builder.AddAttribute(7, "tabindex", -1);
+        builder.AddAttribute(8, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
         if (ResolvedName is not null)
         {
-            builder.AddAttribute(43, "name", ResolvedName);
+            builder.AddAttribute(9, "name", ResolvedName);
         }
 
         if (Value is not null)
         {
-            builder.AddAttribute(44, "value", Value);
+            builder.AddAttribute(10, "value", Value);
         }
 
-        builder.AddAttribute(45, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
-        builder.AddAttribute(46, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
-        builder.AddElementReferenceCapture(47, elementReference => inputElement = elementReference);
+        builder.AddAttribute(11, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInputChangeAsync));
+        builder.AddAttribute(12, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleInputFocusAsync));
+        builder.AddElementReferenceCapture(13, elementReference => inputElement = elementReference);
         builder.CloseElement();
+        builder.CloseRegion();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

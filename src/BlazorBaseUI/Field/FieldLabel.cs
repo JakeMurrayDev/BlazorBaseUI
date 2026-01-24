@@ -266,16 +266,16 @@ public sealed class FieldLabel : ComponentBase, IReferencableComponent, IFieldSt
 
     private async Task HandleClick(MouseEventArgs e)
     {
-        if (NativeLabel || string.IsNullOrEmpty(LabelableContext?.ControlId))
-            return;
-
-        try
+        if (!NativeLabel && !string.IsNullOrEmpty(LabelableContext?.ControlId))
         {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focusControlById", LabelableContext.ControlId);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("focusControlById", LabelableContext.ControlId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
         }
 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);

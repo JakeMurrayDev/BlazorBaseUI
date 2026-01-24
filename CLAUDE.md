@@ -384,12 +384,12 @@ builder.AddMultipleAttributes(1, AdditionalAttributes);
 builder.AddAttribute(10, "onclick", internalHandler);
 ```
 
-### Solution: Use Explicit EventUtitities Helper Methods
+### Solution: Use Explicit EventUtilities Helper Methods
 
-For interactive components (triggers, inputs), add `EventUtiltites` helper method:
+For interactive components (triggers, inputs), add `EventUtilities` helper method:
 
 ```csharp
-await EventUtitities.InvokeOnClickAsync(AdditionalAttributes, e); // Or other event methods
+await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e); // Or other event methods
 ```
 
 In the handler, call user callback **after** internal logic:
@@ -401,7 +401,7 @@ private async Task HandleClickAsync(MouseEventArgs e)
     await Context.SetOpenAsync(true, reason);
 
     // User handler runs after (if provided)
-    await EventUtitities.InvokeOnClickAsync(AdditionalAttributes, e);
+    await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
 }
 ```
 
