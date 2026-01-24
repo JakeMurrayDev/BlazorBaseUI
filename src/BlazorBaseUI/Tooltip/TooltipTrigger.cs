@@ -25,6 +25,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
     private TooltipHandle<TPayload>? registeredHandle;
     private int lastEffectiveDelay = -1;
     private int lastEffectiveCloseDelay = -1;
+    private bool lastUseJsHover;
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
         JSRuntime!.InvokeAsync<IJSObjectReference>(
@@ -133,8 +134,24 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             RootContext?.SetTriggerPayload(triggerId, Payload);
         }
 
+        // Handle UseJsHover parameter changes
+        if (UseJsHover != lastUseJsHover)
+        {
+            if (UseJsHover && !hoverInitialized && !HasHandle && RootContext is not null && Element.HasValue)
+            {
+                // Switched to JS hover mode - initialize
+                _ = InitializeHoverInteractionAsync();
+            }
+            else if (!UseJsHover && hoverInitialized)
+            {
+                // Switched away from JS hover mode - dispose
+                _ = DisposeHoverInteractionAsync();
+            }
+
+            lastUseJsHover = UseJsHover;
+        }
         // Re-initialize JS hover if effective delays changed
-        if (UseJsHover && hoverInitialized && !HasHandle && RootContext is not null && Element.HasValue)
+        else if (UseJsHover && hoverInitialized && !HasHandle && RootContext is not null && Element.HasValue)
         {
             var effectiveDelay = GetEffectiveDelay();
             var effectiveCloseDelay = GetEffectiveCloseDelay();
@@ -158,6 +175,8 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             {
                 RootContext?.RegisterTriggerElement(triggerId, Element);
             }
+
+            lastUseJsHover = UseJsHover;
 
             if (UseJsHover && !hoverInitialized && !HasHandle)
             {
@@ -513,6 +532,29 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         {
             // Circuit-safe JS interop - intentional empty catch for disconnection during initialization
         }
+    }
+
+    private async Task DisposeHoverInteractionAsync()
+    {
+        if (!hoverInitialized || moduleTask?.IsValueCreated != true || RootContext is null)
+        {
+            hoverInitialized = false;
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during disposal
+        }
+
+        hoverInitialized = false;
+        lastEffectiveDelay = -1;
+        lastEffectiveCloseDelay = -1;
     }
 
     private Task RequestOpenAsync(bool open, TooltipOpenChangeReason reason)
