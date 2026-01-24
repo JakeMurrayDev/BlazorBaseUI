@@ -696,7 +696,6 @@ public sealed class SwitchRoot : ComponentBase, IReferencableComponent, IFieldSt
     private async Task HandleInputFocusAsync(FocusEventArgs e)
     {
         await FocusAsync();
-        await EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task SetChecked(bool value)
