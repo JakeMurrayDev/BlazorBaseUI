@@ -151,7 +151,6 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         }
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during disposal")]
     public async ValueTask DisposeAsync()
     {
         if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && RootContext is not null)
@@ -163,6 +162,7 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                // Circuit-safe JS interop - intentional empty catch for disconnection during disposal
             }
         }
     }
@@ -244,7 +244,6 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during initialization")]
     private async Task InitializeHoverInteractionAsync()
     {
         if (RootContext is null || !Element.HasValue)
@@ -261,6 +260,7 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during initialization
         }
     }
 }

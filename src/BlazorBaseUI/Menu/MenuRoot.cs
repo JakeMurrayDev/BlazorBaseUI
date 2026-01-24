@@ -129,7 +129,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         builder.CloseComponent();
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during disposal")]
     public async ValueTask DisposeAsync()
     {
         if (moduleTask?.IsValueCreated == true && hasRendered)
@@ -142,6 +141,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                // Circuit-safe JS interop - intentional empty catch for disconnection during disposal
             }
         }
 
@@ -215,7 +215,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         await SetOpenAsync(false, OpenChangeReason.TriggerHover);
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during state sync")]
     internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason)
     {
         if (CurrentOpen == nextOpen)
@@ -276,6 +275,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                // Circuit-safe JS interop - intentional empty catch for disconnection during state sync
             }
         }
 
@@ -303,7 +303,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         setOpenAsync: SetOpenAsyncFromContext,
         emitClose: EmitClose);
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during initialization")]
     private async Task InitializeJsAsync()
     {
         try
@@ -315,6 +314,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during initialization
         }
     }
 
@@ -328,7 +328,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during element sync")]
     private async Task SetTriggerElementAsync(ElementReference element)
     {
         try
@@ -338,6 +337,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during element sync
         }
     }
 
@@ -356,7 +356,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during element sync")]
     private async Task SetPopupElementAsync(ElementReference element)
     {
         try
@@ -366,6 +365,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during element sync
         }
     }
 
@@ -385,7 +385,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during index sync")]
     private async Task SetActiveIndexAsync(int index)
     {
         try
@@ -395,6 +394,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during index sync
         }
     }
 

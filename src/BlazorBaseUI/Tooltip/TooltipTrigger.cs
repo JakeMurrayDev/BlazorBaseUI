@@ -246,7 +246,6 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during disposal")]
     public async ValueTask DisposeAsync()
     {
         CancelHoverDelay();
@@ -262,6 +261,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                // Circuit-safe JS interop - intentional empty catch for disconnection during disposal
             }
         }
     }
@@ -477,7 +477,6 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
     }
 
-    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during initialization")]
     private async Task InitializeHoverInteractionAsync()
     {
         if (RootContext is null || !Element.HasValue)
@@ -496,6 +495,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            // Circuit-safe JS interop - intentional empty catch for disconnection during initialization
         }
     }
 

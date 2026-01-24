@@ -94,8 +94,8 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
             builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             RenderAttributes(builder, resolvedClass, resolvedStyle, open, highlighted, disabled);
-            builder.AddComponentParameter(18, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(19, component => Element = ((IReferencableComponent)component).Element);
+            builder.AddComponentParameter(17, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(18, component => Element = ((IReferencableComponent)component).Element);
             builder.CloseComponent();
             builder.CloseRegion();
         }
@@ -104,8 +104,8 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
             builder.OpenRegion(1);
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
             RenderAttributes(builder, resolvedClass, resolvedStyle, open, highlighted, disabled);
-            builder.AddContent(18, ChildContent);
-            builder.AddElementReferenceCapture(19, elementReference => Element = elementReference);
+            builder.AddContent(17, ChildContent);
+            builder.AddElementReferenceCapture(18, elementReference => Element = elementReference);
             builder.CloseElement();
             builder.CloseRegion();
         }
@@ -132,40 +132,39 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
         builder.AddAttribute(7, "tabindex", open || highlighted ? 0 : -1);
         builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
         builder.AddAttribute(9, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-        builder.AddAttribute(10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlurAsync));
 
         if (open)
         {
-            builder.AddAttribute(11, "data-open", string.Empty);
+            builder.AddAttribute(10, "data-open", string.Empty);
         }
         else
         {
-            builder.AddAttribute(12, "data-closed", string.Empty);
+            builder.AddAttribute(11, "data-closed", string.Empty);
         }
 
         if (disabled)
         {
-            builder.AddAttribute(13, "data-disabled", string.Empty);
+            builder.AddAttribute(12, "data-disabled", string.Empty);
         }
 
         if (highlighted)
         {
-            builder.AddAttribute(14, "data-highlighted", string.Empty);
+            builder.AddAttribute(13, "data-highlighted", string.Empty);
         }
 
         if (!string.IsNullOrEmpty(Label))
         {
-            builder.AddAttribute(15, "data-label", Label);
+            builder.AddAttribute(14, "data-label", Label);
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(16, "class", resolvedClass);
+            builder.AddAttribute(15, "class", resolvedClass);
         }
 
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(17, "style", resolvedStyle);
+            builder.AddAttribute(16, "style", resolvedStyle);
         }
     }
 
@@ -186,7 +185,6 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
-    [SlopwatchSuppress("SW003", "TaskCanceledException is expected when hover delay is cancelled by user mouse movement")]
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
         if (Disabled || RootContext is null)
@@ -211,13 +209,13 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
             }
             catch (TaskCanceledException)
             {
+                // TaskCanceledException is expected when hover delay is cancelled by user mouse movement
             }
         }
 
         await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
     }
 
-    [SlopwatchSuppress("SW003", "TaskCanceledException is expected when hover delay is cancelled by user mouse movement")]
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
         if (Disabled || RootContext is null)
@@ -243,15 +241,11 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
             }
             catch (TaskCanceledException)
             {
+                // TaskCanceledException is expected when hover delay is cancelled by user mouse movement
             }
         }
 
         await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
-    }
-
-    private async Task HandleBlurAsync(FocusEventArgs e)
-    {
-        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private void CancelHoverDelay()
