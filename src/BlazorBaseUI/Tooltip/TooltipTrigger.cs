@@ -297,7 +297,6 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             }
         }
     }
-    }
 
     private void OnElementChanged()
     {
