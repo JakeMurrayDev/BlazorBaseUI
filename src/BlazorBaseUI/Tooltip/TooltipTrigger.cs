@@ -1,6 +1,8 @@
+using BlazorBaseUI.Utilities;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Tooltip;
 
@@ -9,16 +11,25 @@ namespace BlazorBaseUI.Tooltip;
 /// or detached with a handle for typed payloads.
 /// </summary>
 /// <typeparam name="TPayload">The type of payload to pass to the tooltip. Use object for untyped payloads.</typeparam>
-public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableComponent, IDisposable
+public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
 
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool isComponentRenderAs;
+    private bool hoverInitialized;
     private IReferencableComponent? componentReference;
     private string triggerId = null!;
     private TooltipTriggerState state;
     private CancellationTokenSource? hoverCts;
     private TooltipHandle<TPayload>? registeredHandle;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime!.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-tooltip.js").AsTask());
+
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
 
     [CascadingParameter]
     private TooltipRootContext? RootContext { get; set; }
@@ -40,6 +51,14 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     [Parameter]
     public int CloseDelay { get; set; }
+
+    /// <summary>
+    /// When true, uses JavaScript-based hover interaction with safePolygon support,
+    /// allowing the user to move their cursor from the trigger to the tooltip popup
+    /// without it closing. When false, uses C# Task.Delay for hover handling.
+    /// </summary>
+    [Parameter]
+    public bool UseJsHover { get; set; }
 
     [Parameter]
     public string? Id { get; set; }
@@ -125,6 +144,11 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             else
             {
                 RootContext?.RegisterTriggerElement(triggerId, Element);
+            }
+
+            if (UseJsHover && !hoverInitialized && !HasHandle)
+            {
+                _ = InitializeHoverInteractionAsync();
             }
         }
     }
@@ -222,10 +246,24 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
     }
 
-    public void Dispose()
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during disposal")]
+    public async ValueTask DisposeAsync()
     {
         CancelHoverDelay();
         UnregisterFromCurrentStore(triggerId);
+
+        if (UseJsHover && hoverInitialized && moduleTask?.IsValueCreated == true && RootContext is not null)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
     }
 
     private void OnElementChanged()
@@ -299,6 +337,13 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
+        // When using JS hover, let JavaScript handle the hover interaction
+        if (UseJsHover && hoverInitialized)
+        {
+            await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
+            return;
+        }
+
         if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
@@ -340,6 +385,13 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
+        // When using JS hover, let JavaScript handle the hover interaction
+        if (UseJsHover && hoverInitialized)
+        {
+            await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+            return;
+        }
+
         if (IsDisabled || (!HasRootContext && !HasHandle))
         {
             return;
@@ -422,6 +474,28 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             hoverCts.Cancel();
             hoverCts.Dispose();
             hoverCts = null;
+        }
+    }
+
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during initialization")]
+    private async Task InitializeHoverInteractionAsync()
+    {
+        if (RootContext is null || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            var effectiveDelay = GetEffectiveDelay();
+            var effectiveCloseDelay = GetEffectiveCloseDelay();
+            var disableHoverablePopup = RootContext.DisableHoverablePopup;
+            await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, effectiveDelay, effectiveCloseDelay, disableHoverablePopup);
+            hoverInitialized = true;
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
         }
     }
 

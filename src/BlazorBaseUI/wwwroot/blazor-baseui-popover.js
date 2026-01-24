@@ -1,3 +1,19 @@
+/**
+ * BlazorBaseUI Popover Component
+ *
+ * Popover-specific functionality that builds on the shared floating infrastructure.
+ */
+
+// Reference to shared floating module (loaded separately)
+let floatingModule = null;
+
+async function ensureFloatingModule() {
+    if (!floatingModule) {
+        floatingModule = await import('./blazor-baseui-floating.js');
+    }
+    return floatingModule;
+}
+
 const STATE_KEY = Symbol.for('BlazorBaseUI.Popover.State');
 
 if (!window[STATE_KEY]) {
@@ -16,6 +32,78 @@ function initGlobalListeners() {
     document.addEventListener('keydown', handleGlobalKeyDown);
     document.addEventListener('mousedown', handleGlobalMouseDown);
     state.globalListenersInitialized = true;
+}
+
+// ============================================================================
+// Hover Interaction Support
+// ============================================================================
+
+export async function initializeHoverInteraction(rootId, triggerElement, openDelay, closeDelay) {
+    let rootState = state.roots.get(rootId);
+
+    // If root state doesn't exist yet, wait briefly for it to be initialized
+    if (!rootState) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        rootState = state.roots.get(rootId);
+        if (!rootState) return;
+    }
+
+    // Store the trigger element if provided
+    if (triggerElement) {
+        rootState.triggerElement = triggerElement;
+    }
+
+    if (!rootState.triggerElement) return;
+
+    const floating = await ensureFloatingModule();
+
+    // Clean up existing hover interaction
+    if (rootState.hoverInteraction) {
+        rootState.hoverInteraction.cleanup();
+    }
+
+    rootState.hoverInteraction = floating.createHoverInteraction({
+        interactionId: `popover-hover-${rootId}`,
+        triggerElement: rootState.triggerElement,
+        floatingElement: rootState.popupElement,
+        openDelay: openDelay || 0,
+        closeDelay: closeDelay || 0,
+        mouseOnly: true,
+        useSafePolygon: true,
+        safePolygonOptions: { blockPointerEvents: false },
+        onOpen: (reason) => {
+            if (rootState.dotNetRef && !rootState.isOpen) {
+                rootState.dotNetRef.invokeMethodAsync('OnHoverOpen').catch(() => { });
+            }
+        },
+        onClose: (reason) => {
+            if (rootState.dotNetRef && rootState.isOpen) {
+                rootState.dotNetRef.invokeMethodAsync('OnHoverClose').catch(() => { });
+            }
+        }
+    });
+}
+
+export function disposeHoverInteraction(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (rootState?.hoverInteraction) {
+        rootState.hoverInteraction.cleanup();
+        rootState.hoverInteraction = null;
+    }
+}
+
+export function updateHoverInteractionFloatingElement(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (rootState?.hoverInteraction && rootState.popupElement) {
+        rootState.hoverInteraction.setFloatingElement(rootState.popupElement);
+    }
+}
+
+export function setHoverInteractionOpen(rootId, isOpen) {
+    const rootState = state.roots.get(rootId);
+    if (rootState?.hoverInteraction) {
+        rootState.hoverInteraction.setOpen(isOpen);
+    }
 }
 
 function handleGlobalKeyDown(e) {
@@ -67,6 +155,10 @@ function handleGlobalMouseDown(e) {
     }
 }
 
+// ============================================================================
+// Root Management
+// ============================================================================
+
 export function initializeRoot(rootId, dotNetRef) {
     initGlobalListeners();
 
@@ -75,30 +167,45 @@ export function initializeRoot(rootId, dotNetRef) {
         isOpen: false,
         triggerElement: null,
         positionerElement: null,
-        popupElement: null
+        popupElement: null,
+        hoverInteraction: null
     });
 }
 
 export function disposeRoot(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        // Clean up hover interaction
+        if (rootState.hoverInteraction) {
+            rootState.hoverInteraction.cleanup();
+        }
+    }
     state.roots.delete(rootId);
 }
 
-export function setRootOpen(rootId, isOpen) {
+export function setRootOpen(rootId, isOpen, reason) {
     const rootState = state.roots.get(rootId);
     if (!rootState) return;
 
     rootState.isOpen = isOpen;
     rootState.pendingOpen = isOpen;
+    rootState.openReason = reason;
 
-    // For opening, we need to wait for the popup element to be available
-    // The popup might not be rendered yet on first open
+    // Sync with hover interaction
+    if (rootState.hoverInteraction) {
+        rootState.hoverInteraction.setOpen(isOpen);
+    }
+
     if (isOpen) {
         waitForPopupAndStartTransition(rootState, isOpen);
     } else {
-        // For closing, the popup element should already be available
         startTransition(rootState, isOpen);
     }
 }
+
+// ============================================================================
+// Transition Handling
+// ============================================================================
 
 function waitForPopupAndStartTransition(rootState, isOpen) {
     const popupElement = rootState.popupElement;
@@ -108,25 +215,24 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
         return;
     }
 
-    // Popup not available yet, wait for it using requestAnimationFrame
-    // This handles the case where the popup is being rendered for the first time
     let attempts = 0;
-    const maxAttempts = 10; // Limit retries to avoid infinite loops
+    const maxAttempts = 10;
 
     function checkForPopup() {
         attempts++;
         const element = rootState.popupElement;
 
         if (element) {
-            // Popup is now available, start the transition
+            // Update hover interaction with the new popup element
+            if (rootState.hoverInteraction) {
+                rootState.hoverInteraction.setFloatingElement(element);
+            }
             if (rootState.pendingOpen === isOpen) {
                 startTransition(rootState, isOpen);
             }
         } else if (attempts < maxAttempts && rootState.pendingOpen === isOpen) {
-            // Keep waiting
             requestAnimationFrame(checkForPopup);
         } else if (rootState.dotNetRef && rootState.pendingOpen === isOpen) {
-            // Give up waiting, call OnStartingStyleApplied anyway so UI isn't stuck
             rootState.dotNetRef.invokeMethodAsync('OnStartingStyleApplied').catch(() => { });
         }
     }
@@ -134,44 +240,37 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
     requestAnimationFrame(checkForPopup);
 }
 
-function startTransition(rootState, isOpen) {
+async function startTransition(rootState, isOpen) {
     const popupElement = rootState.popupElement;
 
     if (!popupElement) {
-        // No popup element, call transition end immediately
         if (rootState.dotNetRef) {
             rootState.dotNetRef.invokeMethodAsync('OnTransitionEnd', isOpen).catch(() => { });
         }
         return;
     }
 
-    // Check if the element has transitions or animations
-    const hasTransition = checkForTransitionOrAnimation(popupElement);
+    const floating = await ensureFloatingModule();
+    const hasTransition = floating.checkForTransitionOrAnimation(popupElement);
 
     if (isOpen) {
-        // For opening: wait for the initial render with starting styles, then clear starting status
-        // Use double rAF to ensure the browser has painted the initial state
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                // Guard against stale state - if pendingOpen changed, abort this transition
                 if (rootState.pendingOpen !== isOpen) {
                     return;
                 }
                 if (hasTransition) {
                     setupTransitionEndListener(rootState, isOpen);
                 }
-                // Tell C# to clear the Starting status so the element transitions to open state
                 if (rootState.dotNetRef) {
                     rootState.dotNetRef.invokeMethodAsync('OnStartingStyleApplied').catch(() => { });
                 }
             });
         });
     } else {
-        // For closing: set up listener immediately since element is already visible
         if (hasTransition) {
             setupTransitionEndListener(rootState, isOpen);
         } else {
-            // No transition, call immediately
             if (rootState.dotNetRef) {
                 rootState.dotNetRef.invokeMethodAsync('OnTransitionEnd', isOpen).catch(() => { });
             }
@@ -179,70 +278,12 @@ function startTransition(rootState, isOpen) {
     }
 }
 
-function checkForTransitionOrAnimation(element) {
-    const style = getComputedStyle(element);
-
-    // Check for CSS transitions using parsed duration to handle "0s, 0s" correctly
-    const transitionDuration = parseCssDuration(style.transitionDuration);
-    const hasTransition = transitionDuration > 0;
-
-    // Check for CSS animations using parsed duration
-    const animationName = style.animationName;
-    const animationDuration = parseCssDuration(style.animationDuration);
-    const hasAnimation = animationName && animationName !== 'none' && animationDuration > 0;
-
-    return hasTransition || hasAnimation;
-}
-
-function parseCssDuration(durationStr) {
-    if (!durationStr || durationStr === 'none') return 0;
-
-    // Handle comma-separated values (e.g., "0.3s, 0.5s") - take the max
-    const durations = durationStr.split(',').map(d => d.trim());
-    let maxMs = 0;
-
-    for (const duration of durations) {
-        let ms = 0;
-        if (duration.endsWith('ms')) {
-            ms = parseFloat(duration);
-        } else if (duration.endsWith('s')) {
-            ms = parseFloat(duration) * 1000;
-        }
-        if (!isNaN(ms) && ms > maxMs) {
-            maxMs = ms;
-        }
-    }
-
-    return maxMs;
-}
-
-function getMaxTransitionDuration(element) {
-    const style = getComputedStyle(element);
-
-    // Get transition duration + delay
-    const transitionDuration = parseCssDuration(style.transitionDuration);
-    const transitionDelay = parseCssDuration(style.transitionDelay);
-    const totalTransition = transitionDuration + transitionDelay;
-
-    // Get animation duration + delay
-    const animationDuration = parseCssDuration(style.animationDuration);
-    const animationDelay = parseCssDuration(style.animationDelay);
-    const totalAnimation = animationDuration + animationDelay;
-
-    // Return the maximum of transition or animation, with a buffer and bounds
-    const maxDuration = Math.max(totalTransition, totalAnimation);
-    const withBuffer = maxDuration + 50; // Add 50ms buffer
-    const minTimeout = 100;
-    const maxTimeout = 10000;
-
-    return Math.max(minTimeout, Math.min(withBuffer, maxTimeout));
-}
-
-function setupTransitionEndListener(rootState, isOpen) {
+async function setupTransitionEndListener(rootState, isOpen) {
     const popupElement = rootState.popupElement;
     if (!popupElement) return;
 
-    // Clean up any existing listener and cancel pending fallback timeout
+    const floating = await ensureFloatingModule();
+
     if (rootState.transitionCleanup) {
         rootState.transitionCleanup();
         rootState.transitionCleanup = null;
@@ -254,13 +295,10 @@ function setupTransitionEndListener(rootState, isOpen) {
 
     let called = false;
     const handleEnd = (event) => {
-        // Only handle events from the popup element itself, not children
         if (event.target !== popupElement) return;
         if (called) return;
         called = true;
-
         cleanup();
-
         if (rootState.dotNetRef) {
             rootState.dotNetRef.invokeMethodAsync('OnTransitionEnd', isOpen).catch(() => { });
         }
@@ -281,8 +319,7 @@ function setupTransitionEndListener(rootState, isOpen) {
 
     rootState.transitionCleanup = cleanup;
 
-    // Fallback timeout based on actual CSS duration
-    const fallbackTimeout = getMaxTransitionDuration(popupElement);
+    const fallbackTimeout = floating.getMaxTransitionDuration(popupElement);
     rootState.fallbackTimeoutId = setTimeout(() => {
         if (!called && rootState.dotNetRef) {
             called = true;
@@ -291,6 +328,10 @@ function setupTransitionEndListener(rootState, isOpen) {
         }
     }, fallbackTimeout);
 }
+
+// ============================================================================
+// Element References
+// ============================================================================
 
 export function setTriggerElement(rootId, element) {
     const rootState = state.roots.get(rootId);
@@ -303,109 +344,21 @@ export function setPopupElement(rootId, element) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
         rootState.popupElement = element;
-    }
-}
-
-// Auto-update: track scroll and resize to reposition the positioner
-function setupAutoUpdate(positionerState) {
-    const { positionerElement, triggerElement } = positionerState;
-    if (!positionerElement || !triggerElement) return;
-
-    // Clean up existing listeners
-    cleanupAutoUpdate(positionerState);
-
-    const update = () => {
-        updatePositionInternal(positionerState);
-    };
-
-    // Scroll listener on all scrollable ancestors
-    const scrollParents = getScrollParents(triggerElement);
-    scrollParents.forEach(parent => {
-        parent.addEventListener('scroll', update, { passive: true });
-    });
-
-    // Resize listener
-    window.addEventListener('resize', update, { passive: true });
-
-    // Store cleanup info
-    positionerState.cleanup = () => {
-        scrollParents.forEach(parent => {
-            parent.removeEventListener('scroll', update);
-        });
-        window.removeEventListener('resize', update);
-    };
-}
-
-function cleanupAutoUpdate(positionerState) {
-    if (positionerState.cleanup) {
-        positionerState.cleanup();
-        positionerState.cleanup = null;
-    }
-}
-
-function getScrollParents(element) {
-    const scrollParents = [];
-    let current = element.parentElement;
-
-    while (current) {
-        const style = getComputedStyle(current);
-        const overflow = style.overflow + style.overflowX + style.overflowY;
-        if (/auto|scroll|overlay/.test(overflow)) {
-            scrollParents.push(current);
+        // Update hover interaction with the new popup element
+        if (rootState.hoverInteraction && element) {
+            rootState.hoverInteraction.setFloatingElement(element);
         }
-        current = current.parentElement;
     }
-
-    scrollParents.push(window);
-
-    return scrollParents;
 }
 
-function getCollisionBounds(element, collisionBoundary) {
-    const viewportBounds = {
-        top: 0,
-        left: 0,
-        right: window.innerWidth,
-        bottom: window.innerHeight,
-        width: window.innerWidth,
-        height: window.innerHeight
-    };
+// ============================================================================
+// Positioning (delegated to shared floating module)
+// ============================================================================
 
-    if (collisionBoundary === 'viewport') {
-        return viewportBounds;
-    }
+export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
+    const floating = await ensureFloatingModule();
 
-    let bounds = { ...viewportBounds };
-    let current = element.parentElement;
-
-    while (current && current !== document.body) {
-        const style = getComputedStyle(current);
-        const overflow = style.overflow + style.overflowX + style.overflowY;
-
-        if (/auto|scroll|hidden/.test(overflow)) {
-            const rect = current.getBoundingClientRect();
-            bounds = {
-                top: Math.max(bounds.top, rect.top),
-                left: Math.max(bounds.left, rect.left),
-                right: Math.min(bounds.right, rect.right),
-                bottom: Math.min(bounds.bottom, rect.bottom),
-                width: Math.min(bounds.right, rect.right) - Math.max(bounds.left, rect.left),
-                height: Math.min(bounds.bottom, rect.bottom) - Math.max(bounds.top, rect.top)
-            };
-        }
-        current = current.parentElement;
-    }
-
-    return bounds;
-}
-
-export function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
-    if (!positionerElement || !triggerElement) return;
-
-    const positionerId = positionerElement.id || `positioner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    const positionerState = {
-        positionerId,
+    const positionerId = await floating.initializePositioner({
         positionerElement,
         triggerElement,
         side,
@@ -418,235 +371,43 @@ export function initializePositioner(positionerElement, triggerElement, side, al
         arrowElement,
         sticky: sticky || false,
         positionMethod: positionMethod || 'fixed',
-        disableAnchorTracking: disableAnchorTracking || false,
-        cleanup: null
-    };
+        disableAnchorTracking: disableAnchorTracking || false
+    });
 
-    state.positioners.set(positionerId, positionerState);
-    updatePositionInternal(positionerState);
-
-    if (!disableAnchorTracking) {
-        setupAutoUpdate(positionerState);
+    if (positionerId) {
+        state.positioners.set(positionerId, { positionerId });
     }
 
     return positionerId;
 }
 
-export function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod) {
-    if (!positionerId || !triggerElement) return;
+export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod) {
+    const floating = await ensureFloatingModule();
 
-    let positionerState = state.positioners.get(positionerId);
-    if (!positionerState) {
-        return;
-    }
-
-    positionerState.triggerElement = triggerElement;
-    positionerState.side = side;
-    positionerState.align = align;
-    positionerState.sideOffset = sideOffset;
-    positionerState.alignOffset = alignOffset;
-    positionerState.collisionPadding = collisionPadding;
-    positionerState.collisionBoundary = collisionBoundary || 'clipping-ancestors';
-    positionerState.arrowPadding = arrowPadding;
-    positionerState.arrowElement = arrowElement;
-    positionerState.sticky = sticky || false;
-    positionerState.positionMethod = positionMethod || 'fixed';
-
-    updatePositionInternal(positionerState);
+    await floating.updatePositioner(positionerId, {
+        triggerElement,
+        side,
+        align,
+        sideOffset,
+        alignOffset,
+        collisionPadding,
+        collisionBoundary: collisionBoundary || 'clipping-ancestors',
+        arrowPadding,
+        arrowElement,
+        sticky: sticky || false,
+        positionMethod: positionMethod || 'fixed'
+    });
 }
 
-export function disposePositioner(positionerId) {
-    if (!positionerId) return;
-
-    const positionerState = state.positioners.get(positionerId);
-    if (positionerState) {
-        cleanupAutoUpdate(positionerState);
-        state.positioners.delete(positionerId);
-    }
+export async function disposePositioner(positionerId) {
+    const floating = await ensureFloatingModule();
+    floating.disposePositioner(positionerId);
+    state.positioners.delete(positionerId);
 }
 
-function updatePositionInternal(positionerState) {
-    const { positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowElement, sticky, positionMethod } = positionerState;
-
-    if (!positionerElement || !triggerElement) return;
-
-    const triggerRect = triggerElement.getBoundingClientRect();
-    const bounds = getCollisionBounds(triggerElement, collisionBoundary);
-
-    let effectiveSide = side;
-    let effectiveAlign = align;
-
-    let top = 0;
-    let left = 0;
-
-    const popupWidth = positionerElement.offsetWidth || 200;
-    const popupHeight = positionerElement.offsetHeight || 100;
-
-    const anchorHidden = triggerRect.right < bounds.left ||
-        triggerRect.bottom < bounds.top ||
-        triggerRect.left > bounds.right ||
-        triggerRect.top > bounds.bottom;
-
-    switch (effectiveSide) {
-        case 'top':
-            top = triggerRect.top - popupHeight - sideOffset;
-            if (top < bounds.top + collisionPadding && triggerRect.bottom > bounds.top && triggerRect.bottom + popupHeight + sideOffset < bounds.bottom - collisionPadding) {
-                effectiveSide = 'bottom';
-                top = triggerRect.bottom + sideOffset;
-            }
-            break;
-        case 'bottom':
-            top = triggerRect.bottom + sideOffset;
-            if (top + popupHeight > bounds.bottom - collisionPadding && triggerRect.top > popupHeight + sideOffset + bounds.top + collisionPadding) {
-                effectiveSide = 'top';
-                top = triggerRect.top - popupHeight - sideOffset;
-            }
-            break;
-        case 'left':
-            left = triggerRect.left - popupWidth - sideOffset;
-            if (left < bounds.left + collisionPadding && triggerRect.right > bounds.left && triggerRect.right + popupWidth + sideOffset < bounds.right - collisionPadding) {
-                effectiveSide = 'right';
-                left = triggerRect.right + sideOffset;
-            }
-            break;
-        case 'right':
-            left = triggerRect.right + sideOffset;
-            if (left + popupWidth > bounds.right - collisionPadding && triggerRect.left > popupWidth + sideOffset + bounds.left + collisionPadding) {
-                effectiveSide = 'left';
-                left = triggerRect.left - popupWidth - sideOffset;
-            }
-            break;
-    }
-
-    if (effectiveSide === 'top' || effectiveSide === 'bottom') {
-        switch (effectiveAlign) {
-            case 'start':
-                left = triggerRect.left + alignOffset;
-                break;
-            case 'center':
-                left = triggerRect.left + (triggerRect.width - popupWidth) / 2 + alignOffset;
-                break;
-            case 'end':
-                left = triggerRect.right - popupWidth + alignOffset;
-                break;
-        }
-
-        if (sticky) {
-            if (left < bounds.left + collisionPadding) {
-                left = bounds.left + collisionPadding;
-            } else if (left + popupWidth > bounds.right - collisionPadding) {
-                left = bounds.right - popupWidth - collisionPadding;
-            }
-        }
-    } else {
-        switch (effectiveAlign) {
-            case 'start':
-                top = triggerRect.top + alignOffset;
-                break;
-            case 'center':
-                top = triggerRect.top + (triggerRect.height - popupHeight) / 2 + alignOffset;
-                break;
-            case 'end':
-                top = triggerRect.bottom - popupHeight + alignOffset;
-                break;
-        }
-
-        if (sticky) {
-            if (top < bounds.top + collisionPadding) {
-                top = bounds.top + collisionPadding;
-            } else if (top + popupHeight > bounds.bottom - collisionPadding) {
-                top = bounds.bottom - popupHeight - collisionPadding;
-            }
-        }
-    }
-
-    if (positionMethod === 'absolute') {
-        const scrollX = window.scrollX || document.documentElement.scrollLeft;
-        const scrollY = window.scrollY || document.documentElement.scrollTop;
-        top += scrollY;
-        left += scrollX;
-    }
-
-    positionerElement.style.position = positionMethod === 'absolute' ? 'absolute' : 'fixed';
-    positionerElement.style.top = `${top}px`;
-    positionerElement.style.left = `${left}px`;
-    positionerElement.style.zIndex = '1000';
-
-    positionerElement.style.setProperty('--anchor-width', `${triggerRect.width}px`);
-    positionerElement.style.setProperty('--anchor-height', `${triggerRect.height}px`);
-    positionerElement.style.setProperty('--available-width', `${bounds.width}px`);
-    positionerElement.style.setProperty('--available-height', `${bounds.height}px`);
-    positionerElement.style.setProperty('--positioner-width', `${popupWidth}px`);
-    positionerElement.style.setProperty('--positioner-height', `${popupHeight}px`);
-
-    positionerElement.setAttribute('data-side', effectiveSide);
-    positionerElement.setAttribute('data-align', effectiveAlign);
-
-    // Set anchor hidden attribute
-    if (anchorHidden) {
-        positionerElement.setAttribute('data-anchor-hidden', '');
-    } else {
-        positionerElement.removeAttribute('data-anchor-hidden');
-    }
-
-    // Calculate and set transform origin
-    let transformOriginX, transformOriginY;
-    if (effectiveSide === 'top' || effectiveSide === 'bottom') {
-        transformOriginX = effectiveAlign === 'start' ? '0%' : effectiveAlign === 'end' ? '100%' : '50%';
-        transformOriginY = effectiveSide === 'top' ? '100%' : '0%';
-    } else {
-        transformOriginX = effectiveSide === 'left' ? '100%' : '0%';
-        transformOriginY = effectiveAlign === 'start' ? '0%' : effectiveAlign === 'end' ? '100%' : '50%';
-    }
-    positionerElement.style.setProperty('--transform-origin', `${transformOriginX} ${transformOriginY}`);
-
-    if (arrowElement) {
-        updateArrowPosition(arrowElement, effectiveSide, triggerRect, positionerElement, left, top);
-    }
-}
-
-function updateArrowPosition(arrowElement, side, triggerRect, positionerElement, positionerLeft, positionerTop) {
-    if (!arrowElement) return;
-
-    const arrowWidth = arrowElement.offsetWidth || 20;
-    const arrowHeight = arrowElement.offsetHeight || 10;
-    const positionerWidth = positionerElement.offsetWidth;
-    const positionerHeight = positionerElement.offsetHeight;
-
-    let arrowTop = 0;
-    let arrowLeft = 0;
-
-    switch (side) {
-        case 'top':
-            // Arrow at bottom of positioner, pointing down
-            arrowTop = positionerHeight - 1;
-            arrowLeft = (positionerWidth - arrowWidth) / 2;
-            arrowElement.style.transform = 'rotate(180deg)';
-            break;
-        case 'bottom':
-            // Arrow at top of positioner, pointing up
-            arrowTop = -arrowHeight + 1;
-            arrowLeft = (positionerWidth - arrowWidth) / 2;
-            arrowElement.style.transform = 'rotate(0deg)';
-            break;
-        case 'left':
-            // Arrow at right of positioner, pointing right
-            arrowLeft = positionerWidth - 1;
-            arrowTop = (positionerHeight - arrowHeight) / 2;
-            arrowElement.style.transform = 'rotate(90deg)';
-            break;
-        case 'right':
-            // Arrow at left of positioner, pointing left
-            arrowLeft = -arrowHeight + 1;
-            arrowTop = (positionerHeight - arrowHeight) / 2;
-            arrowElement.style.transform = 'rotate(-90deg)';
-            break;
-    }
-
-    arrowElement.style.position = 'absolute';
-    arrowElement.style.top = `${arrowTop}px`;
-    arrowElement.style.left = `${arrowLeft}px`;
-}
+// ============================================================================
+// Popup Management
+// ============================================================================
 
 export function initializePopup(popupElement, dotNetRef) {
     if (!popupElement) return;
@@ -658,7 +419,6 @@ export function initializePopup(popupElement, dotNetRef) {
 
     state.popups.set(popupElement, popupState);
 
-    // Set CSS custom properties for popup dimensions
     const updatePopupDimensions = () => {
         const width = popupElement.offsetWidth;
         const height = popupElement.offsetHeight;
@@ -666,10 +426,8 @@ export function initializePopup(popupElement, dotNetRef) {
         popupElement.style.setProperty('--popup-height', `${height}px`);
     };
 
-    // Set initial dimensions
     updatePopupDimensions();
 
-    // Use ResizeObserver to update dimensions when popup size changes
     if (typeof ResizeObserver !== 'undefined') {
         const resizeObserver = new ResizeObserver(updatePopupDimensions);
         resizeObserver.observe(popupElement);
@@ -685,6 +443,10 @@ export function disposePopup(popupElement) {
     }
     state.popups.delete(popupElement);
 }
+
+// ============================================================================
+// Focus Management
+// ============================================================================
 
 export function focusElement(element) {
     if (!element) return;

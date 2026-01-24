@@ -179,6 +179,18 @@ public sealed class TooltipRoot : ComponentBase, IAsyncDisposable, ITooltipHandl
     }
 
     [JSInvokable]
+    public async Task OnHoverOpen()
+    {
+        await SetOpenAsync(true, TooltipOpenChangeReason.TriggerHover, null);
+    }
+
+    [JSInvokable]
+    public async Task OnHoverClose()
+    {
+        await SetOpenAsync(false, TooltipOpenChangeReason.TriggerHover, null);
+    }
+
+    [JSInvokable]
     public void OnStartingStyleApplied()
     {
         if (transitionStatus == Popover.TransitionStatus.Starting)
@@ -412,7 +424,7 @@ public sealed class TooltipRoot : ComponentBase, IAsyncDisposable, ITooltipHandl
         }
     }
 
-    internal bool GetOpen() => CurrentOpen;
+    internal bool GetOpen() => context.Open;
 
     internal bool GetMounted() => isMounted;
 

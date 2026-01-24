@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Popover;
 
@@ -9,19 +10,28 @@ namespace BlazorBaseUI.Popover;
 /// or detached with a handle for typed payloads.
 /// </summary>
 /// <typeparam name="TPayload">The type of payload to pass to the popover. Use object for untyped payloads.</typeparam>
-public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableComponent, IDisposable
+public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "button";
 
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool isComponentRenderAs;
+    private bool hasRendered;
+    private bool hoverInitialized;
     private string triggerId = null!;
     private PopoverTriggerState state;
-    private CancellationTokenSource? hoverCts;
     private PopoverHandle<TPayload>? registeredHandle;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime!.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-popover.js").AsTask());
 
     private bool HasHandle => Handle is not null;
 
     private bool HasRootContext => RootContext is not null;
+
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
 
     [CascadingParameter]
     private PopoverRootContext? RootContext { get; set; }
@@ -111,6 +121,8 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
     {
         if (firstRender)
         {
+            hasRendered = true;
+
             if (HasHandle)
             {
                 Handle!.RegisterTrigger(triggerId, Element, Payload);
@@ -119,6 +131,11 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
             else
             {
                 RootContext?.SetTriggerElement(Element);
+            }
+
+            if (OpenOnHover && !hoverInitialized && !HasHandle)
+            {
+                _ = InitializeHoverInteractionAsync();
             }
         }
     }
@@ -190,12 +207,6 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
 
         builder.AddAttribute(13, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
 
-        if (OpenOnHover)
-        {
-            builder.AddAttribute(14, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(15, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-        }
-
         if (isComponentRenderAs)
         {
             builder.AddAttribute(16, "ChildContent", ChildContent);
@@ -225,10 +236,21 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        CancelHoverDelay();
         UnregisterFromCurrentStore(triggerId);
+
+        if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && RootContext is not null)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
     }
 
     private void OnElementChanged()
@@ -293,78 +315,22 @@ public class PopoverTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
-    private async Task HandleMouseEnterAsync(MouseEventArgs e)
+    private async Task InitializeHoverInteractionAsync()
     {
-        if (Disabled || (!HasRootContext && !HasHandle) || !OpenOnHover)
+        if (RootContext is null || !Element.HasValue)
         {
             return;
         }
-
-        CancelHoverDelay();
-
-        if (IsOpenedByThisTrigger())
-        {
-            return;
-        }
-
-        hoverCts = new CancellationTokenSource();
-        var token = hoverCts.Token;
 
         try
         {
-            await Task.Delay(Delay, token);
-            if (!token.IsCancellationRequested)
-            {
-                await RequestOpenAsync(true, OpenChangeReason.TriggerHover);
-            }
-        }
-        catch (TaskCanceledException)
-        {
-        }
-
-        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
-    }
-
-    private async Task HandleMouseLeaveAsync(MouseEventArgs e)
-    {
-        if (Disabled || (!HasRootContext && !HasHandle) || !OpenOnHover)
-        {
-            return;
-        }
-
-        CancelHoverDelay();
-
-        if (!IsOpenedByThisTrigger())
-        {
-            return;
-        }
-
-        hoverCts = new CancellationTokenSource();
-        var token = hoverCts.Token;
-
-        try
-        {
+            var module = await ModuleTask.Value;
             var effectiveCloseDelay = CloseDelay > 0 ? CloseDelay : Delay;
-            await Task.Delay(effectiveCloseDelay, token);
-            if (!token.IsCancellationRequested)
-            {
-                await RequestOpenAsync(false, OpenChangeReason.TriggerHover);
-            }
+            await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
+            hoverInitialized = true;
         }
-        catch (TaskCanceledException)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
-        }
-
-        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
-    }
-
-    private void CancelHoverDelay()
-    {
-        if (hoverCts is not null)
-        {
-            hoverCts.Cancel();
-            hoverCts.Dispose();
-            hoverCts = null;
         }
     }
 

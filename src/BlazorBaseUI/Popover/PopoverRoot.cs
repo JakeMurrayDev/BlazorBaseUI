@@ -308,6 +308,18 @@ public sealed class PopoverRoot : ComponentBase, IAsyncDisposable, IPopoverHandl
     }
 
     [JSInvokable]
+    public async Task OnHoverOpen()
+    {
+        await SetOpenAsync(true, OpenChangeReason.TriggerHover, null);
+    }
+
+    [JSInvokable]
+    public async Task OnHoverClose()
+    {
+        await SetOpenAsync(false, OpenChangeReason.TriggerHover, null);
+    }
+
+    [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
         transitionStatus = TransitionStatus.None;
@@ -416,7 +428,8 @@ public sealed class PopoverRoot : ComponentBase, IAsyncDisposable, IPopoverHandl
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen);
+                var reasonString = reason == OpenChangeReason.TriggerHover ? "trigger-hover" : null;
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

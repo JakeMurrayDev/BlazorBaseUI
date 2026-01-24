@@ -1,3 +1,4 @@
+using BlazorBaseUI.Utilities;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
@@ -128,6 +129,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         builder.CloseComponent();
     }
 
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during disposal")]
     public async ValueTask DisposeAsync()
     {
         if (moduleTask?.IsValueCreated == true && hasRendered)
@@ -201,6 +203,19 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
+    [JSInvokable]
+    public async Task OnHoverOpen()
+    {
+        await SetOpenAsync(true, OpenChangeReason.TriggerHover);
+    }
+
+    [JSInvokable]
+    public async Task OnHoverClose()
+    {
+        await SetOpenAsync(false, OpenChangeReason.TriggerHover);
+    }
+
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during state sync")]
     internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason)
     {
         if (CurrentOpen == nextOpen)
@@ -288,6 +303,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         setOpenAsync: SetOpenAsyncFromContext,
         emitClose: EmitClose);
 
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during initialization")]
     private async Task InitializeJsAsync()
     {
         try
@@ -312,6 +328,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during element sync")]
     private async Task SetTriggerElementAsync(ElementReference element)
     {
         try
@@ -339,6 +356,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during element sync")]
     private async Task SetPopupElementAsync(ElementReference element)
     {
         try
@@ -367,6 +385,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
     }
 
+    [SlopwatchSuppress("SW003", "Circuit-safe JS interop - intentional empty catch for disconnection during index sync")]
     private async Task SetActiveIndexAsync(int index)
     {
         try
