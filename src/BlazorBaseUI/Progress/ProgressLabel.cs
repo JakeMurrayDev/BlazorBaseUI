@@ -10,6 +10,8 @@ public sealed class ProgressLabel : ComponentBase, IReferencableComponent, IDisp
     private string? defaultId;
     private bool isComponentRenderAs;
 
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
     [CascadingParameter]
     private ProgressRootContext? Context { get; set; }
 
@@ -32,8 +34,6 @@ public sealed class ProgressLabel : ComponentBase, IReferencableComponent, IDisp
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     protected override void OnInitialized()
     {

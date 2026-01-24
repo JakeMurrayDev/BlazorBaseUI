@@ -40,17 +40,6 @@ export function dispose(controlElement) {
     state.delete(controlElement);
 }
 
-export function updateState(controlElement, disabled, readOnly, orientation) {
-    if (!controlElement) return;
-
-    const elementState = state.get(controlElement);
-    if (elementState) {
-        elementState.disabled = disabled;
-        elementState.readOnly = readOnly;
-        elementState.orientation = orientation;
-    }
-}
-
 export function startDrag(controlElement, dotNetRef, config, thumbElements, indicatorElement, clientX, clientY) {
     if (!controlElement) return null;
 
@@ -556,38 +545,6 @@ function round12(value) {
     return Math.round(value * 1e12) / 1e12;
 }
 
-export function getControlRect(controlElement) {
-    if (!controlElement) return null;
-
-    const rect = controlElement.getBoundingClientRect();
-    const styles = getComputedStyle(controlElement);
-    const elementState = state.get(controlElement);
-    const vertical = elementState?.orientation === 'vertical';
-
-    const startProp = !vertical ? 'paddingInlineStart' : 'paddingTop';
-    const endProp = !vertical ? 'paddingInlineEnd' : 'paddingBottom';
-    const borderStartProp = !vertical ? 'borderInlineStartWidth' : 'borderTopWidth';
-    const borderEndProp = !vertical ? 'borderInlineEndWidth' : 'borderBottomWidth';
-
-    const paddingStart = parseFloat(styles[startProp]) || 0;
-    const paddingEnd = parseFloat(styles[endProp]) || 0;
-    const borderStart = parseFloat(styles[borderStartProp]) || 0;
-    const borderEnd = parseFloat(styles[borderEndProp]) || 0;
-
-    return {
-        left: rect.left,
-        right: rect.right,
-        top: rect.top,
-        bottom: rect.bottom,
-        width: rect.width,
-        height: rect.height,
-        paddingStart,
-        paddingEnd,
-        borderStart,
-        borderEnd
-    };
-}
-
 export function getThumbRect(thumbElement) {
     if (!thumbElement) return null;
 
@@ -631,87 +588,6 @@ export function focusThumbInput(thumbElement) {
     if (input) {
         input.focus({ preventScroll: true });
     }
-}
-
-export function focusElement(element) {
-    if (!element) return;
-    element.focus({ preventScroll: true });
-}
-
-export function getDirection(element) {
-    if (!element) return 'ltr';
-    return getComputedStyle(element).direction || 'ltr';
-}
-
-export function calculateFingerValue(controlElement, clientX, clientY, min, max, step, thumbCenterOffset, insetOffset, direction) {
-    if (!controlElement) return null;
-
-    const rect = controlElement.getBoundingClientRect();
-    const styles = getComputedStyle(controlElement);
-    const elementState = state.get(controlElement);
-    const vertical = elementState?.orientation === 'vertical';
-
-    const paddingStart = vertical
-        ? (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.borderTopWidth) || 0)
-        : (parseFloat(styles.paddingInlineStart) || parseFloat(styles.paddingLeft) || 0) +
-          (parseFloat(styles.borderInlineStartWidth) || parseFloat(styles.borderLeftWidth) || 0);
-
-    const paddingEnd = vertical
-        ? (parseFloat(styles.paddingBottom) || 0) + (parseFloat(styles.borderBottomWidth) || 0)
-        : (parseFloat(styles.paddingInlineEnd) || parseFloat(styles.paddingRight) || 0) +
-          (parseFloat(styles.borderInlineEndWidth) || parseFloat(styles.borderRightWidth) || 0);
-
-    const controlSize = (vertical ? rect.height : rect.width) - paddingStart - paddingEnd - (insetOffset * 2);
-
-    const adjustedX = clientX - (thumbCenterOffset || 0);
-    const adjustedY = clientY - (thumbCenterOffset || 0);
-
-    let valueSize;
-    if (vertical) {
-        valueSize = rect.bottom - adjustedY - paddingEnd;
-    } else if (direction === 'rtl') {
-        valueSize = rect.right - adjustedX - paddingEnd;
-    } else {
-        valueSize = adjustedX - rect.left - paddingStart;
-    }
-
-    const valueRescaled = Math.max(0, Math.min(1, (valueSize - insetOffset) / controlSize));
-    let newValue = (max - min) * valueRescaled + min;
-
-    if (step > 0) {
-        newValue = Math.round((newValue - min) / step) * step + min;
-    }
-
-    newValue = Math.max(min, Math.min(max, newValue));
-
-    return Math.round(newValue * 1e12) / 1e12;
-}
-
-export function findClosestThumbIndex(controlElement, thumbElements, clientX, clientY) {
-    if (!controlElement || !thumbElements || thumbElements.length === 0) return 0;
-
-    const elementState = state.get(controlElement);
-    const vertical = elementState?.orientation === 'vertical';
-
-    return findClosestThumbByPosition(Array.from(thumbElements), clientX, clientY, vertical ? 'vertical' : 'horizontal');
-}
-
-export function getThumbCenterOffset(thumbElement, clientX, clientY, orientation) {
-    return getThumbCenterOffsetInternal(thumbElement, clientX, clientY, orientation);
-}
-
-export function setInputValue(inputElement, value) {
-    if (!inputElement) return;
-    inputElement.value = value;
-}
-
-export function getActiveElement() {
-    return document.activeElement;
-}
-
-export function containsElement(parent, child) {
-    if (!parent || !child) return false;
-    return parent.contains(child);
 }
 
 export function stopDrag(controlElement) {

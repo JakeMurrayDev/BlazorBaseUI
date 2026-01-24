@@ -12,3 +12,12 @@ public enum ThumbAlignment
     Center,
     Edge
 }
+
+public enum SliderChangeReason
+{
+    None,
+    InputChange,
+    TrackPress,
+    Drag,
+    Keyboard
+}

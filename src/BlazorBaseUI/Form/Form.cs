@@ -5,6 +5,20 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Form;
 
+public sealed class FormActions
+{
+    private readonly Func<string?, Task> validateAsync;
+
+    internal FormActions(Func<string?, Task> validateAsync)
+    {
+        this.validateAsync = validateAsync;
+    }
+
+    public Task ValidateAsync() => validateAsync(null);
+
+    public Task ValidateAsync(string fieldName) => validateAsync(fieldName);
+}
+
 public sealed class Form : ComponentBase, IReferencableComponent
 {
     private const string DefaultTag = "form";
@@ -18,6 +32,7 @@ public sealed class Form : ComponentBase, IReferencableComponent
     private Dictionary<string, string[]> errors = new(4);
     private Dictionary<string, string[]>? previousExternalErrors;
     private FormContext formContext = null!;
+    private FormActions? actions;
 
     [Parameter]
 #pragma warning disable BL0007
@@ -54,6 +69,9 @@ public sealed class Form : ComponentBase, IReferencableComponent
     public EventCallback<FormSubmitEventArgs> OnFormSubmit { get; set; }
 
     [Parameter]
+    public Action<FormActions>? ActionsRef { get; set; }
+
+    [Parameter]
     public string? As { get; set; }
 
     [Parameter]
@@ -80,6 +98,25 @@ public sealed class Form : ComponentBase, IReferencableComponent
             fieldRegistry: fieldRegistry,
             clearErrors: ClearErrors,
             getSubmitAttempted: () => submitAttempted);
+
+        actions = new FormActions(ImperativeValidateAsync);
+        ActionsRef?.Invoke(actions);
+    }
+
+    private async Task ImperativeValidateAsync(string? fieldName)
+    {
+        if (fieldName is not null)
+        {
+            var field = fieldRegistry.Fields.Values.FirstOrDefault(f => f.Name == fieldName);
+            if (field is not null)
+            {
+                await field.ValidateAsync();
+            }
+        }
+        else
+        {
+            await fieldRegistry.ValidateAllAsync();
+        }
     }
 
     protected override void OnParametersSet()
@@ -132,45 +169,52 @@ public sealed class Form : ComponentBase, IReferencableComponent
         var resolvedClass = AttributeUtilities.CombineClassNames(AdditionalAttributes, ClassValue?.Invoke(state));
         var resolvedStyle = AttributeUtilities.CombineStyles(AdditionalAttributes, StyleValue?.Invoke(state));
 
-        builder.OpenRegion(editContext.GetHashCode());
-
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "novalidate", true);
+            builder.AddAttribute(3, "onsubmit", EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync));
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "novalidate", true);
-        builder.AddAttribute(3, "onsubmit", EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync));
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(4, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(4, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(5, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(5, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddAttribute(6, "ChildContent", (RenderFragment)RenderChildContent);
             builder.AddComponentReferenceCapture(7, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(8, e => Element = e);
-            builder.AddContent(9, (RenderFragment)RenderChildContent);
-            builder.CloseElement();
-        }
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "novalidate", true);
+            builder.AddAttribute(3, "onsubmit", EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync));
 
-        builder.CloseRegion();
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(4, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(5, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(6, e => Element = e);
+            builder.AddContent(7, (RenderFragment)RenderChildContent);
+            builder.CloseElement();
+            builder.CloseRegion();
+        }
     }
 
     private void RenderChildContent(RenderTreeBuilder builder)

@@ -352,6 +352,8 @@ public class DialogTypedTrigger<TPayload> : ComponentBase, IReferencableComponen
             var nextOpen = !IsOpenedByThisTrigger();
             await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
         }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
     private Task RequestOpenAsync(bool open, OpenChangeReason reason)

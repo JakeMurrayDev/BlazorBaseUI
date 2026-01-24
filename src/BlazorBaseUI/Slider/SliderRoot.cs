@@ -25,8 +25,6 @@ public sealed class SliderRoot : ComponentBase, IReferencableComponent, IFieldSt
     private int activeThumbIndex = -1;
     private int lastUsedThumbIndex = -1;
     private bool dragging;
-    private double? indicatorStart;
-    private double? indicatorEnd;
     private string? defaultId;
     private ElementReference? controlElement;
     private ElementReference? indicatorElement;
@@ -42,9 +40,6 @@ public sealed class SliderRoot : ComponentBase, IReferencableComponent, IFieldSt
 
     [CascadingParameter]
     private LabelableContext? LabelableContext { get; set; }
-
-    [CascadingParameter]
-    private DirectionProviderContext? DirectionContext { get; set; }
 
     [Parameter]
     public double? Value { get; set; }
@@ -235,89 +230,151 @@ public sealed class SliderRoot : ComponentBase, IReferencableComponent, IFieldSt
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
+            builder.AddAttribute(3, "role", "group");
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "id", ResolvedId);
-        builder.AddAttribute(3, "role", "group");
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
+            }
 
-        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
-        {
-            builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
-        }
+            if (state.Dragging)
+            {
+                builder.AddAttribute(5, "data-dragging", string.Empty);
+            }
 
-        if (state.Dragging)
-        {
-            builder.AddAttribute(5, "data-dragging", string.Empty);
-        }
+            builder.AddAttribute(6, "data-orientation", orientationStr);
 
-        builder.AddAttribute(6, "data-orientation", orientationStr);
+            if (state.Disabled)
+            {
+                builder.AddAttribute(7, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(7, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(8, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(8, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(9, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(9, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(10, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(11, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(10, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(11, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(12, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(12, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(13, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(13, "data-dirty", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(14, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(14, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(15, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(15, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(16, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(16, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddComponentParameter(17, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(18, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(19, elementReference => Element = elementReference);
-            builder.AddContent(20, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", ResolvedId);
+            builder.AddAttribute(3, "role", "group");
+
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(4, "aria-labelledby", LabelableContext.LabelId);
+            }
+
+            if (state.Dragging)
+            {
+                builder.AddAttribute(5, "data-dragging", string.Empty);
+            }
+
+            builder.AddAttribute(6, "data-orientation", orientationStr);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(7, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(8, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(9, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(10, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(11, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(12, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(13, "data-dirty", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(14, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(15, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(16, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(17, elementReference => Element = elementReference);
+            builder.AddContent(18, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
@@ -439,8 +496,6 @@ public sealed class SliderRoot : ComponentBase, IReferencableComponent, IFieldSt
         SetControlElementAction: SetControlElement,
         SetIndicatorElementAction: SetIndicatorElement,
         GetIndicatorElementFunc: GetIndicatorElement,
-        SetIndicatorPositionAction: SetIndicatorPosition,
-        GetIndicatorPositionFunc: GetIndicatorPosition,
         HasRealtimeSubscribers: HasRealtimeSubscribers,
         RegisterRealtimeSubscriberAction: RegisterRealtimeSubscriber,
         UnregisterRealtimeSubscriberAction: UnregisterRealtimeSubscriber);
@@ -607,14 +662,6 @@ public sealed class SliderRoot : ComponentBase, IReferencableComponent, IFieldSt
     }
 
     private ElementReference? GetIndicatorElement() => indicatorElement;
-
-    private void SetIndicatorPosition(double? start, double? end)
-    {
-        indicatorStart = start;
-        indicatorEnd = end;
-    }
-
-    private (double? Start, double? End) GetIndicatorPosition() => (indicatorStart, indicatorEnd);
 
     private void RegisterRealtimeSubscriber()
     {

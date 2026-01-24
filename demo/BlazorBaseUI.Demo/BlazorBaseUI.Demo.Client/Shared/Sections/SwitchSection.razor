@@ -1,6 +1,8 @@
 ﻿@using BlazorBaseUI.Switch
 @using BlazorBaseUI.Field
 @using BlazorBaseUI.Form
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
 
 <ComponentShowcase ComponentName="Switch"
                    Description="A control that indicates whether a setting is on or off."
@@ -246,6 +248,87 @@
                 <strong>Submitted value:</strong> @uncheckedValueResult
             </div>
         }
+    </DemoSection>
+
+    <DemoSection Title="Custom Value Submission"
+                 Description="Uses Value parameter to submit a custom value instead of default 'on'.">
+        <Form Model="@(new object())" OnFormSubmit="@HandleCustomValueFormSubmit">
+            <FieldRoot Name="preference">
+                <div class="flex items-center gap-3">
+                    <SwitchRoot Value="enabled"
+                                UncheckedValue="disabled"
+                                ClassValue="@(state => SwitchRootClass(state))">
+                        <SwitchThumb ClassValue="@(state => SwitchThumbClass(state))" />
+                    </SwitchRoot>
+                    <FieldLabel ClassValue="@(_ => "text-gray-700 cursor-pointer")">
+                        Feature toggle (submits "enabled" or "disabled")
+                    </FieldLabel>
+                </div>
+            </FieldRoot>
+            <button type="submit"
+                    class="mt-4 rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+                Submit
+            </button>
+        </Form>
+        @if (customValueResult is not null)
+        {
+            <div class="mt-4 rounded bg-gray-100 p-3 text-sm">
+                <strong>Submitted value:</strong> @customValueResult
+            </div>
+        }
+    </DemoSection>
+
+    <DemoSection Title="Native Button Mode"
+                 Description="Renders as native button element with built-in keyboard support (Space/Enter).">
+        <div class="flex flex-col gap-6">
+            <div>
+                <p class="mb-2 text-sm font-medium text-gray-600">Native button (renders as &lt;button type=&quot;button&quot;&gt;):</p>
+                <div class="flex items-center gap-3">
+                    <SwitchRoot NativeButton="true"
+                                ClassValue="@(state => SwitchRootClass(state))">
+                        <SwitchThumb ClassValue="@(state => SwitchThumbClass(state))" />
+                    </SwitchRoot>
+                    <span class="text-gray-700">Native keyboard handling via button element</span>
+                </div>
+            </div>
+            <div>
+                <p class="mb-2 text-sm font-medium text-gray-600">Disabled native button:</p>
+                <div class="flex items-center gap-3">
+                    <SwitchRoot NativeButton="true"
+                                Disabled="true"
+                                DefaultChecked="true"
+                                ClassValue="@(state => SwitchRootClass(state))">
+                        <SwitchThumb ClassValue="@(state => SwitchThumbClass(state))" />
+                    </SwitchRoot>
+                    <span class="text-gray-500">Uses native disabled attribute</span>
+                </div>
+            </div>
+        </div>
+        <p class="mt-4 text-sm text-gray-500">
+            The native button mode uses the browser's built-in keyboard handling for Space and Enter keys,
+            rather than JavaScript event handlers.
+        </p>
+    </DemoSection>
+
+    <DemoSection Title="InputElement Access"
+                 Description="Programmatic access to the hidden input element via InputElement property.">
+        <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-3">
+                <SwitchRoot @ref="inputElementRef"
+                            ClassValue="@(state => SwitchRootClass(state))">
+                    <SwitchThumb ClassValue="@(state => SwitchThumbClass(state))" />
+                </SwitchRoot>
+                <span class="text-gray-700">Switch with accessible InputElement</span>
+            </div>
+            <button type="button"
+                    class="w-fit rounded bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                    @onclick="@ToggleViaInputElement">
+                Toggle via InputElement.click()
+            </button>
+            <p class="text-sm text-gray-500">
+                The InputElement property exposes the hidden checkbox for programmatic access.
+            </p>
+        </div>
     </DemoSection>
 
     <DemoSection Title="Required Validation"
@@ -510,9 +593,13 @@
     </DemoSection>
 </ComponentShowcase>
 
+@implements IAsyncDisposable
+
 @code {
     [Parameter]
     public bool IsWasmMode { get; set; }
+
+    private Lazy<Task<IJSObjectReference>> moduleTask = null!;
 
     private bool controlledChecked;
     private int changeCount;
@@ -524,10 +611,18 @@
 
     private string? basicFormResult;
     private string? uncheckedValueResult;
+    private string? customValueResult;
     private string? fieldNameResult;
     private string? nameOnInputResult;
+    private SwitchRoot? inputElementRef;
 
     private Dictionary<string, string[]> externalErrors = new();
+
+    protected override void OnInitialized()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", "./demo-utilities.js").AsTask());
+    }
 
     private void HandleCheckedChange(SwitchCheckedChangeEventArgs e)
     {
@@ -551,6 +646,26 @@
     private void HandleUncheckedValueFormSubmit(FormSubmitEventArgs e)
     {
         uncheckedValueResult = e.Values.TryGetValue("marketing", out var value) ? value?.ToString() : "(not submitted)";
+    }
+
+    private void HandleCustomValueFormSubmit(FormSubmitEventArgs e)
+    {
+        customValueResult = e.Values.TryGetValue("preference", out var value) ? value?.ToString() : "(not submitted)";
+    }
+
+    private async Task ToggleViaInputElement()
+    {
+        if (inputElementRef?.InputElement is not null)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("clickElement", inputElementRef.InputElement);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
     }
 
     private void HandleFieldNameFormSubmit(FormSubmitEventArgs e)
@@ -601,5 +716,20 @@
             return $"{baseClass} translate-x-5";
 
         return $"{baseClass} translate-x-0";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
     }
 }

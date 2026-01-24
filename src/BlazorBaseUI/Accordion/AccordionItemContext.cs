@@ -20,8 +20,7 @@ public sealed record AccordionItemContext<TValue>(
     int Index,
     bool Disabled,
     Action TriggerHandler,
-    Action<string> PanelIdSetter,
-    Action<string> TriggerIdSetter)
+    Action<string> PanelIdSetter)
     : IAccordionItemContext
 {
     public bool Open => RootContext.IsValueOpen(Value!);
@@ -39,7 +38,6 @@ public sealed record AccordionItemContext<TValue>(
     public void SetTriggerId(string id)
     {
         TriggerId = id;
-        TriggerIdSetter(id);
     }
 
     public void HandleTrigger() => TriggerHandler();

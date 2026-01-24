@@ -73,52 +73,75 @@ public sealed class AccordionHeader : ComponentBase, IReferencableComponent
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "data-index", state.Index.ToString());
+            builder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (state.Open)
+            {
+                builder.AddAttribute(4, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(5, "data-closed", string.Empty);
+            }
 
-        builder.AddAttribute(2, "data-index", state.Index.ToString());
-        builder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
 
-        if (state.Open)
-        {
-            builder.AddAttribute(4, "data-open", string.Empty);
-        }
-        else
-        {
-            builder.AddAttribute(5, "data-closed", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(7, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(8, "style", resolvedStyle);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(6, "data-disabled", string.Empty);
-        }
-
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(7, "class", resolvedClass);
-        }
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(8, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddAttribute(9, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(10, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(11, elementReference => Element = elementReference);
-            builder.AddContent(12, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "data-index", state.Index.ToString());
+            builder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
+
+            if (state.Open)
+            {
+                builder.AddAttribute(4, "data-open", string.Empty);
+            }
+            else
+            {
+                builder.AddAttribute(5, "data-closed", string.Empty);
+            }
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(7, "class", resolvedClass);
+            }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(8, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(9, elementReference => Element = elementReference);
+            builder.AddContent(10, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 }

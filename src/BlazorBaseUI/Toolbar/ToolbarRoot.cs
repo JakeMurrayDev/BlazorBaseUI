@@ -136,44 +136,61 @@ public sealed class ToolbarRoot : ComponentBase, IReferencableComponent, IAsyncD
         {
             if (isComponentRenderAs)
             {
-                childBuilder.OpenComponent(4, RenderAs!);
-            }
-            else
-            {
-                childBuilder.OpenElement(5, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            }
+                childBuilder.OpenRegion(0);
+                childBuilder.OpenComponent(0, RenderAs!);
+                childBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                childBuilder.AddAttribute(2, "role", "toolbar");
+                childBuilder.AddAttribute(3, "aria-orientation", orientationString);
+                childBuilder.AddAttribute(4, "data-orientation", orientationString);
 
-            childBuilder.AddMultipleAttributes(6, AdditionalAttributes);
-            childBuilder.AddAttribute(7, "role", "toolbar");
-            childBuilder.AddAttribute(8, "aria-orientation", orientationString);
-            childBuilder.AddAttribute(9, "data-orientation", orientationString);
+                if (Disabled)
+                {
+                    childBuilder.AddAttribute(5, "data-disabled", "");
+                }
 
-            if (Disabled)
-            {
-                childBuilder.AddAttribute(10, "data-disabled", "");
-            }
+                if (!string.IsNullOrEmpty(resolvedClass))
+                {
+                    childBuilder.AddAttribute(6, "class", resolvedClass);
+                }
 
-            if (!string.IsNullOrEmpty(resolvedClass))
-            {
-                childBuilder.AddAttribute(11, "class", resolvedClass);
-            }
+                if (!string.IsNullOrEmpty(resolvedStyle))
+                {
+                    childBuilder.AddAttribute(7, "style", resolvedStyle);
+                }
 
-            if (!string.IsNullOrEmpty(resolvedStyle))
-            {
-                childBuilder.AddAttribute(12, "style", resolvedStyle);
-            }
-
-            if (isComponentRenderAs)
-            {
-                childBuilder.AddComponentParameter(13, "ChildContent", ChildContent);
-                childBuilder.AddComponentReferenceCapture(14, component => { Element = ((IReferencableComponent)component).Element; });
+                childBuilder.AddComponentParameter(8, "ChildContent", ChildContent);
+                childBuilder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
                 childBuilder.CloseComponent();
+                childBuilder.CloseRegion();
             }
             else
             {
-                childBuilder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
-                childBuilder.AddContent(16, ChildContent);
+                childBuilder.OpenRegion(1);
+                childBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                childBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                childBuilder.AddAttribute(2, "role", "toolbar");
+                childBuilder.AddAttribute(3, "aria-orientation", orientationString);
+                childBuilder.AddAttribute(4, "data-orientation", orientationString);
+
+                if (Disabled)
+                {
+                    childBuilder.AddAttribute(5, "data-disabled", "");
+                }
+
+                if (!string.IsNullOrEmpty(resolvedClass))
+                {
+                    childBuilder.AddAttribute(6, "class", resolvedClass);
+                }
+
+                if (!string.IsNullOrEmpty(resolvedStyle))
+                {
+                    childBuilder.AddAttribute(7, "style", resolvedStyle);
+                }
+
+                childBuilder.AddElementReferenceCapture(8, elementReference => Element = elementReference);
+                childBuilder.AddContent(9, ChildContent);
                 childBuilder.CloseElement();
+                childBuilder.CloseRegion();
             }
         }));
         builder.CloseComponent();

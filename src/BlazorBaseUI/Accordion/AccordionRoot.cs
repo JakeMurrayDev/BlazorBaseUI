@@ -14,6 +14,10 @@ public sealed class AccordionRoot<TValue> : ComponentBase, IReferencableComponen
     private AccordionRootContext<TValue> context = null!;
     private AccordionRootState<TValue> state = null!;
 
+    private bool IsControlled => Value is not null;
+
+    private TValue[] CurrentValue => IsControlled ? Value! : currentValue;
+
     [CascadingParameter]
     private DirectionProviderContext? DirectionContext { get; set; }
 
@@ -66,10 +70,6 @@ public sealed class AccordionRoot<TValue> : ComponentBase, IReferencableComponen
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool IsControlled => Value is not null;
-
-    private TValue[] CurrentValue => IsControlled ? Value! : currentValue;
 
     protected override void OnInitialized()
     {
@@ -141,44 +141,59 @@ public sealed class AccordionRoot<TValue> : ComponentBase, IReferencableComponen
             {
                 if (isComponentRenderAs)
                 {
+                    listBuilder.OpenRegion(0);
                     listBuilder.OpenComponent(0, RenderAs!);
-                }
-                else
-                {
-                    listBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-                }
+                    listBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                    listBuilder.AddAttribute(2, "dir", direction.ToAttributeString());
+                    listBuilder.AddAttribute(3, "role", "region");
+                    listBuilder.AddAttribute(4, "data-orientation", state.Orientation.ToDataAttributeString());
 
-                listBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                    if (state.Disabled)
+                    {
+                        listBuilder.AddAttribute(5, "data-disabled", string.Empty);
+                    }
 
-                listBuilder.AddAttribute(2, "dir", direction.ToAttributeString());
-                listBuilder.AddAttribute(3, "role", "region");
-                listBuilder.AddAttribute(4, "data-orientation", state.Orientation.ToDataAttributeString());
+                    if (!string.IsNullOrEmpty(resolvedClass))
+                    {
+                        listBuilder.AddAttribute(6, "class", resolvedClass);
+                    }
+                    if (!string.IsNullOrEmpty(resolvedStyle))
+                    {
+                        listBuilder.AddAttribute(7, "style", resolvedStyle);
+                    }
 
-                if (state.Disabled)
-                {
-                    listBuilder.AddAttribute(5, "data-disabled", string.Empty);
-                }
-
-                if (!string.IsNullOrEmpty(resolvedClass))
-                {
-                    listBuilder.AddAttribute(6, "class", resolvedClass);
-                }
-                if (!string.IsNullOrEmpty(resolvedStyle))
-                {
-                    listBuilder.AddAttribute(7, "style", resolvedStyle);
-                }
-
-                if (isComponentRenderAs)
-                {
                     listBuilder.AddAttribute(8, "ChildContent", ChildContent);
                     listBuilder.AddComponentReferenceCapture(9, component => { Element = ((IReferencableComponent)component).Element; });
                     listBuilder.CloseComponent();
+                    listBuilder.CloseRegion();
                 }
                 else
                 {
-                    listBuilder.AddElementReferenceCapture(10, e => Element = e);
-                    listBuilder.AddContent(11, ChildContent);
+                    listBuilder.OpenRegion(1);
+                    listBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                    listBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                    listBuilder.AddAttribute(2, "dir", direction.ToAttributeString());
+                    listBuilder.AddAttribute(3, "role", "region");
+                    listBuilder.AddAttribute(4, "data-orientation", state.Orientation.ToDataAttributeString());
+
+                    if (state.Disabled)
+                    {
+                        listBuilder.AddAttribute(5, "data-disabled", string.Empty);
+                    }
+
+                    if (!string.IsNullOrEmpty(resolvedClass))
+                    {
+                        listBuilder.AddAttribute(6, "class", resolvedClass);
+                    }
+                    if (!string.IsNullOrEmpty(resolvedStyle))
+                    {
+                        listBuilder.AddAttribute(7, "style", resolvedStyle);
+                    }
+
+                    listBuilder.AddElementReferenceCapture(8, e => Element = e);
+                    listBuilder.AddContent(9, ChildContent);
                     listBuilder.CloseElement();
+                    listBuilder.CloseRegion();
                 }
             }));
             innerBuilder.CloseComponent();
@@ -220,7 +235,6 @@ public sealed class AccordionRoot<TValue> : ComponentBase, IReferencableComponen
 
         _ = ValueChanged.InvokeAsync(nextValue);
 
-        var direction = DirectionContext?.Direction ?? Direction.Ltr;
         context = context with { Value = nextValue };
         state = state with { Value = nextValue };
 

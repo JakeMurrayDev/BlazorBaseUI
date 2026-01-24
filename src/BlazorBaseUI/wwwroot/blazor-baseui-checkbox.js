@@ -1,9 +1,5 @@
 ﻿const STATE_KEY = Symbol.for('BlazorBaseUI.Checkbox.State');
 
-if (!window[STATE_KEY]) {
-    window[STATE_KEY] = { initialized: true };
-}
-
 export function initialize(element, inputElement, disabled, readOnly, indeterminate) {
     if (!element) {
         return;
@@ -112,14 +108,6 @@ export function setInputChecked(inputElement, checked) {
     }
 
     inputElement.checked = checked;
-}
-
-export function setInputIndeterminate(inputElement, indeterminate) {
-    if (!inputElement) {
-        return;
-    }
-
-    inputElement.indeterminate = indeterminate;
 }
 
 export function dispose(element) {

@@ -1,14 +1,5 @@
 namespace BlazorBaseUI.Slider;
 
-public enum SliderChangeReason
-{
-    None,
-    InputChange,
-    TrackPress,
-    Drag,
-    Keyboard
-}
-
 public class SliderValueChangeEventArgs<TValue> : EventArgs where TValue : notnull
 {
     public TValue Value { get; }

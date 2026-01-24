@@ -237,111 +237,164 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "radiogroup");
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "role", "radiogroup");
+            if (Required)
+                builder.AddAttribute(3, "aria-required", "true");
 
-        if (Required)
-            builder.AddAttribute(3, "aria-required", "true");
+            if (ResolvedDisabled)
+                builder.AddAttribute(4, "aria-disabled", "true");
 
-        if (ResolvedDisabled)
-            builder.AddAttribute(4, "aria-disabled", "true");
+            if (ReadOnly)
+                builder.AddAttribute(5, "aria-readonly", "true");
 
-        if (ReadOnly)
-            builder.AddAttribute(5, "aria-readonly", "true");
+            var labelledBy = LabelableContext?.LabelId ?? FieldsetContext?.LegendId;
+            if (!string.IsNullOrEmpty(labelledBy))
+                builder.AddAttribute(6, "aria-labelledby", labelledBy);
 
-        var labelledBy = LabelableContext?.LabelId ?? FieldsetContext?.LegendId;
-        if (!string.IsNullOrEmpty(labelledBy))
-            builder.AddAttribute(6, "aria-labelledby", labelledBy);
+            var describedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(describedBy))
+                builder.AddAttribute(7, "aria-describedby", describedBy);
 
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
-        if (!string.IsNullOrEmpty(describedBy))
-            builder.AddAttribute(7, "aria-describedby", describedBy);
+            builder.AddAttribute(8, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(9, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
 
-        builder.AddAttribute(8, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(9, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-        builder.AddAttribute(10, "onkeydowncapture", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownCapture));
+            if (state.Disabled)
+                builder.AddAttribute(10, "data-disabled", string.Empty);
 
-        if (state.Disabled)
-            builder.AddAttribute(11, "data-disabled", string.Empty);
+            if (state.ReadOnly)
+                builder.AddAttribute(11, "data-readonly", string.Empty);
 
-        if (state.ReadOnly)
-            builder.AddAttribute(12, "data-readonly", string.Empty);
+            if (state.Required)
+                builder.AddAttribute(12, "data-required", string.Empty);
 
-        if (state.Required)
-            builder.AddAttribute(13, "data-required", string.Empty);
+            if (state.Valid == true)
+                builder.AddAttribute(13, "data-valid", string.Empty);
+            else if (state.Valid == false)
+                builder.AddAttribute(14, "data-invalid", string.Empty);
 
-        if (state.Valid == true)
-            builder.AddAttribute(14, "data-valid", string.Empty);
-        else if (state.Valid == false)
-            builder.AddAttribute(15, "data-invalid", string.Empty);
+            if (state.Touched)
+                builder.AddAttribute(15, "data-touched", string.Empty);
 
-        if (state.Touched)
-            builder.AddAttribute(16, "data-touched", string.Empty);
+            if (state.Dirty)
+                builder.AddAttribute(16, "data-dirty", string.Empty);
 
-        if (state.Dirty)
-            builder.AddAttribute(17, "data-dirty", string.Empty);
+            if (state.Filled)
+                builder.AddAttribute(17, "data-filled", string.Empty);
 
-        if (state.Filled)
-            builder.AddAttribute(18, "data-filled", string.Empty);
+            if (state.Focused)
+                builder.AddAttribute(18, "data-focused", string.Empty);
 
-        if (state.Focused)
-            builder.AddAttribute(19, "data-focused", string.Empty);
+            if (!string.IsNullOrEmpty(resolvedClass))
+                builder.AddAttribute(19, "class", resolvedClass);
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-            builder.AddAttribute(20, "class", resolvedClass);
+            if (!string.IsNullOrEmpty(resolvedStyle))
+                builder.AddAttribute(20, "style", resolvedStyle);
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-            builder.AddAttribute(21, "style", resolvedStyle);
-
-        if (isComponentRenderAs)
-        {
-            builder.AddComponentParameter(22, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(23, component => Element = ((IReferencableComponent)component).Element);
+            builder.AddComponentParameter(21, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(22, component => Element = ((IReferencableComponent)component).Element);
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(24, elementReference => Element = elementReference);
-            builder.AddContent(25, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "role", "radiogroup");
+
+            if (Required)
+                builder.AddAttribute(3, "aria-required", "true");
+
+            if (ResolvedDisabled)
+                builder.AddAttribute(4, "aria-disabled", "true");
+
+            if (ReadOnly)
+                builder.AddAttribute(5, "aria-readonly", "true");
+
+            var labelledBy = LabelableContext?.LabelId ?? FieldsetContext?.LegendId;
+            if (!string.IsNullOrEmpty(labelledBy))
+                builder.AddAttribute(6, "aria-labelledby", labelledBy);
+
+            var describedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(describedBy))
+                builder.AddAttribute(7, "aria-describedby", describedBy);
+
+            builder.AddAttribute(8, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(9, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+
+            if (state.Disabled)
+                builder.AddAttribute(10, "data-disabled", string.Empty);
+
+            if (state.ReadOnly)
+                builder.AddAttribute(11, "data-readonly", string.Empty);
+
+            if (state.Required)
+                builder.AddAttribute(12, "data-required", string.Empty);
+
+            if (state.Valid == true)
+                builder.AddAttribute(13, "data-valid", string.Empty);
+            else if (state.Valid == false)
+                builder.AddAttribute(14, "data-invalid", string.Empty);
+
+            if (state.Touched)
+                builder.AddAttribute(15, "data-touched", string.Empty);
+
+            if (state.Dirty)
+                builder.AddAttribute(16, "data-dirty", string.Empty);
+
+            if (state.Filled)
+                builder.AddAttribute(17, "data-filled", string.Empty);
+
+            if (state.Focused)
+                builder.AddAttribute(18, "data-focused", string.Empty);
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+                builder.AddAttribute(19, "class", resolvedClass);
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+                builder.AddAttribute(20, "style", resolvedStyle);
+
+            builder.AddElementReferenceCapture(21, elementReference => Element = elementReference);
+            builder.AddContent(22, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
 
         var serializedValue = SerializeValue(CurrentValue);
 
-        builder.OpenElement(26, "input");
-        builder.AddAttribute(27, "type", "radio");
-        builder.AddAttribute(28, "id", groupId);
-        builder.AddAttribute(29, "tabindex", -1);
-        builder.AddAttribute(30, "aria-hidden", "true");
-        builder.AddAttribute(31, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
+        builder.OpenRegion(2);
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "type", "radio");
+        builder.AddAttribute(2, "id", groupId);
+        builder.AddAttribute(3, "tabindex", -1);
+        builder.AddAttribute(4, "aria-hidden", "true");
+        builder.AddAttribute(5, "style", "position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;");
 
         if (ResolvedName is not null)
-            builder.AddAttribute(32, "name", ResolvedName);
+            builder.AddAttribute(6, "name", ResolvedName);
 
-        builder.AddAttribute(33, "value", serializedValue ?? string.Empty);
+        builder.AddAttribute(7, "value", serializedValue ?? string.Empty);
 
         if (CurrentValue is not null)
-            builder.AddAttribute(34, "checked");
+            builder.AddAttribute(8, "checked");
 
         if (ResolvedDisabled)
-            builder.AddAttribute(35, "disabled");
+            builder.AddAttribute(9, "disabled");
 
         if (Required)
-            builder.AddAttribute(36, "required");
+            builder.AddAttribute(10, "required");
 
         if (ReadOnly)
-            builder.AddAttribute(37, "readonly");
+            builder.AddAttribute(11, "readonly");
 
-        builder.AddAttribute(38, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange));
-        builder.AddAttribute(39, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus));
+        builder.AddAttribute(12, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleHiddenInputChange));
+        builder.AddAttribute(13, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleHiddenInputFocus));
         builder.CloseElement();
+        builder.CloseRegion();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -357,16 +410,12 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
     {
         FieldContext?.UnsubscribeFunc(this);
 
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                if (Element.HasValue)
-                {
-                    await module.InvokeVoidAsync("disposeGroup", Element.Value);
-                }
-
+                await module.InvokeVoidAsync("disposeGroup", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -433,14 +482,16 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
-    private void HandleBlur(FocusEventArgs e)
+    private Task HandleBlur(FocusEventArgs e)
     {
         _ = HandleBlurInternalAsync();
+        return EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlurInternalAsync()
@@ -469,13 +520,11 @@ public sealed class RadioGroup<TValue> : ComponentBase, IReferencableComponent, 
         }
     }
 
-    private void HandleKeyDownCapture(KeyboardEventArgs e)
+    [JSInvokable]
+    public void OnArrowKeyPressed()
     {
-        if (e.Key.StartsWith("Arrow"))
-        {
-            FieldContext?.SetTouched(true);
-            FieldContext?.SetFocused(true);
-        }
+        FieldContext?.SetTouched(true);
+        FieldContext?.SetFocused(true);
     }
 
     private void HandleHiddenInputChange(ChangeEventArgs e)

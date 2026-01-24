@@ -192,12 +192,14 @@ public sealed class DialogBackdrop : ComponentBase, IReferencableComponent
         }
     }
 
-    private async Task HandleClick()
+    private async Task HandleClick(MouseEventArgs e)
     {
         if (Context is not null && Context.DismissOnOutsidePress)
         {
             await Context.SetOpenAsync(false, OpenChangeReason.OutsidePress);
         }
+
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
     private static string? CombineStyleStrings(string? style1, string? style2)

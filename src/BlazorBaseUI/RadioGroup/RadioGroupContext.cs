@@ -3,7 +3,7 @@ using BlazorBaseUI.Field;
 
 namespace BlazorBaseUI.RadioGroup;
 
-public interface IRadioGroupContext
+public interface IRadioGroupContext<TValue>
 {
     bool Disabled { get; }
     bool ReadOnly { get; }
@@ -11,15 +11,11 @@ public interface IRadioGroupContext
     string? Name { get; }
     FieldValidation? Validation { get; }
     ElementReference? GroupElement { get; }
-}
-
-public interface IRadioGroupContext<TValue> : IRadioGroupContext
-{
     TValue? CheckedValue { get; }
     Task SetCheckedValueAsync(TValue value);
 }
 
-public sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
+public sealed record RadioGroupContext<TValue> : IRadioGroupContext<TValue>
 {
     private readonly Func<TValue?> getCheckedValue;
     private readonly Func<TValue, Task> setCheckedValue;

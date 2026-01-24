@@ -204,19 +204,6 @@ export async function close(panel) {
     invokeAnimationEnded(state.dotNetRef, 'close', true);
 }
 
-export function updateDimensions(panel) {
-    if (!panel) return;
-    const state = panelStates.get(panel);
-    if (!state) return;
-
-    const vars = getVarNames(state.prefix);
-    const dims = measureDimensions(panel);
-    setCssVariables(panel, {
-        [vars.height]: dims.height === 0 ? 'auto' : `${dims.height}px`,
-        [vars.width]: dims.width === 0 ? 'auto' : `${dims.width}px`
-    });
-}
-
 export function dispose(panel) {
     const state = panelStates.get(panel);
     if (!state) return;

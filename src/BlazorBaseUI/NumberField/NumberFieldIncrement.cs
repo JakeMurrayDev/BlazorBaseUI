@@ -303,20 +303,22 @@ public sealed class NumberFieldIncrement : ComponentBase, IReferencableComponent
         }
     }
 
-    private void HandleMouseEnter(MouseEventArgs e)
+    private Task HandleMouseEnter(MouseEventArgs e)
     {
         if (ResolvedDisabled || RootContext?.ReadOnly == true || !isPressed || isTouchingButton || pointerType == "touch")
-            return;
+            return Task.CompletedTask;
 
         RootContext?.StartAutoChange(true);
+        return EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
     }
 
-    private void HandleMouseLeave(MouseEventArgs e)
+    private Task HandleMouseLeave(MouseEventArgs e)
     {
         if (isTouchingButton)
-            return;
+            return Task.CompletedTask;
 
         RootContext?.StopAutoChange();
+        return EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
     }
 
     private void HandleMouseUp(MouseEventArgs e)

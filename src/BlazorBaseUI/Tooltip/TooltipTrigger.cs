@@ -316,6 +316,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         if (effectiveDelay <= 0)
         {
             await RequestOpenAsync(true, TooltipOpenChangeReason.TriggerHover);
+            await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
             return;
         }
 
@@ -333,6 +334,8 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         catch (TaskCanceledException)
         {
         }
+
+        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
@@ -354,6 +357,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         if (effectiveCloseDelay <= 0)
         {
             await RequestOpenAsync(false, TooltipOpenChangeReason.TriggerHover);
+            await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
             return;
         }
 
@@ -371,6 +375,8 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         catch (TaskCanceledException)
         {
         }
+
+        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleFocusAsync(FocusEventArgs e)
@@ -388,6 +394,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
 
         await RequestOpenAsync(true, TooltipOpenChangeReason.TriggerFocus);
+        await EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlurAsync(FocusEventArgs e)
@@ -405,6 +412,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         }
 
         await RequestOpenAsync(false, TooltipOpenChangeReason.TriggerFocus);
+        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private void CancelHoverDelay()

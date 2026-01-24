@@ -16,7 +16,13 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
     private AccordionItemContext<TValue>? itemContext;
     private CollapsibleRootContext? collapsibleContext;
     private AccordionItemState<TValue> state = null!;
-    private ElementReference? element;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+
+    private bool ResolvedDisabled => Disabled || (RootContext?.Disabled ?? false);
+
+    private bool IsOpen => RootContext?.IsValueOpen(resolvedValue) ?? false;
+
+    private AccordionRootContext<TValue>? TypedRootContext => RootContext as AccordionRootContext<TValue>;
 
     [CascadingParameter]
     private IAccordionRootContext? RootContext { get; set; }
@@ -53,12 +59,6 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
 
     public ElementReference? Element { get; private set; }
 
-    private bool ResolvedDisabled => Disabled || (RootContext?.Disabled ?? false);
-
-    private bool IsOpen => RootContext?.IsValueOpen(resolvedValue) ?? false;
-
-    private AccordionRootContext<TValue>? TypedRootContext => RootContext as AccordionRootContext<TValue>;
-
     protected override void OnInitialized()
     {
         resolvedValue = ResolveValue();
@@ -71,7 +71,8 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 ResolvedDisabled,
                 TypedRootContext.Orientation,
                 index,
-                currentOpen);
+                currentOpen,
+                transitionStatus);
 
             itemContext = new AccordionItemContext<TValue>(
                 TypedRootContext,
@@ -79,23 +80,24 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 index,
                 ResolvedDisabled,
                 HandleTrigger,
-                SetPanelId,
-                SetTriggerId);
+                SetPanelId);
 
             collapsibleContext = new CollapsibleRootContext(
                 Open: currentOpen,
                 Disabled: ResolvedDisabled,
+                TransitionStatus: transitionStatus,
                 PanelId: panelId,
                 HandleTrigger: HandleTrigger,
-                SetPanelId: SetPanelId);
+                SetPanelId: SetPanelId,
+                SetTransitionStatus: SetTransitionStatus);
         }
     }
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && ListContext is not null && element.HasValue)
+        if (firstRender && ListContext is not null && Element.HasValue)
         {
-            index = ListContext.Register(element.Value);
+            index = ListContext.Register(Element.Value);
         }
     }
 
@@ -123,8 +125,7 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 index,
                 currentDisabled,
                 HandleTrigger,
-                SetPanelId,
-                SetTriggerId);
+                SetPanelId);
         }
         else if (!ReferenceEquals(itemContext.RootContext, TypedRootContext) ||
                  itemContext.Index != index ||
@@ -143,13 +144,15 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
             collapsibleContext = new CollapsibleRootContext(
                 Open: currentOpen,
                 Disabled: currentDisabled,
+                TransitionStatus: transitionStatus,
                 PanelId: panelId,
                 HandleTrigger: HandleTrigger,
-                SetPanelId: SetPanelId);
+                SetPanelId: SetPanelId,
+                SetTransitionStatus: SetTransitionStatus);
         }
-        else if (collapsibleContext.Open != currentOpen || collapsibleContext.Disabled != currentDisabled)
+        else if (collapsibleContext.Open != currentOpen || collapsibleContext.Disabled != currentDisabled || collapsibleContext.TransitionStatus != transitionStatus)
         {
-            collapsibleContext = collapsibleContext with { Open = currentOpen, Disabled = currentDisabled };
+            collapsibleContext = collapsibleContext with { Open = currentOpen, Disabled = currentDisabled, TransitionStatus = transitionStatus };
         }
 
         if (state is null)
@@ -159,9 +162,10 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 currentDisabled,
                 TypedRootContext.Orientation,
                 index,
-                currentOpen);
+                currentOpen,
+                transitionStatus);
         }
-        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation)
+        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation || state.TransitionStatus != transitionStatus)
         {
             state = state with
             {
@@ -169,7 +173,8 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 Open = currentOpen,
                 Disabled = currentDisabled,
                 Index = index,
-                Orientation = TypedRootContext.Orientation
+                Orientation = TypedRootContext.Orientation,
+                TransitionStatus = transitionStatus
             };
         }
     }
@@ -196,52 +201,93 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
             {
                 if (isComponentRenderAs)
                 {
+                    collapsibleBuilder.OpenRegion(0);
                     collapsibleBuilder.OpenComponent(0, RenderAs!);
-                }
-                else
-                {
-                    collapsibleBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-                }
+                    collapsibleBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                    collapsibleBuilder.AddAttribute(2, "data-index", index.ToString());
+                    collapsibleBuilder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
 
-                collapsibleBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                    if (state.Open)
+                    {
+                        collapsibleBuilder.AddAttribute(4, "data-open", string.Empty);
+                    }
+                    else
+                    {
+                        collapsibleBuilder.AddAttribute(5, "data-closed", string.Empty);
+                    }
 
-                collapsibleBuilder.AddAttribute(2, "data-index", index.ToString());
-                collapsibleBuilder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
+                    if (state.Disabled)
+                    {
+                        collapsibleBuilder.AddAttribute(6, "data-disabled", string.Empty);
+                    }
 
-                if (state.Open)
-                {
-                    collapsibleBuilder.AddAttribute(4, "data-open", string.Empty);
-                }
-                else
-                {
-                    collapsibleBuilder.AddAttribute(5, "data-closed", string.Empty);
-                }
+                    if (state.TransitionStatus == TransitionStatus.Starting)
+                    {
+                        collapsibleBuilder.AddAttribute(7, "data-starting-style", string.Empty);
+                    }
+                    if (state.TransitionStatus == TransitionStatus.Ending)
+                    {
+                        collapsibleBuilder.AddAttribute(8, "data-ending-style", string.Empty);
+                    }
 
-                if (state.Disabled)
-                {
-                    collapsibleBuilder.AddAttribute(6, "data-disabled", string.Empty);
-                }
+                    if (!string.IsNullOrEmpty(resolvedClass))
+                    {
+                        collapsibleBuilder.AddAttribute(9, "class", resolvedClass);
+                    }
+                    if (!string.IsNullOrEmpty(resolvedStyle))
+                    {
+                        collapsibleBuilder.AddAttribute(10, "style", resolvedStyle);
+                    }
 
-                if (!string.IsNullOrEmpty(resolvedClass))
-                {
-                    collapsibleBuilder.AddAttribute(7, "class", resolvedClass);
-                }
-                if (!string.IsNullOrEmpty(resolvedStyle))
-                {
-                    collapsibleBuilder.AddAttribute(8, "style", resolvedStyle);
-                }
-
-                if (isComponentRenderAs)
-                {
-                    collapsibleBuilder.AddAttribute(9, "ChildContent", ChildContent);
-                    collapsibleBuilder.AddComponentReferenceCapture(10, component => { Element = ((IReferencableComponent)component).Element; });
+                    collapsibleBuilder.AddAttribute(11, "ChildContent", ChildContent);
+                    collapsibleBuilder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });
                     collapsibleBuilder.CloseComponent();
+                    collapsibleBuilder.CloseRegion();
                 }
                 else
                 {
-                    collapsibleBuilder.AddElementReferenceCapture(11, e => element = e);
+                    collapsibleBuilder.OpenRegion(1);
+                    collapsibleBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                    collapsibleBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                    collapsibleBuilder.AddAttribute(2, "data-index", index.ToString());
+                    collapsibleBuilder.AddAttribute(3, "data-orientation", state.Orientation.ToDataAttributeString());
+
+                    if (state.Open)
+                    {
+                        collapsibleBuilder.AddAttribute(4, "data-open", string.Empty);
+                    }
+                    else
+                    {
+                        collapsibleBuilder.AddAttribute(5, "data-closed", string.Empty);
+                    }
+
+                    if (state.Disabled)
+                    {
+                        collapsibleBuilder.AddAttribute(6, "data-disabled", string.Empty);
+                    }
+
+                    if (state.TransitionStatus == TransitionStatus.Starting)
+                    {
+                        collapsibleBuilder.AddAttribute(7, "data-starting-style", string.Empty);
+                    }
+                    if (state.TransitionStatus == TransitionStatus.Ending)
+                    {
+                        collapsibleBuilder.AddAttribute(8, "data-ending-style", string.Empty);
+                    }
+
+                    if (!string.IsNullOrEmpty(resolvedClass))
+                    {
+                        collapsibleBuilder.AddAttribute(9, "class", resolvedClass);
+                    }
+                    if (!string.IsNullOrEmpty(resolvedStyle))
+                    {
+                        collapsibleBuilder.AddAttribute(10, "style", resolvedStyle);
+                    }
+
+                    collapsibleBuilder.AddElementReferenceCapture(11, e => Element = e);
                     collapsibleBuilder.AddContent(12, ChildContent);
                     collapsibleBuilder.CloseElement();
+                    collapsibleBuilder.CloseRegion();
                 }
             }));
             itemBuilder.CloseComponent();
@@ -275,8 +321,17 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
         }
     }
 
-    private void SetTriggerId(string id)
+    private void SetTransitionStatus(TransitionStatus status)
     {
+        if (transitionStatus != status)
+        {
+            transitionStatus = status;
+            if (collapsibleContext is not null)
+            {
+                collapsibleContext = collapsibleContext with { TransitionStatus = status };
+            }
+            StateHasChanged();
+        }
     }
 
     private void HandleTrigger()

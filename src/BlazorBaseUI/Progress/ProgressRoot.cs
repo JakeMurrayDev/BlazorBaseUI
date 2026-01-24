@@ -11,13 +11,13 @@ public sealed class ProgressRoot : ComponentBase, IReferencableComponent
     private string? labelId;
     private bool isComponentRenderAs;
     private ProgressStatus previousStatus;
-    private ProgressRootState state = ProgressRootState.Default;
+    private ProgressRootState state = new(ProgressStatus.Indeterminate);
 
     [Parameter]
     public double? Value { get; set; }
 
     [Parameter]
-    public double Min { get; set; }
+    public double Min { get; set; } = 0;
 
     [Parameter]
     public double Max { get; set; } = 100;
@@ -152,7 +152,7 @@ public sealed class ProgressRoot : ComponentBase, IReferencableComponent
             return ProgressStatus.Indeterminate;
         }
 
-        return Value.Value >= Max ? ProgressStatus.Complete : ProgressStatus.Progressing;
+        return Value.Value == Max ? ProgressStatus.Complete : ProgressStatus.Progressing;
     }
 
     private string FormatValue(double? value)

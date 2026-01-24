@@ -10,8 +10,13 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
     private bool isOpen;
     private string panelId = string.Empty;
     private bool isComponentRenderAs;
-    private CollapsibleRootState state = new(false, false);
+    private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
     private CollapsibleRootContext context = null!;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+
+    private bool IsControlled => Open.HasValue;
+
+    private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
 
     [Parameter]
     public bool? Open { get; set; }
@@ -48,23 +53,18 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
 
     public ElementReference? Element { get; private set; }
 
-    private bool IsControlled => Open.HasValue;
-
-    private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
-
     protected override void OnInitialized()
     {
         isOpen = DefaultOpen;
-        context = new CollapsibleRootContext(CurrentOpen, Disabled, panelId, HandleTrigger, SetPanelId);
-        state = new CollapsibleRootState(CurrentOpen, Disabled);
-    }
-
-    
-
-    internal void SetPanelId(string id)
-    {
-        panelId = id;
-        context = context with { PanelId = id  };
+        context = new CollapsibleRootContext(
+            CurrentOpen,
+            Disabled,
+            transitionStatus,
+            panelId,
+            HandleTrigger,
+            SetPanelId,
+            SetTransitionStatus);
+        state = new CollapsibleRootState(CurrentOpen, Disabled, transitionStatus);
     }
 
     protected override void OnParametersSet()
@@ -85,10 +85,10 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
         }
 
         var currentOpen = CurrentOpen;
-        if (state.Open != currentOpen || state.Disabled != Disabled)
+        if (state.Open != currentOpen || state.Disabled != Disabled || state.TransitionStatus != transitionStatus)
         {
-            state = state with { Open = currentOpen, Disabled = Disabled };
-            context = context with { Open = currentOpen, Disabled = Disabled };
+            state = state with { Open = currentOpen, Disabled = Disabled, TransitionStatus = transitionStatus };
+            context = context with { Open = currentOpen, Disabled = Disabled, TransitionStatus = transitionStatus };
         }
     }
 
@@ -104,47 +104,81 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
         {
             if (isComponentRenderAs)
             {
+                innerBuilder.OpenRegion(0);
                 innerBuilder.OpenComponent(0, RenderAs!);
-            }
-            else
-            {
-                innerBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-            }
-
-            innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
-
-            if (state.Open)
-            {
-                innerBuilder.AddAttribute(2, "data-open", string.Empty);
-            }
-            else
-            {
-                innerBuilder.AddAttribute(3, "data-closed", string.Empty);
-            }
-
-            if (!string.IsNullOrEmpty(resolvedClass))
-            {
-                innerBuilder.AddAttribute(4, "class", resolvedClass);
-            }
-            if (!string.IsNullOrEmpty(resolvedStyle))
-            {
-                innerBuilder.AddAttribute(5, "style", resolvedStyle);
-            }
-
-            if (isComponentRenderAs)
-            {
-                innerBuilder.AddAttribute(6, "ChildContent", ChildContent);
-                innerBuilder.AddComponentReferenceCapture(7, component => { Element = ((IReferencableComponent)component).Element; });
+                innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                RenderDataAttributes(innerBuilder);
+                RenderClassAndStyle(innerBuilder, resolvedClass, resolvedStyle);
+                innerBuilder.AddAttribute(9, "ChildContent", ChildContent);
+                innerBuilder.AddComponentReferenceCapture(10, component => { Element = ((IReferencableComponent)component).Element; });
                 innerBuilder.CloseComponent();
+                innerBuilder.CloseRegion();
             }
             else
             {
-                innerBuilder.AddElementReferenceCapture(8, elementReference => Element = elementReference);
-                innerBuilder.AddContent(9, ChildContent);
+                innerBuilder.OpenRegion(1);
+                innerBuilder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+                innerBuilder.AddMultipleAttributes(1, AdditionalAttributes);
+                RenderDataAttributes(innerBuilder);
+                RenderClassAndStyle(innerBuilder, resolvedClass, resolvedStyle);
+                innerBuilder.AddElementReferenceCapture(9, elementReference => Element = elementReference);
+                innerBuilder.AddContent(10, ChildContent);
                 innerBuilder.CloseElement();
+                innerBuilder.CloseRegion();
             }
         }));
         builder.CloseComponent();
+    }
+
+    internal void SetPanelId(string id)
+    {
+        panelId = id;
+        context = context with { PanelId = id };
+    }
+
+    internal void SetTransitionStatus(TransitionStatus status)
+    {
+        if (transitionStatus != status)
+        {
+            transitionStatus = status;
+            state = state with { TransitionStatus = status };
+            context = context with { TransitionStatus = status };
+            StateHasChanged();
+        }
+    }
+
+    private void RenderDataAttributes(RenderTreeBuilder builder)
+    {
+        if (state.Open)
+        {
+            builder.AddAttribute(2, "data-open", string.Empty);
+        }
+        else
+        {
+            builder.AddAttribute(3, "data-closed", string.Empty);
+        }
+
+        if (state.TransitionStatus == TransitionStatus.Starting)
+        {
+            builder.AddAttribute(4, "data-starting-style", string.Empty);
+        }
+
+        if (state.TransitionStatus == TransitionStatus.Ending)
+        {
+            builder.AddAttribute(5, "data-ending-style", string.Empty);
+        }
+    }
+
+    private void RenderClassAndStyle(RenderTreeBuilder builder, string? resolvedClass, string? resolvedStyle)
+    {
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            builder.AddAttribute(6, "class", resolvedClass);
+        }
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            builder.AddAttribute(7, "style", resolvedStyle);
+        }
     }
 
     private void HandleTrigger()
@@ -155,7 +189,7 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
         }
 
         var nextOpen = !CurrentOpen;
-        var args = new CollapsibleOpenChangeEventArgs(nextOpen);
+        var args = new CollapsibleOpenChangeEventArgs(nextOpen, CollapsibleOpenChangeReason.TriggerPress);
 
         _ = OnOpenChange.InvokeAsync(args);
 

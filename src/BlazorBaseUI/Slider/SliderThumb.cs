@@ -139,90 +139,144 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "tabindex", -1);
+            builder.AddAttribute(3, "data-index", state.Index.ToString());
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "tabindex", -1);
-        builder.AddAttribute(3, "data-index", state.Index.ToString());
+            if (state.Dragging)
+            {
+                builder.AddAttribute(4, "data-dragging", string.Empty);
+            }
 
-        if (state.Dragging)
-        {
-            builder.AddAttribute(4, "data-dragging", string.Empty);
-        }
+            builder.AddAttribute(5, "data-orientation", orientationStr);
 
-        builder.AddAttribute(5, "data-orientation", orientationStr);
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(6, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(7, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(7, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(8, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(8, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(9, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(9, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(10, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(11, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(11, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(12, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(12, "data-dirty", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(13, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(13, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(14, "class", resolvedClass);
-        }
-
-        builder.AddAttribute(15, "style", combinedStyle);
-
-        if (isComponentRenderAs)
-        {
+            builder.AddAttribute(15, "style", combinedStyle);
             builder.AddComponentParameter(16, "ChildContent", (RenderFragment)(innerBuilder =>
             {
-                BuildInput(innerBuilder, 0);
-                innerBuilder.AddContent(21, ChildContent);
+                BuildInput(innerBuilder);
+                innerBuilder.AddContent(0, ChildContent);
             }));
             builder.AddComponentReferenceCapture(17, component => { element = ((IReferencableComponent)component).Element ?? default; Element = element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(18, e => { element = e; Element = e; });
-            BuildInput(builder, 19);
-            builder.AddContent(40, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "tabindex", -1);
+            builder.AddAttribute(3, "data-index", state.Index.ToString());
+
+            if (state.Dragging)
+            {
+                builder.AddAttribute(4, "data-dragging", string.Empty);
+            }
+
+            builder.AddAttribute(5, "data-orientation", orientationStr);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(7, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(8, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(9, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(11, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(12, "data-dirty", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(13, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+
+            builder.AddAttribute(15, "style", combinedStyle);
+            builder.AddElementReferenceCapture(16, e => { element = e; Element = e; });
+            builder.OpenRegion(17);
+            BuildInput(builder);
+            builder.CloseRegion();
+            builder.AddContent(18, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
-    private void BuildInput(RenderTreeBuilder builder, int startSequence)
+    private void BuildInput(RenderTreeBuilder builder)
     {
         if (Context is null)
             return;
@@ -233,49 +287,49 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         var ariaValueText = GetAriaValueText?.Invoke(formattedValue, thumbValue, ResolvedIndex) ?? GetDefaultAriaValueText(formattedValue);
         var describedBy = LabelableContext?.GetAriaDescribedBy();
 
-        builder.OpenElement(startSequence, "input");
-        builder.AddAttribute(startSequence + 1, "type", "range");
-        builder.AddAttribute(startSequence + 2, "id", inputId);
-        builder.AddAttribute(startSequence + 3, "min", Context.Min);
-        builder.AddAttribute(startSequence + 4, "max", Context.Max);
-        builder.AddAttribute(startSequence + 5, "step", Context.Step);
-        builder.AddAttribute(startSequence + 6, "value", thumbValue);
-        builder.AddAttribute(startSequence + 7, "disabled", ResolvedDisabled);
-        builder.AddAttribute(startSequence + 8, "aria-valuenow", thumbValue);
-        builder.AddAttribute(startSequence + 9, "aria-orientation", Context.Orientation.ToDataAttributeString());
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "type", "range");
+        builder.AddAttribute(2, "id", inputId);
+        builder.AddAttribute(3, "min", Context.Min);
+        builder.AddAttribute(4, "max", Context.Max);
+        builder.AddAttribute(5, "step", Context.Step);
+        builder.AddAttribute(6, "value", thumbValue);
+        builder.AddAttribute(7, "disabled", ResolvedDisabled);
+        builder.AddAttribute(8, "aria-valuenow", thumbValue);
+        builder.AddAttribute(9, "aria-orientation", Context.Orientation.ToDataAttributeString());
 
         if (!string.IsNullOrEmpty(ariaLabel))
         {
-            builder.AddAttribute(startSequence + 10, "aria-label", ariaLabel);
+            builder.AddAttribute(10, "aria-label", ariaLabel);
         }
 
         if (!string.IsNullOrEmpty(ariaValueText))
         {
-            builder.AddAttribute(startSequence + 11, "aria-valuetext", ariaValueText);
+            builder.AddAttribute(11, "aria-valuetext", ariaValueText);
         }
 
         if (!string.IsNullOrEmpty(Context.LabelId) && !IsRange)
         {
-            builder.AddAttribute(startSequence + 12, "aria-labelledby", Context.LabelId);
+            builder.AddAttribute(12, "aria-labelledby", Context.LabelId);
         }
 
         if (!string.IsNullOrEmpty(describedBy))
         {
-            builder.AddAttribute(startSequence + 13, "aria-describedby", describedBy);
+            builder.AddAttribute(13, "aria-describedby", describedBy);
         }
 
         if (!string.IsNullOrEmpty(Context.Name))
         {
             var inputName = IsRange ? $"{Context.Name}[{ResolvedIndex}]" : Context.Name;
-            builder.AddAttribute(startSequence + 14, "name", inputName);
+            builder.AddAttribute(14, "name", inputName);
         }
 
-        builder.AddAttribute(startSequence + 15, "style", "clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;");
-        builder.AddAttribute(startSequence + 16, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange));
-        builder.AddAttribute(startSequence + 17, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(startSequence + 18, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-        builder.AddAttribute(startSequence + 19, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
-        builder.AddElementReferenceCapture(startSequence + 20, e => inputElement = e);
+        builder.AddAttribute(15, "style", "clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;");
+        builder.AddAttribute(16, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange));
+        builder.AddAttribute(17, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+        builder.AddAttribute(18, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+        builder.AddAttribute(19, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+        builder.AddElementReferenceCapture(20, e => inputElement = e);
         builder.CloseElement();
     }
 

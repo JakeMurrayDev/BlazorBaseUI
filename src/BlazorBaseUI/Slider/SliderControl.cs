@@ -59,10 +59,6 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
             JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
     }
 
-    protected override void OnInitialized()
-    {
-    }
-
     protected override void OnParametersSet()
     {
         isComponentRenderAs = RenderAs is not null;
@@ -92,72 +88,64 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "tabindex", -1);
+            builder.AddAttribute(3, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "tabindex", -1);
-        builder.AddAttribute(3, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
+            if (state.Dragging)
+            {
+                builder.AddAttribute(4, "data-dragging", string.Empty);
+            }
 
-        if (state.Dragging)
-        {
-            builder.AddAttribute(4, "data-dragging", string.Empty);
-        }
+            builder.AddAttribute(5, "data-orientation", orientationStr);
 
-        builder.AddAttribute(5, "data-orientation", orientationStr);
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(6, "data-disabled", string.Empty);
-        }
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(7, "data-readonly", string.Empty);
+            }
 
-        if (state.ReadOnly)
-        {
-            builder.AddAttribute(7, "data-readonly", string.Empty);
-        }
+            if (state.Required)
+            {
+                builder.AddAttribute(8, "data-required", string.Empty);
+            }
 
-        if (state.Required)
-        {
-            builder.AddAttribute(8, "data-required", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(9, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(9, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(10, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(11, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(11, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(12, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(12, "data-dirty", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(13, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(13, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(14, "class", resolvedClass);
-        }
-
-        builder.AddAttribute(15, "style", combinedStyle);
-
-        if (isComponentRenderAs)
-        {
+            builder.AddAttribute(15, "style", combinedStyle);
             builder.AddComponentParameter(16, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(17, component =>
             {
@@ -169,17 +157,77 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
                 }
             });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(18, e =>
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "tabindex", -1);
+            builder.AddAttribute(3, "onpointerdown", EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown));
+
+            if (state.Dragging)
+            {
+                builder.AddAttribute(4, "data-dragging", string.Empty);
+            }
+
+            builder.AddAttribute(5, "data-orientation", orientationStr);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(6, "data-disabled", string.Empty);
+            }
+
+            if (state.ReadOnly)
+            {
+                builder.AddAttribute(7, "data-readonly", string.Empty);
+            }
+
+            if (state.Required)
+            {
+                builder.AddAttribute(8, "data-required", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(9, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(10, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(11, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(12, "data-dirty", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(13, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(14, "class", resolvedClass);
+            }
+
+            builder.AddAttribute(15, "style", combinedStyle);
+            builder.AddElementReferenceCapture(16, e =>
             {
                 element = e;
                 Element = e;
                 Context?.SetControlElement(e);
             });
-            builder.AddContent(19, ChildContent);
+            builder.AddContent(17, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
     }
 
@@ -196,7 +244,7 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
     {
         dotNetRef?.Dispose();
 
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
@@ -291,6 +339,8 @@ public sealed class SliderControl : ComponentBase, IReferencableComponent, IAsyn
 
                     await FocusThumbAsync(result.ThumbIndex);
                 }
+
+                await EventUtilities.InvokeOnPointerDownAsync(AdditionalAttributes, e);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {

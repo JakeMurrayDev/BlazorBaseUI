@@ -199,14 +199,101 @@
             <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
         </FieldRoot>
     </DemoSection>
+
+    <DemoSection Title="ActionsRef (Imperative Validation)"
+                 Description="Validate field programmatically via ActionsRef">
+        <FieldRoot Name="username"
+                   Validate="ValidateRequired"
+                   ActionsRef="@(actions => fieldActions = actions)"
+                   ClassValue="@(s => "p-4 border rounded " + (s.Valid == false ? "border-red-500" : "border-gray-300"))">
+            <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                Username (required)
+            </FieldLabel>
+            <FieldControl TValue="string"
+                          ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))"
+                          placeholder="Leave empty and click validate" />
+            <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+        </FieldRoot>
+        <button type="button"
+                @onclick="ValidateFieldImperatively"
+                class="mt-2 rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+            Validate Field
+        </button>
+    </DemoSection>
+
+    <DemoSection Title="NativeLabel (Click to Focus)"
+                 Description="Non-label element with NativeLabel=false focuses control on click">
+        <FieldRoot ClassValue="@(_ => "p-4 border rounded border-gray-300")">
+            <FieldLabel As="span"
+                        NativeLabel="@false"
+                        ClassValue="@(_ => "block text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600")">
+                Click this span to focus the input (NativeLabel=false)
+            </FieldLabel>
+            <FieldControl TValue="string"
+                          ClassValue="@(_ => "mt-1 block w-full rounded border p-2 border-gray-300")"
+                          placeholder="Focus me via the span above" />
+            <FieldDescription ClassValue="@(_ => "text-sm text-gray-500 mt-1")">
+                The label is rendered as a span but clicking it focuses the control
+            </FieldDescription>
+        </FieldRoot>
+    </DemoSection>
+
+    <DemoSection Title="ValueMissing Suppression (Pristine Fields)"
+                 Description="Required fields don't show valueMissing error until dirty">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="rounded border p-4">
+                <h4 class="mb-2 font-medium">Pristine: Focus, then blur (no error)</h4>
+                <FieldRoot ValidationMode="ValidationMode.OnBlur"
+                           ClassValue="@(s => "p-3 border rounded " + (s.Valid == false ? "border-red-500" : "border-gray-300"))">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                        Required Field
+                    </FieldLabel>
+                    <FieldControl TValue="string"
+                                  required="true"
+                                  ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))"
+                                  placeholder="Focus then blur without typing" />
+                    <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+                    <FieldDescription ClassValue="@(_ => "text-xs text-gray-500 mt-1")">
+                        No error shown because field was not "dirtied"
+                    </FieldDescription>
+                </FieldRoot>
+            </div>
+            <div class="rounded border p-4">
+                <h4 class="mb-2 font-medium">Dirty: Type, clear, then blur (shows error)</h4>
+                <FieldRoot ValidationMode="ValidationMode.OnBlur"
+                           ClassValue="@(s => "p-3 border rounded " + (s.Valid == false ? "border-red-500" : "border-gray-300"))">
+                    <FieldLabel ClassValue="@(_ => "block text-sm font-medium text-gray-700")">
+                        Required Field
+                    </FieldLabel>
+                    <FieldControl TValue="string"
+                                  required="true"
+                                  ClassValue="@(s => "mt-1 block w-full rounded border p-2 " + (s.Valid == false ? "border-red-500" : "border-gray-300"))"
+                                  placeholder="Type something, delete it, then blur" />
+                    <FieldError ClassValue="@(_ => "text-sm text-red-600 mt-1")" />
+                    <FieldDescription ClassValue="@(_ => "text-xs text-gray-500 mt-1")">
+                        Error shows because field was "dirtied" (value changed)
+                    </FieldDescription>
+                </FieldRoot>
+            </div>
+        </div>
+    </DemoSection>
 </ComponentShowcase>
 
 @code {
     private bool controlledDirty;
     private bool controlledTouched;
+    private FieldRootActions? fieldActions;
 
     [Parameter]
     public bool IsWasmMode { get; set; }
+
+    private async Task ValidateFieldImperatively()
+    {
+        if (fieldActions is not null)
+        {
+            await fieldActions.ValidateAsync();
+        }
+    }
 
     private string GetStateClasses(FieldRootState s)
     {
@@ -215,6 +302,14 @@
         if (s.Touched) classes.Add("bg-blue-50");
         if (!classes.Any()) classes.Add("border-gray-300");
         return string.Join(' ', classes);
+    }
+
+    private Task<string[]?> ValidateRequired(object? value)
+    {
+        var str = value?.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(str))
+            return Task.FromResult<string[]?>(["This field is required"]);
+        return Task.FromResult<string[]?>(null);
     }
 
     private Task<string[]?> ValidateMinLength(object? value)

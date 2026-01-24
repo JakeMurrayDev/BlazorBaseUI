@@ -300,10 +300,10 @@ public sealed partial class NumberFieldInput : ComponentBase, IReferencableCompo
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         if (RootContext?.ReadOnly == true || RootContext?.Disabled == true)
-            return;
+            return Task.CompletedTask;
 
         if (!hasTouchedInput)
         {
@@ -311,12 +311,13 @@ public sealed partial class NumberFieldInput : ComponentBase, IReferencableCompo
         }
 
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
-    private void HandleBlur(FocusEventArgs e)
+    private Task HandleBlur(FocusEventArgs e)
     {
         if (RootContext?.ReadOnly == true || RootContext?.Disabled == true)
-            return;
+            return Task.CompletedTask;
 
         FieldContext?.SetTouched(true);
         FieldContext?.SetFocused(false);
@@ -327,7 +328,7 @@ public sealed partial class NumberFieldInput : ComponentBase, IReferencableCompo
         {
             RootContext?.SetValue(null, NumberFieldChangeReason.InputClear, null);
             RootContext?.OnValueCommitted(null, NumberFieldChangeReason.InputClear);
-            return;
+            return EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
         }
 
         var parsedValue = ParseNumber(inputValue);
@@ -346,6 +347,8 @@ public sealed partial class NumberFieldInput : ComponentBase, IReferencableCompo
                 RootContext?.SetInputValue(formattedValue);
             }
         }
+
+        return EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private void HandleInput(ChangeEventArgs e)

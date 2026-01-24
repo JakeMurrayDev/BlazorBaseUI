@@ -32,6 +32,39 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
     private RadioRootContext? cachedContext;
     private bool stateDirty = true;
 
+    private bool IsInGroup => GroupContext is not null;
+
+    private bool CurrentChecked
+    {
+        get
+        {
+            if (GroupContext is not null)
+                return EqualityComparer<TValue>.Default.Equals(GroupContext.CheckedValue, Value);
+
+            return false;
+        }
+    }
+
+    private bool ResolvedDisabled =>
+        Disabled ||
+        (FieldContext?.Disabled ?? false) ||
+        (FieldItemContext?.Disabled ?? false) ||
+        (GroupContext?.Disabled ?? false);
+
+    private bool ResolvedReadOnly =>
+        ReadOnly ||
+        (GroupContext?.ReadOnly ?? false);
+
+    private bool ResolvedRequired =>
+        Required ||
+        (GroupContext?.Required ?? false);
+
+    private string? ResolvedName => Name ?? GroupContext?.Name ?? FieldContext?.Name;
+
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
+
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -81,39 +114,6 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private bool IsInGroup => GroupContext is not null;
-
-    private bool CurrentChecked
-    {
-        get
-        {
-            if (GroupContext is not null)
-                return EqualityComparer<TValue>.Default.Equals(GroupContext.CheckedValue, Value);
-
-            return false;
-        }
-    }
-
-    private bool ResolvedDisabled =>
-        Disabled ||
-        (FieldContext?.Disabled ?? false) ||
-        (FieldItemContext?.Disabled ?? false) ||
-        (GroupContext?.Disabled ?? false);
-
-    private bool ResolvedReadOnly =>
-        ReadOnly ||
-        (GroupContext?.ReadOnly ?? false);
-
-    private bool ResolvedRequired =>
-        Required ||
-        (GroupContext?.Required ?? false);
-
-    private string? ResolvedName => Name ?? GroupContext?.Name ?? FieldContext?.Name;
-
-    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
-    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
 
     public RadioRoot()
     {
@@ -458,12 +458,13 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
         }
     }
 
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         if (ResolvedDisabled)
-            return;
+            return Task.CompletedTask;
 
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlurAsync(FocusEventArgs e)
@@ -480,6 +481,8 @@ public sealed class RadioRoot<TValue> : ComponentBase, IReferencableComponent, I
             var valueToValidate = GroupContext is not null ? (object?)GroupContext.CheckedValue : CurrentChecked;
             await (validation?.CommitAsync(valueToValidate) ?? Task.CompletedTask);
         }
+
+        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)

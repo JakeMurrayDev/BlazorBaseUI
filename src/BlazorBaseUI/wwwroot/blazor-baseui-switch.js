@@ -1,10 +1,6 @@
 const STATE_KEY = Symbol.for('BlazorBaseUI.Switch.State');
 
-if (!window[STATE_KEY]) {
-    window[STATE_KEY] = { initialized: true };
-}
-
-export function initialize(element, inputElement, disabled, readOnly) {
+export function initialize(element, inputElement, disabled, readOnly, nativeButton) {
     if (!element) {
         return;
     }
@@ -13,10 +9,30 @@ export function initialize(element, inputElement, disabled, readOnly) {
         inputElement,
         disabled,
         readOnly,
+        nativeButton,
         keydownHandler: null,
         keyupHandler: null,
         clickHandler: null
     };
+
+    if (nativeButton) {
+        state.clickHandler = (event) => {
+            if (state.disabled || state.readOnly) {
+                event.preventDefault();
+                return;
+            }
+
+            event.preventDefault();
+
+            if (state.inputElement) {
+                state.inputElement.click();
+            }
+        };
+
+        element.addEventListener('click', state.clickHandler);
+        element[STATE_KEY] = state;
+        return;
+    }
 
     state.keydownHandler = (event) => {
         if (state.disabled) {
@@ -76,7 +92,7 @@ export function initialize(element, inputElement, disabled, readOnly) {
     element[STATE_KEY] = state;
 }
 
-export function updateState(element, disabled, readOnly) {
+export function updateState(element, disabled, readOnly, nativeButton) {
     if (!element) {
         return;
     }
@@ -85,6 +101,7 @@ export function updateState(element, disabled, readOnly) {
     if (state) {
         state.disabled = disabled;
         state.readOnly = readOnly;
+        state.nativeButton = nativeButton;
     }
 }
 

@@ -24,6 +24,14 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
     private bool hasRendered;
     private bool isComponentRenderAs;
 
+    private string ResolvedName => Name ?? FieldContext?.Name ?? NameAttributeValue;
+
+    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
+
+    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
+
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
 
@@ -55,14 +63,6 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
     public Func<FieldRootState, string>? StyleValue { get; set; }
 
     public ElementReference? Element { get; private set; }
-
-    private string ResolvedName => Name ?? FieldContext?.Name ?? NameAttributeValue;
-
-    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
-
-    private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
-
-    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
 
     public FieldControl()
     {
@@ -121,98 +121,210 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", resolvedControlId);
+            builder.AddAttribute(3, "name", ResolvedName);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
-        builder.AddAttribute(2, "id", resolvedControlId);
-        builder.AddAttribute(3, "name", ResolvedName);
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(4, "disabled", true);
+            }
 
-        if (ResolvedDisabled)
-        {
-            builder.AddAttribute(4, "disabled", true);
-        }
+            builder.AddAttribute(5, "value", CurrentValueAsString ?? EmptyValue);
 
-        builder.AddAttribute(5, "value", CurrentValueAsString ?? EmptyValue);
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(6, "aria-labelledby", LabelableContext.LabelId);
+            }
 
-        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
-        {
-            builder.AddAttribute(6, "aria-labelledby", LabelableContext.LabelId);
-        }
+            var ariaDescribedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(ariaDescribedBy))
+            {
+                builder.AddAttribute(7, "aria-describedby", ariaDescribedBy);
+            }
 
-        var ariaDescribedBy = LabelableContext?.GetAriaDescribedBy();
-        if (!string.IsNullOrEmpty(ariaDescribedBy))
-        {
-            builder.AddAttribute(7, "aria-describedby", ariaDescribedBy);
-        }
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(8, "aria-invalid", "true");
+            }
 
-        if (state.Valid == false)
-        {
-            builder.AddAttribute(8, "aria-invalid", "true");
-        }
+            builder.AddAttribute(9, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+            builder.AddAttribute(11, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput));
+            builder.AddAttribute(12, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
 
-        builder.AddAttribute(9, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-        builder.AddAttribute(11, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput));
+            if (state.Disabled)
+            {
+                builder.AddAttribute(13, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(12, "data-disabled", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(14, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(15, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(13, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(14, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(16, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(15, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(17, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(16, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(18, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(17, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(19, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(18, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(20, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(19, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(21, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(20, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
-            builder.AddComponentReferenceCapture(21, component => { Element = ((IReferencableComponent)component).Element; });
+            builder.AddComponentReferenceCapture(22, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+            builder.AddAttribute(2, "id", resolvedControlId);
+            builder.AddAttribute(3, "name", ResolvedName);
+
+            if (ResolvedDisabled)
+            {
+                builder.AddAttribute(4, "disabled", true);
+            }
+
+            builder.AddAttribute(5, "value", CurrentValueAsString ?? EmptyValue);
+
+            if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+            {
+                builder.AddAttribute(6, "aria-labelledby", LabelableContext.LabelId);
+            }
+
+            var ariaDescribedBy = LabelableContext?.GetAriaDescribedBy();
+            if (!string.IsNullOrEmpty(ariaDescribedBy))
+            {
+                builder.AddAttribute(7, "aria-describedby", ariaDescribedBy);
+            }
+
+            if (state.Valid == false)
+            {
+                builder.AddAttribute(8, "aria-invalid", "true");
+            }
+
+            builder.AddAttribute(9, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
+            builder.AddAttribute(10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
+            builder.AddAttribute(11, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleInput));
+            builder.AddAttribute(12, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(13, "data-disabled", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(14, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(15, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(16, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(17, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(18, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(19, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(20, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(21, "style", resolvedStyle);
+            }
+
             builder.AddElementReferenceCapture(22, elementReference => Element = elementReference);
             builder.CloseElement();
+            builder.CloseRegion();
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        LabelableContext?.SetControlId(null);
+        FieldContext?.Unsubscribe(this);
+
+        if (moduleTask.IsValueCreated && Element.HasValue)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    public async ValueTask FocusAsync()
+    {
+        if (!hasRendered || !Element.HasValue)
+            return;
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("focusElement", Element.Value);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    void IFieldStateSubscriber.NotifyStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     protected override bool TryParseValueFromString(
@@ -269,47 +381,10 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
         };
     }
 
-    void IFieldStateSubscriber.NotifyStateChanged()
-    {
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    public async ValueTask FocusAsync()
-    {
-        if (!hasRendered || !Element.HasValue)
-            return;
-
-        try
-        {
-            var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("focusElement", Element.Value);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        LabelableContext?.SetControlId(null);
-        FieldContext?.Unsubscribe(this);
-
-        if (moduleTask.IsValueCreated)
-        {
-            try
-            {
-                var module = await moduleTask.Value;
-                await module.DisposeAsync();
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
-            }
-        }
-    }
-
-    private void HandleFocus(FocusEventArgs e)
+    private Task HandleFocus(FocusEventArgs e)
     {
         FieldContext?.SetFocused(true);
+        return EventUtilities.InvokeOnFocusAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleBlur(FocusEventArgs e)
@@ -321,6 +396,8 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
         {
             await (FieldContext?.Validation.CommitAsync(CurrentValue) ?? Task.CompletedTask);
         }
+
+        await EventUtilities.InvokeOnBlurAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleInput(ChangeEventArgs e)
@@ -343,6 +420,18 @@ public sealed class FieldControl<TValue> : ControlBase<TValue>, IReferencableCom
             else
                 await FieldContext.Validation.CommitAsync(CurrentValue);
         }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        var tag = !string.IsNullOrEmpty(As) ? As : DefaultTag;
+        if (tag.Equals("input", StringComparison.OrdinalIgnoreCase) && e.Key == "Enter")
+        {
+            FieldContext?.SetTouched(true);
+            await (FieldContext?.Validation.CommitAsync(CurrentValue) ?? Task.CompletedTask);
+        }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
     private static bool IsEmpty(TValue? value)

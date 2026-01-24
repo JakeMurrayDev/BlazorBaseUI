@@ -17,6 +17,14 @@ public sealed class FieldItem : ComponentBase, IReferencableComponent, IFieldSta
     private LabelableContext labelableContext = null!;
     private FieldItemContext itemContext = null!;
 
+    private bool ResolvedDisabled => (FieldContext?.Disabled ?? false) || Disabled;
+
+    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
+
+    private bool HasParentCheckbox => CheckboxGroupContext?.AllValues is not null;
+
+    private string? InitialControlId => HasParentCheckbox ? CheckboxGroupContext?.Parent?.Id : null;
+
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
 
@@ -46,14 +54,6 @@ public sealed class FieldItem : ComponentBase, IReferencableComponent, IFieldSta
 
     public ElementReference? Element { get; private set; }
 
-    private bool ResolvedDisabled => (FieldContext?.Disabled ?? false) || Disabled;
-
-    private FieldRootState State => FieldContext?.State ?? FieldRootState.Default;
-
-    private bool HasParentCheckbox => CheckboxGroupContext?.AllValues is not null;
-
-    private string? InitialControlId => HasParentCheckbox ? CheckboxGroupContext?.Parent?.Id : null;
-
     protected override void OnInitialized()
     {
         controlId = InitialControlId ?? Guid.NewGuid().ToIdString();
@@ -81,12 +81,22 @@ public sealed class FieldItem : ComponentBase, IReferencableComponent, IFieldSta
         builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(builder2 =>
         {
             builder2.OpenComponent<CascadingValue<FieldItemContext>>(0);
-            builder2.AddComponentParameter(3, "Value", itemContext);
-            builder2.AddComponentParameter(4, "IsFixed", false);
-            builder2.AddComponentParameter(5, "ChildContent", (RenderFragment)RenderContent);
+            builder2.AddComponentParameter(1, "Value", itemContext);
+            builder2.AddComponentParameter(2, "IsFixed", false);
+            builder2.AddComponentParameter(3, "ChildContent", (RenderFragment)RenderContent);
             builder2.CloseComponent();
         }));
         builder.CloseComponent();
+    }
+
+    public void Dispose()
+    {
+        FieldContext?.Unsubscribe(this);
+    }
+
+    void IFieldStateSubscriber.NotifyStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void RenderContent(RenderTreeBuilder builder)
@@ -97,81 +107,114 @@ public sealed class FieldItem : ComponentBase, IReferencableComponent, IFieldSta
 
         if (isComponentRenderAs)
         {
+            builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
-        }
-        else
-        {
-            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-        }
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        builder.AddMultipleAttributes(1, AdditionalAttributes);
+            if (state.Disabled)
+            {
+                builder.AddAttribute(2, "data-disabled", string.Empty);
+            }
 
-        if (state.Disabled)
-        {
-            builder.AddAttribute(2, "data-disabled", string.Empty);
-        }
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(3, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(4, "data-invalid", string.Empty);
+            }
 
-        if (state.Valid == true)
-        {
-            builder.AddAttribute(3, "data-valid", string.Empty);
-        }
-        else if (state.Valid == false)
-        {
-            builder.AddAttribute(4, "data-invalid", string.Empty);
-        }
+            if (state.Touched)
+            {
+                builder.AddAttribute(5, "data-touched", string.Empty);
+            }
 
-        if (state.Touched)
-        {
-            builder.AddAttribute(5, "data-touched", string.Empty);
-        }
+            if (state.Dirty)
+            {
+                builder.AddAttribute(6, "data-dirty", string.Empty);
+            }
 
-        if (state.Dirty)
-        {
-            builder.AddAttribute(6, "data-dirty", string.Empty);
-        }
+            if (state.Filled)
+            {
+                builder.AddAttribute(7, "data-filled", string.Empty);
+            }
 
-        if (state.Filled)
-        {
-            builder.AddAttribute(7, "data-filled", string.Empty);
-        }
+            if (state.Focused)
+            {
+                builder.AddAttribute(8, "data-focused", string.Empty);
+            }
 
-        if (state.Focused)
-        {
-            builder.AddAttribute(8, "data-focused", string.Empty);
-        }
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(9, "class", resolvedClass);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedClass))
-        {
-            builder.AddAttribute(9, "class", resolvedClass);
-        }
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(10, "style", resolvedStyle);
+            }
 
-        if (!string.IsNullOrEmpty(resolvedStyle))
-        {
-            builder.AddAttribute(10, "style", resolvedStyle);
-        }
-
-        if (isComponentRenderAs)
-        {
             builder.AddAttribute(11, "ChildContent", ChildContent);
             builder.AddComponentReferenceCapture(12, component => { Element = ((IReferencableComponent)component).Element; });
             builder.CloseComponent();
+            builder.CloseRegion();
         }
         else
         {
-            builder.AddElementReferenceCapture(13, elementReference => Element = elementReference);
-            builder.AddContent(14, ChildContent);
+            builder.OpenRegion(1);
+            builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
+            builder.AddMultipleAttributes(1, AdditionalAttributes);
+
+            if (state.Disabled)
+            {
+                builder.AddAttribute(2, "data-disabled", string.Empty);
+            }
+
+            if (state.Valid == true)
+            {
+                builder.AddAttribute(3, "data-valid", string.Empty);
+            }
+            else if (state.Valid == false)
+            {
+                builder.AddAttribute(4, "data-invalid", string.Empty);
+            }
+
+            if (state.Touched)
+            {
+                builder.AddAttribute(5, "data-touched", string.Empty);
+            }
+
+            if (state.Dirty)
+            {
+                builder.AddAttribute(6, "data-dirty", string.Empty);
+            }
+
+            if (state.Filled)
+            {
+                builder.AddAttribute(7, "data-filled", string.Empty);
+            }
+
+            if (state.Focused)
+            {
+                builder.AddAttribute(8, "data-focused", string.Empty);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedClass))
+            {
+                builder.AddAttribute(9, "class", resolvedClass);
+            }
+
+            if (!string.IsNullOrEmpty(resolvedStyle))
+            {
+                builder.AddAttribute(10, "style", resolvedStyle);
+            }
+
+            builder.AddElementReferenceCapture(11, elementReference => Element = elementReference);
+            builder.AddContent(12, ChildContent);
             builder.CloseElement();
+            builder.CloseRegion();
         }
-    }
-
-    void IFieldStateSubscriber.NotifyStateChanged()
-    {
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        FieldContext?.Unsubscribe(this);
     }
 
     private LabelableContext CreateLabelableContext() => new(

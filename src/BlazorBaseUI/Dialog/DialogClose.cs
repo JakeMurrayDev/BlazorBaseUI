@@ -201,5 +201,7 @@ public sealed class DialogClose : ComponentBase, IReferencableComponent
         {
             await Context.SetOpenAsync(false, OpenChangeReason.ClosePress);
         }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 }
