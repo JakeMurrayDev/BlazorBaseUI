@@ -264,7 +264,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
         CancelHoverDelay();
         UnregisterFromCurrentStore(triggerId);
 
-        if (UseJsHover && hoverInitialized && moduleTask?.IsValueCreated == true && RootContext is not null)
+        if (UseJsHover && hoverInitialized && moduleTask?.IsValueCreated == true && RootContext is not null && Element.HasValue)
         {
             try
             {
@@ -277,6 +277,7 @@ public class TooltipTypedTrigger<TPayload> : ComponentBase, IReferencableCompone
                 // Circuit-safe JS interop - intentional empty catch for disconnection during disposal
             }
         }
+    }
     }
 
     private void OnElementChanged()
