@@ -10,6 +10,8 @@ internal sealed record MenuRootContext
         bool mounted,
         bool disabled,
         MenuParentType parentType,
+        MenuOrientation orientation,
+        bool highlightItemOnHover,
         OpenChangeReason openChangeReason,
         TransitionStatus transitionStatus,
         InstantType instantType,
@@ -29,6 +31,8 @@ internal sealed record MenuRootContext
         Mounted = mounted;
         Disabled = disabled;
         ParentType = parentType;
+        Orientation = orientation;
+        HighlightItemOnHover = highlightItemOnHover;
         OpenChangeReason = openChangeReason;
         TransitionStatus = transitionStatus;
         InstantType = instantType;
@@ -53,6 +57,10 @@ internal sealed record MenuRootContext
     public bool Disabled { get; set; }
 
     public MenuParentType ParentType { get; set; }
+
+    public MenuOrientation Orientation { get; }
+
+    public bool HighlightItemOnHover { get; }
 
     public OpenChangeReason OpenChangeReason { get; set; }
 

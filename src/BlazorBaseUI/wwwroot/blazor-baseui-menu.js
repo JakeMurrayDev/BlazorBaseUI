@@ -34,11 +34,20 @@ function initGlobalListeners() {
 }
 
 function handleGlobalKeyDown(e) {
-    // Find the topmost open menu
+    // Find all open menus and track the deepest one and any menubar root
+    let menubarRoot = null;
     let topmostRoot = null;
+    let openMenuCount = 0;
+    const openMenus = [];
+
     for (const [id, rootState] of state.roots) {
         if (rootState.isOpen && rootState.dotNetRef) {
+            openMenus.push(rootState);
+            openMenuCount++;
             topmostRoot = rootState;
+            if (rootState.menubarElement) {
+                menubarRoot = rootState;
+            }
         }
     }
 
@@ -51,22 +60,74 @@ function handleGlobalKeyDown(e) {
         return;
     }
 
-    // Handle arrow key navigation
+    // Get current item info for submenu handling
+    const currentItem = topmostRoot.popupElement ?
+        getMenuItems(topmostRoot.popupElement)[topmostRoot.activeIndex ?? -1] : null;
+    const isSubmenuTrigger = currentItem?.hasAttribute('aria-haspopup');
+    const isInSubmenu = openMenuCount > 1;
+
+    // Handle ArrowRight to open submenu (for vertical menus)
+    if (e.key === 'ArrowRight' && topmostRoot.orientation !== 'horizontal' && isSubmenuTrigger) {
+        e.preventDefault();
+        e.stopPropagation();
+        currentItem.click();
+        return;
+    }
+
+    // Handle ArrowLeft to close submenu (for vertical menus when in a submenu)
+    if (e.key === 'ArrowLeft' && topmostRoot.orientation !== 'horizontal' && isInSubmenu) {
+        e.preventDefault();
+        e.stopPropagation();
+        topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+        return;
+    }
+
+    // Handle ArrowLeft/Right for menubar navigation
+    if (menubarRoot && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        // For ArrowRight on a submenu trigger in menubar context, open it
+        if (e.key === 'ArrowRight' && isSubmenuTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentItem.click();
+            return;
+        }
+
+        // Navigate to sibling menubar item
+        e.preventDefault();
+        e.stopPropagation();
+
+        const direction = e.key === 'ArrowRight' ? 1 : -1;
+        navigateMenubarSibling(menubarRoot, direction);
+        return;
+    }
+
+    // Handle arrow key navigation within menu
     if (topmostRoot.popupElement) {
         const items = getMenuItems(topmostRoot.popupElement);
         if (items.length === 0) return;
 
         const currentIndex = topmostRoot.activeIndex ?? -1;
         let newIndex = currentIndex;
+        const isHorizontal = topmostRoot.orientation === 'horizontal';
+
+        // Map arrow keys based on orientation
+        const nextKey = isHorizontal ? 'ArrowRight' : 'ArrowDown';
+        const prevKey = isHorizontal ? 'ArrowLeft' : 'ArrowUp';
 
         switch (e.key) {
             case 'ArrowDown':
-                e.preventDefault();
-                newIndex = currentIndex < items.length - 1 ? currentIndex + 1 : (topmostRoot.loopFocus ? 0 : currentIndex);
+            case 'ArrowRight':
+                if ((isHorizontal && e.key === 'ArrowRight') || (!isHorizontal && e.key === 'ArrowDown')) {
+                    e.preventDefault();
+                    newIndex = currentIndex < items.length - 1 ? currentIndex + 1 : (topmostRoot.loopFocus ? 0 : currentIndex);
+                }
                 break;
             case 'ArrowUp':
-                e.preventDefault();
-                newIndex = currentIndex > 0 ? currentIndex - 1 : (topmostRoot.loopFocus ? items.length - 1 : currentIndex);
+            case 'ArrowLeft':
+                if ((isHorizontal && e.key === 'ArrowLeft') || (!isHorizontal && e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    newIndex = currentIndex > 0 ? currentIndex - 1 : (topmostRoot.loopFocus ? items.length - 1 : currentIndex);
+                }
                 break;
             case 'Home':
                 e.preventDefault();
@@ -107,6 +168,37 @@ function handleGlobalKeyDown(e) {
             topmostRoot.dotNetRef.invokeMethodAsync('OnActiveIndexChange', newIndex).catch(() => { });
         }
     }
+}
+
+function navigateMenubarSibling(menubarRoot, direction) {
+    const menubarElement = menubarRoot.menubarElement;
+    if (!menubarElement) return;
+
+    // Get all menubar triggers
+    const triggers = Array.from(menubarElement.querySelectorAll('[aria-haspopup="menu"]'));
+    if (triggers.length === 0) return;
+
+    // Find the current trigger (the one whose menu is open)
+    const currentTrigger = menubarRoot.triggerElement;
+    const currentIndex = triggers.indexOf(currentTrigger);
+    if (currentIndex === -1) return;
+
+    // Calculate next index (with wrapping)
+    let nextIndex = currentIndex + direction;
+    if (nextIndex < 0) nextIndex = triggers.length - 1;
+    if (nextIndex >= triggers.length) nextIndex = 0;
+
+    const nextTrigger = triggers[nextIndex];
+    if (!nextTrigger || nextTrigger === currentTrigger) return;
+
+    // Close current menu first
+    menubarRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+
+    // Focus the next trigger and click it to open its menu
+    setTimeout(() => {
+        nextTrigger.focus();
+        nextTrigger.click();
+    }, 10);
 }
 
 function getMenuItems(popupElement) {
@@ -167,7 +259,7 @@ function handleGlobalMouseDown(e) {
 // Root Management
 // ============================================================================
 
-export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal) {
+export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal, menubarElement, orientation, highlightItemOnHover) {
     initGlobalListeners();
 
     state.roots.set(rootId, {
@@ -181,7 +273,10 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
         closeParentOnEsc: closeParentOnEsc || false,
         modal: modal ?? true,
         scrollLocked: false,
-        hoverInteraction: null
+        hoverInteraction: null,
+        menubarElement: menubarElement || null,
+        orientation: orientation || 'vertical',
+        highlightItemOnHover: highlightItemOnHover ?? true
     });
 }
 
@@ -322,9 +417,17 @@ function unlockScroll(rootState) {
 // Open/Close State
 // ============================================================================
 
-export function setRootOpen(rootId, isOpen, reason) {
-    const rootState = state.roots.get(rootId);
-    if (!rootState) return;
+export async function setRootOpen(rootId, isOpen, reason) {
+    let rootState = state.roots.get(rootId);
+
+    // If root state doesn't exist yet, wait briefly for it to be initialized
+    // This handles the race condition on Server-side Blazor where setRootOpen
+    // may be called before initializeRoot completes
+    if (!rootState) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        rootState = state.roots.get(rootId);
+        if (!rootState) return;
+    }
 
     rootState.isOpen = isOpen;
     rootState.pendingOpen = isOpen;
@@ -336,7 +439,9 @@ export function setRootOpen(rootId, isOpen, reason) {
     }
 
     if (isOpen) {
-        rootState.activeIndex = -1;
+        // For menubar menus, don't auto-highlight - user must press arrow key first
+        // For other menus, start with first item highlighted (accessibility best practice)
+        rootState.activeIndex = rootState.menubarElement ? -1 : 0;
 
         // Apply scroll lock if modal and not opened via hover
         if (rootState.modal && reason !== 'trigger-hover') {
@@ -346,6 +451,19 @@ export function setRootOpen(rootId, isOpen, reason) {
         waitForPopupAndStartTransition(rootState, isOpen);
     } else {
         unlockScroll(rootState);
+
+        // Return focus to trigger when menu closes via keyboard or item click
+        // Don't focus trigger for hover-based closes or outside clicks (user clicked elsewhere)
+        const shouldFocusTrigger = reason === 'escape-key' || reason === 'item-press' || reason === 'close-press';
+        if (shouldFocusTrigger && rootState.triggerElement) {
+            // Use setTimeout to ensure focus happens after the menu is fully closed
+            setTimeout(() => {
+                if (rootState.triggerElement && document.contains(rootState.triggerElement)) {
+                    rootState.triggerElement.focus();
+                }
+            }, 0);
+        }
+
         startTransition(rootState, isOpen);
     }
 }
@@ -372,6 +490,10 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
     const popupElement = rootState.popupElement;
 
     if (popupElement) {
+        if (isOpen) {
+            // Wait for menu items to be rendered before highlighting
+            waitForItemsAndHighlight(rootState, popupElement);
+        }
         startTransition(rootState, isOpen);
         return;
     }
@@ -389,6 +511,10 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
                 rootState.hoverInteraction.setFloatingElement(element);
             }
             if (rootState.pendingOpen === isOpen) {
+                if (isOpen) {
+                    // Wait for menu items to be rendered before highlighting
+                    waitForItemsAndHighlight(rootState, element);
+                }
                 startTransition(rootState, isOpen);
             }
         } else if (attempts < maxAttempts && rootState.pendingOpen === isOpen) {
@@ -399,6 +525,26 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
     }
 
     requestAnimationFrame(checkForPopup);
+}
+
+function waitForItemsAndHighlight(rootState, popupElement) {
+    if (rootState.activeIndex < 0) return;
+
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    function checkForItems() {
+        attempts++;
+        const items = getMenuItems(popupElement);
+
+        if (items.length > 0) {
+            highlightItem(popupElement, items, rootState.activeIndex);
+        } else if (attempts < maxAttempts && rootState.isOpen) {
+            requestAnimationFrame(checkForItems);
+        }
+    }
+
+    requestAnimationFrame(checkForItems);
 }
 
 async function startTransition(rootState, isOpen) {
@@ -422,6 +568,11 @@ async function startTransition(rootState, isOpen) {
                 }
                 if (hasTransition) {
                     setupTransitionEndListener(rootState, isOpen);
+                } else {
+                    // No transition - immediately notify that transition is complete
+                    if (rootState.dotNetRef) {
+                        rootState.dotNetRef.invokeMethodAsync('OnTransitionEnd', isOpen).catch(() => { });
+                    }
                 }
                 if (rootState.dotNetRef) {
                     rootState.dotNetRef.invokeMethodAsync('OnStartingStyleApplied').catch(() => { });
@@ -516,7 +667,7 @@ export function setPopupElement(rootId, element) {
 // Positioning (delegated to shared floating module)
 // ============================================================================
 
-export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
+export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidance) {
     const floating = await ensureFloatingModule();
 
     const positionerId = await floating.initializePositioner({
@@ -532,7 +683,8 @@ export async function initializePositioner(positionerElement, triggerElement, si
         arrowElement,
         sticky: sticky || false,
         positionMethod: positionMethod || 'absolute',
-        disableAnchorTracking: disableAnchorTracking || false
+        disableAnchorTracking: disableAnchorTracking || false,
+        collisionAvoidance: collisionAvoidance || 'flip-shift'
     });
 
     if (positionerId) {
@@ -542,7 +694,7 @@ export async function initializePositioner(positionerElement, triggerElement, si
     return positionerId;
 }
 
-export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod) {
+export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidance) {
     const floating = await ensureFloatingModule();
 
     await floating.updatePositioner(positionerId, {
@@ -556,7 +708,8 @@ export async function updatePosition(positionerId, triggerElement, side, align, 
         arrowPadding,
         arrowElement,
         sticky: sticky || false,
-        positionMethod: positionMethod || 'absolute'
+        positionMethod: positionMethod || 'absolute',
+        collisionAvoidance: collisionAvoidance || 'flip-shift'
     });
 }
 

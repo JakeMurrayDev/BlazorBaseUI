@@ -35,4 +35,13 @@ internal static class Extensions
         CollisionBoundary.ClippingAncestors => "clipping-ancestors",
         _ => "clipping-ancestors"
     };
+
+    public static string ToDataAttributeString(this CollisionAvoidance collisionAvoidance) => collisionAvoidance switch
+    {
+        CollisionAvoidance.None => "none",
+        CollisionAvoidance.Shift => "shift",
+        CollisionAvoidance.Flip => "flip",
+        CollisionAvoidance.FlipShift => "flip-shift",
+        _ => "flip-shift"
+    };
 }

@@ -1,3 +1,4 @@
+using BlazorBaseUI.MenuBar;
 using BlazorBaseUI.Utilities;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -21,11 +22,16 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         JSRuntime!.InvokeAsync<IJSObjectReference>(
             "import", "./_content/BlazorBaseUI/blazor-baseui-menu.js").AsTask());
 
+    private bool IsInMenuBar => MenuBarContext is not null;
+
     [Inject]
     private IJSRuntime? JSRuntime { get; set; }
 
     [CascadingParameter]
     private MenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private MenuBarRootContext? MenuBarContext { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -84,7 +90,7 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         }
 
         var open = IsOpenedByThisTrigger();
-        var disabled = Disabled || (RootContext?.Disabled ?? false);
+        var disabled = Disabled || (RootContext?.Disabled ?? false) || (MenuBarContext?.Disabled ?? false);
         state = new MenuTriggerState(open, disabled);
     }
 
@@ -95,7 +101,12 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
             hasRendered = true;
             RootContext?.SetTriggerElement(Element);
 
-            if (OpenOnHover && !hoverInitialized)
+            if (IsInMenuBar && Element.HasValue)
+            {
+                MenuBarContext!.RegisterItem(Element.Value);
+            }
+
+            if ((OpenOnHover || IsInMenuBar) && !hoverInitialized)
             {
                 _ = InitializeHoverInteractionAsync();
             }
@@ -153,6 +164,11 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
 
     public async ValueTask DisposeAsync()
     {
+        if (IsInMenuBar && Element.HasValue)
+        {
+            MenuBarContext!.UnregisterItem(Element.Value);
+        }
+
         if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && RootContext is not null)
         {
             try
@@ -220,6 +236,11 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         }
 
         builder.AddAttribute(14, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+
+        if (IsInMenuBar)
+        {
+            builder.AddAttribute(15, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+        }
     }
 
     private bool IsOpenedByThisTrigger()
@@ -242,6 +263,19 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         var nextOpen = !IsOpenedByThisTrigger();
         await RootContext.SetOpenAsync(nextOpen, OpenChangeReason.TriggerPress, null);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseEnterAsync(MouseEventArgs e)
+    {
+        if (state.Disabled || RootContext is null || !IsInMenuBar)
+        {
+            return;
+        }
+
+        if (MenuBarContext!.GetHasSubmenuOpen() && !IsOpenedByThisTrigger())
+        {
+            await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerHover, null);
+        }
     }
 
     private async Task InitializeHoverInteractionAsync()

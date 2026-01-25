@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace BlazorBaseUI.Menu;
 
-public sealed class MenuPortal : ComponentBase
+public sealed class MenuPortal : ComponentBase, IReferencableComponent
 {
     private MenuPortalContext portalContext = null!;
 

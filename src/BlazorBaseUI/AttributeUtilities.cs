@@ -59,6 +59,14 @@ internal static class AttributeUtilities
         return attributeValue;
     }
 
+    public static bool HasAttribute(
+        IReadOnlyDictionary<string, object>? attributes, 
+        string attribute
+    )
+    {
+        return attributes is not null && attributes.TryGetValue(attribute, out var _);
+    }
+
     public static string? CombineClassNames(
         IReadOnlyDictionary<string, object>? attributes,
         string? classNames
@@ -138,4 +146,4 @@ internal static class AttributeUtilities
             ? defaultId()
             : idAttributeValue;
     }
-}
+}                                     

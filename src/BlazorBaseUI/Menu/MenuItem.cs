@@ -10,6 +10,7 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
 
     private bool isComponentRenderAs;
     private bool highlighted;
+    private bool hasMouseMoveAttribute;
     private MenuItemState state;
 
     [CascadingParameter]
@@ -23,6 +24,9 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
 
     [Parameter]
     public string? Label { get; set; }
+
+    [Parameter]
+    public string? Id { get; set; }
 
     [Parameter]
     public string? As { get; set; }
@@ -52,6 +56,7 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
             throw new InvalidOperationException($"Type {RenderAs!.Name} must implement IReferencableComponent.");
         }
 
+        hasMouseMoveAttribute = AttributeUtilities.HasAttribute(AdditionalAttributes, "onmousemove");
         state = new MenuItemState(Disabled, highlighted);
     }
 
@@ -66,41 +71,47 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
             builder.OpenComponent(0, RenderAs!);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "role", "menuitem");
-            builder.AddAttribute(3, "tabindex", highlighted ? 0 : -1);
+
+            if (!string.IsNullOrEmpty(Id))
+            {
+                builder.AddAttribute(3, "id", Id);
+            }
+
+            builder.AddAttribute(4, "tabindex", highlighted ? 0 : -1);
 
             if (Disabled)
             {
-                builder.AddAttribute(4, "aria-disabled", "true");
-                builder.AddAttribute(5, "data-disabled", string.Empty);
+                builder.AddAttribute(5, "aria-disabled", "true");
+                builder.AddAttribute(6, "data-disabled", string.Empty);
             }
 
             if (highlighted)
             {
-                builder.AddAttribute(6, "data-highlighted", string.Empty);
+                builder.AddAttribute(7, "data-highlighted", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(Label))
             {
-                builder.AddAttribute(7, "data-label", Label);
+                builder.AddAttribute(8, "data-label", Label);
             }
 
-            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddAttribute(9, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(10, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-            builder.AddAttribute(11, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
+            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(10, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(11, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(12, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(12, "class", resolvedClass);
+                builder.AddAttribute(13, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(13, "style", resolvedStyle);
+                builder.AddAttribute(14, "style", resolvedStyle);
             }
 
-            builder.AddComponentParameter(14, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(15, component => Element = ((IReferencableComponent)component).Element);
+            builder.AddComponentParameter(15, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(16, component => Element = ((IReferencableComponent)component).Element);
             builder.CloseComponent();
             builder.CloseRegion();
         }
@@ -110,41 +121,47 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
             builder.AddMultipleAttributes(1, AdditionalAttributes);
             builder.AddAttribute(2, "role", "menuitem");
-            builder.AddAttribute(3, "tabindex", highlighted ? 0 : -1);
+
+            if (!string.IsNullOrEmpty(Id))
+            {
+                builder.AddAttribute(3, "id", Id);
+            }
+
+            builder.AddAttribute(4, "tabindex", highlighted ? 0 : -1);
 
             if (Disabled)
             {
-                builder.AddAttribute(4, "aria-disabled", "true");
-                builder.AddAttribute(5, "data-disabled", string.Empty);
+                builder.AddAttribute(5, "aria-disabled", "true");
+                builder.AddAttribute(6, "data-disabled", string.Empty);
             }
 
             if (highlighted)
             {
-                builder.AddAttribute(6, "data-highlighted", string.Empty);
+                builder.AddAttribute(7, "data-highlighted", string.Empty);
             }
 
             if (!string.IsNullOrEmpty(Label))
             {
-                builder.AddAttribute(7, "data-label", Label);
+                builder.AddAttribute(8, "data-label", Label);
             }
 
-            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
-            builder.AddAttribute(9, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-            builder.AddAttribute(10, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
-            builder.AddAttribute(11, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
+            builder.AddAttribute(9, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+            builder.AddAttribute(10, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(11, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
+            builder.AddAttribute(12, "onmousemove", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync));
 
             if (!string.IsNullOrEmpty(resolvedClass))
             {
-                builder.AddAttribute(12, "class", resolvedClass);
+                builder.AddAttribute(13, "class", resolvedClass);
             }
 
             if (!string.IsNullOrEmpty(resolvedStyle))
             {
-                builder.AddAttribute(13, "style", resolvedStyle);
+                builder.AddAttribute(14, "style", resolvedStyle);
             }
 
-            builder.AddElementReferenceCapture(14, elementReference => Element = elementReference);
-            builder.AddContent(15, ChildContent);
+            builder.AddElementReferenceCapture(15, elementReference => Element = elementReference);
+            builder.AddContent(16, ChildContent);
             builder.CloseElement();
             builder.CloseRegion();
         }
@@ -167,7 +184,8 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
-        if (!Disabled)
+        var shouldHighlight = RootContext?.HighlightItemOnHover ?? true;
+        if (!Disabled && shouldHighlight)
         {
             highlighted = true;
             state = state with { Highlighted = true };
@@ -179,22 +197,29 @@ public sealed class MenuItem : ComponentBase, IReferencableComponent
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
-        highlighted = false;
-        state = state with { Highlighted = false };
-        StateHasChanged();
+        var shouldHighlight = RootContext?.HighlightItemOnHover ?? true;
+        if (shouldHighlight)
+        {
+            highlighted = false;
+            state = state with { Highlighted = false };
+            StateHasChanged();
+        }
 
         await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
     }
 
-    private async Task HandleMouseMoveAsync(MouseEventArgs e)
+    private Task HandleMouseMoveAsync(MouseEventArgs e)
     {
-        if (!Disabled && !highlighted)
+        var shouldHighlight = RootContext?.HighlightItemOnHover ?? true;
+        if (!Disabled && !highlighted && shouldHighlight)
         {
             highlighted = true;
             state = state with { Highlighted = true };
             StateHasChanged();
         }
 
-        await EventUtilities.InvokeOnMouseMoveAsync(AdditionalAttributes, e);
+        return hasMouseMoveAttribute
+            ? EventUtilities.InvokeOnMouseMoveAsync(AdditionalAttributes, e)
+            : Task.CompletedTask;
     }
 }

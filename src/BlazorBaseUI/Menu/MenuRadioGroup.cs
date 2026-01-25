@@ -108,10 +108,6 @@ public sealed class MenuRadioGroup : ComponentBase, IReferencableComponent
             if (Disabled)
             {
                 builder.AddAttribute(3, "aria-disabled", "true");
-            }
-
-            if (Disabled)
-            {
                 builder.AddAttribute(4, "data-disabled", string.Empty);
             }
 
@@ -140,10 +136,6 @@ public sealed class MenuRadioGroup : ComponentBase, IReferencableComponent
             if (Disabled)
             {
                 builder.AddAttribute(3, "aria-disabled", "true");
-            }
-
-            if (Disabled)
-            {
                 builder.AddAttribute(4, "data-disabled", string.Empty);
             }
 

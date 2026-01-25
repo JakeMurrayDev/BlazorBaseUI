@@ -33,6 +33,9 @@ public sealed class MenuCheckboxItem : ComponentBase, IReferencableComponent
     public EventCallback<MenuCheckboxItemChangeEventArgs> OnCheckedChange { get; set; }
 
     [Parameter]
+    public EventCallback<bool> CheckedChanged { get; set; }
+
+    [Parameter]
     public bool Disabled { get; set; }
 
     [Parameter]
@@ -222,6 +225,8 @@ public sealed class MenuCheckboxItem : ComponentBase, IReferencableComponent
         {
             internalChecked = newChecked;
         }
+
+        await CheckedChanged.InvokeAsync(newChecked);
 
         if (CloseOnClick && RootContext is not null)
         {
