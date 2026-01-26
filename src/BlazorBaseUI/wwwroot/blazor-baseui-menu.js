@@ -400,8 +400,8 @@ export async function setRootOpen(rootId, isOpen, reason) {
         // For other menus, start with first item highlighted (accessibility best practice)
         rootState.activeIndex = rootState.menubarElement ? -1 : 0;
 
-        // Apply scroll lock if modal and not opened via hover
-        if (rootState.modal && reason !== 'trigger-hover') {
+        // Apply scroll lock if modal and not opened via hover (guard against double acquisition)
+        if (rootState.modal && reason !== 'trigger-hover' && !rootState.releaseScrollLock) {
             rootState.releaseScrollLock = acquireScrollLock(rootState.positionerElement);
         }
 

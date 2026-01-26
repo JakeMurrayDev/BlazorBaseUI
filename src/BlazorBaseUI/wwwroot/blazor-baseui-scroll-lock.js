@@ -326,6 +326,9 @@ class ScrollLocker {
     }
 
     release() {
+        if (this.lockCount === 0) {
+            return;
+        }
         this.lockCount -= 1;
         if (this.lockCount === 0 && this.restore) {
             // Matches base-ui's Timeout.start behavior: clear pending before scheduling

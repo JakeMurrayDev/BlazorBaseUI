@@ -18,6 +18,7 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
     private bool previousDisabled;
     private Orientation previousOrientation;
     private bool previousLoopFocus;
+    private bool previousModal;
     private bool isComponentRenderAs;
     private bool hasSubmenuOpen;
     private int openSubmenuCount;
@@ -131,17 +132,22 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
         var stateChanged = Disabled != previousDisabled ||
                            Orientation != previousOrientation ||
                            LoopFocus != previousLoopFocus;
-
-        if (!stateChanged)
-        {
-            return;
-        }
+        var modalChanged = Modal != previousModal;
 
         previousDisabled = Disabled;
         previousOrientation = Orientation;
         previousLoopFocus = LoopFocus;
+        previousModal = Modal;
 
-        _ = InvokeAsync(cachedSyncJsCallback);
+        if (stateChanged)
+        {
+            _ = InvokeAsync(cachedSyncJsCallback);
+        }
+
+        if (modalChanged)
+        {
+            _ = InvokeAsync(UpdateScrollLockAsync);
+        }
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
