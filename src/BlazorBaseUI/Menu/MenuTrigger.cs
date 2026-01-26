@@ -267,15 +267,15 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
-        if (state.Disabled || RootContext is null || !IsInMenuBar)
+        if (!state.Disabled && RootContext is not null && IsInMenuBar)
         {
-            return;
+            if (MenuBarContext!.GetHasSubmenuOpen() && !IsOpenedByThisTrigger())
+            {
+                await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerHover, null);
+            }
         }
 
-        if (MenuBarContext!.GetHasSubmenuOpen() && !IsOpenedByThisTrigger())
-        {
-            await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerHover, null);
-        }
+        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
     }
 
     private async Task InitializeHoverInteractionAsync()

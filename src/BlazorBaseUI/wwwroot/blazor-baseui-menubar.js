@@ -1,17 +1,10 @@
+import { acquireScrollLock } from './blazor-baseui-scroll-lock.js';
+
 const STATE_KEY = Symbol.for('BlazorBaseUI.MenuBar.State');
 if (!window[STATE_KEY]) {
     window[STATE_KEY] = new WeakMap();
 }
 const state = window[STATE_KEY];
-
-const SCROLL_LOCK_KEY = Symbol.for('BlazorBaseUI.MenuBar.ScrollLock');
-if (!window[SCROLL_LOCK_KEY]) {
-    window[SCROLL_LOCK_KEY] = {
-        lockedBy: null,
-        originalStyles: null
-    };
-}
-const scrollLockState = window[SCROLL_LOCK_KEY];
 
 function getItems(element) {
     const menuBarState = state.get(element);
@@ -101,7 +94,8 @@ export function initMenuBar(element, orientation, loopFocus) {
     const menuBarState = {
         orientation,
         loopFocus,
-        items: new Set()
+        items: new Set(),
+        releaseScrollLock: null
     };
 
     state.set(element, menuBarState);
@@ -123,8 +117,10 @@ export function disposeMenuBar(element) {
 
     element.removeEventListener('keydown', handleKeyDown);
 
-    if (scrollLockState.lockedBy === element) {
-        unlockScroll();
+    const menuBarState = state.get(element);
+    if (menuBarState?.releaseScrollLock) {
+        menuBarState.releaseScrollLock();
+        menuBarState.releaseScrollLock = null;
     }
 
     state.delete(element);
@@ -133,51 +129,19 @@ export function disposeMenuBar(element) {
 export function updateScrollLock(element, shouldLock) {
     if (!element) return;
 
+    const menuBarState = state.get(element);
+    if (!menuBarState) return;
+
     if (shouldLock) {
-        if (scrollLockState.lockedBy === null) {
-            lockScroll(element);
+        if (!menuBarState.releaseScrollLock) {
+            menuBarState.releaseScrollLock = acquireScrollLock(element);
         }
     } else {
-        if (scrollLockState.lockedBy === element) {
-            unlockScroll();
+        if (menuBarState.releaseScrollLock) {
+            menuBarState.releaseScrollLock();
+            menuBarState.releaseScrollLock = null;
         }
     }
-}
-
-function lockScroll(element) {
-    const html = document.documentElement;
-    const body = document.body;
-
-    const scrollbarWidth = window.innerWidth - html.clientWidth;
-
-    scrollLockState.originalStyles = {
-        htmlOverflow: html.style.overflow,
-        bodyOverflow: body.style.overflow,
-        bodyPaddingRight: body.style.paddingRight
-    };
-
-    html.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-
-    if (scrollbarWidth > 0) {
-        body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    scrollLockState.lockedBy = element;
-}
-
-function unlockScroll() {
-    if (scrollLockState.originalStyles === null) return;
-
-    const html = document.documentElement;
-    const body = document.body;
-
-    html.style.overflow = scrollLockState.originalStyles.htmlOverflow;
-    body.style.overflow = scrollLockState.originalStyles.bodyOverflow;
-    body.style.paddingRight = scrollLockState.originalStyles.bodyPaddingRight;
-
-    scrollLockState.originalStyles = null;
-    scrollLockState.lockedBy = null;
 }
 
 export function registerItem(menuBarElement, itemElement) {

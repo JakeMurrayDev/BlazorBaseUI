@@ -4,6 +4,8 @@
  * Menu-specific functionality that builds on the shared floating infrastructure.
  */
 
+import { acquireScrollLock } from './blazor-baseui-scroll-lock.js';
+
 // Reference to shared floating module (loaded separately)
 let floatingModule = null;
 
@@ -272,7 +274,7 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
         loopFocus: loopFocus ?? true,
         closeParentOnEsc: closeParentOnEsc || false,
         modal: modal ?? true,
-        scrollLocked: false,
+        releaseScrollLock: null,
         hoverInteraction: null,
         menubarElement: menubarElement || null,
         orientation: orientation || 'vertical',
@@ -283,7 +285,11 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
 export function disposeRoot(rootId) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
-        unlockScroll(rootState);
+        // Release scroll lock if this menu had it
+        if (rootState.releaseScrollLock) {
+            rootState.releaseScrollLock();
+            rootState.releaseScrollLock = null;
+        }
         // Clean up hover interaction
         if (rootState.hoverInteraction) {
             rootState.hoverInteraction.cleanup();
@@ -365,55 +371,6 @@ export function setHoverInteractionOpen(rootId, isOpen) {
 }
 
 // ============================================================================
-// Scroll Lock
-// ============================================================================
-
-if (!state.scrollLock) {
-    state.scrollLock = {
-        lockCount: 0,
-        originalStyles: null
-    };
-}
-
-function lockScroll(rootState) {
-    if (rootState.scrollLocked) return;
-
-    rootState.scrollLocked = true;
-    state.scrollLock.lockCount++;
-
-    if (state.scrollLock.lockCount === 1) {
-        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-        state.scrollLock.originalStyles = {
-            overflow: document.body.style.overflow,
-            paddingRight: document.body.style.paddingRight
-        };
-
-        document.body.style.overflow = 'hidden';
-        if (scrollbarWidth > 0) {
-            document.body.style.paddingRight = `${scrollbarWidth}px`;
-        }
-
-        document.documentElement.setAttribute('data-scroll-locked', '');
-    }
-}
-
-function unlockScroll(rootState) {
-    if (!rootState.scrollLocked) return;
-
-    rootState.scrollLocked = false;
-    state.scrollLock.lockCount--;
-
-    if (state.scrollLock.lockCount === 0 && state.scrollLock.originalStyles) {
-        document.body.style.overflow = state.scrollLock.originalStyles.overflow;
-        document.body.style.paddingRight = state.scrollLock.originalStyles.paddingRight;
-        state.scrollLock.originalStyles = null;
-
-        document.documentElement.removeAttribute('data-scroll-locked');
-    }
-}
-
-// ============================================================================
 // Open/Close State
 // ============================================================================
 
@@ -445,12 +402,16 @@ export async function setRootOpen(rootId, isOpen, reason) {
 
         // Apply scroll lock if modal and not opened via hover
         if (rootState.modal && reason !== 'trigger-hover') {
-            lockScroll(rootState);
+            rootState.releaseScrollLock = acquireScrollLock(rootState.positionerElement);
         }
 
         waitForPopupAndStartTransition(rootState, isOpen);
     } else {
-        unlockScroll(rootState);
+        // Release scroll lock if this menu acquired it
+        if (rootState.releaseScrollLock) {
+            rootState.releaseScrollLock();
+            rootState.releaseScrollLock = null;
+        }
 
         // Return focus to trigger when menu closes via keyboard or item click
         // Don't focus trigger for hover-based closes or outside clicks (user clicked elsewhere)

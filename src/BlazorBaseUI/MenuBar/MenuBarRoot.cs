@@ -20,6 +20,7 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
     private bool previousLoopFocus;
     private bool isComponentRenderAs;
     private bool hasSubmenuOpen;
+    private int openSubmenuCount;
     private MenuBarRootState state = default!;
     private MenuBarRootContext context = default!;
 
@@ -288,12 +289,28 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
 
     private void SetHasSubmenuOpen(bool value)
     {
-        if (hasSubmenuOpen == value)
+        // Use counter-based tracking to handle multiple menus correctly.
+        // This prevents scroll lock jank when hovering between menu items:
+        // - Menu A opens: count 0 → 1, hasSubmenuOpen becomes true, lock
+        // - Menu B opens: count 1 → 2, hasSubmenuOpen stays true, no change
+        // - Menu A closes: count 2 → 1, hasSubmenuOpen stays true, no change (no unlock!)
+        // - Menu B closes: count 1 → 0, hasSubmenuOpen becomes false, unlock
+        if (value)
+        {
+            openSubmenuCount++;
+        }
+        else
+        {
+            openSubmenuCount = Math.Max(0, openSubmenuCount - 1);
+        }
+
+        var newHasSubmenuOpen = openSubmenuCount > 0;
+        if (hasSubmenuOpen == newHasSubmenuOpen)
         {
             return;
         }
 
-        hasSubmenuOpen = value;
+        hasSubmenuOpen = newHasSubmenuOpen;
         state = new MenuBarRootState(Disabled, hasSubmenuOpen, Modal, Orientation);
         context = new MenuBarRootContext(
             Disabled,
