@@ -51,6 +51,9 @@ public sealed class MenuPositioner : ComponentBase, IReferencableComponent, IAsy
     public CollisionBoundary CollisionBoundary { get; set; } = CollisionBoundary.ClippingAncestors;
 
     [Parameter]
+    public CollisionAvoidance CollisionAvoidance { get; set; } = CollisionAvoidance.FlipShift;
+
+    [Parameter]
     public int ArrowPadding { get; set; } = 5;
 
     [Parameter]
@@ -279,6 +282,7 @@ public sealed class MenuPositioner : ComponentBase, IReferencableComponent, IAsy
         try
         {
             var module = await ModuleTask.Value;
+            var effectiveCollisionAvoidance = nested ? CollisionAvoidance.Shift : CollisionAvoidance;
             positionerId = await module.InvokeAsync<string>(
                 "initializePositioner",
                 Element.Value,
@@ -293,7 +297,8 @@ public sealed class MenuPositioner : ComponentBase, IReferencableComponent, IAsy
                 arrowElement,
                 Sticky,
                 PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
-                DisableAnchorTracking);
+                DisableAnchorTracking,
+                effectiveCollisionAvoidance.ToDataAttributeString());
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -315,6 +320,7 @@ public sealed class MenuPositioner : ComponentBase, IReferencableComponent, IAsy
 
         var nested = RootContext.ParentType == MenuParentType.Menu;
         var effectiveSide = nested && Side == Side.Bottom ? Side.InlineEnd : Side;
+        var effectiveCollisionAvoidance = nested ? CollisionAvoidance.Shift : CollisionAvoidance;
 
         try
         {
@@ -332,7 +338,8 @@ public sealed class MenuPositioner : ComponentBase, IReferencableComponent, IAsy
                 ArrowPadding,
                 arrowElement,
                 Sticky,
-                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute");
+                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
+                effectiveCollisionAvoidance.ToDataAttributeString());
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

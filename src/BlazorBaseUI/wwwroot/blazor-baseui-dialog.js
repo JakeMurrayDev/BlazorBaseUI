@@ -1,106 +1,15 @@
+import { acquireScrollLock } from './blazor-baseui-scroll-lock.js';
+
 const STATE_KEY = Symbol.for('BlazorBaseUI.Dialog.State');
 
 if (!window[STATE_KEY]) {
     window[STATE_KEY] = {
         roots: new Map(),
         dialogStack: [],
-        globalListenersInitialized: false,
-        scrollLocker: null
+        globalListenersInitialized: false
     };
 }
 const state = window[STATE_KEY];
-
-// ScrollLocker - handles scroll locking with reference counting for nested modals
-class ScrollLocker {
-    constructor() {
-        this.lockCount = 0;
-        this.originalStyles = null;
-        this.scrollPosition = { top: 0, left: 0 };
-    }
-
-    acquire() {
-        this.lockCount++;
-        if (this.lockCount === 1) {
-            this.lock();
-        }
-    }
-
-    release() {
-        this.lockCount--;
-        if (this.lockCount <= 0) {
-            this.lockCount = 0;
-            this.unlock();
-        }
-    }
-
-    lock() {
-        const html = document.documentElement;
-        const body = document.body;
-
-        // Save scroll position
-        this.scrollPosition = {
-            top: html.scrollTop || body.scrollTop,
-            left: html.scrollLeft || body.scrollLeft
-        };
-
-        // Calculate scrollbar width before hiding overflow
-        const scrollbarWidth = window.innerWidth - html.clientWidth;
-
-        // Save original styles
-        this.originalStyles = {
-            htmlOverflow: html.style.overflow,
-            htmlOverflowX: html.style.overflowX,
-            htmlOverflowY: html.style.overflowY,
-            bodyOverflow: body.style.overflow,
-            bodyPaddingRight: body.style.paddingRight,
-            htmlPaddingRight: html.style.paddingRight
-        };
-
-        // Apply scroll lock
-        html.style.overflow = 'hidden';
-
-        // Compensate for scrollbar width to prevent layout shift
-        if (scrollbarWidth > 0) {
-            const currentPadding = parseInt(getComputedStyle(body).paddingRight, 10) || 0;
-            body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
-        }
-
-        // Add data attribute for CSS targeting
-        html.setAttribute('data-scroll-locked', '');
-    }
-
-    unlock() {
-        if (!this.originalStyles) {
-            return;
-        }
-
-        const html = document.documentElement;
-        const body = document.body;
-
-        // Restore original styles
-        html.style.overflow = this.originalStyles.htmlOverflow;
-        html.style.overflowX = this.originalStyles.htmlOverflowX;
-        html.style.overflowY = this.originalStyles.htmlOverflowY;
-        body.style.overflow = this.originalStyles.bodyOverflow;
-        body.style.paddingRight = this.originalStyles.bodyPaddingRight;
-
-        // Remove data attribute
-        html.removeAttribute('data-scroll-locked');
-
-        // Restore scroll position
-        html.scrollTop = this.scrollPosition.top;
-        body.scrollTop = this.scrollPosition.top;
-        html.scrollLeft = this.scrollPosition.left;
-        body.scrollLeft = this.scrollPosition.left;
-
-        this.originalStyles = null;
-    }
-}
-
-// Initialize scroll locker singleton
-if (!state.scrollLocker) {
-    state.scrollLocker = new ScrollLocker();
-}
 
 function initGlobalListeners() {
     if (state.globalListenersInitialized) return;
@@ -137,7 +46,7 @@ export function initializeRoot(rootId, dotNetRef, modal) {
         transitionCleanup: null,
         fallbackTimeoutId: null,
         pendingOpen: false,
-        hasScrollLock: false
+        releaseScrollLock: null
     });
 }
 
@@ -149,9 +58,9 @@ export function disposeRoot(rootId) {
         removeFromDialogStack(rootId);
 
         // Release scroll lock if this dialog had it
-        if (rootState.hasScrollLock) {
-            state.scrollLocker.release();
-            rootState.hasScrollLock = false;
+        if (rootState.releaseScrollLock) {
+            rootState.releaseScrollLock();
+            rootState.releaseScrollLock = null;
         }
     }
     state.roots.delete(rootId);
@@ -176,8 +85,7 @@ export function setRootOpen(rootId, isOpen) {
 
         // Lock scroll for modal dialogs (modal === 'true' only, not 'trap-focus')
         if (rootState.modal === 'true') {
-            state.scrollLocker.acquire();
-            rootState.hasScrollLock = true;
+            rootState.releaseScrollLock = acquireScrollLock(rootState.popupElement);
         }
 
         waitForPopupAndStartTransition(rootState, isOpen);
@@ -185,9 +93,9 @@ export function setRootOpen(rootId, isOpen) {
         removeFromDialogStack(rootId);
 
         // Release scroll lock if this dialog acquired it
-        if (rootState.hasScrollLock) {
-            state.scrollLocker.release();
-            rootState.hasScrollLock = false;
+        if (rootState.releaseScrollLock) {
+            rootState.releaseScrollLock();
+            rootState.releaseScrollLock = null;
         }
 
         cleanupFocusTrap(rootState);

@@ -1,3 +1,4 @@
+using BlazorBaseUI.MenuBar;
 using BlazorBaseUI.Utilities;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -15,7 +16,6 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
     private bool isMounted;
     private int activeIndex = -1;
     private ElementReference? triggerElement;
-    private ElementReference? positionerElement;
     private ElementReference? popupElement;
     private OpenChangeReason openChangeReason = OpenChangeReason.None;
     private TransitionStatus transitionStatus = TransitionStatus.None;
@@ -32,13 +32,19 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
 
     private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
 
-    private MenuParentType ParentType => ParentMenuContext is not null ? MenuParentType.Menu : MenuParentType.None;
+    private MenuParentType ParentType =>
+        ParentMenuContext is not null ? MenuParentType.Menu :
+        MenuBarContext is not null ? MenuParentType.Menubar :
+        MenuParentType.None;
 
     [Inject]
     private IJSRuntime? JSRuntime { get; set; }
 
     [CascadingParameter]
     private MenuRootContext? ParentMenuContext { get; set; }
+
+    [CascadingParameter]
+    private MenuBarRootContext? MenuBarContext { get; set; }
 
     [Parameter]
     public bool? Open { get; set; }
@@ -51,6 +57,12 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
 
     [Parameter]
     public bool LoopFocus { get; set; } = true;
+
+    [Parameter]
+    public MenuOrientation Orientation { get; set; } = MenuOrientation.Vertical;
+
+    [Parameter]
+    public bool HighlightItemOnHover { get; set; } = true;
 
     [Parameter]
     public bool Disabled { get; set; }
@@ -199,13 +211,18 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         {
             activeIndex = index;
             context.ActiveIndex = index;
-            StateHasChanged();
         }
     }
 
     [JSInvokable]
     public async Task OnHoverOpen()
     {
+        // In a menubar context, only open on hover if another menu is already open
+        if (MenuBarContext is not null && !MenuBarContext.GetHasSubmenuOpen())
+        {
+            return;
+        }
+
         await SetOpenAsync(true, OpenChangeReason.TriggerHover);
     }
 
@@ -215,14 +232,14 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         await SetOpenAsync(false, OpenChangeReason.TriggerHover);
     }
 
-    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason)
+    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, object? payload = null)
     {
         if (CurrentOpen == nextOpen)
         {
             return;
         }
 
-        var args = new MenuOpenChangeEventArgs(nextOpen, reason);
+        var args = new MenuOpenChangeEventArgs(nextOpen, reason, payload);
         await OnOpenChange.InvokeAsync(args);
 
         if (args.Canceled)
@@ -238,7 +255,7 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
             transitionStatus = TransitionStatus.Starting;
             isMounted = true;
-            activeIndex = -1;
+            activeIndex = 0; // First item highlighted when menu opens
         }
         else
         {
@@ -270,7 +287,15 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             try
             {
                 var module = await ModuleTask.Value;
-                var reasonString = reason == OpenChangeReason.TriggerHover ? "trigger-hover" : null;
+                var reasonString = reason switch
+                {
+                    OpenChangeReason.TriggerHover => "trigger-hover",
+                    OpenChangeReason.EscapeKey => "escape-key",
+                    OpenChangeReason.ItemPress => "item-press",
+                    OpenChangeReason.OutsidePress => "outside-press",
+                    OpenChangeReason.ClosePress => "close-press",
+                    _ => null
+                };
                 await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -280,6 +305,12 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         }
 
         await OpenChanged.InvokeAsync(nextOpen);
+
+        if (ParentType == MenuParentType.Menubar)
+        {
+            MenuBarContext?.SetHasSubmenuOpen(nextOpen);
+        }
+
         StateHasChanged();
     }
 
@@ -289,6 +320,8 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
         mounted: isMounted,
         disabled: Disabled,
         parentType: ParentType,
+        orientation: Orientation,
+        highlightItemOnHover: HighlightItemOnHover,
         openChangeReason: openChangeReason,
         transitionStatus: transitionStatus,
         instantType: instantType,
@@ -310,7 +343,15 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             var module = await ModuleTask.Value;
             var isNested = ParentType != MenuParentType.None;
             var modal = !isNested && Modal == ModalMode.True;
-            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, CloseParentOnEsc, LoopFocus, modal);
+            var menubarElement = ParentType == MenuParentType.Menubar ? MenuBarContext?.GetElement() : null;
+            var orientationStr = Orientation == MenuOrientation.Horizontal ? "horizontal" : "vertical";
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, CloseParentOnEsc, LoopFocus, modal, menubarElement, orientationStr, HighlightItemOnHover);
+
+            // Sync initial open state with JavaScript if already open
+            if (CurrentOpen)
+            {
+                await module.InvokeVoidAsync("setRootOpen", rootId, true, (string?)null);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -343,7 +384,8 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
 
     private void SetPositionerElement(ElementReference? element)
     {
-        positionerElement = element;
+        // Positioner element is tracked by MenuPositioner itself
+        // This method is kept for interface compatibility
     }
 
     private void SetPopupElement(ElementReference? element)
@@ -400,12 +442,12 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
 
     private Task SetOpenAsyncFromContext(bool nextOpen, OpenChangeReason reason, object? payload)
     {
-        return SetOpenAsync(nextOpen, reason);
+        return SetOpenAsync(nextOpen, reason, payload);
     }
 
     private void EmitClose(OpenChangeReason reason, object? payload)
     {
-        _ = SetOpenAsync(false, reason);
+        _ = SetOpenAsync(false, reason, payload);
     }
 
     private void ForceUnmount()

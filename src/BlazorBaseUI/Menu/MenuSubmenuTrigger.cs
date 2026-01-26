@@ -2,15 +2,25 @@ using BlazorBaseUI.Utilities;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 
 namespace BlazorBaseUI.Menu;
 
-public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, IDisposable
+public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, IAsyncDisposable
 {
     private const string DefaultTag = "div";
 
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool isComponentRenderAs;
-    private CancellationTokenSource? hoverCts;
+    private bool hasRendered;
+    private bool hoverInitialized;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime!.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-menu.js").AsTask());
+
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
 
     [CascadingParameter]
     private MenuRootContext? RootContext { get; set; }
@@ -70,6 +80,20 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
         }
     }
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            RootContext?.SetTriggerElement(Element);
+
+            if (OpenOnHover && !hoverInitialized)
+            {
+                _ = InitializeHoverInteractionAsync();
+            }
+        }
+    }
+
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
         if (RootContext is null)
@@ -111,9 +135,19 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        CancelHoverDelay();
+        if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && RootContext is not null)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
     }
 
     private void RenderAttributes(RenderTreeBuilder builder, string? resolvedClass, string? resolvedStyle, bool open, bool highlighted, bool disabled)
@@ -130,41 +164,40 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
         }
 
         builder.AddAttribute(7, "tabindex", open || highlighted ? 0 : -1);
-        builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
-        builder.AddAttribute(9, "onmouseleave", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync));
 
         if (open)
         {
-            builder.AddAttribute(10, "data-open", string.Empty);
+            builder.AddAttribute(8, "data-open", string.Empty);
+            builder.AddAttribute(9, "data-popup-open", string.Empty);
         }
         else
         {
-            builder.AddAttribute(11, "data-closed", string.Empty);
+            builder.AddAttribute(10, "data-closed", string.Empty);
         }
 
         if (disabled)
         {
-            builder.AddAttribute(12, "data-disabled", string.Empty);
+            builder.AddAttribute(11, "data-disabled", string.Empty);
         }
 
         if (highlighted)
         {
-            builder.AddAttribute(13, "data-highlighted", string.Empty);
+            builder.AddAttribute(12, "data-highlighted", string.Empty);
         }
 
         if (!string.IsNullOrEmpty(Label))
         {
-            builder.AddAttribute(14, "data-label", Label);
+            builder.AddAttribute(13, "data-label", Label);
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(15, "class", resolvedClass);
+            builder.AddAttribute(14, "class", resolvedClass);
         }
 
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(16, "style", resolvedStyle);
+            builder.AddAttribute(15, "style", resolvedStyle);
         }
     }
 
@@ -185,76 +218,22 @@ public sealed class MenuSubmenuTrigger : ComponentBase, IReferencableComponent, 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
-    private async Task HandleMouseEnterAsync(MouseEventArgs e)
+    private async Task InitializeHoverInteractionAsync()
     {
-        if (Disabled || RootContext is null)
+        if (RootContext is null || !Element.HasValue)
         {
             return;
         }
 
-        CancelHoverDelay();
-
-        if (OpenOnHover && !RootContext.GetOpen())
+        try
         {
-            hoverCts = new CancellationTokenSource();
-            var token = hoverCts.Token;
-
-            try
-            {
-                await Task.Delay(Delay, token);
-                if (!token.IsCancellationRequested)
-                {
-                    await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerHover, null);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                // TaskCanceledException is expected when hover delay is cancelled by user mouse movement
-            }
+            var module = await ModuleTask.Value;
+            var effectiveCloseDelay = CloseDelay > 0 ? CloseDelay : Delay;
+            await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
+            hoverInitialized = true;
         }
-
-        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
-    }
-
-    private async Task HandleMouseLeaveAsync(MouseEventArgs e)
-    {
-        if (Disabled || RootContext is null)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
-            return;
-        }
-
-        CancelHoverDelay();
-
-        if (OpenOnHover && RootContext.GetOpen())
-        {
-            hoverCts = new CancellationTokenSource();
-            var token = hoverCts.Token;
-
-            try
-            {
-                var effectiveCloseDelay = CloseDelay > 0 ? CloseDelay : Delay;
-                await Task.Delay(effectiveCloseDelay, token);
-                if (!token.IsCancellationRequested)
-                {
-                    await RootContext.SetOpenAsync(false, OpenChangeReason.TriggerHover, null);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                // TaskCanceledException is expected when hover delay is cancelled by user mouse movement
-            }
-        }
-
-        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
-    }
-
-    private void CancelHoverDelay()
-    {
-        if (hoverCts is not null)
-        {
-            hoverCts.Cancel();
-            hoverCts.Dispose();
-            hoverCts = null;
         }
     }
 }

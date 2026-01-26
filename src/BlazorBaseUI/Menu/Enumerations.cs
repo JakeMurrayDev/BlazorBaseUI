@@ -74,3 +74,17 @@ public enum MenuParentType
     ContextMenu,
     Menubar
 }
+
+public enum MenuOrientation
+{
+    Vertical,
+    Horizontal
+}
+
+public enum CollisionAvoidance
+{
+    None,
+    Shift,
+    Flip,
+    FlipShift
+}

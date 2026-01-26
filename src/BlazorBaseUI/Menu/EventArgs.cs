@@ -2,15 +2,18 @@ namespace BlazorBaseUI.Menu;
 
 public sealed class MenuOpenChangeEventArgs : EventArgs
 {
-    public MenuOpenChangeEventArgs(bool open, OpenChangeReason reason)
+    public MenuOpenChangeEventArgs(bool open, OpenChangeReason reason, object? payload = null)
     {
         Open = open;
         Reason = reason;
+        Payload = payload;
     }
 
     public bool Open { get; }
 
     public OpenChangeReason Reason { get; }
+
+    public object? Payload { get; }
 
     public bool Canceled { get; private set; }
 
