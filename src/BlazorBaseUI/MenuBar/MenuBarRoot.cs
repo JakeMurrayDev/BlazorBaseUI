@@ -170,10 +170,7 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
                 childBuilder.AddAttribute(3, "aria-orientation", orientationString);
                 childBuilder.AddAttribute(4, "data-orientation", orientationString);
 
-                if (hasSubmenuOpen)
-                {
-                    childBuilder.AddAttribute(5, "data-has-submenu-open", "");
-                }
+                childBuilder.AddAttribute(5, "data-has-submenu-open", hasSubmenuOpen ? "true" : "false");
 
                 if (Disabled)
                 {
@@ -204,10 +201,7 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
                 childBuilder.AddAttribute(3, "aria-orientation", orientationString);
                 childBuilder.AddAttribute(4, "data-orientation", orientationString);
 
-                if (hasSubmenuOpen)
-                {
-                    childBuilder.AddAttribute(5, "data-has-submenu-open", "");
-                }
+                childBuilder.AddAttribute(5, "data-has-submenu-open", hasSubmenuOpen ? "true" : "false");
 
                 if (Disabled)
                 {
