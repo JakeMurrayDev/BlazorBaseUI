@@ -48,7 +48,7 @@ public class CollapsiblePanelTest : BunitContext
         var trigger = cut.Find("button");
         var panel = cut.Find("div[data-closed]");
 
-        trigger.HasAttribute("aria-expanded").ShouldBeFalse();
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
         panel.HasAttribute("data-closed").ShouldBeTrue();
     }
 }
