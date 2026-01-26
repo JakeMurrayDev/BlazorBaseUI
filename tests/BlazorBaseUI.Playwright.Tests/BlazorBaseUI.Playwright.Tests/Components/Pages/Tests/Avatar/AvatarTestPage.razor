@@ -1,0 +1,64 @@
+@page "/tests/avatar/server"
+@using BlazorBaseUI.Avatar
+@rendermode InteractiveServer
+
+<PageTitle>Avatar Test Page (Server)</PageTitle>
+
+<div data-testid="test-container">
+    <AvatarRoot
+        data-testid="avatar-root"
+        class="@CustomClass"
+        style="display: inline-block; min-width: 48px; min-height: 48px;"
+        data-custom="custom-value">
+        <AvatarImage
+            src="@ResolvedImageSrc"
+            data-testid="avatar-image"
+            OnLoadingStatusChange="HandleStatusChange" />
+        @if (ShowFallback)
+        {
+            <AvatarFallback
+                Delay="@FallbackDelay"
+                data-testid="avatar-fallback">
+                <span data-testid="fallback-content">FB</span>
+            </AvatarFallback>
+        }
+    </AvatarRoot>
+
+    <div data-testid="state-display" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;">
+        <div>Loading Status: <span data-testid="loading-status">@loadingStatus</span></div>
+        <div>Status Change Count: <span data-testid="status-change-count">@statusChangeCount</span></div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "imageSrc")]
+    public string? ImageSrc { get; set; }
+
+    [SupplyParameterFromQuery(Name = "fallbackDelay")]
+    public int? FallbackDelay { get; set; }
+
+    [SupplyParameterFromQuery(Name = "forceError")]
+    public bool ForceError { get; set; }
+
+    [SupplyParameterFromQuery(Name = "showFallback")]
+    public bool? ShowFallbackQuery { get; set; }
+
+    private bool ShowFallback => ShowFallbackQuery ?? true;
+
+    [SupplyParameterFromQuery(Name = "customClass")]
+    public string? CustomClass { get; set; }
+
+    private string loadingStatus = "idle";
+    private int statusChangeCount;
+
+    private string ResolvedImageSrc => ForceError
+        ? "data:image/png;base64,invalid_base64_data"
+        : ImageSrc ?? "https://picsum.photos/200";
+
+    private void HandleStatusChange(ImageLoadingStatus status)
+    {
+        loadingStatus = status.ToString().ToLowerInvariant();
+        statusChangeCount++;
+        StateHasChanged();
+    }
+}
