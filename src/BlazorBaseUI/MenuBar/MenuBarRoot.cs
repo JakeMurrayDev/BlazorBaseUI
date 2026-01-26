@@ -241,6 +241,7 @@ public sealed class MenuBarRoot : ComponentBase, IReferencableComponent, IAsyncD
             previousDisabled = Disabled;
             previousOrientation = Orientation;
             previousLoopFocus = LoopFocus;
+            previousModal = Modal;
 
             await InitMenuBarAsync();
             await ProcessPendingRegistrationsAsync();
