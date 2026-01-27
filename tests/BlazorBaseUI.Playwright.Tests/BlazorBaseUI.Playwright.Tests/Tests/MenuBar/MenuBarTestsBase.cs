@@ -37,17 +37,10 @@ public abstract class MenuBarTestsBase : TestBase,
     protected async Task WaitForTextContentAsync(ILocator element, string expectedText, int timeout = 5000)
     {
         var effectiveTimeout = timeout * TimeoutMultiplier;
-        var startTime = DateTime.UtcNow;
-        while ((DateTime.UtcNow - startTime).TotalMilliseconds < effectiveTimeout)
+        await Assertions.Expect(element).ToHaveTextAsync(expectedText, new LocatorAssertionsToHaveTextOptions
         {
-            var text = await element.TextContentAsync();
-            if (text == expectedText)
-            {
-                return;
-            }
-            await Task.Delay(50);
-        }
-        throw new TimeoutException($"Element text did not reach '{expectedText}' within {effectiveTimeout}ms");
+            Timeout = (float)effectiveTimeout
+        });
     }
 
     #endregion
@@ -139,15 +132,14 @@ public abstract class MenuBarTestsBase : TestBase,
 
         var root = GetByTestId("menubar-root");
 
-        // Initially no submenu is open
-        var hasAttr = await root.EvaluateAsync<bool>("el => el.hasAttribute('data-has-submenu-open')");
-        Assert.False(hasAttr);
+        // Initially no submenu is open - attribute should be "false"
+        await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "false");
 
         // Open a menu
         await OpenMenu1Async();
 
-        // data-has-submenu-open should be present
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "");
+        // data-has-submenu-open should be "true"
+        await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "true");
     }
 
     #endregion
@@ -261,13 +253,19 @@ public abstract class MenuBarTestsBase : TestBase,
         var item1 = GetByTestId("menu-1-item-1");
         await item1.ClickAsync();
 
-        await Page.WaitForTimeoutAsync(300);
-
+        // Wait for menu to close with explicit timeout for WASM compatibility
         var menu1State = GetByTestId("menu-1-state");
-        await Assertions.Expect(menu1State).ToHaveTextAsync("false");
+        await Assertions.Expect(menu1State).ToHaveTextAsync("false", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 5000 * TimeoutMultiplier
+        });
 
+        // Wait for click handler to execute with explicit timeout for WASM compatibility
         var lastClicked = GetByTestId("last-item-clicked");
-        await Assertions.Expect(lastClicked).ToHaveTextAsync("Menu1-Item1");
+        await Assertions.Expect(lastClicked).ToHaveTextAsync("Menu1-Item1", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 5000 * TimeoutMultiplier
+        });
     }
 
     [Fact]
@@ -360,6 +358,160 @@ public abstract class MenuBarTestsBase : TestBase,
         await Assertions.Expect(menu1State).ToHaveTextAsync("false");
     }
 
+    [Fact]
+    public virtual async Task MenuBar_ClickTriggerAgain_ClosesMenu()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar"));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+
+        // First click opens menu
+        await trigger1.ClickAsync();
+        await WaitForMenu1OpenAsync();
+
+        var menu1State = GetByTestId("menu-1-state");
+        await Assertions.Expect(menu1State).ToHaveTextAsync("true");
+
+        // Second click closes menu
+        await trigger1.ClickAsync();
+        await Page.WaitForTimeoutAsync(300);
+
+        await Assertions.Expect(menu1State).ToHaveTextAsync("false");
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_TabFocus_DoesNotOpenMenu()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar"));
+
+        // Tab to focus on first trigger
+        await Page.Keyboard.PressAsync("Tab");
+        await Page.WaitForTimeoutAsync(100);
+
+        // Menu should NOT be open
+        var menu1State = GetByTestId("menu-1-state");
+        await Assertions.Expect(menu1State).ToHaveTextAsync("false");
+
+        // Trigger should be focused
+        var trigger1 = GetByTestId("menu-1-trigger");
+        await Assertions.Expect(trigger1).ToBeFocusedAsync();
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_SpaceKey_OpensMenu()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar"));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+        await trigger1.FocusAsync();
+        await Page.WaitForTimeoutAsync(100);
+
+        // Press Space to open menu
+        await Page.Keyboard.PressAsync("Space");
+        await Page.WaitForTimeoutAsync(300);
+
+        var menu1State = GetByTestId("menu-1-state");
+        await Assertions.Expect(menu1State).ToHaveTextAsync("true");
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_EnterKey_OpensMenu()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar"));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+        await trigger1.FocusAsync();
+        await Page.WaitForTimeoutAsync(100);
+
+        // Press Enter to open menu
+        await Page.Keyboard.PressAsync("Enter");
+        await Page.WaitForTimeoutAsync(300);
+
+        var menu1State = GetByTestId("menu-1-state");
+        await Assertions.Expect(menu1State).ToHaveTextAsync("true");
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_LoopFocusTrue_WrapsFromFirstToLast()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar").WithLoopFocus(true));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+
+        await trigger1.ClickAsync();
+        await WaitForMenu1OpenAsync();
+
+        // Navigate left from first menu (should wrap to last)
+        await Page.Keyboard.PressAsync("ArrowLeft");
+        await Page.WaitForTimeoutAsync(300);
+
+        var menu3State = GetByTestId("menu-3-state");
+        await Assertions.Expect(menu3State).ToHaveTextAsync("true");
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_LoopFocusFalse_StaysOnLastItem()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar").WithLoopFocus(false));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+        var trigger3 = GetByTestId("menu-3-trigger");
+
+        // Focus first trigger
+        await trigger1.FocusAsync();
+        await Page.WaitForTimeoutAsync(100);
+
+        // Navigate right twice to get to last trigger (trigger3)
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Page.WaitForTimeoutAsync(100);
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Page.WaitForTimeoutAsync(100);
+
+        await Assertions.Expect(trigger3).ToBeFocusedAsync();
+
+        // Try to navigate right again (should stay on last)
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Page.WaitForTimeoutAsync(100);
+
+        // Focus should still be on last trigger
+        await Assertions.Expect(trigger3).ToBeFocusedAsync();
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_LoopFocusFalse_StaysOnFirstItem()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar").WithLoopFocus(false));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+
+        // Focus first trigger
+        await trigger1.FocusAsync();
+        await Page.WaitForTimeoutAsync(100);
+
+        await Assertions.Expect(trigger1).ToBeFocusedAsync();
+
+        // Try to navigate left (should stay on first)
+        await Page.Keyboard.PressAsync("ArrowLeft");
+        await Page.WaitForTimeoutAsync(100);
+
+        // Focus should still be on first trigger
+        await Assertions.Expect(trigger1).ToBeFocusedAsync();
+    }
+
+    [Fact]
+    public virtual async Task MenuTrigger_HasRoleMenuitem()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar"));
+
+        var trigger1 = GetByTestId("menu-1-trigger");
+        var trigger2 = GetByTestId("menu-2-trigger");
+        var trigger3 = GetByTestId("menu-3-trigger");
+
+        await Assertions.Expect(trigger1).ToHaveAttributeAsync("role", "menuitem");
+        await Assertions.Expect(trigger2).ToHaveAttributeAsync("role", "menuitem");
+        await Assertions.Expect(trigger3).ToHaveAttributeAsync("role", "menuitem");
+    }
+
     #endregion
 
     #region Submenu Tests
@@ -417,6 +569,44 @@ public abstract class MenuBarTestsBase : TestBase,
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
+    }
+
+    [Fact]
+    public virtual async Task MenuBar_ArrowLeft_ClosesSubmenu()
+    {
+        await NavigateAsync(CreateUrl("/tests/menubar").WithShowSubmenu(true));
+
+        // Open menu 4
+        var trigger4 = GetByTestId("menu-4-trigger");
+        await trigger4.ClickAsync();
+        var popup4 = GetByTestId("menu-4-popup");
+        await popup4.WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible,
+            Timeout = 5000 * TimeoutMultiplier
+        });
+
+        // Navigate to submenu trigger and open it
+        await Page.Keyboard.PressAsync("ArrowDown");
+        await Page.WaitForTimeoutAsync(100);
+        await Page.Keyboard.PressAsync("ArrowDown");
+        await Page.WaitForTimeoutAsync(100);
+        await Page.Keyboard.PressAsync("ArrowRight");
+        await Page.WaitForTimeoutAsync(300);
+
+        var submenuState = GetByTestId("submenu-state");
+        await Assertions.Expect(submenuState).ToHaveTextAsync("true");
+
+        // Press ArrowLeft to close submenu
+        await Page.Keyboard.PressAsync("ArrowLeft");
+        await Page.WaitForTimeoutAsync(300);
+
+        // Submenu should be closed
+        await Assertions.Expect(submenuState).ToHaveTextAsync("false");
+
+        // Parent menu should still be open
+        var menu4State = GetByTestId("menu-4-state");
+        await Assertions.Expect(menu4State).ToHaveTextAsync("true");
     }
 
     #endregion

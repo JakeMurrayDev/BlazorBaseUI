@@ -169,6 +169,97 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithHighlightItemOnHover(bool value)
+    {
+        queryParams["highlightItemOnHover"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowTextNavItems(bool value)
+    {
+        queryParams["showTextNavItems"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowNestedSubmenu(bool value)
+    {
+        queryParams["showNestedSubmenu"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithDirection(string direction)
+    {
+        queryParams["direction"] = direction;
+        return this;
+    }
+
+    // Accordion-specific parameters
+    public TestPageUrlBuilder WithMultiple(bool value)
+    {
+        queryParams["multiple"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithHorizontal(bool value)
+    {
+        queryParams["horizontal"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithRootDisabled(bool value)
+    {
+        queryParams["rootDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithItem1Disabled(bool value)
+    {
+        queryParams["item1Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithItem2Disabled(bool value)
+    {
+        queryParams["item2Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithItem3Disabled(bool value)
+    {
+        queryParams["item3Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUseCustomValues(bool value)
+    {
+        queryParams["useCustomValues"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUseCustomPanelId(bool value)
+    {
+        queryParams["useCustomPanelId"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowThirdItem(bool value)
+    {
+        queryParams["showThirdItem"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowFourthItem(bool value)
+    {
+        queryParams["showFourthItem"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowInput(bool value)
+    {
+        queryParams["showInput"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

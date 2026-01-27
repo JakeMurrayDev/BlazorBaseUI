@@ -1,17 +1,19 @@
 @page "/tests/menu/server"
 @using BlazorBaseUI.Menu
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Menu Test Page (Server)</PageTitle>
 
-<div data-testid="test-container">
+<div data-testid="test-container" data-interactive="@RendererInfo.IsInteractive.ToString().ToLowerInvariant()" dir="@Direction">
     <MenuRoot
         @bind-Open="isOpen"
         DefaultOpen="@DefaultOpen"
         Disabled="@Disabled"
         Modal="@(Modal ? ModalMode.True : ModalMode.False)"
         Orientation="@((Orientation ?? "vertical") == "horizontal" ? MenuOrientation.Horizontal : MenuOrientation.Vertical)"
+        Direction="@(Direction == "rtl" ? TextDirection.Rtl : TextDirection.Ltr)"
         LoopFocus="@LoopFocus"
+        HighlightItemOnHover="@HighlightItemOnHover"
         OnOpenChange="HandleOpenChange"
         OnOpenChangeComplete="HandleOpenChangeComplete"
         >
@@ -40,6 +42,22 @@
                     <MenuItem data-testid="menu-item-no-close" CloseOnClick="false" @onclick="() => HandleItemClick(5)">
                         Item 5 (No Close)
                     </MenuItem>
+
+                    @if (ShowTextNavItems)
+                    {
+                        <MenuItem data-testid="menu-item-apple" Label="Apple" @onclick="() => HandleItemClick(10)">
+                            Apple
+                        </MenuItem>
+                        <MenuItem data-testid="menu-item-banana" Label="Banana" @onclick="() => HandleItemClick(11)">
+                            Banana
+                        </MenuItem>
+                        <MenuItem data-testid="menu-item-cherry" Label="Cherry" @onclick="() => HandleItemClick(12)">
+                            Cherry
+                        </MenuItem>
+                        <MenuItem data-testid="menu-item-apricot" Label="Apricot" @onclick="() => HandleItemClick(13)">
+                            Apricot
+                        </MenuItem>
+                    }
 
                     @if (ShowCheckbox)
                     {
@@ -76,6 +94,7 @@
                         <MenuSubmenuRoot
                             @bind-Open="submenuOpen"
                             CloseParentOnEsc="@CloseParentOnEsc"
+                            Direction="@(Direction == "rtl" ? TextDirection.Rtl : TextDirection.Ltr)"
                             OnOpenChange="HandleSubmenuOpenChange"
                             >
                             <MenuSubmenuTrigger data-testid="submenu-trigger">
@@ -84,12 +103,32 @@
                             <MenuPortal>
                                 <MenuPositioner data-testid="submenu-positioner">
                                     <MenuPopup data-testid="submenu-popup">
-                                        <MenuItem data-testid="submenu-item-1" OnClick="() => HandleSubmenuItemClick(1)">
+                                        <MenuItem data-testid="submenu-item-1" @onclick="() => HandleSubmenuItemClick(1)">
                                             Submenu Item 1
                                         </MenuItem>
-                                        <MenuItem data-testid="submenu-item-2" OnClick="() => HandleSubmenuItemClick(2)">
+                                        <MenuItem data-testid="submenu-item-2" @onclick="() => HandleSubmenuItemClick(2)">
                                             Submenu Item 2
                                         </MenuItem>
+                                        @if (ShowNestedSubmenu)
+                                        {
+                                            <MenuSubmenuRoot @bind-Open="nestedSubmenuOpen" Direction="@(Direction == "rtl" ? TextDirection.Rtl : TextDirection.Ltr)" OnOpenChange="HandleNestedSubmenuOpenChange">
+                                                <MenuSubmenuTrigger data-testid="nested-submenu-trigger">
+                                                    Nested Submenu
+                                                </MenuSubmenuTrigger>
+                                                <MenuPortal>
+                                                    <MenuPositioner data-testid="nested-submenu-positioner">
+                                                        <MenuPopup data-testid="nested-submenu-popup">
+                                                            <MenuItem data-testid="nested-submenu-item-1" @onclick="() => HandleNestedSubmenuItemClick(1)">
+                                                                Nested Item 1
+                                                            </MenuItem>
+                                                            <MenuItem data-testid="nested-submenu-item-2" @onclick="() => HandleNestedSubmenuItemClick(2)">
+                                                                Nested Item 2
+                                                            </MenuItem>
+                                                        </MenuPopup>
+                                                    </MenuPositioner>
+                                                </MenuPortal>
+                                            </MenuSubmenuRoot>
+                                        }
                                     </MenuPopup>
                                 </MenuPositioner>
                             </MenuPortal>
@@ -118,6 +157,11 @@
         {
             <div>Submenu Open: <span data-testid="submenu-state">@submenuOpen.ToString().ToLowerInvariant()</span></div>
             <div>Submenu Item Clicked: <span data-testid="submenu-item-clicked">@lastSubmenuItemClicked</span></div>
+            @if (ShowNestedSubmenu)
+            {
+                <div>Nested Submenu Open: <span data-testid="nested-submenu-state">@nestedSubmenuOpen.ToString().ToLowerInvariant()</span></div>
+                <div>Nested Submenu Item Clicked: <span data-testid="nested-submenu-item-clicked">@lastNestedSubmenuItemClicked</span></div>
+            }
         }
     </div>
 
@@ -167,6 +211,18 @@
     [SupplyParameterFromQuery(Name = "defaultRadioValue")]
     public string? DefaultRadioValue { get; set; }
 
+    [SupplyParameterFromQuery(Name = "highlightItemOnHover")]
+    public bool HighlightItemOnHover { get; set; } = true;
+
+    [SupplyParameterFromQuery(Name = "showTextNavItems")]
+    public bool ShowTextNavItems { get; set; }
+
+    [SupplyParameterFromQuery(Name = "showNestedSubmenu")]
+    public bool ShowNestedSubmenu { get; set; }
+
+    [SupplyParameterFromQuery(Name = "direction")]
+    public string Direction { get; set; } = "ltr";
+
     private bool isOpen;
     private int changeCount;
     private string lastReason = "";
@@ -176,6 +232,8 @@
     private object? radioValue;
     private bool submenuOpen;
     private int lastSubmenuItemClicked;
+    private bool nestedSubmenuOpen;
+    private int lastNestedSubmenuItemClicked;
 
     protected override void OnInitialized()
     {
@@ -215,5 +273,14 @@
     private void HandleSubmenuItemClick(int itemNumber)
     {
         lastSubmenuItemClicked = itemNumber;
+    }
+
+    private void HandleNestedSubmenuOpenChange(MenuOpenChangeEventArgs args)
+    {
+    }
+
+    private void HandleNestedSubmenuItemClick(int itemNumber)
+    {
+        lastNestedSubmenuItemClicked = itemNumber;
     }
 }

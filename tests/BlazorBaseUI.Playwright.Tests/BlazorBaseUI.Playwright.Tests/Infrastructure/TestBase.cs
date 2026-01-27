@@ -158,12 +158,37 @@ public abstract class TestBase : IAsyncLifetime
         {
             var body = await response.TextAsync();
             // Extract the exception message from the HTML response
-            var exceptionStart = body.IndexOf("MenuSubmenu");
-            if (exceptionStart < 0) exceptionStart = body.IndexOf("InvalidOperationException");
-            if (exceptionStart < 0) exceptionStart = body.IndexOf("Exception");
-            var extractedError = exceptionStart > 0
-                ? body[Math.Max(0, exceptionStart - 200)..Math.Min(exceptionStart + 500, body.Length)]
-                : body[..Math.Min(2000, body.Length)];
+            // Look for common exception patterns - prioritize actual error content over CSS
+            var patterns = new[]
+            {
+                "System.InvalidOperationException",
+                "System.NullReferenceException",
+                "System.ArgumentException",
+                "System.Exception",
+                "An unhandled exception",
+                "<title>",
+                "class=\"titleerror\">"
+            };
+            var exceptionStart = -1;
+            foreach (var pattern in patterns)
+            {
+                exceptionStart = body.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+                if (exceptionStart >= 0) break;
+            }
+
+            string extractedError;
+            if (exceptionStart >= 0)
+            {
+                extractedError = body[exceptionStart..Math.Min(exceptionStart + 1500, body.Length)];
+                // Strip HTML tags for readability
+                extractedError = System.Text.RegularExpressions.Regex.Replace(extractedError, "<[^>]+>", " ");
+                extractedError = System.Text.RegularExpressions.Regex.Replace(extractedError, @"\s+", " ").Trim();
+            }
+            else
+            {
+                extractedError = body[..Math.Min(2000, body.Length)];
+            }
+
             throw new InvalidOperationException(
                 $"Navigation failed with status {response.Status}: {response.StatusText}\nError: {extractedError}");
         }
@@ -178,6 +203,10 @@ public abstract class TestBase : IAsyncLifetime
 
     protected virtual async Task WaitForBlazorAsync()
     {
+        // For WASM mode without prerendering, the test container won't exist until
+        // the WASM runtime loads and the component renders. Use a longer timeout.
+        var containerTimeout = RenderMode == TestRenderMode.Wasm ? 60000 : 10000;
+
         // Wait for the test container to exist
         try
         {
@@ -185,7 +214,7 @@ public abstract class TestBase : IAsyncLifetime
             await testContainer.WaitForAsync(new LocatorWaitForOptions
             {
                 State = WaitForSelectorState.Attached,
-                Timeout = 10000
+                Timeout = containerTimeout
             });
         }
         catch (TimeoutException)
@@ -193,7 +222,7 @@ public abstract class TestBase : IAsyncLifetime
             var content = await Page.ContentAsync();
             Console.WriteLine($"[Debug] Page URL: {Page.Url}");
             Console.WriteLine($"[Debug] Page content: {content[..Math.Min(2000, content.Length)]}");
-            throw new TimeoutException("Test container not found. Page may not have loaded correctly.");
+            throw new TimeoutException($"Test container not found after {containerTimeout}ms. Page may not have loaded correctly.");
         }
 
         // Wait for Blazor to become interactive
@@ -203,88 +232,46 @@ public abstract class TestBase : IAsyncLifetime
 
     private async Task WaitForBlazorInteractiveAsync(int timeout = 30000)
     {
-        var startTime = DateTime.UtcNow;
         var isWasmMode = RenderMode == TestRenderMode.Wasm;
 
         // For WASM, we need to wait for the WebAssembly runtime to download and initialize
         // This can take significantly longer than Server mode
         var effectiveTimeout = isWasmMode ? timeout * 2 : timeout;
 
-        // First, wait for the network to be idle (all resources loaded)
+        // Wait for the data-interactive attribute to be "true"
+        // This is set by the test pages using RendererInfo.IsInteractive which is only true
+        // when the component is actually interactive (not during prerendering)
         try
         {
-            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions
-            {
-                Timeout = effectiveTimeout
-            });
+            await Page.WaitForFunctionAsync(
+                @"() => {
+                    const container = document.querySelector('[data-testid=""test-container""]');
+                    return container?.getAttribute('data-interactive') === 'true';
+                }",
+                new PageWaitForFunctionOptions { Timeout = effectiveTimeout });
+
+            Console.WriteLine("[Debug] Component is interactive (data-interactive=true)");
         }
         catch (TimeoutException)
         {
-            Console.WriteLine("[Debug] Network idle timeout - continuing anyway");
-        }
+            // Fall back to checking if test container exists without the interactive attribute
+            // This supports Server mode test pages that may not have the attribute
+            Console.WriteLine("[Debug] data-interactive timeout - checking for test container presence");
 
-        while ((DateTime.UtcNow - startTime).TotalMilliseconds < effectiveTimeout)
-        {
-            try
+            var testContainer = Page.GetByTestId("test-container");
+            var isVisible = await testContainer.IsVisibleAsync();
+
+            if (isVisible && !isWasmMode)
             {
-                // Check if Blazor is ready by evaluating JavaScript
-                var blazorState = await Page.EvaluateAsync<string>(@"() => {
-                    if (!window.Blazor) return 'no-blazor';
-
-                    // Check for active Blazor Web root components
-                    // In .NET 8+, interactive components use web components
-                    if (window.Blazor.rootComponents && Object.keys(window.Blazor.rootComponents).length > 0) {
-                        return 'interactive';
-                    }
-
-                    // For Server mode - check if circuit is connected
-                    if (window.Blazor._internal?.circuitManager?.circuit?.circuitId) {
-                        return 'server-connected';
-                    }
-
-                    // Check internal navigation manager (indicates interactive mode)
-                    if (window.Blazor._internal?.navigationManager?.hasLocationChangingHandlers !== undefined) {
-                        return 'interactive';
-                    }
-
-                    // Check for SSR component markers - if present, not yet interactive
-                    const ssrMarkers = document.querySelectorAll('blazor-ssr-end, [blazor-component-id]');
-                    if (ssrMarkers.length > 0) {
-                        // Check if these components are interactive
-                        const hasInteractive = Array.from(ssrMarkers).some(m =>
-                            m.getAttribute && m.getAttribute('prerender') === 'false');
-                        if (!hasInteractive) return 'ssr-pending';
-                    }
-
-                    return 'blazor-exists';
-                }");
-
-                Console.WriteLine($"[Debug] Blazor state: {blazorState}, isWasmMode: {isWasmMode}");
-
-                if (blazorState == "interactive" || blazorState == "server-connected")
-                {
-                    // Additional delay for rendering to complete
-                    await Page.WaitForTimeoutAsync(isWasmMode ? 1500 : 500);
-                    return;
-                }
-
-                // For Server mode, "blazor-exists" is often enough
-                if (!isWasmMode && blazorState == "blazor-exists")
-                {
-                    await Page.WaitForTimeoutAsync(500);
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Debug] Blazor check exception: {ex.Message}");
+                // For Server mode, if the container is visible, it's likely interactive
+                Console.WriteLine("[Debug] Server mode: test container visible, proceeding");
+                return;
             }
 
-            await Task.Delay(300);
+            throw new TimeoutException(
+                $"Component did not become interactive within {effectiveTimeout}ms. " +
+                "Ensure the test page has data-interactive attribute set.");
         }
-
-        // If we timed out, still try to proceed
-        Console.WriteLine($"[Debug] Blazor interactivity timeout after {effectiveTimeout}ms - proceeding with available content");
     }
 
     protected async Task WaitForElementAsync(string testId, int timeout = 10000)
@@ -355,6 +342,23 @@ public abstract class TestBase : IAsyncLifetime
         }
 
         throw new TimeoutException($"Attribute '{attribute}' did not reach value '{value}' within {effectiveTimeout}ms");
+    }
+
+    protected async Task WaitForAttributeNotValueAsync(ILocator element, string attribute, string notValue, int timeout = 5000)
+    {
+        var effectiveTimeout = timeout * TimeoutMultiplier;
+        var startTime = DateTime.UtcNow;
+        while ((DateTime.UtcNow - startTime).TotalMilliseconds < effectiveTimeout)
+        {
+            var currentValue = await element.GetAttributeAsync(attribute);
+            if (currentValue != notValue)
+            {
+                return;
+            }
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException($"Attribute '{attribute}' did not change from value '{notValue}' within {effectiveTimeout}ms");
     }
 
     /// <summary>

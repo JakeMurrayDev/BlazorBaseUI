@@ -1,6 +1,6 @@
+@page "/tests/collapsible/wasm"
 @using BlazorBaseUI.Collapsible
-
-@rendermode InteractiveWebAssembly
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 
 <PageTitle>Collapsible Test Page (WASM)</PageTitle>
 
@@ -34,7 +34,7 @@
     </style>
 }
 
-<div data-testid="test-container">
+<div data-testid="test-container" data-interactive="@RendererInfo.IsInteractive.ToString().ToLowerInvariant()">
     <CollapsibleRoot
         @bind-Open="isOpen"
         DefaultOpen="@DefaultOpen"
@@ -61,6 +61,8 @@
         <div>Open: <span data-testid="open-state">@isOpen.ToString().ToLowerInvariant()</span></div>
         <div>Change Count: <span data-testid="change-count">@changeCount</span></div>
         <div>Last Event Canceled: <span data-testid="last-canceled">@lastCanceled.ToString().ToLowerInvariant()</span></div>
+        <div>Last Event Reason: <span data-testid="last-reason">@lastReason</span></div>
+        <div>Last Event Open: <span data-testid="last-open">@lastOpen.ToString().ToLowerInvariant()</span></div>
     </div>
 </div>
 
@@ -86,6 +88,8 @@
     private bool isOpen;
     private int changeCount;
     private bool lastCanceled;
+    private string lastReason = "";
+    private bool lastOpen;
 
     protected override void OnInitialized()
     {
@@ -96,5 +100,7 @@
     {
         changeCount++;
         lastCanceled = args.Canceled;
+        lastReason = args.Reason.ToString();
+        lastOpen = args.Open;
     }
 }

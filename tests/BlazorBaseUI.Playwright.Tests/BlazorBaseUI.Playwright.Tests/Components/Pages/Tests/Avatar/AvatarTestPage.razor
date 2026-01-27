@@ -1,10 +1,10 @@
 @page "/tests/avatar/server"
 @using BlazorBaseUI.Avatar
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Avatar Test Page (Server)</PageTitle>
 
-<div data-testid="test-container">
+<div data-testid="test-container" data-interactive="@RendererInfo.IsInteractive.ToString().ToLowerInvariant()">
     <AvatarRoot
         data-testid="avatar-root"
         class="@CustomClass"

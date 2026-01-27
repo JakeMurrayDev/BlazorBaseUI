@@ -114,6 +114,32 @@ public abstract class CollapsibleTestsBase : TestBase,
     }
 
     [Fact]
+    public virtual async Task OnOpenChangeReceivesEventDetails()
+    {
+        await NavigateAsync(CreateUrl("/tests/collapsible"));
+
+        var lastReason = GetByTestId("last-reason");
+        var lastOpen = GetByTestId("last-open");
+        var lastCanceled = GetByTestId("last-canceled");
+
+        // Click trigger to open
+        await ClickTriggerAsync();
+
+        // Verify event details when opening
+        await Assertions.Expect(lastReason).ToHaveTextAsync("TriggerPress");
+        await Assertions.Expect(lastOpen).ToHaveTextAsync("true");
+        await Assertions.Expect(lastCanceled).ToHaveTextAsync("false");
+
+        // Click trigger to close
+        await ClickTriggerAsync();
+
+        // Verify event details when closing
+        await Assertions.Expect(lastReason).ToHaveTextAsync("TriggerPress");
+        await Assertions.Expect(lastOpen).ToHaveTextAsync("false");
+        await Assertions.Expect(lastCanceled).ToHaveTextAsync("false");
+    }
+
+    [Fact]
     public virtual async Task HasDataOpenWhenOpen()
     {
         await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
@@ -253,9 +279,9 @@ public abstract class CollapsibleTestsBase : TestBase,
         await NavigateAsync(CreateUrl("/tests/collapsible"));
 
         var trigger = GetByTestId("collapsible-trigger");
-        // aria-controls attribute is always present (set by the component)
+        // aria-controls attribute is NOT present when closed (per Base UI behavior)
         var ariaControls = await trigger.GetAttributeAsync("aria-controls");
-        Assert.NotNull(ariaControls);
+        Assert.Null(ariaControls);
     }
 
     [Fact]
@@ -298,6 +324,10 @@ public abstract class CollapsibleTestsBase : TestBase,
         var trigger = GetByTestId("collapsible-trigger");
         var panel = GetByTestId("collapsible-panel");
 
+        // Verify aria-controls is NOT present when closed
+        var ariaControlsBefore = await trigger.GetAttributeAsync("aria-controls");
+        Assert.Null(ariaControlsBefore);
+
         await trigger.ClickAsync();
         await panel.WaitForAsync(new LocatorWaitForOptions
         {
@@ -307,6 +337,14 @@ public abstract class CollapsibleTestsBase : TestBase,
 
         await Assertions.Expect(panel).ToBeVisibleAsync();
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
+
+        // Verify aria-controls IS present when open and matches panel id
+        // Note: There's a render cycle delay - panel must mount first to set its ID
+        var panelId = await panel.GetAttributeAsync("id");
+        Assert.False(string.IsNullOrEmpty(panelId), "Panel should have an ID");
+
+        // Wait for aria-controls to be set to the panel ID
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-controls", panelId);
     }
 
     [Fact]
@@ -485,6 +523,35 @@ public abstract class CollapsibleTestsBase : TestBase,
         await Assertions.Expect(panel).ToHaveAttributeAsync("data-closed", "");
     }
 
+    [Fact]
+    public virtual async Task HiddenUntilFoundOpensOnBeforeMatchEvent()
+    {
+        // When hiddenUntilFound is true and the browser's "find in page" feature
+        // reveals the hidden content, a beforematch event is dispatched which
+        // should open the collapsible
+        await NavigateAsync(CreateUrl("/tests/collapsible").WithHiddenUntilFound(true));
+
+        var panel = GetByTestId("collapsible-panel");
+        var trigger = GetByTestId("collapsible-trigger");
+        var changeCount = GetByTestId("change-count");
+
+        // Initially closed
+        await Assertions.Expect(panel).ToHaveAttributeAsync("data-closed", "");
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
+        await Assertions.Expect(changeCount).ToHaveTextAsync("0");
+
+        // Dispatch beforematch event (simulates browser's find-in-page revealing hidden content)
+        await panel.EvaluateAsync(@"(el) => {
+            const event = new Event('beforematch', { bubbles: true, cancelable: false });
+            el.dispatchEvent(event);
+        }");
+
+        // Wait for the collapsible to open
+        await WaitForAttributeValueAsync(panel, "data-open", "");
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
+        await Assertions.Expect(changeCount).ToHaveTextAsync("1");
+    }
+
     Task ICollapsiblePanelContract.HasDataOpenWhenOpen()
     {
         return HasDataOpenWhenOpen_Panel();
@@ -539,6 +606,10 @@ public abstract class CollapsibleTestsBase : TestBase,
         var trigger = GetByTestId("collapsible-trigger");
         var panel = GetByTestId("collapsible-panel");
 
+        // Verify aria-controls is NOT present when closed
+        var ariaControlsBefore = await trigger.GetAttributeAsync("aria-controls");
+        Assert.Null(ariaControlsBefore);
+
         await trigger.ClickAsync();
         await panel.WaitForAsync(new LocatorWaitForOptions
         {
@@ -550,6 +621,14 @@ public abstract class CollapsibleTestsBase : TestBase,
         await Assertions.Expect(panel).ToHaveAttributeAsync("data-open", "");
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
         await Assertions.Expect(trigger).ToHaveAttributeAsync("data-panel-open", "");
+
+        // Verify aria-controls IS present when open
+        // Note: There's a render cycle delay - panel must mount first to set its ID
+        var panelId = await panel.GetAttributeAsync("id");
+        Assert.False(string.IsNullOrEmpty(panelId), "Panel should have an ID");
+
+        // Wait for aria-controls to be set to the panel ID
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-controls", panelId);
     }
 
     [Fact]
@@ -559,10 +638,18 @@ public abstract class CollapsibleTestsBase : TestBase,
 
         var trigger = GetByTestId("collapsible-trigger");
 
+        // Verify aria-controls IS present when open
+        var ariaControlsBefore = await trigger.GetAttributeAsync("aria-controls");
+        Assert.NotNull(ariaControlsBefore);
+
         await trigger.ClickAsync();
 
         await WaitForAttributeValueAsync(trigger, "aria-expanded", "false");
         await Assertions.Expect(trigger).Not.ToHaveAttributeAsync("data-panel-open", string.Empty);
+
+        // Verify aria-controls is removed when closed
+        var ariaControlsAfter = await trigger.GetAttributeAsync("aria-controls");
+        Assert.Null(ariaControlsAfter);
     }
 
     [Fact]
@@ -769,6 +856,10 @@ public abstract class CollapsibleTestsBase : TestBase,
         await WaitForAttributeValueAsync(panel, "data-open", "");
         await panel.WaitForAnimationsAsync();
 
+        // After animation completes, height should be set to "auto"
+        // Wait a bit for the final CSS variable update
+        await Page.WaitForTimeoutAsync(100);
+
         var heightVar = await panel.GetStylePropertyAsync("--collapsible-panel-height");
         Assert.Equal("auto", heightVar);
     }
@@ -800,6 +891,9 @@ public abstract class CollapsibleTestsBase : TestBase,
         await WaitForAttributeValueAsync(panel, "data-open", "");
         await panel.WaitForAnimationsAsync();
 
+        // Wait for CSS variable update and layout recalculation
+        await Page.WaitForTimeoutAsync(100);
+
         var finalHeight = await panel.GetHeightAsync();
         Assert.True(finalHeight > initialHeight, $"Panel should expand. Initial: {initialHeight}, Final: {finalHeight}");
     }
@@ -818,6 +912,9 @@ public abstract class CollapsibleTestsBase : TestBase,
         await ClickTriggerAsync();
         await WaitForAttributeValueAsync(panel, "data-closed", "");
         await panel.WaitForAnimationsAsync();
+
+        // Wait for CSS variable update and layout recalculation
+        await Page.WaitForTimeoutAsync(100);
 
         var closedHeight = await panel.GetHeightAsync();
         Assert.True(closedHeight < openHeight, $"Panel should collapse. Open: {openHeight}, Closed: {closedHeight}");
