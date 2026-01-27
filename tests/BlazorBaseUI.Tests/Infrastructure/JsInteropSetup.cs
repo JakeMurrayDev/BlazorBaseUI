@@ -71,4 +71,19 @@ public static class JsInteropSetup
         module.SetupVoid("unregisterItem", _ => true);
         module.SetupVoid("disposeMenuBar", _ => true);
     }
+
+    private const string AccordionTriggerModule = "./_content/BlazorBaseUI/blazor-baseui-accordion-trigger.js";
+
+    public static void SetupAccordionTrigger(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(AccordionTriggerModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+    }
+
+    public static void SetupAccordionModules(BunitJSInterop jsInterop)
+    {
+        SetupAccordionTrigger(jsInterop);
+        SetupCollapsiblePanel(jsInterop);
+    }
 }
