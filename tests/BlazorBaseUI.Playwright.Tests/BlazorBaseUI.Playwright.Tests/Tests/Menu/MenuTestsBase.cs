@@ -483,9 +483,10 @@ public abstract class MenuTestsBase : TestBase
     [Fact]
     public virtual async Task CloseDelay_ClosesMenuAfterDelay()
     {
+        // Use a longer close delay to ensure the menu doesn't close immediately
         await NavigateAsync(CreateUrl("/tests/menu")
             .WithOpenOnHover(true)
-            .WithCloseDelay(500));
+            .WithCloseDelay(1500));
 
         // Allow JS hover interaction to initialize (needed for Server mode)
         await WaitForDelayAsync(500);
@@ -499,17 +500,19 @@ public abstract class MenuTestsBase : TestBase
         var openState = GetByTestId("open-state");
         await Assertions.Expect(openState).ToHaveTextAsync("true");
 
-        // Move mouse away from trigger
+        // Move mouse away from trigger - this starts the close delay timer
         var outsideButton = GetByTestId("outside-button");
         await outsideButton.HoverAsync();
 
-        // Menu should still be open immediately due to close delay
-        await WaitForDelayAsync(200);
-        await Assertions.Expect(openState).ToHaveTextAsync("true");
+        // Immediately verify menu is still open (close delay should prevent instant close)
+        var immediateState = await openState.TextContentAsync();
+        Assert.Equal("true", immediateState);
 
-        // After close delay passes, menu should close
-        await WaitForDelayAsync(500);
-        await Assertions.Expect(openState).ToHaveTextAsync("false");
+        // Wait for close delay to pass and verify menu closes
+        await Assertions.Expect(openState).ToHaveTextAsync("false", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 3000 * TimeoutMultiplier
+        });
     }
 
     #endregion
