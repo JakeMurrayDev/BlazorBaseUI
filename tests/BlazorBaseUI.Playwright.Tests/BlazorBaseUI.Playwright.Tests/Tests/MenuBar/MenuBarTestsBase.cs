@@ -1,12 +1,10 @@
 using BlazorBaseUI.Playwright.Tests.Fixtures;
 using BlazorBaseUI.Playwright.Tests.Infrastructure;
-using BlazorBaseUI.Tests.Contracts.MenuBar;
 using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.MenuBar;
 
-public abstract class MenuBarTestsBase : TestBase,
-    IMenuBarRootContract
+public abstract class MenuBarTestsBase : TestBase
 {
     protected MenuBarTestsBase(
         BlazorTestFixture blazorFixture,
@@ -45,85 +43,7 @@ public abstract class MenuBarTestsBase : TestBase,
 
     #endregion
 
-    #region IMenuBarRootContract
-
-    [Fact]
-    public virtual async Task RendersAsDivByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var root = GetByTestId("menubar-root");
-        var tagName = await root.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-        Assert.Equal("div", tagName);
-    }
-
-    [Fact]
-    public virtual async Task HasRoleMenubar()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var root = GetByTestId("menubar-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("role", "menubar");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaOrientationHorizontalByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var root = GetByTestId("menubar-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("aria-orientation", "horizontal");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaOrientationVerticalWhenSet()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar").WithOrientation("vertical"));
-
-        var root = GetByTestId("menubar-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("aria-orientation", "vertical");
-    }
-
-    [Fact]
-    public virtual async Task HasDataOrientationAttribute()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var root = GetByTestId("menubar-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-orientation", "horizontal");
-    }
-
-    [Fact]
-    public virtual async Task RendersWithCustomAs()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var root = GetByTestId("menubar-root");
-        await Assertions.Expect(root).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task HasDataDisabledWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar").WithDisabled(true));
-
-        var root = GetByTestId("menubar-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-disabled", "");
-    }
-
-    [Fact]
-    public virtual async Task CascadesContextToChildren()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var trigger1 = GetByTestId("menu-1-trigger");
-        var trigger2 = GetByTestId("menu-2-trigger");
-        var trigger3 = GetByTestId("menu-3-trigger");
-
-        await Assertions.Expect(trigger1).ToBeVisibleAsync();
-        await Assertions.Expect(trigger2).ToBeVisibleAsync();
-        await Assertions.Expect(trigger3).ToBeVisibleAsync();
-    }
+    #region Interaction Tests
 
     [Fact]
     public virtual async Task TracksHasSubmenuOpenState()
@@ -141,10 +61,6 @@ public abstract class MenuBarTestsBase : TestBase,
         // data-has-submenu-open should be "true"
         await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "true");
     }
-
-    #endregion
-
-    #region Keyboard Navigation Tests
 
     [Fact]
     public virtual async Task ArrowRight_NavigatesToNextMenubarItem()
@@ -496,20 +412,6 @@ public abstract class MenuBarTestsBase : TestBase,
 
         // Focus should still be on first trigger
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
-    }
-
-    [Fact]
-    public virtual async Task MenuTrigger_HasRoleMenuitem()
-    {
-        await NavigateAsync(CreateUrl("/tests/menubar"));
-
-        var trigger1 = GetByTestId("menu-1-trigger");
-        var trigger2 = GetByTestId("menu-2-trigger");
-        var trigger3 = GetByTestId("menu-3-trigger");
-
-        await Assertions.Expect(trigger1).ToHaveAttributeAsync("role", "menuitem");
-        await Assertions.Expect(trigger2).ToHaveAttributeAsync("role", "menuitem");
-        await Assertions.Expect(trigger3).ToHaveAttributeAsync("role", "menuitem");
     }
 
     #endregion
