@@ -217,10 +217,8 @@ public sealed class MenuPopup : ComponentBase, IReferencableComponent
             return;
         }
 
-        if (e.Key == "Escape")
-        {
-            RootContext.EmitClose(OpenChangeReason.EscapeKey, null);
-        }
+        // Note: Escape key is handled globally in JS (blazor-baseui-menu.js handleGlobalKeyDown)
+        // to properly manage nested menu closing. Do not handle Escape here.
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }

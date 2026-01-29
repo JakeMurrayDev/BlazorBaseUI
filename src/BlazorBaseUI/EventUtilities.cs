@@ -64,9 +64,23 @@ public static class EventUtilities
             return;
         }
 
+        // Try exact match first, then case-insensitive
         if (!additionalAttributes.TryGetValue(attribute, out var value))
         {
-            return;
+            // Try to find case-insensitive match (e.g., "OnClick" vs "onclick")
+            foreach (var kvp in additionalAttributes)
+            {
+                if (string.Equals(kvp.Key, attribute, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = kvp.Value;
+                    break;
+                }
+            }
+
+            if (value is null)
+            {
+                return;
+            }
         }
 
         switch (value)

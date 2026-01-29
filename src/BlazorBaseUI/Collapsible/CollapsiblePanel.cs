@@ -112,6 +112,10 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
         {
             state = state with { Open = currentOpen, Disabled = currentDisabled };
         }
+
+        // Register panel ID with context early so trigger can reference it
+        // This must happen in OnParametersSet, not during render, for StateHasChanged to work
+        _ = ResolvedId;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -121,7 +125,7 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
             hasRendered = true;
             dotNetRef = DotNetObjectReference.Create(this);
 
-            if (isMounted && Element.HasValue)
+            if (IsPresent && Element.HasValue)
             {
                 try
                 {
@@ -179,6 +183,13 @@ public sealed class CollapsiblePanel : ComponentBase, IReferencableComponent, IA
 
         state = state with { TransitionStatus = TransitionStatus.Idle };
         StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnBeforeMatch()
+    {
+        // Called when browser's "find in page" reveals hidden="until-found" content
+        Context?.HandleBeforeMatch();
     }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)

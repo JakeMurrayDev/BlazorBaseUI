@@ -88,3 +88,9 @@ public enum CollisionAvoidance
     Flip,
     FlipShift
 }
+
+public enum TextDirection
+{
+    Ltr,
+    Rtl
+}
