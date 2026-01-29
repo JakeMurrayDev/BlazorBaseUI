@@ -130,8 +130,8 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
             builder.OpenRegion(0);
             builder.OpenComponent(0, RenderAs!);
             RenderAttributes(builder, resolvedClass, resolvedStyle, open, disabled);
-            builder.AddAttribute(17, "ChildContent", ChildContent);
-            builder.AddComponentReferenceCapture(18, component =>
+            builder.AddAttribute(19, "ChildContent", ChildContent);
+            builder.AddComponentReferenceCapture(20, component =>
             {
                 var newElement = ((IReferencableComponent)component).Element;
                 if (!Nullable.Equals(Element, newElement))
@@ -148,8 +148,8 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
             builder.OpenRegion(1);
             builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
             RenderAttributes(builder, resolvedClass, resolvedStyle, open, disabled);
-            builder.AddContent(17, ChildContent);
-            builder.AddElementReferenceCapture(18, elementReference =>
+            builder.AddContent(19, ChildContent);
+            builder.AddElementReferenceCapture(20, elementReference =>
             {
                 if (!Nullable.Equals(Element, elementReference))
                 {
@@ -187,59 +187,69 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
     {
         builder.AddMultipleAttributes(1, AdditionalAttributes);
 
-        if (!NativeButton && string.IsNullOrEmpty(As))
+        // In a menubar, triggers have role="menuitem" per WAI-ARIA spec
+        if (IsInMenuBar)
         {
-            builder.AddAttribute(2, "role", "button");
+            builder.AddAttribute(2, "role", "menuitem");
             if (disabled)
             {
                 builder.AddAttribute(3, "aria-disabled", "true");
             }
         }
-
-        if (NativeButton || string.IsNullOrEmpty(As) || As == "button")
+        else if (!NativeButton && string.IsNullOrEmpty(As))
         {
-            builder.AddAttribute(4, "type", "button");
+            builder.AddAttribute(4, "role", "button");
             if (disabled)
             {
-                builder.AddAttribute(5, "disabled", true);
+                builder.AddAttribute(5, "aria-disabled", "true");
             }
         }
 
-        builder.AddAttribute(6, "aria-haspopup", "menu");
-        builder.AddAttribute(7, "aria-expanded", open ? "true" : "false");
-        builder.AddAttribute(8, "id", triggerId);
+        if (NativeButton || string.IsNullOrEmpty(As) || As == "button")
+        {
+            builder.AddAttribute(6, "type", "button");
+            if (disabled)
+            {
+                builder.AddAttribute(7, "disabled", true);
+            }
+        }
+
+        builder.AddAttribute(8, "aria-haspopup", "menu");
+        builder.AddAttribute(9, "aria-expanded", open ? "true" : "false");
+        builder.AddAttribute(10, "id", triggerId);
 
         if (open)
         {
-            builder.AddAttribute(9, "data-popup-open", string.Empty);
+            builder.AddAttribute(11, "data-popup-open", string.Empty);
 
             var openReason = RootContext!.OpenChangeReason;
             if (openReason == OpenChangeReason.TriggerPress)
             {
-                builder.AddAttribute(10, "data-pressed", string.Empty);
+                builder.AddAttribute(12, "data-pressed", string.Empty);
             }
         }
 
         if (disabled)
         {
-            builder.AddAttribute(11, "data-disabled", string.Empty);
+            builder.AddAttribute(13, "data-disabled", string.Empty);
         }
 
         if (!string.IsNullOrEmpty(resolvedClass))
         {
-            builder.AddAttribute(12, "class", resolvedClass);
+            builder.AddAttribute(14, "class", resolvedClass);
         }
 
         if (!string.IsNullOrEmpty(resolvedStyle))
         {
-            builder.AddAttribute(13, "style", resolvedStyle);
+            builder.AddAttribute(15, "style", resolvedStyle);
         }
 
-        builder.AddAttribute(14, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(16, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync));
+        builder.AddAttribute(17, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync));
 
         if (IsInMenuBar)
         {
-            builder.AddAttribute(15, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
+            builder.AddAttribute(18, "onmouseenter", EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync));
         }
     }
 
@@ -263,6 +273,27 @@ public sealed class MenuTrigger : ComponentBase, IReferencableComponent, IAsyncD
         var nextOpen = !IsOpenedByThisTrigger();
         await RootContext.SetOpenAsync(nextOpen, OpenChangeReason.TriggerPress, null);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (state.Disabled || RootContext is null)
+        {
+            return;
+        }
+
+        // ArrowDown opens menu and highlights first item
+        // ArrowUp opens menu and highlights last item
+        if (e.Key == "ArrowDown" || e.Key == "ArrowUp")
+        {
+            if (!IsOpenedByThisTrigger())
+            {
+                var highlightLast = e.Key == "ArrowUp";
+                await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerPress, highlightLast ? "highlight-last" : null);
+            }
+        }
+
+        await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)

@@ -88,6 +88,7 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 TransitionStatus: transitionStatus,
                 PanelId: panelId,
                 HandleTrigger: HandleTrigger,
+                HandleBeforeMatch: HandleBeforeMatch,
                 SetPanelId: SetPanelId,
                 SetTransitionStatus: SetTransitionStatus);
         }
@@ -147,6 +148,7 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
                 TransitionStatus: transitionStatus,
                 PanelId: panelId,
                 HandleTrigger: HandleTrigger,
+                HandleBeforeMatch: HandleBeforeMatch,
                 SetPanelId: SetPanelId,
                 SetTransitionStatus: SetTransitionStatus);
         }
@@ -342,7 +344,7 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
         }
 
         var nextOpen = !IsOpen;
-        var args = new CollapsibleOpenChangeEventArgs(nextOpen);
+        var args = new CollapsibleOpenChangeEventArgs(nextOpen, CollapsibleOpenChangeReason.TriggerPress);
 
         _ = OnOpenChange.InvokeAsync(args);
 
@@ -352,6 +354,26 @@ public sealed class AccordionItem<TValue> : ComponentBase, IReferencableComponen
         }
 
         RootContext?.HandleValueChange(resolvedValue, nextOpen);
+    }
+
+    private void HandleBeforeMatch()
+    {
+        // beforematch event should only open, not toggle
+        if (IsOpen || ResolvedDisabled)
+        {
+            return;
+        }
+
+        var args = new CollapsibleOpenChangeEventArgs(true, CollapsibleOpenChangeReason.None);
+
+        _ = OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        RootContext?.HandleValueChange(resolvedValue, true);
     }
 
     public void Dispose()

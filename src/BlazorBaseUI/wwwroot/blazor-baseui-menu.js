@@ -46,7 +46,15 @@ function handleGlobalKeyDown(e) {
         if (rootState.isOpen && rootState.dotNetRef) {
             openMenus.push(rootState);
             openMenuCount++;
-            topmostRoot = rootState;
+
+            // Find the deepest (topmost) menu for keyboard handling
+            // Nested menus (submenus) take priority over parent menus
+            // Among same type, prefer the later one (more recently opened = deeper nesting)
+            // Only skip update if current topmostRoot is nested and this one is not
+            if (!topmostRoot || !topmostRoot.isNested || rootState.isNested) {
+                topmostRoot = rootState;
+            }
+
             if (rootState.menubarElement) {
                 menubarRoot = rootState;
             }
@@ -55,10 +63,23 @@ function handleGlobalKeyDown(e) {
 
     if (!topmostRoot) return;
 
+    // Use stored direction from the root state (passed explicitly from Blazor)
+    const isRtl = topmostRoot.direction === 'rtl';
+
     if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+
+        // If closeParentOnEsc is true on the topmost (submenu), close all menus in the chain
+        if (topmostRoot.closeParentOnEsc && openMenuCount > 1) {
+            // Close all open menus
+            for (const rootState of openMenus) {
+                rootState.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+            }
+        } else {
+            // Just close the topmost menu (the submenu)
+            topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+        }
         return;
     }
 
@@ -68,16 +89,22 @@ function handleGlobalKeyDown(e) {
     const isSubmenuTrigger = currentItem?.hasAttribute('aria-haspopup');
     const isInSubmenu = openMenuCount > 1;
 
-    // Handle ArrowRight to open submenu (for vertical menus)
-    if (e.key === 'ArrowRight' && topmostRoot.orientation !== 'horizontal' && isSubmenuTrigger) {
+    // Determine which arrow key opens/closes submenus based on direction
+    // LTR: ArrowRight opens, ArrowLeft closes
+    // RTL: ArrowLeft opens, ArrowRight closes
+    const openSubmenuKey = isRtl ? 'ArrowLeft' : 'ArrowRight';
+    const closeSubmenuKey = isRtl ? 'ArrowRight' : 'ArrowLeft';
+
+    // Handle arrow key to open submenu (for vertical menus)
+    if (e.key === openSubmenuKey && topmostRoot.orientation !== 'horizontal' && isSubmenuTrigger) {
         e.preventDefault();
         e.stopPropagation();
         currentItem.click();
         return;
     }
 
-    // Handle ArrowLeft to close submenu (for vertical menus when in a submenu)
-    if (e.key === 'ArrowLeft' && topmostRoot.orientation !== 'horizontal' && isInSubmenu) {
+    // Handle arrow key to close submenu (for vertical menus when in a submenu)
+    if (e.key === closeSubmenuKey && topmostRoot.orientation !== 'horizontal' && isInSubmenu) {
         e.preventDefault();
         e.stopPropagation();
         topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
@@ -86,8 +113,8 @@ function handleGlobalKeyDown(e) {
 
     // Handle ArrowLeft/Right for menubar navigation
     if (menubarRoot && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-        // For ArrowRight on a submenu trigger in menubar context, open it
-        if (e.key === 'ArrowRight' && isSubmenuTrigger) {
+        // For open submenu key on a submenu trigger in menubar context, open it
+        if (e.key === openSubmenuKey && isSubmenuTrigger) {
             e.preventDefault();
             e.stopPropagation();
             currentItem.click();
@@ -98,8 +125,9 @@ function handleGlobalKeyDown(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        const direction = e.key === 'ArrowRight' ? 1 : -1;
-        navigateMenubarSibling(menubarRoot, direction);
+        // Direction for menubar navigation (also respects RTL)
+        const navDirection = (e.key === 'ArrowRight') !== isRtl ? 1 : -1;
+        navigateMenubarSibling(menubarRoot, navDirection);
         return;
     }
 
@@ -203,6 +231,25 @@ function navigateMenubarSibling(menubarRoot, direction) {
     }, 10);
 }
 
+function getTextDirection(element) {
+    if (!element) return 'ltr';
+
+    // Check computed style direction
+    const computedDirection = getComputedStyle(element).direction;
+    if (computedDirection === 'rtl') return 'rtl';
+
+    // Also check dir attribute up the DOM tree
+    let current = element;
+    while (current) {
+        const dir = current.getAttribute?.('dir');
+        if (dir === 'rtl' || dir === 'ltr') return dir;
+        current = current.parentElement;
+    }
+
+    // Default to document direction or 'ltr'
+    return document.documentElement.getAttribute('dir') || 'ltr';
+}
+
 function getMenuItems(popupElement) {
     if (!popupElement) return [];
 
@@ -261,7 +308,7 @@ function handleGlobalMouseDown(e) {
 // Root Management
 // ============================================================================
 
-export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal, menubarElement, orientation, highlightItemOnHover) {
+export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal, menubarElement, orientation, highlightItemOnHover, direction, isNested) {
     initGlobalListeners();
 
     state.roots.set(rootId, {
@@ -278,7 +325,9 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
         hoverInteraction: null,
         menubarElement: menubarElement || null,
         orientation: orientation || 'vertical',
-        highlightItemOnHover: highlightItemOnHover ?? true
+        highlightItemOnHover: highlightItemOnHover ?? true,
+        direction: direction || 'ltr',
+        isNested: isNested || false
     });
 }
 
@@ -305,10 +354,15 @@ export function disposeRoot(rootId) {
 export async function initializeHoverInteraction(rootId, triggerElement, openDelay, closeDelay) {
     let rootState = state.roots.get(rootId);
 
-    // If root state doesn't exist yet, wait briefly for it to be initialized
+    // If root state doesn't exist yet, wait with retries for it to be initialized
+    // This handles the case where the trigger's OnAfterRender runs before the root's InitializeJsAsync completes
+    // On Server-side Blazor, SignalR latency can make this take longer, so we allow more retries
     if (!rootState) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-        rootState = state.roots.get(rootId);
+        for (let attempt = 0; attempt < 30; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            rootState = state.roots.get(rootId);
+            if (rootState) break;
+        }
         if (!rootState) return;
     }
 
@@ -336,6 +390,10 @@ export async function initializeHoverInteraction(rootId, triggerElement, openDel
         useSafePolygon: true,
         safePolygonOptions: { blockPointerEvents: false },
         onOpen: (reason) => {
+            // Skip if we're within the ignore period (e.g., after keyboard close)
+            if (rootState.ignoreHoverUntil && Date.now() < rootState.ignoreHoverUntil) {
+                return;
+            }
             if (rootState.dotNetRef && !rootState.isOpen) {
                 rootState.dotNetRef.invokeMethodAsync('OnHoverOpen').catch(() => { });
             }
@@ -374,7 +432,7 @@ export function setHoverInteractionOpen(rootId, isOpen) {
 // Open/Close State
 // ============================================================================
 
-export async function setRootOpen(rootId, isOpen, reason) {
+export async function setRootOpen(rootId, isOpen, reason, highlightLast) {
     let rootState = state.roots.get(rootId);
 
     // If root state doesn't exist yet, wait briefly for it to be initialized
@@ -389,6 +447,7 @@ export async function setRootOpen(rootId, isOpen, reason) {
     rootState.isOpen = isOpen;
     rootState.pendingOpen = isOpen;
     rootState.openReason = reason;
+    rootState.highlightLast = highlightLast || false;
 
     // Sync with hover interaction
     if (rootState.hoverInteraction) {
@@ -398,7 +457,8 @@ export async function setRootOpen(rootId, isOpen, reason) {
     if (isOpen) {
         // For menubar menus, don't auto-highlight - user must press arrow key first
         // For other menus, start with first item highlighted (accessibility best practice)
-        rootState.activeIndex = rootState.menubarElement ? -1 : 0;
+        // If highlightLast is true, we'll set the index after we know the item count
+        rootState.activeIndex = rootState.menubarElement ? -1 : (highlightLast ? -2 : 0);
 
         // Apply scroll lock if modal and not opened via hover (guard against double acquisition)
         if (rootState.modal && reason !== 'trigger-hover' && !rootState.releaseScrollLock) {
@@ -423,6 +483,12 @@ export async function setRootOpen(rootId, isOpen, reason) {
                     rootState.triggerElement.focus();
                 }
             }, 0);
+        }
+
+        // For keyboard closes, temporarily disable hover interaction to prevent immediate reopen
+        // This handles the case where mouse is still hovering when Escape is pressed
+        if (reason === 'escape-key' && rootState.hoverInteraction) {
+            rootState.ignoreHoverUntil = Date.now() + 300;
         }
 
         startTransition(rootState, isOpen);
@@ -489,7 +555,8 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
 }
 
 function waitForItemsAndHighlight(rootState, popupElement) {
-    if (rootState.activeIndex < 0) return;
+    // -1 means no highlight (menubar), -2 means highlight last item
+    if (rootState.activeIndex === -1) return;
 
     let attempts = 0;
     const maxAttempts = 10;
@@ -499,7 +566,17 @@ function waitForItemsAndHighlight(rootState, popupElement) {
         const items = getMenuItems(popupElement);
 
         if (items.length > 0) {
-            highlightItem(popupElement, items, rootState.activeIndex);
+            // If activeIndex is -2, highlight the last item
+            let indexToHighlight = rootState.activeIndex;
+            if (indexToHighlight === -2) {
+                indexToHighlight = items.length - 1;
+                rootState.activeIndex = indexToHighlight;
+                // Notify .NET of the actual index
+                if (rootState.dotNetRef) {
+                    rootState.dotNetRef.invokeMethodAsync('OnActiveIndexChange', indexToHighlight).catch(() => { });
+                }
+            }
+            highlightItem(popupElement, items, indexToHighlight);
         } else if (attempts < maxAttempts && rootState.isOpen) {
             requestAnimationFrame(checkForItems);
         }
@@ -606,21 +683,39 @@ async function setupTransitionEndListener(rootState, isOpen) {
 // Element References
 // ============================================================================
 
-export function setTriggerElement(rootId, element) {
-    const rootState = state.roots.get(rootId);
-    if (rootState) {
-        rootState.triggerElement = element;
+export async function setTriggerElement(rootId, element) {
+    let rootState = state.roots.get(rootId);
+
+    // Wait for root state to be initialized if not yet available
+    if (!rootState) {
+        for (let attempt = 0; attempt < 10; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            rootState = state.roots.get(rootId);
+            if (rootState) break;
+        }
+        if (!rootState) return;
     }
+
+    rootState.triggerElement = element;
 }
 
-export function setPopupElement(rootId, element) {
-    const rootState = state.roots.get(rootId);
-    if (rootState) {
-        rootState.popupElement = element;
-        // Update hover interaction with the new popup element
-        if (rootState.hoverInteraction && element) {
-            rootState.hoverInteraction.setFloatingElement(element);
+export async function setPopupElement(rootId, element) {
+    let rootState = state.roots.get(rootId);
+
+    // Wait for root state to be initialized if not yet available
+    if (!rootState) {
+        for (let attempt = 0; attempt < 10; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            rootState = state.roots.get(rootId);
+            if (rootState) break;
         }
+        if (!rootState) return;
+    }
+
+    rootState.popupElement = element;
+    // Update hover interaction with the new popup element
+    if (rootState.hoverInteraction && element) {
+        rootState.hoverInteraction.setFloatingElement(element);
     }
 }
 

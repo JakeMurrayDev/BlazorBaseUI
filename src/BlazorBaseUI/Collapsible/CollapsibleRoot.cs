@@ -62,6 +62,7 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
             transitionStatus,
             panelId,
             HandleTrigger,
+            HandleBeforeMatch,
             SetPanelId,
             SetTransitionStatus);
         state = new CollapsibleRootState(CurrentOpen, Disabled, transitionStatus);
@@ -132,8 +133,12 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
 
     internal void SetPanelId(string id)
     {
-        panelId = id;
-        context = context with { PanelId = id };
+        if (panelId != id)
+        {
+            panelId = id;
+            context = context with { PanelId = id };
+            StateHasChanged();
+        }
     }
 
     internal void SetTransitionStatus(TransitionStatus status)
@@ -206,6 +211,34 @@ public sealed class CollapsibleRoot : ComponentBase, IReferencableComponent
         _ = OpenChanged.InvokeAsync(nextOpen);
         state = state with { Open = nextOpen };
         context = context with { Open = nextOpen };
+        StateHasChanged();
+    }
+
+    private void HandleBeforeMatch()
+    {
+        // beforematch event should only open, not toggle
+        if (CurrentOpen || Disabled)
+        {
+            return;
+        }
+
+        var args = new CollapsibleOpenChangeEventArgs(true, CollapsibleOpenChangeReason.None);
+
+        _ = OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        if (!IsControlled)
+        {
+            isOpen = true;
+        }
+
+        _ = OpenChanged.InvokeAsync(true);
+        state = state with { Open = true };
+        context = context with { Open = true };
         StateHasChanged();
     }
 }

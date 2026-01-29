@@ -23,6 +23,9 @@ public sealed class MenuSubmenuRoot : ComponentBase
     public bool CloseParentOnEsc { get; set; }
 
     [Parameter]
+    public TextDirection Direction { get; set; } = TextDirection.Ltr;
+
+    [Parameter]
     public bool LoopFocus { get; set; } = true;
 
     [Parameter]
@@ -61,12 +64,13 @@ public sealed class MenuSubmenuRoot : ComponentBase
         builder.AddComponentParameter(2, "DefaultOpen", DefaultOpen);
         builder.AddComponentParameter(3, "Disabled", Disabled);
         builder.AddComponentParameter(4, "CloseParentOnEsc", CloseParentOnEsc);
-        builder.AddComponentParameter(5, "LoopFocus", LoopFocus);
-        builder.AddComponentParameter(6, "ActionsRef", ActionsRef);
-        builder.AddComponentParameter(7, "OpenChanged", OpenChanged);
-        builder.AddComponentParameter(8, "OnOpenChange", OnOpenChange);
-        builder.AddComponentParameter(9, "OnOpenChangeComplete", OnOpenChangeComplete);
-        builder.AddComponentParameter(10, "ChildContent", ChildContent);
+        builder.AddComponentParameter(5, "Direction", Direction);
+        builder.AddComponentParameter(6, "LoopFocus", LoopFocus);
+        builder.AddComponentParameter(7, "ActionsRef", ActionsRef);
+        builder.AddComponentParameter(8, "OpenChanged", OpenChanged);
+        builder.AddComponentParameter(9, "OnOpenChange", OnOpenChange);
+        builder.AddComponentParameter(10, "OnOpenChangeComplete", OnOpenChangeComplete);
+        builder.AddComponentParameter(11, "ChildContent", ChildContent);
         builder.CloseComponent();
     }
 }

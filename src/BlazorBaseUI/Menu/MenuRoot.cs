@@ -71,6 +71,9 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
     public bool CloseParentOnEsc { get; set; }
 
     [Parameter]
+    public TextDirection Direction { get; set; } = TextDirection.Ltr;
+
+    [Parameter]
     public MenuRootActions? ActionsRef { get; set; }
 
     [Parameter]
@@ -255,7 +258,8 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
             transitionStatus = TransitionStatus.Starting;
             isMounted = true;
-            activeIndex = 0; // First item highlighted when menu opens
+            // -1 means "highlight last item", 0 means "highlight first item"
+            activeIndex = payload is "highlight-last" ? -1 : 0;
         }
         else
         {
@@ -296,7 +300,8 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
                     OpenChangeReason.ClosePress => "close-press",
                     _ => null
                 };
-                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString);
+                var highlightLast = payload is "highlight-last";
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString, highlightLast);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -345,12 +350,24 @@ public sealed class MenuRoot : ComponentBase, IAsyncDisposable
             var modal = !isNested && Modal == ModalMode.True;
             var menubarElement = ParentType == MenuParentType.Menubar ? MenuBarContext?.GetElement() : null;
             var orientationStr = Orientation == MenuOrientation.Horizontal ? "horizontal" : "vertical";
-            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, CloseParentOnEsc, LoopFocus, modal, menubarElement, orientationStr, HighlightItemOnHover);
+            var directionStr = Direction == TextDirection.Rtl ? "rtl" : "ltr";
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, CloseParentOnEsc, LoopFocus, modal, menubarElement, orientationStr, HighlightItemOnHover, directionStr, isNested);
+
+            // Sync trigger and popup elements that were set before hasRendered was true
+            if (triggerElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setTriggerElement", rootId, triggerElement.Value);
+            }
+
+            if (popupElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setPopupElement", rootId, popupElement.Value);
+            }
 
             // Sync initial open state with JavaScript if already open
             if (CurrentOpen)
             {
-                await module.InvokeVoidAsync("setRootOpen", rootId, true, (string?)null);
+                await module.InvokeVoidAsync("setRootOpen", rootId, true, (string?)null, false);
             }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

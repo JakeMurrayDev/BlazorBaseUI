@@ -39,11 +39,11 @@ public class CollapsibleRootTest : BunitContext
         );
 
         var trigger = cut.Find("button");
-        trigger.HasAttribute("aria-expanded").ShouldBeFalse();
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
     }
 
     [Fact]
-    public void UncontrolledMode_DefaultOpenFalse_HasNoAriaExpanded()
+    public void UncontrolledMode_DefaultOpenFalse_HasAriaExpandedFalse()
     {
         var cut = Render<CollapsibleRoot>(parameters => parameters
             .Add(p => p.DefaultOpen, false)
@@ -51,7 +51,7 @@ public class CollapsibleRootTest : BunitContext
         );
 
         var trigger = cut.Find("button");
-        trigger.HasAttribute("aria-expanded").ShouldBeFalse();
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class CollapsibleRootTest : BunitContext
 
         var trigger = cut.Find("button");
 
-        trigger.HasAttribute("aria-expanded").ShouldBeTrue();
+        trigger.GetAttribute("aria-expanded").ShouldBe("true");
         trigger.HasAttribute("aria-controls").ShouldBeTrue();
     }
 }
