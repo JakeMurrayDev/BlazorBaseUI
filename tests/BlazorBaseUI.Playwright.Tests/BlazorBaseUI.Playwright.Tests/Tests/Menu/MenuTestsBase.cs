@@ -787,16 +787,21 @@ public abstract class MenuTestsBase : TestBase
         var popup = GetByTestId("menu-popup");
         await Assertions.Expect(popup).ToBeVisibleAsync();
 
-        // Verify scroll lock is applied - check for data-base-ui-scroll-locked attribute
-        // or overflow: hidden on document element or body
-        var isScrollLocked = await Page.EvaluateAsync<bool>(@"() => {
+        // Verify scroll lock is applied - wait for data-base-ui-scroll-locked attribute
+        // or overflow: hidden on document element or body (scroll lock uses setTimeout(..., 0))
+        await Page.WaitForFunctionAsync(@"() => {
             const doc = document.documentElement;
             const body = document.body;
+            const docOverflow = getComputedStyle(doc).overflow;
+            const bodyOverflow = getComputedStyle(body).overflow;
             return doc.hasAttribute('data-base-ui-scroll-locked') ||
-                   doc.style.overflow === 'hidden' ||
-                   body.style.overflow === 'hidden';
-        }");
-        Assert.True(isScrollLocked, "Scroll should be locked when modal menu is open");
+                   body.hasAttribute('data-base-ui-scroll-locked') ||
+                   docOverflow === 'hidden' ||
+                   bodyOverflow === 'hidden';
+        }", null, new PageWaitForFunctionOptions
+        {
+            Timeout = 5000 * TimeoutMultiplier
+        });
     }
 
     #endregion
