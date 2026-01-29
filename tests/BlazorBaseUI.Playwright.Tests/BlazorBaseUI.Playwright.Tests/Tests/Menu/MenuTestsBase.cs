@@ -93,18 +93,14 @@ public abstract class MenuTestsBase : TestBase
         var item2 = GetByTestId("menu-item-2");
 
         // First item should be highlighted initially with tabindex="0"
-        var tabindex1Before = await item1.GetAttributeAsync("tabindex");
-        Assert.Equal("0", tabindex1Before);
+        await Assertions.Expect(item1).ToHaveAttributeAsync("tabindex", "0");
 
         // Navigate down to highlight item 2
         await Page.Keyboard.PressAsync("ArrowDown");
-        await WaitForDelayAsync(100);
 
         // Item 2 should now have tabindex="0", item 1 should have tabindex="-1"
-        var tabindex1After = await item1.GetAttributeAsync("tabindex");
-        var tabindex2After = await item2.GetAttributeAsync("tabindex");
-        Assert.Equal("-1", tabindex1After);
-        Assert.Equal("0", tabindex2After);
+        await Assertions.Expect(item1).ToHaveAttributeAsync("tabindex", "-1");
+        await Assertions.Expect(item2).ToHaveAttributeAsync("tabindex", "0");
     }
 
     #endregion
@@ -825,19 +821,14 @@ public abstract class MenuTestsBase : TestBase
         var item1 = GetByTestId("menu-item-1");
         var item2 = GetByTestId("menu-item-2");
 
-        // Wait for initial highlight
-        await WaitForDelayAsync(200);
-
         // Item 1 should be initially highlighted (keyboard navigation)
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
 
         // Move mouse over item 2
         await item2.HoverAsync();
-        await WaitForDelayAsync(100);
 
         // Item 2 should NOT be highlighted when highlightItemOnHover is false
-        var item2Highlighted = await item2.GetAttributeAsync("data-highlighted");
-        Assert.Null(item2Highlighted);
+        await Assertions.Expect(item2).Not.ToHaveAttributeAsync("data-highlighted", "");
 
         // Item 1 should still be highlighted
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
