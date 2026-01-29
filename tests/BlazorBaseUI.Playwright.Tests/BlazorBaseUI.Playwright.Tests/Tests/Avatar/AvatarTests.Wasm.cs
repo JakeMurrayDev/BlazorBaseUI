@@ -24,11 +24,4 @@ public class AvatarTestsWasm : AvatarTestsBase
         // This behavior is properly tested in bUnit tests using FakeTimeProvider.
         return Task.CompletedTask;
     }
-
-    private async Task WaitForWasmHydrationAsync()
-    {
-        await Page.WaitForFunctionAsync(@"() =>
-            window.Blazor?._internal?.navigationManager !== undefined",
-            new PageWaitForFunctionOptions { Timeout = 30000 });
-    }
 }

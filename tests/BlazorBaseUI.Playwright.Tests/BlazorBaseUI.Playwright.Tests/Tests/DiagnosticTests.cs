@@ -27,6 +27,11 @@ public class DiagnosticTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
+        if (page is not null)
+        {
+            await page.CloseAsync();
+        }
+
         if (context is not null)
         {
             await context.CloseAsync();

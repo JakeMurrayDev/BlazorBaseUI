@@ -33,6 +33,9 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
         }));
 
         JSInterop.VerifyInvoke("import");
+        var images = cut.FindAll("img");
+        images.Count.ShouldBe(1);
+        images[0].GetAttribute("src").ShouldBe("https://example.com/image.jpg");
         return Task.CompletedTask;
     }
 
@@ -73,6 +76,8 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
         }));
 
         JSInterop.VerifyInvoke("import");
+        var images = cut.FindAll("img");
+        images.Count.ShouldBe(1);
         return Task.CompletedTask;
     }
 
@@ -119,6 +124,7 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
 
         await Task.Delay(100);
         cut.Render();
+        capturedStatus.ShouldBe(ImageLoadingStatus.Loaded);
     }
 
     [Fact]
@@ -138,7 +144,9 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
             builder.CloseComponent();
         }));
 
-        cut.ShouldNotBeNull();
+        var image = cut.Find("img");
+        image.GetAttribute("alt").ShouldBe("Test Image");
+        image.GetAttribute("data-custom").ShouldBe("custom-value");
         return Task.CompletedTask;
     }
 
@@ -162,7 +170,7 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
     [Fact]
     public void Render_WithAsDifferentElement()
     {
-        JsInteropSetup.SetupErrorImage(JSInterop);
+        JsInteropSetup.SetupLoadedImage(JSInterop);
 
         var cut = Render(CreateAvatarRootWrapper(builder =>
         {
@@ -175,13 +183,14 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
             builder.CloseComponent();
         }));
 
-        cut.ShouldNotBeNull();
+        var picture = cut.Find("picture");
+        picture.ShouldNotBeNull();
     }
 
     [Fact]
     public void ClassValue_AcceptsStateFunction()
     {
-        JsInteropSetup.SetupErrorImage(JSInterop);
+        JsInteropSetup.SetupLoadedImage(JSInterop);
 
         var cut = Render(CreateAvatarRootWrapper(builder =>
         {
@@ -196,6 +205,6 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
             builder.CloseComponent();
         }));
 
-        cut.ShouldNotBeNull();
+        cut.Markup.ShouldContain("loaded-class");
     }
 }

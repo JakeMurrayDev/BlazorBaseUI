@@ -53,7 +53,7 @@
 
     private string ResolvedImageSrc => ForceError
         ? "data:image/png;base64,invalid_base64_data"
-        : ImageSrc ?? "https://picsum.photos/200";
+        : ImageSrc ?? "/images/blazor-logo.png";
 
     private void HandleStatusChange(ImageLoadingStatus status)
     {

@@ -13,8 +13,7 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         bool itemDisabled = false,
         bool closeOnClick = true,
         string? asElement = null,
-        IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        EventCallback<MouseEventArgs>? onClick = null)
+        IReadOnlyDictionary<string, object>? additionalAttributes = null)
     {
         return builder =>
         {

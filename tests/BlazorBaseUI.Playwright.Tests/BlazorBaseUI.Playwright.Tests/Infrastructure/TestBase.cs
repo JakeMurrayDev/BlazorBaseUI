@@ -74,12 +74,8 @@ public abstract class TestBase : IAsyncLifetime
             {
                 // Save trace for debugging - traces can be viewed with:
                 // npx playwright show-trace traces/TestName_timestamp.zip
-                var tracesDir = Path.Combine(
-                    AppContext.BaseDirectory,
-                    "..",
-                    "..",
-                    "..",
-                    "traces");
+                var tracesDir = Environment.GetEnvironmentVariable("PLAYWRIGHT_TRACES_DIR")
+                    ?? Path.Combine(Path.GetTempPath(), "blazor-playwright-traces");
                 Directory.CreateDirectory(tracesDir);
 
                 var tracePath = Path.Combine(
@@ -277,19 +273,12 @@ public abstract class TestBase : IAsyncLifetime
     protected async Task WaitForElementAsync(string testId, int timeout = 10000)
     {
         var effectiveTimeout = timeout * TimeoutMultiplier;
-        try
+        var element = Page.GetByTestId(testId);
+        await element.WaitForAsync(new LocatorWaitForOptions
         {
-            var element = Page.GetByTestId(testId);
-            await element.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = effectiveTimeout
-            });
-        }
-        catch (TimeoutException)
-        {
-            Console.WriteLine($"[Warning] Element '{testId}' not visible after {effectiveTimeout}ms");
-        }
+            State = WaitForSelectorState.Visible,
+            Timeout = effectiveTimeout
+        });
     }
 
     protected ILocator GetByTestId(string testId) => Page.GetByTestId(testId);

@@ -206,7 +206,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
     }
 
     [Fact]
-    public Task ActionsRefProvideCloseMethod()
+    public Task ActionsRefProvidesCloseMethod()
     {
         var actions = new MenuRootActions();
 

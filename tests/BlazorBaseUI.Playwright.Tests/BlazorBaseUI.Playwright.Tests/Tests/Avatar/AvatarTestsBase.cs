@@ -170,7 +170,7 @@ public abstract class AvatarTestsBase : TestBase, IAvatarRootContract, IAvatarIm
 
         var src = await image.GetAttributeAsync("src");
         Assert.NotNull(src);
-        Assert.Contains("picsum.photos", src);
+        Assert.Contains("blazor-logo.png", src);
     }
 
     [Fact]

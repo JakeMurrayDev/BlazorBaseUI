@@ -110,7 +110,10 @@ public static class AnimationHelpers
         float timeout = 5000)
     {
         await element.WaitForAsync(new LocatorWaitForOptions { Timeout = timeout });
-        await Assertions.Expect(element).ToHaveAttributeAsync(attribute, "");
+        await Assertions.Expect(element).ToHaveAttributeAsync(
+            attribute,
+            new System.Text.RegularExpressions.Regex(".*"),
+            new LocatorAssertionsToHaveAttributeOptions { Timeout = timeout });
     }
 
     public static async Task WaitForAttributeRemovedAsync(
@@ -131,7 +134,7 @@ public static class AnimationHelpers
         throw new TimeoutException($"Attribute '{attribute}' was not removed within {timeout}ms");
     }
 
-    public static async Task<bool> IsVisibleInViewportAsync(this ILocator element)
+    public static async Task<bool> HasNonZeroDimensionsAsync(this ILocator element)
     {
         var count = await element.CountAsync();
         if (count == 0)

@@ -112,6 +112,7 @@ public class AvatarFallbackTests : BunitContext, IAvatarFallbackContract
             builder.CloseComponent();
         });
 
+        cut.Markup.ShouldNotContain("Fallback");
         return Task.CompletedTask;
     }
 
