@@ -108,6 +108,18 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithCustomStyle(string style)
+    {
+        queryParams["customStyle"] = style;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithAs(string tag)
+    {
+        queryParams["as"] = tag;
+        return this;
+    }
+
     // Menu-specific parameters
     public TestPageUrlBuilder WithModal(bool value)
     {

@@ -32,10 +32,13 @@ public abstract class AvatarTestsBase : TestBase, IAvatarRootContract, IAvatarIm
     [Fact]
     public virtual async Task RendersWithCustomAs()
     {
-        await NavigateAsync(CreateUrl("/tests/avatar"));
+        await NavigateAsync(CreateUrl("/tests/avatar").WithAs("div"));
 
         var root = GetByTestId("avatar-root");
         await Assertions.Expect(root).ToBeVisibleAsync();
+
+        var tagName = await root.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
+        Assert.Equal("div", tagName);
     }
 
     [Fact]
@@ -61,10 +64,14 @@ public abstract class AvatarTestsBase : TestBase, IAvatarRootContract, IAvatarIm
     [Fact]
     public virtual async Task AppliesStyleValue()
     {
-        await NavigateAsync(CreateUrl("/tests/avatar"));
+        await NavigateAsync(CreateUrl("/tests/avatar").WithCustomStyle("color: red"));
 
         var root = GetByTestId("avatar-root");
         await Assertions.Expect(root).ToBeVisibleAsync();
+
+        var style = await root.GetAttributeAsync("style");
+        Assert.NotNull(style);
+        Assert.Contains("color: red", style);
     }
 
     [Fact]

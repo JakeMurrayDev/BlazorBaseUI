@@ -80,7 +80,7 @@ public static class AnimationHelpers
         }
     }
 
-    public static async Task<bool> HasAttributeAsync(this ILocator element, string attribute)
+    public static async Task<bool> HasAttributeAsync(this ILocator element, string attribute, float timeout = 5000)
     {
         var count = await element.CountAsync();
         if (count == 0)
@@ -90,7 +90,7 @@ public static class AnimationHelpers
 
         try
         {
-            await element.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Attached, Timeout = 5000 });
+            await element.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Attached, Timeout = timeout });
             return await element.EvaluateAsync<bool>($"(el) => el.hasAttribute('{attribute}')");
         }
         catch (TimeoutException)
@@ -109,7 +109,7 @@ public static class AnimationHelpers
         string attribute,
         float timeout = 5000)
     {
-        await element.WaitForAsync(new LocatorWaitForOptions { Timeout = timeout });
+        await element.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Attached, Timeout = timeout });
         await Assertions.Expect(element).ToHaveAttributeAsync(
             attribute,
             new System.Text.RegularExpressions.Regex(".*"),
@@ -124,7 +124,8 @@ public static class AnimationHelpers
         var startTime = DateTime.UtcNow;
         while ((DateTime.UtcNow - startTime).TotalMilliseconds < timeout)
         {
-            if (!await element.HasAttributeAsync(attribute))
+            var remainingTimeout = Math.Max(100, timeout - (float)(DateTime.UtcNow - startTime).TotalMilliseconds);
+            if (!await element.HasAttributeAsync(attribute, remainingTimeout))
             {
                 return;
             }

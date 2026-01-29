@@ -150,7 +150,7 @@ public abstract class MenuTestsBase : TestBase,
     }
 
     [Fact]
-    public virtual Task ActionsRefProvideCloseMethod()
+    public virtual Task ActionsRefProvidesCloseMethod()
     {
         // This would require exposing ActionsRef in the test page
         return Task.CompletedTask;

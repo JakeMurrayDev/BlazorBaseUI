@@ -10,5 +10,5 @@ public interface IMenuRootContract
     Task DisabledStatePreventsTriggerInteraction();
     Task SupportsModalModes();
     Task SupportsOrientations();
-    Task ActionsRefProvideCloseMethod();
+    Task ActionsRefProvidesCloseMethod();
 }
