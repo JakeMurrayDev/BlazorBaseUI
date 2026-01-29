@@ -1,18 +1,16 @@
 using BlazorBaseUI.Playwright.Tests.Fixtures;
 using BlazorBaseUI.Playwright.Tests.Infrastructure;
-using BlazorBaseUI.Tests.Contracts.Menu;
 using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Menu;
 
-public abstract class MenuTestsBase : TestBase,
-    IMenuRootContract,
-    IMenuTriggerContract,
-    IMenuItemContract,
-    IMenuCheckboxItemContract,
-    IMenuRadioGroupContract,
-    IMenuRadioItemContract,
-    IMenuSubmenuTriggerContract
+/// <summary>
+/// Playwright tests for Menu component - focused on browser-specific behavior.
+/// Static rendering, attribute forwarding, and basic state tests are handled by bUnit.
+/// These tests cover: keyboard navigation, focus management, hover interactions,
+/// outside click, text navigation, RTL support, and real JS interop execution.
+/// </summary>
+public abstract class MenuTestsBase : TestBase
 {
     protected MenuTestsBase(
         BlazorTestFixture blazorFixture,
@@ -57,200 +55,12 @@ public abstract class MenuTestsBase : TestBase,
 
     #endregion
 
-    #region IMenuRootContract
+    #region Menu Open/Close Interaction Tests
 
-    [Fact]
-    public virtual async Task CascadesContextToChildren()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
-    }
-
-    [Fact]
-    public virtual async Task ControlledModeRespectsOpenParameter()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("false");
-    }
-
-    [Fact]
-    public virtual async Task UncontrolledModeUsesDefaultOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("true");
-    }
-
-    [Fact]
-    public virtual async Task InvokesOnOpenChangeWithReason()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var changeCount = GetByTestId("change-count");
-        var lastReason = GetByTestId("last-reason");
-
-        await Assertions.Expect(changeCount).ToHaveTextAsync("0");
-
-        await OpenMenuAsync();
-
-        await Assertions.Expect(changeCount).ToHaveTextAsync("1");
-        var reasonText = await lastReason.TextContentAsync();
-        Assert.False(string.IsNullOrEmpty(reasonText), "Last reason should be set");
-    }
-
-    [Fact]
-    public virtual async Task InvokesOnOpenChangeComplete()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var completeCount = GetByTestId("complete-count");
-
-        await OpenMenuAsync();
-        await Page.WaitForTimeoutAsync(500);
-
-        var count = await completeCount.TextContentAsync();
-        Assert.True(int.Parse(count!) >= 1, "OnOpenChangeComplete should have been invoked");
-    }
-
-    [Fact]
-    public virtual async Task DisabledStatePreventsTriggerInteraction()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDisabled(true));
-
-        var trigger = GetByTestId("menu-trigger");
-        await trigger.ClickAsync(new LocatorClickOptions { Force = true });
-        await Page.WaitForTimeoutAsync(300);
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("false");
-    }
-
-    [Fact]
-    public virtual Task SupportsModalModes()
-    {
-        // Modal mode test - would need to check for backdrop rendering
-        // This is more of an integration test
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public virtual async Task SupportsOrientations()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithOrientation("horizontal"));
-
-        var popup = GetByTestId("menu-popup");
-        await Assertions.Expect(popup).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual Task ActionsRefProvidesCloseMethod()
-    {
-        // This would require exposing ActionsRef in the test page
-        return Task.CompletedTask;
-    }
-
-    #endregion
-
-    #region IMenuTriggerContract
-
-    [Fact]
-    public virtual async Task RendersAsButtonByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        var tagName = await trigger.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-        Assert.Equal("button", tagName);
-    }
-
-    [Fact]
-    public virtual async Task RendersWithCustomAs()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task ForwardsAdditionalAttributes()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-testid", "menu-trigger");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaHaspopupMenu()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-haspopup", "menu");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaExpandedFalseWhenClosed()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaExpandedTrueWhenOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
-    }
-
-    [Fact]
-    public virtual async Task HasDataPopupOpenWhenOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-popup-open", "");
-    }
-
-    [Fact]
-    public virtual async Task HasDataDisabledWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDisabled(true));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-disabled", "");
-    }
-
-    [Fact]
-    public virtual async Task AppliesClassValueWithState()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task AppliesStyleValueWithState()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu"));
-
-        var trigger = GetByTestId("menu-trigger");
-        await Assertions.Expect(trigger).ToBeVisibleAsync();
-    }
-
+    /// <summary>
+    /// Tests that clicking the trigger toggles the menu open/closed state.
+    /// Requires real browser to test JS interop for positioning and state sync.
+    /// </summary>
     [Fact]
     public virtual async Task ToggleMenuOnClick()
     {
@@ -266,82 +76,14 @@ public abstract class MenuTestsBase : TestBase,
         await Assertions.Expect(openState).ToHaveTextAsync("false");
     }
 
-    [Fact]
-    public virtual async Task DoesNotToggleWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDisabled(true));
-
-        var trigger = GetByTestId("menu-trigger");
-        await trigger.ClickAsync(new LocatorClickOptions { Force = true });
-        await Page.WaitForTimeoutAsync(300);
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("false");
-    }
-
-    [Fact]
-    public virtual Task ThrowsWithoutMenuRootContext()
-    {
-        // This test is better suited for bUnit
-        return Task.CompletedTask;
-    }
-
-    Task IMenuTriggerContract.RequiresContext()
-    {
-        return ThrowsWithoutMenuRootContext();
-    }
-
     #endregion
 
-    #region IMenuItemContract
+    #region Menu Item Interaction Tests
 
-    [Fact]
-    public virtual async Task RendersAsDivByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-1");
-        var tagName = await item.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-        Assert.Equal("div", tagName);
-    }
-
-    Task IMenuItemContract.RendersWithCustomAs()
-    {
-        return RendersWithCustomAs_Item();
-    }
-
-    [Fact]
-    public virtual async Task RendersWithCustomAs_Item()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-1");
-        await Assertions.Expect(item).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task HasRoleMenuitem()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-1");
-        await Assertions.Expect(item).ToHaveAttributeAsync("role", "menuitem");
-    }
-
-    [Fact]
-    public virtual async Task HasTabindexMinusOneByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        // Wait for menu to fully render
-        await Page.WaitForTimeoutAsync(200);
-
-        var item = GetByTestId("menu-item-2");
-        var tabindex = await item.GetAttributeAsync("tabindex");
-        // First item might have tabindex 0 if highlighted
-        Assert.True(tabindex == "-1" || tabindex == "0", $"Expected tabindex -1 or 0, got {tabindex}");
-    }
-
+    /// <summary>
+    /// Tests that tabindex changes dynamically based on keyboard navigation highlighting.
+    /// Requires real browser keyboard events.
+    /// </summary>
     [Fact]
     public virtual async Task HasTabindexZeroWhenHighlighted()
     {
@@ -365,375 +107,16 @@ public abstract class MenuTestsBase : TestBase,
         Assert.Equal("0", tabindex2After);
     }
 
-    Task IMenuItemContract.HasDataDisabledWhenDisabled()
-    {
-        return HasDataDisabledWhenDisabled_Item();
-    }
-
-    [Fact]
-    public virtual async Task HasDataDisabledWhenDisabled_Item()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-3"); // Disabled item
-        await Assertions.Expect(item).ToHaveAttributeAsync("data-disabled", "");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaDisabledWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-3"); // Disabled item
-        await Assertions.Expect(item).ToHaveAttributeAsync("aria-disabled", "true");
-    }
-
-    [Fact]
-    public virtual async Task InvokesOnClickHandler()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-1");
-        await item.ClickAsync();
-
-        var lastClicked = GetByTestId("last-item-clicked");
-        await Assertions.Expect(lastClicked).ToHaveTextAsync("1");
-    }
-
-    [Fact]
-    public virtual async Task ClosesMenuOnClickByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-1");
-        await item.ClickAsync();
-
-        await WaitForMenuClosedAsync();
-    }
-
-    [Fact]
-    public virtual async Task DoesNotCloseWhenCloseOnClickFalse()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-no-close");
-        await item.ClickAsync();
-
-        await Page.WaitForTimeoutAsync(300);
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("true");
-    }
-
-    [Fact]
-    public virtual async Task DoesNotActivateWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu").WithDefaultOpen(true));
-
-        var item = GetByTestId("menu-item-3"); // Disabled item
-        await item.ClickAsync(new LocatorClickOptions { Force = true });
-
-        // Menu should stay open since disabled item shouldn't trigger close
-        await Page.WaitForTimeoutAsync(300);
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("true");
-    }
-
     #endregion
 
-    #region IMenuCheckboxItemContract
+    #region Submenu Hover Interaction Tests
 
+    /// <summary>
+    /// Tests that submenu trigger's aria-expanded updates based on hover state.
+    /// Requires real browser hover events.
+    /// </summary>
     [Fact]
-    public virtual async Task HasRoleMenuitemcheckbox()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var item = GetByTestId("menu-checkbox-item");
-        await Assertions.Expect(item).ToHaveAttributeAsync("role", "menuitemcheckbox");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaCheckedFalseWhenUnchecked()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var item = GetByTestId("menu-checkbox-item");
-        await Assertions.Expect(item).ToHaveAttributeAsync("aria-checked", "false");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaCheckedTrueWhenChecked()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var item = GetByTestId("menu-checkbox-item");
-
-        // Initially unchecked
-        await Assertions.Expect(item).ToHaveAttributeAsync("aria-checked", "false");
-
-        // Click to check (menu stays open since checkbox CloseOnClick defaults to false)
-        await item.ClickAsync();
-
-        await Assertions.Expect(item).ToHaveAttributeAsync("aria-checked", "true");
-    }
-
-    [Fact]
-    public virtual async Task HasDataCheckedWhenChecked()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var item = GetByTestId("menu-checkbox-item");
-
-        // Initially unchecked
-        await Assertions.Expect(item).ToHaveAttributeAsync("data-unchecked", "");
-
-        // Click to check (menu stays open since checkbox CloseOnClick defaults to false)
-        await item.ClickAsync();
-
-        await Assertions.Expect(item).ToHaveAttributeAsync("data-checked", "");
-    }
-
-    [Fact]
-    public virtual async Task HasDataUncheckedWhenUnchecked()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var item = GetByTestId("menu-checkbox-item");
-        await Assertions.Expect(item).ToHaveAttributeAsync("data-unchecked", "");
-    }
-
-    [Fact]
-    public virtual Task ControlledModeRespectsCheckedParameter()
-    {
-        // This test requires controlled mode setup
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public virtual Task UncontrolledModeUsesDefaultChecked()
-    {
-        // Would need to modify test page to support defaultChecked
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public virtual async Task TogglesOnClick()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var checkboxState = GetByTestId("checkbox-state");
-        await Assertions.Expect(checkboxState).ToHaveTextAsync("false");
-
-        var item = GetByTestId("menu-checkbox-item");
-        await item.ClickAsync();
-
-        await Assertions.Expect(checkboxState).ToHaveTextAsync("true");
-    }
-
-    [Fact]
-    public virtual async Task InvokesOnCheckedChange()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowCheckbox(true));
-
-        var item = GetByTestId("menu-checkbox-item");
-        await item.ClickAsync();
-
-        var checkboxState = GetByTestId("checkbox-state");
-        await Assertions.Expect(checkboxState).ToHaveTextAsync("true");
-    }
-
-    [Fact]
-    public virtual Task SupportsCancelInOnCheckedChange()
-    {
-        // This test requires cancel support in the test page
-        return Task.CompletedTask;
-    }
-
-    #endregion
-
-    #region IMenuRadioGroupContract
-
-    [Fact]
-    public virtual async Task HasRoleGroup()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var group = GetByTestId("menu-radio-group");
-        await Assertions.Expect(group).ToHaveAttributeAsync("role", "group");
-    }
-
-    [Fact]
-    public virtual async Task CascadesContextToRadioItems()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var item = GetByTestId("menu-radio-item-1");
-        await Assertions.Expect(item).ToHaveAttributeAsync("role", "menuitemradio");
-    }
-
-    Task IMenuRadioGroupContract.ControlledModeRespectsValueParameter()
-    {
-        return ControlledModeRespectsValueParameter_RadioGroup();
-    }
-
-    [Fact]
-    public virtual Task ControlledModeRespectsValueParameter_RadioGroup()
-    {
-        // This test requires controlled mode setup
-        return Task.CompletedTask;
-    }
-
-    Task IMenuRadioGroupContract.UncontrolledModeUsesDefaultValue()
-    {
-        return UncontrolledModeUsesDefaultValue_RadioGroup();
-    }
-
-    [Fact]
-    public virtual Task UncontrolledModeUsesDefaultValue_RadioGroup()
-    {
-        return Task.CompletedTask;
-    }
-
-    Task IMenuRadioGroupContract.InvokesOnValueChange()
-    {
-        return InvokesOnValueChange_RadioGroup();
-    }
-
-    [Fact]
-    public virtual async Task InvokesOnValueChange_RadioGroup()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var item = GetByTestId("menu-radio-item-1");
-        await item.ClickAsync();
-
-        var radioState = GetByTestId("radio-state");
-        await Assertions.Expect(radioState).ToHaveTextAsync("option1");
-    }
-
-    Task IMenuRadioGroupContract.SupportsCancelInOnValueChange()
-    {
-        return SupportsCancelInOnValueChange_RadioGroup();
-    }
-
-    [Fact]
-    public virtual Task SupportsCancelInOnValueChange_RadioGroup()
-    {
-        // This test requires cancel support in the test page
-        return Task.CompletedTask;
-    }
-
-    #endregion
-
-    #region IMenuRadioItemContract
-
-    [Fact]
-    public virtual async Task HasRoleMenuitemradio()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var item = GetByTestId("menu-radio-item-1");
-        await Assertions.Expect(item).ToHaveAttributeAsync("role", "menuitemradio");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaCheckedWhenSelected()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var item = GetByTestId("menu-radio-item-1");
-        await item.ClickAsync();
-        // Menu stays open after clicking radio item (CloseOnClick=false by default)
-
-        await Assertions.Expect(item).ToHaveAttributeAsync("aria-checked", "true");
-    }
-
-    [Fact]
-    public virtual async Task HasDataCheckedWhenSelected()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var item = GetByTestId("menu-radio-item-1");
-        await item.ClickAsync();
-        // Menu stays open after clicking radio item (CloseOnClick=false by default)
-
-        await Assertions.Expect(item).ToHaveAttributeAsync("data-checked", "");
-    }
-
-    [Fact]
-    public virtual async Task SelectsOnClick()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var radioState = GetByTestId("radio-state");
-
-        // Radio items don't close the menu by default (CloseOnClick=false)
-        // so users can see their selection
-        var item1 = GetByTestId("menu-radio-item-1");
-        await item1.ClickAsync();
-        await Assertions.Expect(radioState).ToHaveTextAsync("option1");
-
-        // Menu stays open, select another option
-        var item2 = GetByTestId("menu-radio-item-2");
-        await item2.ClickAsync();
-        await Assertions.Expect(radioState).ToHaveTextAsync("option2");
-    }
-
-    [Fact]
-    public virtual async Task InheritsDisabledFromGroup()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowRadioGroup(true));
-
-        var item = GetByTestId("menu-radio-item-3"); // Disabled item
-        await Assertions.Expect(item).ToHaveAttributeAsync("data-disabled", "");
-    }
-
-    #endregion
-
-    #region IMenuSubmenuTriggerContract
-
-    [Fact]
-    public virtual async Task HasAriaHaspopup()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowSubmenu(true));
-
-        var trigger = GetByTestId("submenu-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-haspopup", "menu");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaExpanded()
+    public virtual async Task SubmenuTrigger_HasAriaExpanded_OnHover()
     {
         await NavigateAsync(CreateUrl("/tests/menu")
             .WithDefaultOpen(true)
@@ -748,8 +131,12 @@ public abstract class MenuTestsBase : TestBase,
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
     }
 
+    /// <summary>
+    /// Tests that submenu trigger's data-popup-open attribute is set on hover.
+    /// Requires real browser hover events.
+    /// </summary>
     [Fact]
-    public virtual async Task HasDataOpenClosed()
+    public virtual async Task SubmenuTrigger_HasDataPopupOpen_OnHover()
     {
         await NavigateAsync(CreateUrl("/tests/menu")
             .WithDefaultOpen(true)
@@ -761,31 +148,6 @@ public abstract class MenuTestsBase : TestBase,
         await Page.WaitForTimeoutAsync(500);
 
         await Assertions.Expect(trigger).ToHaveAttributeAsync("data-popup-open", "");
-    }
-
-    Task IMenuSubmenuTriggerContract.HasDataOpenWhenOpen()
-    {
-        return HasDataOpenClosed();
-    }
-
-    [Fact]
-    public virtual async Task HasDataClosedWhenClosed()
-    {
-        await NavigateAsync(CreateUrl("/tests/menu")
-            .WithDefaultOpen(true)
-            .WithShowSubmenu(true));
-
-        var trigger = GetByTestId("submenu-trigger");
-
-        // Submenu should be closed initially
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
-    }
-
-    [Fact]
-    public virtual Task RequiresSubmenuContext()
-    {
-        // This test is better suited for bUnit
-        return Task.CompletedTask;
     }
 
     #endregion
