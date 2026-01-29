@@ -125,7 +125,7 @@ public abstract class CollapsibleTestsBase : TestBase
         var panel = GetByTestId("collapsible-panel");
 
         await trigger.ClickAsync(new LocatorClickOptions { Force = true });
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         await Assertions.Expect(panel).Not.ToBeVisibleAsync();
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
@@ -358,7 +358,7 @@ public abstract class CollapsibleTestsBase : TestBase
 
         await panel.EvaluateAsync(@"
             (el) => {
-                const observer = new MutationObserver((mutations) => {
+                window.__startingStyleObserver = new MutationObserver((mutations) => {
                     for (const mutation of mutations) {
                         if (mutation.attributeName === 'data-starting-style') {
                             if (el.hasAttribute('data-starting-style')) {
@@ -367,13 +367,14 @@ public abstract class CollapsibleTestsBase : TestBase
                         }
                     }
                 });
-                observer.observe(el, { attributes: true });
+                window.__startingStyleObserver.observe(el, { attributes: true });
             }
         ");
 
         await ClickTriggerAsync();
         await panel.WaitForAnimationsAsync();
 
+        await panel.EvaluateAsync("() => window.__startingStyleObserver?.disconnect()");
         Assert.True(startingStyleDetected, "data-starting-style should be set during open animation");
     }
 
@@ -395,7 +396,7 @@ public abstract class CollapsibleTestsBase : TestBase
 
         await panel.EvaluateAsync(@"
             (el) => {
-                const observer = new MutationObserver((mutations) => {
+                window.__endingStyleObserver = new MutationObserver((mutations) => {
                     for (const mutation of mutations) {
                         if (mutation.attributeName === 'data-ending-style') {
                             if (el.hasAttribute('data-ending-style')) {
@@ -404,13 +405,14 @@ public abstract class CollapsibleTestsBase : TestBase
                         }
                     }
                 });
-                observer.observe(el, { attributes: true });
+                window.__endingStyleObserver.observe(el, { attributes: true });
             }
         ");
 
         await ClickTriggerAsync();
         await panel.WaitForAnimationsAsync();
 
+        await panel.EvaluateAsync("() => window.__endingStyleObserver?.disconnect()");
         Assert.True(endingStyleDetected, "data-ending-style should be set during close animation");
     }
 
@@ -429,7 +431,7 @@ public abstract class CollapsibleTestsBase : TestBase
 
         // After animation completes, height should be set to "auto"
         // Wait a bit for the final CSS variable update
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var heightVar = await panel.GetStylePropertyAsync("--collapsible-panel-height");
         Assert.Equal("auto", heightVar);
@@ -463,7 +465,7 @@ public abstract class CollapsibleTestsBase : TestBase
         await panel.WaitForAnimationsAsync();
 
         // Wait for CSS variable update and layout recalculation
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var finalHeight = await panel.GetHeightAsync();
         Assert.True(finalHeight > initialHeight, $"Panel should expand. Initial: {initialHeight}, Final: {finalHeight}");
@@ -485,7 +487,7 @@ public abstract class CollapsibleTestsBase : TestBase
         await panel.WaitForAnimationsAsync();
 
         // Wait for CSS variable update and layout recalculation
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var closedHeight = await panel.GetHeightAsync();
         Assert.True(closedHeight < openHeight, $"Panel should collapse. Open: {openHeight}, Closed: {closedHeight}");
@@ -501,7 +503,7 @@ public abstract class CollapsibleTestsBase : TestBase
         var trigger = GetByTestId("collapsible-trigger");
         var panel = GetByTestId("collapsible-panel");
 
-        // Rapid toggle clicks
+        // Rapid toggle clicks (using Task.Delay for consistent timing during rapid clicks)
         await trigger.ClickAsync();
         await Task.Delay(50);
         await trigger.ClickAsync();
@@ -513,7 +515,7 @@ public abstract class CollapsibleTestsBase : TestBase
         await trigger.ClickAsync();
 
         // Wait for any ongoing animations to complete
-        await Task.Delay(500);
+        await WaitForDelayAsync(500);
 
         // Verify the panel is in a consistent state
         var hasOpen = await panel.EvaluateAsync<bool>("el => el.hasAttribute('data-open')");

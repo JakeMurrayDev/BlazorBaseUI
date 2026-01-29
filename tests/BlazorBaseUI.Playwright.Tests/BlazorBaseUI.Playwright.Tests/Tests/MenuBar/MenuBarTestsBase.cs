@@ -68,7 +68,6 @@ public abstract class MenuBarTestsBase : TestBase
         await NavigateAsync(CreateUrl("/tests/menubar"));
 
         var trigger1 = GetByTestId("menu-1-trigger");
-        var trigger2 = GetByTestId("menu-2-trigger");
 
         // Focus and click on first trigger
         await trigger1.ClickAsync();
@@ -76,7 +75,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Press right to navigate to next menu
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // Second menu should now be open
         var menu2State = GetByTestId("menu-2-state");
@@ -101,7 +100,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Press left to navigate to previous menu
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // First menu should now be open
         var menu1State = GetByTestId("menu-1-state");
@@ -119,7 +118,7 @@ public abstract class MenuBarTestsBase : TestBase
         // Hover over second trigger
         var trigger2 = GetByTestId("menu-2-trigger");
         await trigger2.HoverAsync();
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // Second menu should open
         var menu2State = GetByTestId("menu-2-state");
@@ -138,7 +137,7 @@ public abstract class MenuBarTestsBase : TestBase
         // Hover over first trigger without clicking
         var trigger1 = GetByTestId("menu-1-trigger");
         await trigger1.HoverAsync();
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // Menu should NOT open
         var menu1State = GetByTestId("menu-1-state");
@@ -192,7 +191,7 @@ public abstract class MenuBarTestsBase : TestBase
         await OpenMenu1Async();
 
         await Page.Keyboard.PressAsync("Escape");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu1State = GetByTestId("menu-1-state");
         await Assertions.Expect(menu1State).ToHaveTextAsync("false");
@@ -208,7 +207,7 @@ public abstract class MenuBarTestsBase : TestBase
         var outsideButton = GetByTestId("outside-button");
         await outsideButton.ClickAsync();
 
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu1State = GetByTestId("menu-1-state");
         await Assertions.Expect(menu1State).ToHaveTextAsync("false");
@@ -226,13 +225,13 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Press ArrowDown to highlight first item (menu opens with no item highlighted)
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
 
         // Press ArrowDown again to navigate to second item
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(item2).ToHaveAttributeAsync("data-highlighted", "");
     }
@@ -255,7 +254,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Navigate right from last menu (should wrap to first)
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu1State = GetByTestId("menu-1-state");
         await Assertions.Expect(menu1State).ToHaveTextAsync("true");
@@ -268,7 +267,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         var trigger1 = GetByTestId("menu-1-trigger");
         await trigger1.ClickAsync(new LocatorClickOptions { Force = true });
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu1State = GetByTestId("menu-1-state");
         await Assertions.Expect(menu1State).ToHaveTextAsync("false");
@@ -290,7 +289,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Second click closes menu
         await trigger1.ClickAsync();
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         await Assertions.Expect(menu1State).ToHaveTextAsync("false");
     }
@@ -302,7 +301,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Tab to focus on first trigger
         await Page.Keyboard.PressAsync("Tab");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Menu should NOT be open
         var menu1State = GetByTestId("menu-1-state");
@@ -320,11 +319,11 @@ public abstract class MenuBarTestsBase : TestBase
 
         var trigger1 = GetByTestId("menu-1-trigger");
         await trigger1.FocusAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Press Space to open menu
         await Page.Keyboard.PressAsync("Space");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu1State = GetByTestId("menu-1-state");
         await Assertions.Expect(menu1State).ToHaveTextAsync("true");
@@ -337,11 +336,11 @@ public abstract class MenuBarTestsBase : TestBase
 
         var trigger1 = GetByTestId("menu-1-trigger");
         await trigger1.FocusAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Press Enter to open menu
         await Page.Keyboard.PressAsync("Enter");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu1State = GetByTestId("menu-1-state");
         await Assertions.Expect(menu1State).ToHaveTextAsync("true");
@@ -359,7 +358,7 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Navigate left from first menu (should wrap to last)
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var menu3State = GetByTestId("menu-3-state");
         await Assertions.Expect(menu3State).ToHaveTextAsync("true");
@@ -375,19 +374,19 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Focus first trigger
         await trigger1.FocusAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Navigate right twice to get to last trigger (trigger3)
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(trigger3).ToBeFocusedAsync();
 
         // Try to navigate right again (should stay on last)
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Focus should still be on last trigger
         await Assertions.Expect(trigger3).ToBeFocusedAsync();
@@ -402,13 +401,13 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Focus first trigger
         await trigger1.FocusAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
 
         // Try to navigate left (should stay on first)
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Focus should still be on first trigger
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
@@ -436,7 +435,7 @@ public abstract class MenuBarTestsBase : TestBase
         // Hover over submenu trigger
         var submenuTrigger = GetByTestId("menu-4-submenu-trigger");
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
@@ -460,14 +459,14 @@ public abstract class MenuBarTestsBase : TestBase
         // Navigate to submenu trigger (menu opens with no item highlighted)
         // First ArrowDown highlights Documentation (index 0)
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         // Second ArrowDown highlights More Help submenu trigger (index 1)
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Open submenu with arrow right
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
@@ -490,18 +489,18 @@ public abstract class MenuBarTestsBase : TestBase
 
         // Navigate to submenu trigger and open it
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
 
         // Press ArrowLeft to close submenu
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // Submenu should be closed
         await Assertions.Expect(submenuState).ToHaveTextAsync("false");

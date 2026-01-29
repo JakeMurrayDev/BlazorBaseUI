@@ -98,7 +98,7 @@ public abstract class MenuTestsBase : TestBase
 
         // Navigate down to highlight item 2
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Item 2 should now have tabindex="0", item 1 should have tabindex="-1"
         var tabindex1After = await item1.GetAttributeAsync("tabindex");
@@ -126,7 +126,7 @@ public abstract class MenuTestsBase : TestBase
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
 
         await trigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
     }
@@ -145,7 +145,7 @@ public abstract class MenuTestsBase : TestBase
         var trigger = GetByTestId("submenu-trigger");
 
         await trigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         await Assertions.Expect(trigger).ToHaveAttributeAsync("data-popup-open", "");
     }
@@ -166,7 +166,7 @@ public abstract class MenuTestsBase : TestBase
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
 
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(item2).ToHaveAttributeAsync("data-highlighted", "");
     }
@@ -181,12 +181,12 @@ public abstract class MenuTestsBase : TestBase
 
         // Navigate down first
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Assertions.Expect(item2).ToHaveAttributeAsync("data-highlighted", "");
 
         // Then navigate up
         await Page.Keyboard.PressAsync("ArrowUp");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
     }
 
@@ -200,11 +200,11 @@ public abstract class MenuTestsBase : TestBase
         // Navigate to a later item
         await Page.Keyboard.PressAsync("ArrowDown");
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Press Home
         await Page.Keyboard.PressAsync("Home");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
     }
@@ -217,7 +217,7 @@ public abstract class MenuTestsBase : TestBase
         var lastItem = GetByTestId("menu-item-no-close");
 
         await Page.Keyboard.PressAsync("End");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(lastItem).ToHaveAttributeAsync("data-highlighted", "");
     }
@@ -265,11 +265,11 @@ public abstract class MenuTestsBase : TestBase
 
         // Navigate to end
         await Page.Keyboard.PressAsync("End");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Press down again - should wrap to first
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(firstItem).ToHaveAttributeAsync("data-highlighted", "");
     }
@@ -284,12 +284,12 @@ public abstract class MenuTestsBase : TestBase
 
         // Navigate to item 2
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Assertions.Expect(item2).ToHaveAttributeAsync("data-highlighted", "");
 
         // Navigate down - should skip item 3 (disabled) and highlight item 4
         await Page.Keyboard.PressAsync("ArrowDown");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
         await Assertions.Expect(item4).ToHaveAttributeAsync("data-highlighted", "");
     }
 
@@ -315,7 +315,7 @@ public abstract class MenuTestsBase : TestBase
 
         await OpenMenuAsync();
         await Page.Keyboard.PressAsync("Escape");
-        await Page.WaitForTimeoutAsync(200);
+        await WaitForDelayAsync(200);
 
         var trigger = GetByTestId("menu-trigger");
         await Assertions.Expect(trigger).ToBeFocusedAsync();
@@ -340,14 +340,14 @@ public abstract class MenuTestsBase : TestBase
 
         // Navigate to submenu trigger
         await Page.Keyboard.PressAsync("End");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Verify submenu trigger is highlighted
         await Assertions.Expect(submenuTrigger).ToHaveAttributeAsync("data-highlighted", "");
 
         // Press right to open submenu
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
@@ -364,14 +364,14 @@ public abstract class MenuTestsBase : TestBase
 
         // Open submenu by hovering
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
 
         // Press left to close submenu
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         await Assertions.Expect(submenuState).ToHaveTextAsync("false");
     }
@@ -385,7 +385,7 @@ public abstract class MenuTestsBase : TestBase
 
         var submenuTrigger = GetByTestId("submenu-trigger");
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var submenuPopup = GetByTestId("submenu-popup");
         await Assertions.Expect(submenuPopup).ToBeVisibleAsync();
@@ -402,7 +402,7 @@ public abstract class MenuTestsBase : TestBase
 
         var trigger = GetByTestId("menu-trigger");
         await trigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var openState = GetByTestId("open-state");
         await Assertions.Expect(openState).ToHaveTextAsync("true");
@@ -501,11 +501,11 @@ public abstract class MenuTestsBase : TestBase
 
         // Menu should still be open immediately
         var openState = GetByTestId("open-state");
-        await Page.WaitForTimeoutAsync(200);
+        await WaitForDelayAsync(200);
         await Assertions.Expect(openState).ToHaveTextAsync("true");
 
         // After delay, menu should close
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
         await Assertions.Expect(openState).ToHaveTextAsync("false");
     }
 
@@ -524,7 +524,7 @@ public abstract class MenuTestsBase : TestBase
         // Open first submenu
         var submenuTrigger = GetByTestId("submenu-trigger");
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var submenuPopup = GetByTestId("submenu-popup");
         await Assertions.Expect(submenuPopup).ToBeVisibleAsync();
@@ -532,7 +532,7 @@ public abstract class MenuTestsBase : TestBase
         // Open nested submenu
         var nestedTrigger = GetByTestId("nested-submenu-trigger");
         await nestedTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var nestedPopup = GetByTestId("nested-submenu-popup");
         await Assertions.Expect(nestedPopup).ToBeVisibleAsync();
@@ -549,11 +549,11 @@ public abstract class MenuTestsBase : TestBase
         // Open submenu chain
         var submenuTrigger = GetByTestId("submenu-trigger");
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var nestedTrigger = GetByTestId("nested-submenu-trigger");
         await nestedTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         // Click outside
         var outsideButton = GetByTestId("outside-button");
@@ -574,11 +574,11 @@ public abstract class MenuTestsBase : TestBase
         // Open submenu chain
         var submenuTrigger = GetByTestId("submenu-trigger");
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var nestedTrigger = GetByTestId("nested-submenu-trigger");
         await nestedTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var nestedSubmenuState = GetByTestId("nested-submenu-state");
         await Assertions.Expect(nestedSubmenuState).ToHaveTextAsync("true");
@@ -586,7 +586,7 @@ public abstract class MenuTestsBase : TestBase
         // Move mouse back to submenu item (not nested)
         var submenuItem = GetByTestId("submenu-item-1");
         await submenuItem.HoverAsync();
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // Nested submenu should be closed
         await Assertions.Expect(nestedSubmenuState).ToHaveTextAsync("false");
@@ -613,7 +613,7 @@ public abstract class MenuTestsBase : TestBase
 
         // Type 'b' to jump to "Banana"
         await Page.Keyboard.PressAsync("b");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var bananaItem = GetByTestId("menu-item-banana");
         await Assertions.Expect(bananaItem).ToHaveAttributeAsync("data-highlighted", "");
@@ -632,7 +632,7 @@ public abstract class MenuTestsBase : TestBase
 
         // Type 'c' to jump to "Cherry" using its label attribute
         await Page.Keyboard.PressAsync("c");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var cherryItem = GetByTestId("menu-item-cherry");
         await Assertions.Expect(cherryItem).ToHaveAttributeAsync("data-highlighted", "");
@@ -651,14 +651,14 @@ public abstract class MenuTestsBase : TestBase
 
         // Jump to Apple first
         await Page.Keyboard.PressAsync("a");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var appleItem = GetByTestId("menu-item-apple");
         await Assertions.Expect(appleItem).ToHaveAttributeAsync("data-highlighted", "");
 
         // Type 'a' again - should wrap and find "Apricot" (next item starting with 'a')
         await Page.Keyboard.PressAsync("a");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var apricotItem = GetByTestId("menu-item-apricot");
         await Assertions.Expect(apricotItem).ToHaveAttributeAsync("data-highlighted", "");
@@ -677,7 +677,7 @@ public abstract class MenuTestsBase : TestBase
 
         // Ctrl+B should not navigate (browser shortcut, not typeahead)
         await Page.Keyboard.PressAsync("Control+b");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // First item should still be highlighted
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
@@ -762,10 +762,13 @@ public abstract class MenuTestsBase : TestBase
 
         await OpenMenuAsync();
 
-        // Check for backdrop element (implementation-dependent)
-        // The scroll lock mechanism should be active
         var popup = GetByTestId("menu-popup");
         await Assertions.Expect(popup).ToBeVisibleAsync();
+
+        // Verify backdrop is rendered with role="presentation"
+        // The internal backdrop is rendered as a sibling before the positioner
+        var backdrop = Page.Locator("[role='presentation']");
+        await Assertions.Expect(backdrop).ToBeAttachedAsync();
     }
 
     [Fact]
@@ -775,10 +778,19 @@ public abstract class MenuTestsBase : TestBase
 
         await OpenMenuAsync();
 
-        // Verify that scrolling is locked (body should have overflow: hidden or similar)
-        // This test verifies the modal behavior is applied
         var popup = GetByTestId("menu-popup");
         await Assertions.Expect(popup).ToBeVisibleAsync();
+
+        // Verify scroll lock is applied - check for data-base-ui-scroll-locked attribute
+        // or overflow: hidden on document element or body
+        var isScrollLocked = await Page.EvaluateAsync<bool>(@"() => {
+            const doc = document.documentElement;
+            const body = document.body;
+            return doc.hasAttribute('data-base-ui-scroll-locked') ||
+                   doc.style.overflow === 'hidden' ||
+                   body.style.overflow === 'hidden';
+        }");
+        Assert.True(isScrollLocked, "Scroll should be locked when modal menu is open");
     }
 
     #endregion
@@ -797,7 +809,7 @@ public abstract class MenuTestsBase : TestBase
 
         // Move mouse over item 2
         await item2.HoverAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Item 2 should be highlighted
         await Assertions.Expect(item2).ToHaveAttributeAsync("data-highlighted", "");
@@ -814,14 +826,14 @@ public abstract class MenuTestsBase : TestBase
         var item2 = GetByTestId("menu-item-2");
 
         // Wait for initial highlight
-        await Page.WaitForTimeoutAsync(200);
+        await WaitForDelayAsync(200);
 
         // Item 1 should be initially highlighted (keyboard navigation)
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
 
         // Move mouse over item 2
         await item2.HoverAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         // Item 2 should NOT be highlighted when highlightItemOnHover is false
         var item2Highlighted = await item2.GetAttributeAsync("data-highlighted");
@@ -846,14 +858,14 @@ public abstract class MenuTestsBase : TestBase
         // Open submenu
         var submenuTrigger = GetByTestId("submenu-trigger");
         await submenuTrigger.HoverAsync();
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
 
         // In RTL, ArrowRight should close submenu (opposite of LTR)
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         await Assertions.Expect(submenuState).ToHaveTextAsync("false");
     }
@@ -868,14 +880,14 @@ public abstract class MenuTestsBase : TestBase
 
         // Navigate to submenu trigger
         await Page.Keyboard.PressAsync("End");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         var submenuTrigger = GetByTestId("submenu-trigger");
         await Assertions.Expect(submenuTrigger).ToHaveAttributeAsync("data-highlighted", "");
 
         // In RTL, ArrowLeft should open submenu (opposite of LTR)
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         var submenuState = GetByTestId("submenu-state");
         await Assertions.Expect(submenuState).ToHaveTextAsync("true");
@@ -900,13 +912,13 @@ public abstract class MenuTestsBase : TestBase
 
         // ArrowRight should navigate to next item
         await Page.Keyboard.PressAsync("ArrowRight");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(item2).ToHaveAttributeAsync("data-highlighted", "");
 
         // ArrowLeft should navigate back
         await Page.Keyboard.PressAsync("ArrowLeft");
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
 
         await Assertions.Expect(item1).ToHaveAttributeAsync("data-highlighted", "");
     }
@@ -923,12 +935,12 @@ public abstract class MenuTestsBase : TestBase
             .WithCloseDelay(100));
 
         // Allow JS hover interaction to initialize (needed for Server mode)
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var trigger = GetByTestId("menu-trigger");
         await trigger.HoverAsync();
         // Wait for hover to be processed and menu to open
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var openState = GetByTestId("open-state");
         await Assertions.Expect(openState).ToHaveTextAsync("true");
@@ -936,7 +948,7 @@ public abstract class MenuTestsBase : TestBase
         // Move away from trigger
         var outsideButton = GetByTestId("outside-button");
         await outsideButton.HoverAsync();
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         await Assertions.Expect(openState).ToHaveTextAsync("false");
     }
@@ -949,12 +961,12 @@ public abstract class MenuTestsBase : TestBase
             .WithCloseDelay(100));
 
         // Allow JS hover interaction to initialize (needed for Server mode)
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         var trigger = GetByTestId("menu-trigger");
         await trigger.HoverAsync();
         // Wait for hover to be processed and menu to open
-        await Page.WaitForTimeoutAsync(500);
+        await WaitForDelayAsync(500);
 
         // Verify menu is open
         var openState = GetByTestId("open-state");
@@ -963,7 +975,7 @@ public abstract class MenuTestsBase : TestBase
         // Move to popup
         var popup = GetByTestId("menu-popup");
         await popup.HoverAsync();
-        await Page.WaitForTimeoutAsync(300);
+        await WaitForDelayAsync(300);
 
         // Menu should still be open
         await Assertions.Expect(openState).ToHaveTextAsync("true");

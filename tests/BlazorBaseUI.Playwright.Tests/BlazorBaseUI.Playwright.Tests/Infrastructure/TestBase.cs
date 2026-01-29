@@ -313,7 +313,12 @@ public abstract class TestBase : IAsyncLifetime
         });
         await trigger.FocusAsync();
         await Page.Keyboard.PressAsync(key);
-        await Page.WaitForTimeoutAsync(100);
+        await WaitForDelayAsync(100);
+    }
+
+    protected async Task WaitForDelayAsync(int baseMs)
+    {
+        await Page.WaitForTimeoutAsync(baseMs * TimeoutMultiplier);
     }
 
     protected async Task WaitForAttributeValueAsync(ILocator element, string attribute, string value, int timeout = 5000)
