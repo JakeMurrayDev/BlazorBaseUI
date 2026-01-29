@@ -487,20 +487,27 @@ public abstract class MenuTestsBase : TestBase
             .WithOpenOnHover(true)
             .WithCloseDelay(500));
 
+        // Allow JS hover interaction to initialize (needed for Server mode)
+        await WaitForDelayAsync(500);
+
         var trigger = GetByTestId("menu-trigger");
         await trigger.HoverAsync();
-        await WaitForMenuOpenAsync();
+        // Wait for hover to be processed and menu to open
+        await WaitForDelayAsync(500);
+
+        // Verify menu is open
+        var openState = GetByTestId("open-state");
+        await Assertions.Expect(openState).ToHaveTextAsync("true");
 
         // Move mouse away from trigger
         var outsideButton = GetByTestId("outside-button");
         await outsideButton.HoverAsync();
 
-        // Menu should still be open immediately
-        var openState = GetByTestId("open-state");
+        // Menu should still be open immediately due to close delay
         await WaitForDelayAsync(200);
         await Assertions.Expect(openState).ToHaveTextAsync("true");
 
-        // After delay, menu should close
+        // After close delay passes, menu should close
         await WaitForDelayAsync(500);
         await Assertions.Expect(openState).ToHaveTextAsync("false");
     }
