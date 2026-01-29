@@ -1,14 +1,23 @@
 using BlazorBaseUI.Playwright.Tests.Fixtures;
 using BlazorBaseUI.Playwright.Tests.Infrastructure;
-using BlazorBaseUI.Tests.Contracts;
 using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Collapsible;
 
-public abstract class CollapsibleTestsBase : TestBase,
-    ICollapsibleRootContract,
-    ICollapsibleTriggerContract,
-    ICollapsiblePanelContract
+/// <summary>
+/// Playwright E2E tests for Collapsible component.
+/// These tests focus on behaviors that require a real browser:
+/// - Real click/keyboard events and DOM mutations
+/// - DOM visibility and attachment state
+/// - Browser-specific features (hidden="until-found", beforematch event)
+/// - CSS variable computation and animations
+/// - Focus management
+///
+/// Static rendering, attribute forwarding, CSS class/style application, and
+/// context cascading are covered by bUnit tests in CollapsibleRootTests,
+/// CollapsibleTriggerTests, and CollapsiblePanelTests.
+/// </summary>
+public abstract class CollapsibleTestsBase : TestBase
 {
     protected CollapsibleTestsBase(
         BlazorTestFixture blazorFixture,
@@ -17,89 +26,7 @@ public abstract class CollapsibleTestsBase : TestBase,
     {
     }
 
-    #region ICollapsibleRootContract
-
-    [Fact]
-    public virtual async Task RendersAsDivByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var root = GetByTestId("collapsible-root");
-        var tagName = await root.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-        Assert.Equal("div", tagName);
-    }
-
-    [Fact]
-    public virtual async Task RendersWithCustomAs()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task ForwardsAdditionalAttributes()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-testid", "collapsible-root");
-    }
-
-    [Fact]
-    public virtual async Task AppliesClassValue()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task AppliesStyleValue()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task CombinesClassFromBothSources()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task CascadesContextToChildren()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
-    }
-
-    [Fact]
-    public virtual async Task ControlledModeRespectsOpenParameter()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("false");
-    }
-
-    [Fact]
-    public virtual async Task UncontrolledModeUsesDefaultOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("true");
-    }
+    #region Interaction Tests
 
     [Fact]
     public virtual async Task InvokesOnOpenChange()
@@ -140,121 +67,6 @@ public abstract class CollapsibleTestsBase : TestBase,
     }
 
     [Fact]
-    public virtual async Task HasDataOpenWhenOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-open", "");
-    }
-
-    [Fact]
-    public virtual async Task HasDataClosedWhenClosed()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var root = GetByTestId("collapsible-root");
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-closed", "");
-    }
-
-    [Fact]
-    public virtual async Task HasDataDisabledWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDisabled(true));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-disabled", "");
-    }
-
-    #endregion
-
-    #region ICollapsibleTriggerContract
-
-    [Fact]
-    public virtual async Task RendersAsButtonByDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        var tagName = await trigger.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-        Assert.Equal("button", tagName);
-    }
-
-    Task ICollapsibleTriggerContract.RendersWithCustomAs()
-    {
-        return RendersWithCustomAs_Trigger();
-    }
-
-    [Fact]
-    public virtual async Task RendersWithCustomAs_Trigger()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToBeVisibleAsync();
-    }
-
-    Task ICollapsibleTriggerContract.ForwardsAdditionalAttributes()
-    {
-        return ForwardsAdditionalAttributes_Trigger();
-    }
-
-    [Fact]
-    public virtual async Task ForwardsAdditionalAttributes_Trigger()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-testid", "collapsible-trigger");
-    }
-
-    Task ICollapsibleTriggerContract.AppliesClassValue()
-    {
-        return AppliesClassValue_Trigger();
-    }
-
-    [Fact]
-    public virtual async Task AppliesClassValue_Trigger()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToBeVisibleAsync();
-    }
-
-    Task ICollapsibleTriggerContract.AppliesStyleValue()
-    {
-        return AppliesStyleValue_Trigger();
-    }
-
-    [Fact]
-    public virtual async Task AppliesStyleValue_Trigger()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToBeVisibleAsync();
-    }
-
-    [Fact]
-    public virtual async Task HasAriaExpandedFalseWhenClosed()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
-    }
-
-    [Fact]
-    public virtual async Task HasAriaExpandedTrueWhenOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
-    }
-
-    [Fact]
     public virtual async Task HasAriaControlsWhenOpen()
     {
         await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
@@ -271,49 +83,6 @@ public abstract class CollapsibleTestsBase : TestBase,
         // The component sets it via cascading parameter which updates asynchronously
         var ariaControls = await trigger.GetAttributeAsync("aria-controls");
         Assert.NotNull(ariaControls);
-    }
-
-    [Fact]
-    public virtual async Task HasNoAriaControlsWhenClosed()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        // aria-controls attribute is NOT present when closed (per Base UI behavior)
-        var ariaControls = await trigger.GetAttributeAsync("aria-controls");
-        Assert.Null(ariaControls);
-    }
-
-    [Fact]
-    public virtual async Task HasDataPanelOpenWhenOpen()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-panel-open", "");
-    }
-
-    [Fact]
-    public virtual async Task HasNoDataPanelOpenWhenClosed()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).Not.ToHaveAttributeAsync("data-panel-open", string.Empty);
-    }
-
-    Task ICollapsibleTriggerContract.HasDataDisabledWhenDisabled()
-    {
-        return HasDataDisabledWhenDisabled();
-    }
-
-    [Fact]
-    public virtual async Task HasDisabledAttributeWhenDisabled()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDisabled(true));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        await Assertions.Expect(trigger).ToBeDisabledAsync();
     }
 
     [Fact]
@@ -362,88 +131,9 @@ public abstract class CollapsibleTestsBase : TestBase,
         await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
     }
 
-    [Fact]
-    public virtual Task RequiresContext()
-    {
-        return Task.CompletedTask;
-    }
-
     #endregion
 
-    #region ICollapsiblePanelContract
-
-    Task ICollapsiblePanelContract.RendersAsDivByDefault()
-    {
-        return RendersAsDivByDefault_Panel();
-    }
-
-    [Fact]
-    public virtual async Task RendersAsDivByDefault_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        var tagName = await panel.EvaluateAsync<string>("el => el.tagName.toLowerCase()");
-        Assert.Equal("div", tagName);
-    }
-
-    Task ICollapsiblePanelContract.RendersWithCustomAs()
-    {
-        return RendersWithCustomAs_Panel();
-    }
-
-    [Fact]
-    public virtual async Task RendersWithCustomAs_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToBeVisibleAsync();
-    }
-
-    Task ICollapsiblePanelContract.ForwardsAdditionalAttributes()
-    {
-        return ForwardsAdditionalAttributes_Panel();
-    }
-
-    [Fact]
-    public virtual async Task ForwardsAdditionalAttributes_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToHaveAttributeAsync("data-testid", "collapsible-panel");
-    }
-
-    Task ICollapsiblePanelContract.AppliesClassValue()
-    {
-        return AppliesClassValue_Panel();
-    }
-
-    [Fact]
-    public virtual async Task AppliesClassValue_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible")
-            .WithDefaultOpen(true)
-            .WithAnimated(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToHaveClassAsync(new System.Text.RegularExpressions.Regex("animated-panel"));
-    }
-
-    Task ICollapsiblePanelContract.AppliesStyleValue()
-    {
-        return AppliesStyleValue_Panel();
-    }
-
-    [Fact]
-    public virtual async Task AppliesStyleValue_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToBeVisibleAsync();
-    }
+    #region Panel Visibility and DOM State Tests
 
     [Fact]
     public virtual async Task IsNotVisibleWhenClosed()
@@ -509,6 +199,10 @@ public abstract class CollapsibleTestsBase : TestBase,
         await Assertions.Expect(panel).Not.ToBeAttachedAsync();
     }
 
+    #endregion
+
+    #region HiddenUntilFound Tests (Browser-Specific)
+
     [Fact]
     public virtual async Task HasHiddenUntilFoundAttribute()
     {
@@ -552,105 +246,9 @@ public abstract class CollapsibleTestsBase : TestBase,
         await Assertions.Expect(changeCount).ToHaveTextAsync("1");
     }
 
-    Task ICollapsiblePanelContract.HasDataOpenWhenOpen()
-    {
-        return HasDataOpenWhenOpen_Panel();
-    }
-
-    [Fact]
-    public virtual async Task HasDataOpenWhenOpen_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToHaveAttributeAsync("data-open", "");
-    }
-
-    Task ICollapsiblePanelContract.HasDataClosedWhenClosed()
-    {
-        return HasDataClosedWhenClosed_Panel();
-    }
-
-    [Fact]
-    public virtual async Task HasDataClosedWhenClosed_Panel()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithKeepMounted(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToHaveAttributeAsync("data-closed", "");
-    }
-
-    [Fact]
-    public virtual async Task ReceivesCorrectState()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var panel = GetByTestId("collapsible-panel");
-        await Assertions.Expect(panel).ToHaveAttributeAsync("data-open", "");
-    }
-
-    Task ICollapsiblePanelContract.RequiresContext()
-    {
-        return Task.CompletedTask;
-    }
-
     #endregion
 
-    #region Additional Integration Tests
-
-    [Fact]
-    public virtual async Task Panel_ShouldOpen_OnTriggerClick()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var trigger = GetByTestId("collapsible-trigger");
-        var panel = GetByTestId("collapsible-panel");
-
-        // Verify aria-controls is NOT present when closed
-        var ariaControlsBefore = await trigger.GetAttributeAsync("aria-controls");
-        Assert.Null(ariaControlsBefore);
-
-        await trigger.ClickAsync();
-        await panel.WaitForAsync(new LocatorWaitForOptions
-        {
-            State = WaitForSelectorState.Attached,
-            Timeout = 5000 * TimeoutMultiplier
-        });
-
-        await Assertions.Expect(panel).ToBeVisibleAsync();
-        await Assertions.Expect(panel).ToHaveAttributeAsync("data-open", "");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "true");
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-panel-open", "");
-
-        // Verify aria-controls IS present when open
-        // Note: There's a render cycle delay - panel must mount first to set its ID
-        var panelId = await panel.GetAttributeAsync("id");
-        Assert.False(string.IsNullOrEmpty(panelId), "Panel should have an ID");
-
-        // Wait for aria-controls to be set to the panel ID
-        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-controls", panelId);
-    }
-
-    [Fact]
-    public virtual async Task Panel_ShouldClose_OnSecondTriggerClick()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible").WithDefaultOpen(true));
-
-        var trigger = GetByTestId("collapsible-trigger");
-
-        // Verify aria-controls IS present when open
-        var ariaControlsBefore = await trigger.GetAttributeAsync("aria-controls");
-        Assert.NotNull(ariaControlsBefore);
-
-        await trigger.ClickAsync();
-
-        await WaitForAttributeValueAsync(trigger, "aria-expanded", "false");
-        await Assertions.Expect(trigger).Not.ToHaveAttributeAsync("data-panel-open", string.Empty);
-
-        // Verify aria-controls is removed when closed
-        var ariaControlsAfter = await trigger.GetAttributeAsync("aria-controls");
-        Assert.Null(ariaControlsAfter);
-    }
+    #region Keyboard and Focus Tests
 
     [Fact]
     public virtual async Task Panel_ShouldToggleMultipleTimes()
@@ -737,33 +335,6 @@ public abstract class CollapsibleTestsBase : TestBase,
         // Note: Due to render order, aria-controls may not be synced with panel ID on initial render
         var ariaControls = await trigger.GetAttributeAsync("aria-controls");
         Assert.NotNull(ariaControls);
-    }
-
-    [Fact]
-    public virtual async Task StateDisplay_ShouldShowCorrectOpenState()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var openState = GetByTestId("open-state");
-        await Assertions.Expect(openState).ToHaveTextAsync("false");
-
-        await ClickTriggerAsync();
-        await Assertions.Expect(openState).ToHaveTextAsync("true");
-    }
-
-    [Fact]
-    public virtual async Task StateDisplay_ShouldIncrementChangeCount()
-    {
-        await NavigateAsync(CreateUrl("/tests/collapsible"));
-
-        var changeCount = GetByTestId("change-count");
-        await Assertions.Expect(changeCount).ToHaveTextAsync("0");
-
-        await ClickTriggerAsync();
-        await Assertions.Expect(changeCount).ToHaveTextAsync("1");
-
-        await ClickTriggerAsync();
-        await Assertions.Expect(changeCount).ToHaveTextAsync("2");
     }
 
     #endregion
