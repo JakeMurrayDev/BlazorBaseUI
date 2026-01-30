@@ -112,4 +112,16 @@ public static class JsInteropSetup
         module.SetupVoid("setInputChecked", _ => true);
         module.SetupVoid("focus", _ => true);
     }
+
+    private const string CheckboxModule = "./_content/BlazorBaseUI/blazor-baseui-checkbox.js";
+
+    public static void SetupCheckboxModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(CheckboxModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("setInputChecked", _ => true);
+        module.SetupVoid("focus", _ => true);
+    }
 }

@@ -394,6 +394,13 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Checkbox-specific parameters
+    public TestPageUrlBuilder WithIndeterminate(bool value)
+    {
+        queryParams["indeterminate"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();
