@@ -41,3 +41,49 @@ h1:focus-visible {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Slider test styles */
+[data-testid="slider-root"] {
+    width: 300px;
+    padding: 20px 0;
+}
+
+[data-testid="slider-control"] {
+    display: flex;
+    align-items: center;
+    position: relative;
+    height: 20px;
+    cursor: pointer;
+}
+
+[data-testid="slider-track"] {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+}
+
+[data-testid="slider-indicator"] {
+    position: absolute;
+    height: 100%;
+    background: #0066cc;
+    border-radius: 2px;
+}
+
+[data-testid^="slider-thumb-"] {
+    width: 20px;
+    height: 20px;
+    background: #0066cc;
+    border-radius: 50%;
+    cursor: grab;
+}
+
+[data-testid^="slider-thumb-"]:active {
+    cursor: grabbing;
+}
+
+[data-testid^="slider-thumb-"][data-disabled] {
+    background: #ccc;
+    cursor: not-allowed;
+}

@@ -329,7 +329,8 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         builder.AddAttribute(17, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
         builder.AddAttribute(18, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
         builder.AddAttribute(19, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
-        builder.AddElementReferenceCapture(20, e => inputElement = e);
+        builder.AddEventPreventDefaultAttribute(20, "onkeydown", true);
+        builder.AddElementReferenceCapture(21, e => inputElement = e);
         builder.CloseElement();
     }
 
@@ -440,6 +441,10 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         if (Context is null || Context.ReadOnly || ResolvedDisabled)
             return;
 
+        // Capture the thumb value before any async operations to avoid race conditions
+        // where HandleChange might update the context values before we process the key
+        var capturedThumbValue = ThumbValue;
+
         if (OnKeyDown.HasDelegate)
         {
             await OnKeyDown.InvokeAsync(e);
@@ -448,7 +453,7 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         if (!IsSliderKey(e.Key))
             return;
 
-        var newValue = CalculateNewValueFromKey(e);
+        var newValue = CalculateNewValueFromKey(e, capturedThumbValue);
         if (newValue.HasValue)
         {
             var newValues = SliderUtilities.GetSliderValue(
@@ -465,14 +470,13 @@ public sealed class SliderThumb : ComponentBase, IReferencableComponent, IDispos
         key is "ArrowUp" or "ArrowDown" or "ArrowLeft" or "ArrowRight"
             or "PageUp" or "PageDown" or "Home" or "End";
 
-    private double? CalculateNewValueFromKey(KeyboardEventArgs e)
+    private double? CalculateNewValueFromKey(KeyboardEventArgs e, double capturedThumbValue)
     {
         if (Context is null)
             return null;
 
-        var thumbValue = ThumbValue;
         var step = e.ShiftKey ? Context.LargeStep : Context.Step;
-        var roundedValue = SliderUtilities.RoundValueToStep(thumbValue, Context.Step, Context.Min);
+        var roundedValue = SliderUtilities.RoundValueToStep(capturedThumbValue, Context.Step, Context.Min);
 
         return e.Key switch
         {

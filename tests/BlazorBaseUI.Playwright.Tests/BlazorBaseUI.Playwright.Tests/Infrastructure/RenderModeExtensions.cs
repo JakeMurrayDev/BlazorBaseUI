@@ -272,6 +272,73 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Slider-specific parameters
+    public TestPageUrlBuilder WithDefaultSliderValue(double value)
+    {
+        queryParams["defaultValue"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithDefaultSliderValues(params double[] values)
+    {
+        queryParams["defaultValues"] = string.Join(",", values.Select(v => v.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMin(double value)
+    {
+        queryParams["min"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMax(double value)
+    {
+        queryParams["max"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithStep(double value)
+    {
+        queryParams["step"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithLargeStep(double value)
+    {
+        queryParams["largeStep"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMinStepsBetweenValues(int value)
+    {
+        queryParams["minStepsBetweenValues"] = value.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithReadOnly(bool value)
+    {
+        queryParams["readOnly"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithRequired(bool value)
+    {
+        queryParams["required"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithThumbCollisionBehavior(string behavior)
+    {
+        queryParams["thumbCollisionBehavior"] = behavior;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowRangeSlider(bool value)
+    {
+        queryParams["showRangeSlider"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

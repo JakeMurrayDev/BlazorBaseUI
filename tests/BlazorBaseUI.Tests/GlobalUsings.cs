@@ -15,4 +15,6 @@ global using BlazorBaseUI.Tests.Contracts;
 global using BlazorBaseUI.Tests.Contracts.Accordion;
 global using BlazorBaseUI.Tests.Contracts.Menu;
 global using BlazorBaseUI.Tests.Contracts.MenuBar;
+global using BlazorBaseUI.Slider;
+global using BlazorBaseUI.Tests.Contracts.Slider;
 global using BlazorBaseUI.Tests.Infrastructure;

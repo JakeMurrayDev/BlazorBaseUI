@@ -86,4 +86,18 @@ public static class JsInteropSetup
         SetupAccordionTrigger(jsInterop);
         SetupCollapsiblePanel(jsInterop);
     }
+
+    private const string SliderModule = "./_content/BlazorBaseUI/blazor-baseui-slider.js";
+
+    public static void SetupSliderModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(SliderModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("startDrag", _ => true);
+        module.SetupVoid("stopDrag", _ => true);
+        module.SetupVoid("setPointerCapture", _ => true);
+        module.SetupVoid("focusThumbInput", _ => true);
+        module.Setup<object?>("getThumbRect", _ => true).SetResult(null);
+    }
 }
