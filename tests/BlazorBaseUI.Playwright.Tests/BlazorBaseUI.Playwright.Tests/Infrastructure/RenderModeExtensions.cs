@@ -401,6 +401,31 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // CheckboxGroup-specific parameters
+    public TestPageUrlBuilder WithGroupDefaultValue(params string[] values)
+    {
+        queryParams["defaultValue"] = string.Join(",", values);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithGroupValue(params string[] values)
+    {
+        queryParams["value"] = string.Join(",", values);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowParent(bool value)
+    {
+        queryParams["showParent"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithGroupName(string name)
+    {
+        queryParams["name"] = name;
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

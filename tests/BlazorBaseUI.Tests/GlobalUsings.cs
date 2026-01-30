@@ -21,4 +21,6 @@ global using BlazorBaseUI.Switch;
 global using BlazorBaseUI.Tests.Contracts.Switch;
 global using BlazorBaseUI.Checkbox;
 global using BlazorBaseUI.Tests.Contracts.Checkbox;
+global using BlazorBaseUI.CheckboxGroup;
+global using BlazorBaseUI.Tests.Contracts.CheckboxGroup;
 global using BlazorBaseUI.Tests.Infrastructure;
