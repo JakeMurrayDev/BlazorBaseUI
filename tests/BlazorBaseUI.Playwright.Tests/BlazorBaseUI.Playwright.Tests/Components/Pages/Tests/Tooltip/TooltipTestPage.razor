@@ -1,0 +1,116 @@
+@page "/tests/tooltip/server"
+@using BlazorBaseUI.Popover
+@using BlazorBaseUI.Tooltip
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Tooltip Test Page (Server)</PageTitle>
+
+<div data-testid="test-container" data-interactive="@RendererInfo.IsInteractive.ToString().ToLowerInvariant()">
+    <TooltipRoot
+        @bind-Open="isOpen"
+        DefaultOpen="@DefaultOpen"
+        Disabled="@Disabled"
+        DisableHoverablePopup="@DisableHoverablePopup"
+        ActionsRef="@actionsRef"
+        OnOpenChange="HandleOpenChange"
+        OnOpenChangeComplete="HandleOpenChangeComplete">
+        <TooltipTrigger
+            Delay="@Delay"
+            CloseDelay="@CloseDelay"
+            data-testid="tooltip-trigger">
+            Hover Me
+        </TooltipTrigger>
+        <TooltipPortal KeepMounted="@KeepMounted">
+            <TooltipPositioner
+                Side="@(Side == "top" ? BlazorBaseUI.Popover.Side.Top : Side == "left" ? BlazorBaseUI.Popover.Side.Left : Side == "right" ? BlazorBaseUI.Popover.Side.Right : BlazorBaseUI.Popover.Side.Bottom)"
+                Align="@(Align == "start" ? BlazorBaseUI.Popover.Align.Start : Align == "end" ? BlazorBaseUI.Popover.Align.End : BlazorBaseUI.Popover.Align.Center)"
+                data-testid="tooltip-positioner">
+                <TooltipPopup data-testid="tooltip-popup">
+                    @if (ShowArrow)
+                    {
+                        <TooltipArrow data-testid="tooltip-arrow" />
+                    }
+                    <div data-testid="tooltip-content">Tooltip Content</div>
+                </TooltipPopup>
+            </TooltipPositioner>
+        </TooltipPortal>
+    </TooltipRoot>
+
+    <div data-testid="state-display" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;">
+        <div>Open: <span data-testid="open-state">@isOpen.ToString().ToLowerInvariant()</span></div>
+        <div>Change Count: <span data-testid="change-count">@changeCount</span></div>
+        <div>Last Reason: <span data-testid="last-reason">@lastReason</span></div>
+        <div>Complete Count: <span data-testid="complete-count">@completeCount</span></div>
+    </div>
+
+    <div style="margin-top: 10px;">
+        <button data-testid="outside-button">Outside Button</button>
+        <input data-testid="focusable-input" type="text" placeholder="Focusable input" />
+    </div>
+
+    <div style="margin-top: 10px;">
+        <button data-testid="actions-close" @onclick="HandleActionsClose">Close via Actions</button>
+        <button data-testid="actions-open" @onclick="HandleActionsOpen">Open via Actions</button>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "defaultOpen")]
+    public bool DefaultOpen { get; set; }
+
+    [SupplyParameterFromQuery(Name = "disabled")]
+    public bool Disabled { get; set; }
+
+    [SupplyParameterFromQuery(Name = "disableHoverablePopup")]
+    public bool DisableHoverablePopup { get; set; }
+
+    [SupplyParameterFromQuery(Name = "delay")]
+    public int Delay { get; set; } = 600;
+
+    [SupplyParameterFromQuery(Name = "closeDelay")]
+    public int CloseDelay { get; set; } = 300;
+
+    [SupplyParameterFromQuery(Name = "keepMounted")]
+    public bool KeepMounted { get; set; }
+
+    [SupplyParameterFromQuery(Name = "showArrow")]
+    public bool ShowArrow { get; set; }
+
+    [SupplyParameterFromQuery(Name = "side")]
+    public string Side { get; set; } = "top";
+
+    [SupplyParameterFromQuery(Name = "align")]
+    public string Align { get; set; } = "center";
+
+    private bool isOpen;
+    private int changeCount;
+    private string lastReason = "";
+    private int completeCount;
+    private TooltipRootActions actionsRef = new();
+
+    protected override void OnInitialized()
+    {
+        isOpen = DefaultOpen;
+    }
+
+    private void HandleOpenChange(TooltipOpenChangeEventArgs args)
+    {
+        changeCount++;
+        lastReason = args.Reason.ToString();
+    }
+
+    private void HandleOpenChangeComplete(bool open)
+    {
+        completeCount++;
+    }
+
+    private void HandleActionsClose()
+    {
+        actionsRef.Close?.Invoke();
+    }
+
+    private void HandleActionsOpen()
+    {
+        actionsRef.Open?.Invoke();
+    }
+}

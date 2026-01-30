@@ -469,6 +469,19 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Tooltip-specific parameters
+    public TestPageUrlBuilder WithDelay(int delayMs)
+    {
+        queryParams["delay"] = delayMs.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithDisableHoverablePopup(bool value)
+    {
+        queryParams["disableHoverablePopup"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

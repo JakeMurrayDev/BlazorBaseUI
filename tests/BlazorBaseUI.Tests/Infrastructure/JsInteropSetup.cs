@@ -146,4 +146,23 @@ public static class JsInteropSetup
         module.SetupVoid("disposePopup", _ => true);
         module.SetupVoid("focusElement", _ => true);
     }
+
+    private const string TooltipModule = "./_content/BlazorBaseUI/blazor-baseui-tooltip.js";
+
+    public static void SetupTooltipModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(TooltipModule);
+        module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("setRootOpen", _ => true).SetVoidResult();
+        module.SetupVoid("setTriggerElement", _ => true).SetVoidResult();
+        module.SetupVoid("setPopupElement", _ => true).SetVoidResult();
+        module.SetupVoid("initializeHoverInteraction", _ => true).SetVoidResult();
+        module.SetupVoid("disposeHoverInteraction", _ => true).SetVoidResult();
+        module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
+        module.SetupVoid("updatePosition", _ => true).SetVoidResult();
+        module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
+        module.SetupVoid("initializePopup", _ => true).SetVoidResult();
+        module.SetupVoid("disposePopup", _ => true).SetVoidResult();
+    }
 }
