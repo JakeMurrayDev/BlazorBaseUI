@@ -124,4 +124,26 @@ public static class JsInteropSetup
         module.SetupVoid("setInputChecked", _ => true);
         module.SetupVoid("focus", _ => true);
     }
+
+    private const string PopoverModule = "./_content/BlazorBaseUI/blazor-baseui-popover.js";
+
+    public static void SetupPopoverModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(PopoverModule);
+        module.SetupVoid("initializeRoot", _ => true);
+        module.SetupVoid("disposeRoot", _ => true);
+        module.SetupVoid("setRootOpen", _ => true);
+        module.SetupVoid("setTriggerElement", _ => true);
+        module.SetupVoid("setPopupElement", _ => true);
+        module.SetupVoid("initializeHoverInteraction", _ => true);
+        module.SetupVoid("disposeHoverInteraction", _ => true);
+        module.SetupVoid("updateHoverInteractionFloatingElement", _ => true);
+        module.SetupVoid("setHoverInteractionOpen", _ => true);
+        module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
+        module.SetupVoid("updatePosition", _ => true);
+        module.SetupVoid("disposePositioner", _ => true);
+        module.SetupVoid("initializePopup", _ => true);
+        module.SetupVoid("disposePopup", _ => true);
+        module.SetupVoid("focusElement", _ => true);
+    }
 }

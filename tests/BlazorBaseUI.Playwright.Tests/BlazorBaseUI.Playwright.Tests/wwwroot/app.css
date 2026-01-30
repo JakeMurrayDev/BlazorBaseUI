@@ -87,3 +87,57 @@ h1:focus-visible {
     background: #ccc;
     cursor: not-allowed;
 }
+
+/* Popover test styles */
+[data-testid="popover-positioner"] {
+    position: fixed;
+    top: 100px;
+    left: 100px;
+    z-index: 1000;
+}
+
+[data-testid="popover-popup"] {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 16px;
+    min-width: 200px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+[data-testid="popover-backdrop"] {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+[data-testid="popover-arrow"] {
+    width: 10px;
+    height: 10px;
+    background: white;
+    border: 1px solid #ccc;
+    transform: rotate(45deg);
+}
+
+[data-testid="popover-trigger"] {
+    padding: 8px 16px;
+    background: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+[data-testid="popover-close"] {
+    padding: 4px 8px;
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Hide elements with hidden attribute */
+[hidden] {
+    display: none !important;
+}

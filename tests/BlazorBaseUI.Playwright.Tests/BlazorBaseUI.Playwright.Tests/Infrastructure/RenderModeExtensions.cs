@@ -426,6 +426,49 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Popover-specific parameters
+    public TestPageUrlBuilder WithShowClose(bool value)
+    {
+        queryParams["showClose"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowArrow(bool value)
+    {
+        queryParams["showArrow"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowTitle(bool value)
+    {
+        queryParams["showTitle"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowDescription(bool value)
+    {
+        queryParams["showDescription"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowBackdrop(bool value)
+    {
+        queryParams["showBackdrop"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSide(string side)
+    {
+        queryParams["side"] = side;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithAlign(string align)
+    {
+        queryParams["align"] = align;
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();
