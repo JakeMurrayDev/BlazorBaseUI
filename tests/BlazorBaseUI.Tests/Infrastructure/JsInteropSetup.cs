@@ -100,4 +100,16 @@ public static class JsInteropSetup
         module.SetupVoid("focusThumbInput", _ => true);
         module.Setup<object?>("getThumbRect", _ => true).SetResult(null);
     }
+
+    private const string SwitchModule = "./_content/BlazorBaseUI/blazor-baseui-switch.js";
+
+    public static void SetupSwitchModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(SwitchModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("setInputChecked", _ => true);
+        module.SetupVoid("focus", _ => true);
+    }
 }

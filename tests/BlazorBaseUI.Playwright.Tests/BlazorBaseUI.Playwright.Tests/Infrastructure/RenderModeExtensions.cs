@@ -339,6 +339,61 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Switch-specific parameters
+    public TestPageUrlBuilder WithDefaultChecked(bool value)
+    {
+        queryParams["defaultChecked"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithChecked(bool value)
+    {
+        queryParams["checked"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNativeButton(bool value)
+    {
+        queryParams["nativeButton"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSwitchName(string name)
+    {
+        queryParams["name"] = name;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSwitchValue(string value)
+    {
+        queryParams["value"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUncheckedValue(string value)
+    {
+        queryParams["uncheckedValue"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowLabel(bool value)
+    {
+        queryParams["showLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowWrappingLabel(bool value)
+    {
+        queryParams["showWrappingLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowForm(bool value)
+    {
+        queryParams["showForm"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

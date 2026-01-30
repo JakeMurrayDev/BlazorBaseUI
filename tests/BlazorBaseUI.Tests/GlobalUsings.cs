@@ -17,4 +17,6 @@ global using BlazorBaseUI.Tests.Contracts.Menu;
 global using BlazorBaseUI.Tests.Contracts.MenuBar;
 global using BlazorBaseUI.Slider;
 global using BlazorBaseUI.Tests.Contracts.Slider;
+global using BlazorBaseUI.Switch;
+global using BlazorBaseUI.Tests.Contracts.Switch;
 global using BlazorBaseUI.Tests.Infrastructure;
