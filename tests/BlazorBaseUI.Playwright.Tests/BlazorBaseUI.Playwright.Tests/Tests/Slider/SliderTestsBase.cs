@@ -278,6 +278,8 @@ public abstract class SliderTestsBase : TestBase
         var initialValue = await GetSliderValueAsync();
 
         // Try to change value via keyboard (should be ignored)
+        // Note: FocusAsync silently no-ops on disabled elements per Playwright behavior,
+        // but we include it to mirror how a user might attempt to interact
         await input.FocusAsync(new LocatorFocusOptions { Timeout = 1000 });
         await Page.Keyboard.PressAsync("ArrowRight");
         await WaitForDelayAsync(100);
