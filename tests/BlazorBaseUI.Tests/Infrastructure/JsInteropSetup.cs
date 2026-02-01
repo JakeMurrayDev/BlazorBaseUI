@@ -86,4 +86,83 @@ public static class JsInteropSetup
         SetupAccordionTrigger(jsInterop);
         SetupCollapsiblePanel(jsInterop);
     }
+
+    private const string SliderModule = "./_content/BlazorBaseUI/blazor-baseui-slider.js";
+
+    public static void SetupSliderModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(SliderModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("startDrag", _ => true);
+        module.SetupVoid("stopDrag", _ => true);
+        module.SetupVoid("setPointerCapture", _ => true);
+        module.SetupVoid("focusThumbInput", _ => true);
+        module.Setup<object?>("getThumbRect", _ => true).SetResult(null);
+    }
+
+    private const string SwitchModule = "./_content/BlazorBaseUI/blazor-baseui-switch.js";
+
+    public static void SetupSwitchModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(SwitchModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("setInputChecked", _ => true);
+        module.SetupVoid("focus", _ => true);
+    }
+
+    private const string CheckboxModule = "./_content/BlazorBaseUI/blazor-baseui-checkbox.js";
+
+    public static void SetupCheckboxModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(CheckboxModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("setInputChecked", _ => true);
+        module.SetupVoid("focus", _ => true);
+    }
+
+    private const string PopoverModule = "./_content/BlazorBaseUI/blazor-baseui-popover.js";
+
+    public static void SetupPopoverModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(PopoverModule);
+        module.SetupVoid("initializeRoot", _ => true);
+        module.SetupVoid("disposeRoot", _ => true);
+        module.SetupVoid("setRootOpen", _ => true);
+        module.SetupVoid("setTriggerElement", _ => true);
+        module.SetupVoid("setPopupElement", _ => true);
+        module.SetupVoid("initializeHoverInteraction", _ => true);
+        module.SetupVoid("disposeHoverInteraction", _ => true);
+        module.SetupVoid("updateHoverInteractionFloatingElement", _ => true);
+        module.SetupVoid("setHoverInteractionOpen", _ => true);
+        module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
+        module.SetupVoid("updatePosition", _ => true);
+        module.SetupVoid("disposePositioner", _ => true);
+        module.SetupVoid("initializePopup", _ => true);
+        module.SetupVoid("disposePopup", _ => true);
+        module.SetupVoid("focusElement", _ => true);
+    }
+
+    private const string TooltipModule = "./_content/BlazorBaseUI/blazor-baseui-tooltip.js";
+
+    public static void SetupTooltipModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(TooltipModule);
+        module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("setRootOpen", _ => true).SetVoidResult();
+        module.SetupVoid("setTriggerElement", _ => true).SetVoidResult();
+        module.SetupVoid("setPopupElement", _ => true).SetVoidResult();
+        module.SetupVoid("initializeHoverInteraction", _ => true).SetVoidResult();
+        module.SetupVoid("disposeHoverInteraction", _ => true).SetVoidResult();
+        module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
+        module.SetupVoid("updatePosition", _ => true).SetVoidResult();
+        module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
+        module.SetupVoid("initializePopup", _ => true).SetVoidResult();
+        module.SetupVoid("disposePopup", _ => true).SetVoidResult();
+    }
 }

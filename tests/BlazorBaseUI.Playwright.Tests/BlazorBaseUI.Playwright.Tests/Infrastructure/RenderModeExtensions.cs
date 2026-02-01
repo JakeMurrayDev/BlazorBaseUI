@@ -272,6 +272,216 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Slider-specific parameters
+    public TestPageUrlBuilder WithDefaultSliderValue(double value)
+    {
+        queryParams["defaultValue"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithDefaultSliderValues(params double[] values)
+    {
+        queryParams["defaultValues"] = string.Join(",", values.Select(v => v.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMin(double value)
+    {
+        queryParams["min"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMax(double value)
+    {
+        queryParams["max"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithStep(double value)
+    {
+        queryParams["step"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithLargeStep(double value)
+    {
+        queryParams["largeStep"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMinStepsBetweenValues(int value)
+    {
+        queryParams["minStepsBetweenValues"] = value.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithReadOnly(bool value)
+    {
+        queryParams["readOnly"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithRequired(bool value)
+    {
+        queryParams["required"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithThumbCollisionBehavior(string behavior)
+    {
+        queryParams["thumbCollisionBehavior"] = behavior;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowRangeSlider(bool value)
+    {
+        queryParams["showRangeSlider"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    // Switch-specific parameters
+    public TestPageUrlBuilder WithDefaultChecked(bool value)
+    {
+        queryParams["defaultChecked"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithChecked(bool value)
+    {
+        queryParams["checked"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNativeButton(bool value)
+    {
+        queryParams["nativeButton"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSwitchName(string name)
+    {
+        queryParams["name"] = name;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSwitchValue(string value)
+    {
+        queryParams["value"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUncheckedValue(string value)
+    {
+        queryParams["uncheckedValue"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowLabel(bool value)
+    {
+        queryParams["showLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowWrappingLabel(bool value)
+    {
+        queryParams["showWrappingLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowForm(bool value)
+    {
+        queryParams["showForm"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    // Checkbox-specific parameters
+    public TestPageUrlBuilder WithIndeterminate(bool value)
+    {
+        queryParams["indeterminate"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    // CheckboxGroup-specific parameters
+    public TestPageUrlBuilder WithGroupDefaultValue(params string[] values)
+    {
+        queryParams["defaultValue"] = string.Join(",", values);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithGroupValue(params string[] values)
+    {
+        queryParams["value"] = string.Join(",", values);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowParent(bool value)
+    {
+        queryParams["showParent"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithGroupName(string name)
+    {
+        queryParams["name"] = name;
+        return this;
+    }
+
+    // Popover-specific parameters
+    public TestPageUrlBuilder WithShowClose(bool value)
+    {
+        queryParams["showClose"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowArrow(bool value)
+    {
+        queryParams["showArrow"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowTitle(bool value)
+    {
+        queryParams["showTitle"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowDescription(bool value)
+    {
+        queryParams["showDescription"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowBackdrop(bool value)
+    {
+        queryParams["showBackdrop"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSide(string side)
+    {
+        queryParams["side"] = side;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithAlign(string align)
+    {
+        queryParams["align"] = align;
+        return this;
+    }
+
+    // Tooltip-specific parameters
+    public TestPageUrlBuilder WithDelay(int delayMs)
+    {
+        queryParams["delay"] = delayMs.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithDisableHoverablePopup(bool value)
+    {
+        queryParams["disableHoverablePopup"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();
