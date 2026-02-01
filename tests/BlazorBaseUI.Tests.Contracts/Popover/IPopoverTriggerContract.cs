@@ -9,7 +9,6 @@ public interface IPopoverTriggerContract
     Task HasAriaExpandedFalseWhenClosed();
     Task HasAriaExpandedTrueWhenOpen();
     Task HasDataPopupOpenWhenOpen();
-    Task HasDataDisabledWhenDisabled();
     Task HasDisabledAttributeWhenDisabled();
     Task DoesNotToggleWhenDisabled();
     Task TogglesOnClick();

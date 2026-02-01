@@ -309,7 +309,6 @@ public abstract class CheckboxTestsBase : TestBase
         await WaitForDelayAsync(100);
 
         var checkbox = GetCheckbox();
-        await checkbox.FocusAsync();
         await Assertions.Expect(checkbox).ToBeFocusedAsync();
     }
 

@@ -115,8 +115,9 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
     }
 
     [Fact]
-    public Task RequiresContext()
+    public Task RendersWithDefaultContext()
     {
+        // PopoverTitle can render without explicit context, using default values
         var cut = Render<PopoverTitle>(parameters => parameters
             .Add(p => p.ChildContent, builder => builder.AddContent(0, "Title"))
         );

@@ -224,9 +224,20 @@ public class TooltipRootTests : BunitContext, ITooltipRootContract
         // Disabled prevents new opens but doesn't close an already-open tooltip
         // When DefaultOpen=true and Disabled=true, the tooltip opens initially
         // but subsequent programmatic opens should be blocked
-        var cut = Render(CreateTooltip(defaultOpen: false, disabled: true));
+        var actions = new TooltipRootActions();
+        var cut = Render(CreateTooltip(defaultOpen: true, disabled: true, actionsRef: actions));
 
-        // Should not be open because disabled prevents opening
+        // Initially open because DefaultOpen=true takes effect
+        cut.Find("[role='tooltip'][data-open]").ShouldNotBeNull();
+
+        // Close the tooltip
+        cut.InvokeAsync(() => actions.Close?.Invoke());
+
+        // Try to reopen by focusing the trigger
+        var trigger = cut.Find("button");
+        trigger.Focus();
+
+        // Should still be closed because disabled prevents reopening
         cut.FindAll("[role='tooltip'][data-open]").Count.ShouldBe(0);
 
         return Task.CompletedTask;

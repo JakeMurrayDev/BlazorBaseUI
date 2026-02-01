@@ -114,7 +114,7 @@
     private double[]? ParsedDefaultValues =>
         string.IsNullOrEmpty(DefaultValuesString)
             ? null
-            : DefaultValuesString.Split(',').Select(s => double.Parse(s.Trim())).ToArray();
+            : DefaultValuesString.Split(',').Select(s => double.Parse(s.Trim(), System.Globalization.CultureInfo.InvariantCulture)).ToArray();
 
     private Orientation ParsedOrientation =>
         Orientation?.ToLowerInvariant() == "vertical"

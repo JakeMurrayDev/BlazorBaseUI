@@ -152,17 +152,6 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
     }
 
     [Fact]
-    public Task HasDataDisabledWhenDisabled()
-    {
-        var cut = Render(CreateTriggerInRoot(triggerDisabled: true));
-
-        var trigger = cut.Find("button");
-        trigger.HasAttribute("disabled").ShouldBeTrue();
-
-        return Task.CompletedTask;
-    }
-
-    [Fact]
     public Task HasDisabledAttributeWhenDisabled()
     {
         var cut = Render(CreateTriggerInRoot(triggerDisabled: true));

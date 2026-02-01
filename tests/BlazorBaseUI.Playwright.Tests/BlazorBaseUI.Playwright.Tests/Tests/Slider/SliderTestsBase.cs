@@ -38,7 +38,7 @@ public abstract class SliderTestsBase : TestBase
     {
         var input = GetSliderInput(thumbIndex);
         var value = await input.GetAttributeAsync("aria-valuenow");
-        return double.Parse(value ?? "0");
+        return double.Parse(value ?? "0", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     protected async Task WaitForValueAsync(double expected, int thumbIndex = 0, int timeout = 5000)
@@ -1097,7 +1097,7 @@ public abstract class SliderTestsBase : TestBase
 
         var input = GetSliderInput();
         var value = await input.GetAttributeAsync("aria-valuenow");
-        var numericValue = double.Parse(value ?? "0");
+        var numericValue = double.Parse(value ?? "0", System.Globalization.CultureInfo.InvariantCulture);
 
         // Should be approximately 0.6
         Assert.True(numericValue >= 0.59 && numericValue <= 0.61, $"Expected ~0.6, got {numericValue}");

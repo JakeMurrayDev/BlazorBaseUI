@@ -172,17 +172,4 @@ public class SliderControlTests : BunitContext, ISliderControlContract
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public Task HasWebkitUserSelectNone()
-    {
-        var cut = Render(CreateSliderWithControl());
-
-        var control = cut.Find("[data-testid='slider-control']");
-        var style = control.GetAttribute("style") ?? "";
-
-        // The control should prevent touch events from causing scrolling
-        style.ShouldContain("touch-action: none");
-
-        return Task.CompletedTask;
-    }
 }

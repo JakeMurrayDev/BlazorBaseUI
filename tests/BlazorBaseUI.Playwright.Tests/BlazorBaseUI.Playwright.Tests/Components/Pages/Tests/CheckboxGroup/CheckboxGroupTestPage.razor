@@ -107,13 +107,13 @@
 
     protected override void OnInitialized()
     {
-        if (!string.IsNullOrEmpty(DefaultValueQuery))
-        {
-            currentValue = DefaultValueQuery.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        }
-        else if (!string.IsNullOrEmpty(ValueQuery))
+        if (!string.IsNullOrEmpty(ValueQuery))
         {
             currentValue = ValueQuery.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        }
+        else if (!string.IsNullOrEmpty(DefaultValueQuery))
+        {
+            currentValue = DefaultValueQuery.Split(',', StringSplitOptions.RemoveEmptyEntries);
         }
         else
         {

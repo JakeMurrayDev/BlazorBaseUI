@@ -6,5 +6,5 @@ public interface IPopoverTitleContract
     Task RendersWithCustomAs();
     Task ForwardsAdditionalAttributes();
     Task SetsAriaLabelledByOnPopup();
-    Task RequiresContext();
+    Task RendersWithDefaultContext();
 }

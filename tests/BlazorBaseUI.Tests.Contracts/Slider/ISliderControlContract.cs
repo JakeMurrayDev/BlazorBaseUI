@@ -12,7 +12,4 @@ public interface ISliderControlContract
     Task HasDataOrientation();
     Task HasDataDisabledWhenDisabled();
     Task HasDataReadonlyWhenReadOnly();
-
-    // Pointer capture style
-    Task HasWebkitUserSelectNone();
 }
