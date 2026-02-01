@@ -536,9 +536,8 @@ public abstract class SliderTestsBase : TestBase
         await WaitForDelayAsync(200);
 
         var changeReason = GetByTestId("last-change-reason");
-        // Should contain "Keyboard" or similar
         var text = await changeReason.TextContentAsync();
-        Assert.True(!string.IsNullOrEmpty(text), "Change reason should be captured");
+        Assert.Contains("Keyboard", text, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
