@@ -42,6 +42,8 @@
 </style>
 
 <div data-testid="test-container" data-interactive="@RendererInfo.IsInteractive.ToString().ToLowerInvariant()">
+    <button data-testid="outside-button" style="margin-bottom: 10px;">Outside Button</button>
+
     @if (ShowForm)
     {
         <form data-testid="test-form" @onsubmit="HandleSubmit" @onsubmit:preventDefault>
@@ -77,7 +79,6 @@
         <div>Blur Count: <span data-testid="blur-count">@blurCount</span></div>
     </div>
 
-    <button data-testid="outside-button" style="margin-top: 10px;">Outside Button</button>
     <button data-testid="toggle-external" @onclick="ToggleExternal" style="margin-top: 10px;">Toggle Externally</button>
 </div>
 
