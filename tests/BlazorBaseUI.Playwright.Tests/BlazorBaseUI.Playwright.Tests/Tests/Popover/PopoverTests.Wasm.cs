@@ -3,15 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Popover;
 
-[Collection("BlazorTests")]
-public class PopoverTestsWasm : PopoverTestsBase
+public class PopoverTestsWasm : PopoverTestsBase, IClassFixture<PlaywrightFixture>
 {
-    public PopoverTestsWasm(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected override TestRenderMode RenderMode => TestRenderMode.Wasm;
+
+    public PopoverTestsWasm(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
-
-    protected override TestRenderMode RenderMode => TestRenderMode.Wasm;
 }

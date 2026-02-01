@@ -10,10 +10,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Avatar;
 /// </summary>
 public abstract class AvatarTestsBase : TestBase
 {
-    protected AvatarTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected AvatarTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

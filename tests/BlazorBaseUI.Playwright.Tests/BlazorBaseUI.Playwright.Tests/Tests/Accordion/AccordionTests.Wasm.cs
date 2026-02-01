@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Accordion;
 
-public class AccordionTestsWasm : AccordionTestsBase
+public class AccordionTestsWasm : AccordionTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Wasm;
 
-    public AccordionTestsWasm(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public AccordionTestsWasm(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }

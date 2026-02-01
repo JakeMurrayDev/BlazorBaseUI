@@ -12,10 +12,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Accordion;
 /// </summary>
 public abstract class AccordionTestsBase : TestBase
 {
-    protected AccordionTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected AccordionTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

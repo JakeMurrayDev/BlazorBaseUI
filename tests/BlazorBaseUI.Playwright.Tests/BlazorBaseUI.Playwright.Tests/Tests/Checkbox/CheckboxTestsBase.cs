@@ -12,10 +12,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Checkbox;
 /// </summary>
 public abstract class CheckboxTestsBase : TestBase
 {
-    protected CheckboxTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected CheckboxTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

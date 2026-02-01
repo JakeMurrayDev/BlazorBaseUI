@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Avatar;
 
-public class AvatarTestsWasm : AvatarTestsBase
+public class AvatarTestsWasm : AvatarTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Wasm;
 
-    public AvatarTestsWasm(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public AvatarTestsWasm(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }

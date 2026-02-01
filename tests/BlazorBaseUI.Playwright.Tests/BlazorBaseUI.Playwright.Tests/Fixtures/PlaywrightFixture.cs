@@ -2,21 +2,18 @@ using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Fixtures;
 
+/// <summary>
+/// Class-level fixture that creates a browser instance for each test class.
+/// Each test class gets its own browser, enabling parallel test execution.
+/// Individual tests within a class share the browser but get isolated contexts.
+/// </summary>
 public class PlaywrightFixture : IAsyncLifetime
 {
-    private bool isInitialized;
-
     public IPlaywright Playwright { get; private set; } = null!;
     public IBrowser Browser { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
     {
-        if (isInitialized)
-        {
-            Console.WriteLine("[PlaywrightFixture] Already initialized.");
-            return;
-        }
-
         Console.WriteLine("[PlaywrightFixture] Initializing...");
 
         Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
@@ -33,7 +30,6 @@ public class PlaywrightFixture : IAsyncLifetime
             _ => await Playwright.Chromium.LaunchAsync(options)
         };
 
-        isInitialized = true;
         Console.WriteLine($"[PlaywrightFixture] Initialized {browserType} (headless: {headless}). Browser version: {Browser.Version}");
     }
 

@@ -12,10 +12,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Popover;
 /// </summary>
 public abstract class PopoverTestsBase : TestBase
 {
-    protected PopoverTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected PopoverTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

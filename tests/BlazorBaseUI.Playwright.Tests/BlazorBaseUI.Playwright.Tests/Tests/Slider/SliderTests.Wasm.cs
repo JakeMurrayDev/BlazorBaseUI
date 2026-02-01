@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Slider;
 
-public class SliderTestsWasm : SliderTestsBase
+public class SliderTestsWasm : SliderTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Wasm;
 
-    public SliderTestsWasm(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public SliderTestsWasm(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }
