@@ -47,7 +47,7 @@ public abstract class SliderTestsBase : TestBase
         var input = GetSliderInput(thumbIndex);
         await Assertions.Expect(input).ToHaveAttributeAsync(
             "aria-valuenow",
-            expected.ToString(),
+            expected.ToString(System.Globalization.CultureInfo.InvariantCulture),
             new LocatorAssertionsToHaveAttributeOptions { Timeout = effectiveTimeout });
     }
 

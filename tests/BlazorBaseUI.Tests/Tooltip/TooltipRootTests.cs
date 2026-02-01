@@ -219,7 +219,7 @@ public class TooltipRootTests : BunitContext, ITooltipRootContract
     }
 
     [Fact]
-    public Task DisabledPreventsSubsequentOpens()
+    public async Task DisabledPreventsSubsequentOpens()
     {
         // Disabled prevents new opens but doesn't close an already-open tooltip
         // When DefaultOpen=true and Disabled=true, the tooltip opens initially
@@ -231,16 +231,14 @@ public class TooltipRootTests : BunitContext, ITooltipRootContract
         cut.Find("[role='tooltip'][data-open]").ShouldNotBeNull();
 
         // Close the tooltip
-        cut.InvokeAsync(() => actions.Close?.Invoke());
+        await cut.InvokeAsync(() => actions.Close?.Invoke());
 
         // Try to reopen by focusing the trigger
         var trigger = cut.Find("button");
-        trigger.Focus();
+        await cut.InvokeAsync(() => trigger.Focus());
 
         // Should still be closed because disabled prevents reopening
         cut.FindAll("[role='tooltip'][data-open]").Count.ShouldBe(0);
-
-        return Task.CompletedTask;
     }
 
     [Fact]
@@ -257,7 +255,7 @@ public class TooltipRootTests : BunitContext, ITooltipRootContract
     }
 
     [Fact]
-    public Task ActionsRefCloseMethodClosesTooltip()
+    public async Task ActionsRefCloseMethodClosesTooltip()
     {
         var closeRequested = false;
         var actions = new TooltipRootActions();
@@ -276,11 +274,9 @@ public class TooltipRootTests : BunitContext, ITooltipRootContract
 
         cut.Find("[role='tooltip']").ShouldNotBeNull();
 
-        actions.Close?.Invoke();
+        await cut.InvokeAsync(() => actions.Close?.Invoke());
 
         closeRequested.ShouldBeTrue();
-
-        return Task.CompletedTask;
     }
 
     [Fact]
