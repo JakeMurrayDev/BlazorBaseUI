@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Checkbox;
 
-public class CheckboxTestsServer : CheckboxTestsBase
+public class CheckboxTestsServer : CheckboxTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Server;
 
-    public CheckboxTestsServer(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public CheckboxTestsServer(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }

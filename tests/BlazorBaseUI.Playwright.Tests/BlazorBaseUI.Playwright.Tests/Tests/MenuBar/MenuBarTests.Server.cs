@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.MenuBar;
 
-public class MenuBarTestsServer : MenuBarTestsBase
+public class MenuBarTestsServer : MenuBarTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Server;
 
-    public MenuBarTestsServer(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public MenuBarTestsServer(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }

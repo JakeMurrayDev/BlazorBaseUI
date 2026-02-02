@@ -2,28 +2,30 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using BlazorBaseUI.Utilities;
 
 namespace BlazorBaseUI.Playwright.Tests.Fixtures;
 
-public class BlazorTestFixture : IAsyncLifetime
+/// <summary>
+/// Assembly-level fixture that starts a single Blazor server for all tests.
+/// This fixture is shared across all test classes via xUnit's AssemblyFixture.
+/// </summary>
+public class BlazorServerAssemblyFixture : IAsyncLifetime
 {
     private Process? serverProcess;
-    private bool isInitialized;
 
-    public string ServerAddress { get; private set; } = string.Empty;
+    /// <summary>
+    /// Gets the server address. This is static so all test classes can access it
+    /// without needing to receive the fixture instance.
+    /// </summary>
+    public static string ServerAddress { get; private set; } = string.Empty;
 
     public async ValueTask InitializeAsync()
     {
-        if (isInitialized)
-        {
-            Console.WriteLine($"[BlazorTestFixture] Already initialized. ServerAddress: {ServerAddress}");
-            return;
-        }
-
-        Console.WriteLine("[BlazorTestFixture] Initializing...");
+        Console.WriteLine("[BlazorServerAssemblyFixture] Initializing...");
 
         var projectDir = GetProjectDirectory();
-        Console.WriteLine($"[BlazorTestFixture] Project directory: {projectDir}");
+        Console.WriteLine($"[BlazorServerAssemblyFixture] Project directory: {projectDir}");
 
         var port = GetAvailablePort();
         ServerAddress = $"http://127.0.0.1:{port}";
@@ -67,13 +69,12 @@ public class BlazorTestFixture : IAsyncLifetime
 
         await WaitForServerReadyAsync(ServerAddress, TimeSpan.FromSeconds(60));
 
-        isInitialized = true;
-        Console.WriteLine($"[BlazorTestFixture] Initialized. ServerAddress: {ServerAddress}");
+        Console.WriteLine($"[BlazorServerAssemblyFixture] Initialized. ServerAddress: {ServerAddress}");
     }
 
     public async ValueTask DisposeAsync()
     {
-        Console.WriteLine("[BlazorTestFixture] Disposing...");
+        Console.WriteLine("[BlazorServerAssemblyFixture] Disposing...");
 
         if (serverProcess is not null && !serverProcess.HasExited)
         {
@@ -84,7 +85,7 @@ public class BlazorTestFixture : IAsyncLifetime
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[BlazorTestFixture] Error stopping server: {ex.Message}");
+                Console.WriteLine($"[BlazorServerAssemblyFixture] Error stopping server: {ex.Message}");
             }
             finally
             {
@@ -92,7 +93,8 @@ public class BlazorTestFixture : IAsyncLifetime
             }
         }
 
-        Console.WriteLine("[BlazorTestFixture] Disposed.");
+        ServerAddress = string.Empty;
+        Console.WriteLine("[BlazorServerAssemblyFixture] Disposed.");
     }
 
     private static string GetProjectDirectory()
@@ -108,7 +110,7 @@ public class BlazorTestFixture : IAsyncLifetime
             return projectDir;
         }
 
-        Console.WriteLine($"[BlazorTestFixture] Warning: Could not find project directory at {projectDir}");
+        Console.WriteLine($"[BlazorServerAssemblyFixture] Warning: Could not find project directory at {projectDir}");
         return Directory.GetCurrentDirectory();
     }
 
@@ -121,6 +123,8 @@ public class BlazorTestFixture : IAsyncLifetime
         return port;
     }
 
+    [SlopwatchSuppress("SW003", "Empty catch is intentional - server may not be ready yet during polling loop")]
+    [SlopwatchSuppress("SW004", "Task.Delay is appropriate for polling server readiness with timeout")]
     private static async Task WaitForServerReadyAsync(string url, TimeSpan timeout)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
@@ -138,6 +142,7 @@ public class BlazorTestFixture : IAsyncLifetime
             }
             catch
             {
+                // Server not ready yet - continue polling
             }
 
             await Task.Delay(500);

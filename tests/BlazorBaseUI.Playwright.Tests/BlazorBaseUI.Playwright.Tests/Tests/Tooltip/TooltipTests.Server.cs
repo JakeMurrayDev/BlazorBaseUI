@@ -3,15 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Tooltip;
 
-[Collection("BlazorTests")]
-public class TooltipTestsServer : TooltipTestsBase
+public class TooltipTestsServer : TooltipTestsBase, IClassFixture<PlaywrightFixture>
 {
-    public TooltipTestsServer(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected override TestRenderMode RenderMode => TestRenderMode.Server;
+
+    public TooltipTestsServer(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
-
-    protected override TestRenderMode RenderMode => TestRenderMode.Server;
 }

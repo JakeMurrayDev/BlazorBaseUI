@@ -12,10 +12,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Switch;
 /// </summary>
 public abstract class SwitchTestsBase : TestBase
 {
-    protected SwitchTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected SwitchTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

@@ -6,10 +6,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.MenuBar;
 
 public abstract class MenuBarTestsBase : TestBase
 {
-    protected MenuBarTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected MenuBarTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

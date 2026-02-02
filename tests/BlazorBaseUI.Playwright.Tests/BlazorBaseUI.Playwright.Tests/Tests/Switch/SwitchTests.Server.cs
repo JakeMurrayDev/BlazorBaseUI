@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Switch;
 
-public class SwitchTestsServer : SwitchTestsBase
+public class SwitchTestsServer : SwitchTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Server;
 
-    public SwitchTestsServer(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public SwitchTestsServer(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }

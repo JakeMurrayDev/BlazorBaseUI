@@ -13,10 +13,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Slider;
 /// </summary>
 public abstract class SliderTestsBase : TestBase
 {
-    protected SliderTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected SliderTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

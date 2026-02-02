@@ -19,10 +19,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Collapsible;
 /// </summary>
 public abstract class CollapsibleTestsBase : TestBase
 {
-    protected CollapsibleTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected CollapsibleTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

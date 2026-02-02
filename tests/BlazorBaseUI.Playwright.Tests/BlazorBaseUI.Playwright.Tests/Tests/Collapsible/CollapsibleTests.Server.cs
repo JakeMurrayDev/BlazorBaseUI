@@ -3,14 +3,12 @@ using BlazorBaseUI.Playwright.Tests.Infrastructure;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.Collapsible;
 
-public class CollapsibleTestsServer : CollapsibleTestsBase
+public class CollapsibleTestsServer : CollapsibleTestsBase, IClassFixture<PlaywrightFixture>
 {
     protected override TestRenderMode RenderMode => TestRenderMode.Server;
 
-    public CollapsibleTestsServer(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    public CollapsibleTestsServer(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 }

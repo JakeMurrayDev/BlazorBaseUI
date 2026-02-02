@@ -4,23 +4,22 @@ using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests;
 
-[Collection("BlazorTests")]
-public class DiagnosticTests : IAsyncLifetime
+public class DiagnosticTests : IClassFixture<PlaywrightFixture>, IAsyncLifetime
 {
-    private readonly BlazorTestFixture blazorFixture;
     private readonly PlaywrightFixture playwrightFixture;
     private IBrowserContext? context;
     private IPage page = null!;
 
-    public DiagnosticTests(BlazorTestFixture blazorFixture, PlaywrightFixture playwrightFixture)
+    private string ServerAddress => BlazorServerAssemblyFixture.ServerAddress;
+
+    public DiagnosticTests(PlaywrightFixture playwrightFixture)
     {
-        this.blazorFixture = blazorFixture;
         this.playwrightFixture = playwrightFixture;
     }
 
     public async ValueTask InitializeAsync()
     {
-        Console.WriteLine($"[Diagnostic] InitializeAsync - ServerAddress: '{blazorFixture.ServerAddress}'");
+        Console.WriteLine($"[Diagnostic] InitializeAsync - ServerAddress: '{ServerAddress}'");
         context = await playwrightFixture.Browser.NewContextAsync();
         page = await context.NewPageAsync();
     }
@@ -42,11 +41,11 @@ public class DiagnosticTests : IAsyncLifetime
     public async Task ServerIsRunning()
     {
         Console.WriteLine($"[Diagnostic] ServerIsRunning test starting");
-        Console.WriteLine($"[Diagnostic] ServerAddress: '{blazorFixture.ServerAddress}'");
+        Console.WriteLine($"[Diagnostic] ServerAddress: '{ServerAddress}'");
 
-        Assert.False(string.IsNullOrEmpty(blazorFixture.ServerAddress), "ServerAddress should not be empty");
+        Assert.False(string.IsNullOrEmpty(ServerAddress), "ServerAddress should not be empty");
 
-        var url = $"{blazorFixture.ServerAddress}/tests/collapsible/server";
+        var url = $"{ServerAddress}/tests/collapsible/server";
         Console.WriteLine($"[Diagnostic] Navigating to: {url}");
 
         var response = await page.GotoAsync(url);
@@ -66,7 +65,7 @@ public class DiagnosticTests : IAsyncLifetime
     [Fact]
     public async Task CanLoadTestPageMultipleTimes()
     {
-        var url = $"{blazorFixture.ServerAddress}/tests/collapsible/server";
+        var url = $"{ServerAddress}/tests/collapsible/server";
 
         for (int i = 0; i < 3; i++)
         {

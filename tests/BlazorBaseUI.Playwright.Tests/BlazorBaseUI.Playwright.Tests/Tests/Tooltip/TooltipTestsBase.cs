@@ -12,10 +12,8 @@ namespace BlazorBaseUI.Playwright.Tests.Tests.Tooltip;
 /// </summary>
 public abstract class TooltipTestsBase : TestBase
 {
-    protected TooltipTestsBase(
-        BlazorTestFixture blazorFixture,
-        PlaywrightFixture playwrightFixture)
-        : base(blazorFixture, playwrightFixture)
+    protected TooltipTestsBase(PlaywrightFixture playwrightFixture)
+        : base(playwrightFixture)
     {
     }
 

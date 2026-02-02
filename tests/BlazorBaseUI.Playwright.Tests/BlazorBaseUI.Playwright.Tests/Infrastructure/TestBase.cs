@@ -3,16 +3,19 @@ using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Infrastructure;
 
-[Collection("BlazorTests")]
 public abstract class TestBase : IAsyncLifetime
 {
-    private readonly BlazorTestFixture blazorFixture;
     private readonly PlaywrightFixture playwrightFixture;
     private IBrowserContext? context;
     private bool testFailed;
 
     protected IPage Page { get; private set; } = null!;
-    protected string ServerAddress => blazorFixture.ServerAddress;
+
+    /// <summary>
+    /// Gets the server address from the assembly-level fixture.
+    /// </summary>
+    protected string ServerAddress => BlazorServerAssemblyFixture.ServerAddress;
+
     protected abstract TestRenderMode RenderMode { get; }
 
     /// <summary>
@@ -21,9 +24,8 @@ public abstract class TestBase : IAsyncLifetime
     /// </summary>
     protected int TimeoutMultiplier => RenderMode == TestRenderMode.Wasm ? 3 : 1;
 
-    protected TestBase(BlazorTestFixture blazorFixture, PlaywrightFixture playwrightFixture)
+    protected TestBase(PlaywrightFixture playwrightFixture)
     {
-        this.blazorFixture = blazorFixture;
         this.playwrightFixture = playwrightFixture;
     }
 
@@ -126,7 +128,7 @@ public abstract class TestBase : IAsyncLifetime
         if (string.IsNullOrEmpty(ServerAddress))
         {
             throw new InvalidOperationException(
-                $"ServerAddress is empty. Fixture initialized: {blazorFixture is not null}");
+                "ServerAddress is empty. BlazorServerAssemblyFixture may not have initialized.");
         }
 
         return new TestPageUrlBuilder(ServerAddress, basePath, RenderMode);
