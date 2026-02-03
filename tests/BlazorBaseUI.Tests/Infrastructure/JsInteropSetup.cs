@@ -166,6 +166,34 @@ public static class JsInteropSetup
         module.SetupVoid("disposePopup", _ => true).SetVoidResult();
     }
 
+    private const string FieldModule = "./_content/BlazorBaseUI/blazor-baseui-field.js";
+
+    public static void SetupFieldModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(FieldModule);
+        module.Setup<object?>("getValidityState", _ => true).SetResult(null);
+        module.Setup<string>("getValidationMessage", _ => true).SetResult("");
+        module.SetupVoid("setCustomValidity", _ => true);
+        module.Setup<bool>("checkValidity", _ => true).SetResult(true);
+        module.Setup<bool>("reportValidity", _ => true).SetResult(true);
+        module.SetupVoid("focusElement", _ => true);
+        module.Setup<object?>("getValue", _ => true).SetResult(null);
+        module.SetupVoid("setValue", _ => true);
+        module.Setup<string?>("observeValidity", _ => true).SetResult(null);
+        module.SetupVoid("disposeObserver", _ => true);
+        module.SetupVoid("dispose", _ => true);
+    }
+
+    private const string LabelModule = "./_content/BlazorBaseUI/blazor-baseui-label.js";
+
+    public static void SetupLabelModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(LabelModule);
+        module.SetupVoid("addLabelMouseDownListener", _ => true);
+        module.SetupVoid("removeLabelMouseDownListener", _ => true);
+        module.SetupVoid("focusControlById", _ => true);
+    }
+
     private const string DialogModule = "./_content/BlazorBaseUI/blazor-baseui-dialog.js";
 
     public static void SetupDialogModule(BunitJSInterop jsInterop)

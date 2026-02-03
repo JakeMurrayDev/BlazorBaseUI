@@ -482,6 +482,97 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Field/Form-specific parameters
+    public TestPageUrlBuilder WithValidationMode(string mode)
+    {
+        queryParams["validationMode"] = mode;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithFieldName(string name)
+    {
+        queryParams["fieldName"] = name;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithValidationDebounceTime(int ms)
+    {
+        queryParams["validationDebounceTime"] = ms.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowSecondField(bool value)
+    {
+        queryParams["showSecondField"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowError(bool value)
+    {
+        queryParams["showError"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowFieldValidity(bool value)
+    {
+        queryParams["showFieldValidity"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMatchValidity(string match)
+    {
+        queryParams["matchValidity"] = match;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithCustomValidation(string validation)
+    {
+        queryParams["customValidation"] = validation;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowActionsRef(bool value)
+    {
+        queryParams["showActionsRef"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithErrors(string errors)
+    {
+        queryParams["errors"] = errors;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithTestScenario(string scenario)
+    {
+        queryParams["scenario"] = scenario;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowFieldItem(bool value)
+    {
+        queryParams["showFieldItem"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithFieldItemType(string type)
+    {
+        queryParams["fieldItemType"] = type;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNativeLabel(bool value)
+    {
+        queryParams["nativeLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNoValidate(bool value)
+    {
+        queryParams["noValidate"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     // Dialog-specific parameters
     public TestPageUrlBuilder WithShowNestedDialog(bool value)
     {
