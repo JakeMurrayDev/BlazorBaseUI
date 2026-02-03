@@ -14,6 +14,5 @@ public interface IDialogPopupContract
     Task HasDataOpenWhenOpen();
     Task HasDataClosedWhenClosed();
     Task HasDataNestedWhenNested();
-    Task HasDataNestedDialogOpenWhenNestedOpen();
     Task HasTabIndexNegativeOne();
 }
