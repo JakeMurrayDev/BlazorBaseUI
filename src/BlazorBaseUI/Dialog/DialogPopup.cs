@@ -11,6 +11,7 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
     private bool isComponentRenderAs;
+    private bool initialFocusSent;
     private DialogPopupState state;
     private DotNetObjectReference<DialogPopup>? dotNetRef;
 
@@ -87,6 +88,7 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
             if (Element.HasValue && Context is not null)
             {
                 Context.SetPopupElement(Element);
+                initialFocusSent = InitialFocus.HasValue;
 
                 try
                 {
@@ -103,6 +105,19 @@ public sealed class DialogPopup : ComponentBase, IReferencableComponent, IAsyncD
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
                 {
                 }
+            }
+        }
+        else if (hasRendered && !initialFocusSent && InitialFocus.HasValue && Context is not null)
+        {
+            initialFocusSent = true;
+
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("setInitialFocusElement", Context.RootId, InitialFocus.Value);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
             }
         }
     }

@@ -46,7 +46,8 @@ export function initializeRoot(rootId, dotNetRef, modal) {
         transitionCleanup: null,
         fallbackTimeoutId: null,
         pendingOpen: false,
-        releaseScrollLock: null
+        releaseScrollLock: null,
+        outsideClickCleanup: null
     });
 }
 
@@ -55,6 +56,7 @@ export function disposeRoot(rootId) {
     if (rootState) {
         cleanupFocusTrap(rootState);
         cleanupTransition(rootState);
+        cleanupOutsideClick(rootState);
         removeFromDialogStack(rootId);
 
         // Release scroll lock if this dialog had it
@@ -98,6 +100,7 @@ export function setRootOpen(rootId, isOpen) {
             rootState.releaseScrollLock = null;
         }
 
+        cleanupOutsideClick(rootState);
         cleanupFocusTrap(rootState);
         startTransition(rootState, isOpen);
     }
@@ -182,6 +185,11 @@ function startTransition(rootState, isOpen) {
                 // Set up focus trap for modal dialogs
                 if (rootState.modal === 'true' || rootState.modal === 'trap-focus') {
                     setupFocusTrap(rootState);
+                }
+
+                // Set up outside click listener for non-modal dialogs
+                if (rootState.modal === 'false') {
+                    setupOutsideClickListener(rootState);
                 }
 
                 // Focus custom element or default behavior
@@ -290,6 +298,44 @@ function cleanupFocusTrap(rootState) {
     if (rootState.focusTrapCleanup) {
         rootState.focusTrapCleanup();
         rootState.focusTrapCleanup = null;
+    }
+}
+
+function setupOutsideClickListener(rootState) {
+    // Only skip for true modal, not for false or trap-focus
+    if (rootState.modal === 'true') return;
+
+    cleanupOutsideClick(rootState);
+
+    const handleOutsideClick = (e) => {
+        const popupElement = rootState.popupElement;
+        const triggerElement = rootState.triggerElement;
+
+        if (!popupElement) return;
+        if (!rootState.isOpen) return;
+
+        const clickedInsidePopup = popupElement.contains(e.target);
+        const clickedOnTrigger = triggerElement && triggerElement.contains(e.target);
+
+        if (!clickedInsidePopup && !clickedOnTrigger && rootState.dotNetRef) {
+            rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
+        }
+    };
+
+    // Use a small delay to avoid catching the click that opened the dialog
+    setTimeout(() => {
+        document.addEventListener('pointerdown', handleOutsideClick);
+    }, 0);
+
+    rootState.outsideClickCleanup = () => {
+        document.removeEventListener('pointerdown', handleOutsideClick);
+    };
+}
+
+function cleanupOutsideClick(rootState) {
+    if (rootState.outsideClickCleanup) {
+        rootState.outsideClickCleanup();
+        rootState.outsideClickCleanup = null;
     }
 }
 
@@ -422,6 +468,18 @@ export function initializePopup(rootId, popupElement, dotNetRef, modal, initialF
         rootState.modal = modal || 'true';
         rootState.initialFocusElement = initialFocusElement;
         rootState.finalFocusElement = finalFocusElement;
+    }
+}
+
+export function setInitialFocusElement(rootId, element) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.initialFocusElement = element;
+
+        // If popup is already open, focus the element now
+        if (rootState.isOpen && element) {
+            element.focus();
+        }
     }
 }
 

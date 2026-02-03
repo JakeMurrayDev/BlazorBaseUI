@@ -482,6 +482,31 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Dialog-specific parameters
+    public TestPageUrlBuilder WithShowNestedDialog(bool value)
+    {
+        queryParams["showNestedDialog"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowViewport(bool value)
+    {
+        queryParams["showViewport"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowActionsButtons(bool value)
+    {
+        queryParams["showActionsButtons"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUseInitialFocus(bool value)
+    {
+        queryParams["useInitialFocus"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

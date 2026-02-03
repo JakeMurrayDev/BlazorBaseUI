@@ -165,4 +165,19 @@ public static class JsInteropSetup
         module.SetupVoid("initializePopup", _ => true).SetVoidResult();
         module.SetupVoid("disposePopup", _ => true).SetVoidResult();
     }
+
+    private const string DialogModule = "./_content/BlazorBaseUI/blazor-baseui-dialog.js";
+
+    public static void SetupDialogModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(DialogModule);
+        module.SetupVoid("initializeRoot", _ => true);
+        module.SetupVoid("disposeRoot", _ => true);
+        module.SetupVoid("setRootOpen", _ => true);
+        module.SetupVoid("setTriggerElement", _ => true);
+        module.SetupVoid("setPopupElement", _ => true);
+        module.SetupVoid("initializePopup", _ => true);
+        module.SetupVoid("setInitialFocusElement", _ => true);
+        module.SetupVoid("disposePopup", _ => true);
+    }
 }

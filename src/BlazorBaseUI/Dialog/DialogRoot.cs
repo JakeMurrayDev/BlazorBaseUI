@@ -16,6 +16,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
     private bool isMounted;
     private bool nested;
     private bool pendingOpenChange;
+    private bool pendingBindingUpdate;
     private int nestedDialogCount;
     private string? titleId;
     private string? descriptionId;
@@ -113,7 +114,10 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
 
     protected override void OnParametersSet()
     {
-        var currentOpen = CurrentOpen;
+        // During SetOpenAsync, the bound Open parameter may be stale because
+        // OpenChanged hasn't fired yet. Use state.Open as the source of truth
+        // to prevent JS interop callbacks from triggering spurious state changes.
+        var currentOpen = pendingBindingUpdate ? state.Open : CurrentOpen;
         if (state.Open != currentOpen)
         {
             state = new DialogRootState(currentOpen, nestedDialogCount);
@@ -280,9 +284,14 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
     [JSInvokable]
     public void OnNestedDialogCountChange(int count)
     {
+        if (nestedDialogCount == count)
+        {
+            return;
+        }
+
         nestedDialogCount = count;
         context.NestedDialogCount = count;
-        state = new DialogRootState(CurrentOpen, count);
+        state = state with { NestedDialogCount = count };
         StateHasChanged();
     }
 
@@ -560,6 +569,15 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
             // Clear pendingOpenChange since we're handling the state change directly
             pendingOpenChange = false;
 
+            // Mark that the binding value may be stale until OpenChanged fires.
+            // This prevents JS interop callbacks (e.g. OnStartingStyleApplied,
+            // OnNestedDialogCountChange) from triggering OnParametersSet to
+            // detect a spurious state change due to the stale bound Open parameter.
+            if (IsControlled)
+            {
+                pendingBindingUpdate = true;
+            }
+
             try
             {
                 var module = await ModuleTask.Value;
@@ -572,6 +590,7 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
         }
 
         await OpenChanged.InvokeAsync(nextOpen);
+        pendingBindingUpdate = false;
         StateHasChanged();
     }
 
