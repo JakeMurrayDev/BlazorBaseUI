@@ -93,10 +93,10 @@ public class FormTests : BunitContext, IFormContract
     }
 
     [Fact]
-    public Task AllowsNativeValidationWhenNoValidateFalse()
+    public Task NoValidateIsAlwaysPresent()
     {
-        // Blazor Form always sets novalidate=true; this test verifies the attribute is present
-        // (React's Form has a noValidate prop, but Blazor's always sets it)
+        // Blazor's Form always sets novalidate=true (React's Form has a noValidate prop
+        // that can be set to false, but the Blazor port does not expose this parameter)
         var cut = Render(CreateForm());
         var form = cut.Find("form");
         form.HasAttribute("novalidate").ShouldBeTrue();

@@ -446,9 +446,6 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
     {
         Should.Throw<InvalidOperationException>(() =>
         {
-            Render(CreateIndicatorWithContext(
-                checked_: true));
-
             Render(builder =>
             {
                 builder.OpenComponent<RadioIndicator>(0);

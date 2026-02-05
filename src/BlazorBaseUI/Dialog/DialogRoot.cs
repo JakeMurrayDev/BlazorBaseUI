@@ -589,8 +589,15 @@ public sealed class DialogRoot : ComponentBase, IAsyncDisposable, IDialogHandleS
             }
         }
 
-        await OpenChanged.InvokeAsync(nextOpen);
-        pendingBindingUpdate = false;
+        try
+        {
+            await OpenChanged.InvokeAsync(nextOpen);
+        }
+        finally
+        {
+            pendingBindingUpdate = false;
+        }
+
         StateHasChanged();
     }
 

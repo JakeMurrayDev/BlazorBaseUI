@@ -4,7 +4,7 @@ public interface IFormContract
 {
     Task RendersAsFormByDefault();
     Task SetsNoValidateByDefault();
-    Task AllowsNativeValidationWhenNoValidateFalse();
+    Task NoValidateIsAlwaysPresent();
     Task MarksControlInvalidWhenErrorsProvided();
     Task DoesNotMarkControlInvalidWhenNoErrors();
 }
