@@ -1,0 +1,424 @@
+using System.Globalization;
+
+namespace BlazorBaseUI.Tests.Progress;
+
+public class ProgressRootTests : BunitContext, IProgressRootContract
+{
+    public ProgressRootTests()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+    }
+
+    private RenderFragment CreateProgressRoot(
+        double? value = 50,
+        double min = 0,
+        double max = 100,
+        string? format = null,
+        IFormatProvider? formatProvider = null,
+        Func<string?, double?, string>? getAriaValueText = null,
+        string? asElement = null,
+        Type? renderAs = null,
+        Func<ProgressRootState, string>? classValue = null,
+        Func<ProgressRootState, string>? styleValue = null,
+        IReadOnlyDictionary<string, object>? additionalAttributes = null,
+        RenderFragment? childContent = null)
+    {
+        return builder =>
+        {
+            builder.OpenComponent<ProgressRoot>(0);
+            var attrIndex = 1;
+
+            if (value.HasValue)
+                builder.AddAttribute(attrIndex++, "Value", value.Value);
+            else
+                builder.AddAttribute(attrIndex++, "Value", (double?)null);
+
+            builder.AddAttribute(attrIndex++, "Min", min);
+            builder.AddAttribute(attrIndex++, "Max", max);
+
+            if (format is not null)
+                builder.AddAttribute(attrIndex++, "Format", format);
+            if (formatProvider is not null)
+                builder.AddAttribute(attrIndex++, "FormatProvider", formatProvider);
+            if (getAriaValueText is not null)
+                builder.AddAttribute(attrIndex++, "GetAriaValueText", getAriaValueText);
+            if (asElement is not null)
+                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (renderAs is not null)
+                builder.AddAttribute(attrIndex++, "RenderAs", renderAs);
+            if (classValue is not null)
+                builder.AddAttribute(attrIndex++, "ClassValue", classValue);
+            if (styleValue is not null)
+                builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
+            if (additionalAttributes is not null)
+                builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
+            if (childContent is not null)
+                builder.AddAttribute(attrIndex++, "ChildContent", childContent);
+
+            builder.CloseComponent();
+        };
+    }
+
+    private RenderFragment CreateProgressWithLabel(
+        double? value = 50,
+        string labelText = "Loading")
+    {
+        return builder =>
+        {
+            builder.OpenComponent<ProgressRoot>(0);
+            builder.AddAttribute(1, "Value", value);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<ProgressLabel>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(labelBuilder =>
+                {
+                    labelBuilder.AddContent(0, labelText);
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+    }
+
+    private RenderFragment CreateProgressWithValue(
+        double? value = 50,
+        string? format = null,
+        IFormatProvider? formatProvider = null)
+    {
+        return builder =>
+        {
+            builder.OpenComponent<ProgressRoot>(0);
+            var attrIndex = 1;
+
+            if (value.HasValue)
+                builder.AddAttribute(attrIndex++, "Value", value.Value);
+            else
+                builder.AddAttribute(attrIndex++, "Value", (double?)null);
+
+            if (format is not null)
+                builder.AddAttribute(attrIndex++, "Format", format);
+            if (formatProvider is not null)
+                builder.AddAttribute(attrIndex++, "FormatProvider", formatProvider);
+
+            builder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<ProgressValue>(0);
+                innerBuilder.AddAttribute(1, "AdditionalAttributes",
+                    (IReadOnlyDictionary<string, object>)new Dictionary<string, object>
+                    {
+                        { "data-testid", "value" }
+                    });
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+    }
+
+    // Rendering
+
+    [Fact]
+    public Task RendersAsDivByDefault()
+    {
+        var cut = Render(CreateProgressRoot());
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.TagName.ShouldBe("DIV");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomAs()
+    {
+        var cut = Render(CreateProgressRoot(asElement: "section"));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.TagName.ShouldBe("SECTION");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ForwardsAdditionalAttributes()
+    {
+        var cut = Render(CreateProgressRoot(
+            additionalAttributes: new Dictionary<string, object>
+            {
+                { "data-testid", "progress-root" },
+                { "aria-label", "File upload progress" }
+            }
+        ));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("data-testid").ShouldBe("progress-root");
+        progressbar.GetAttribute("aria-label").ShouldBe("File upload progress");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesClassValue()
+    {
+        var cut = Render(CreateProgressRoot(
+            classValue: _ => "custom-progress"
+        ));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("class").ShouldContain("custom-progress");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesStyleValue()
+    {
+        var cut = Render(CreateProgressRoot(
+            styleValue: _ => "width: 200px"
+        ));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("style").ShouldContain("width: 200px");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task CombinesClassFromBothSources()
+    {
+        var cut = Render(CreateProgressRoot(
+            classValue: _ => "dynamic-class",
+            additionalAttributes: new Dictionary<string, object>
+            {
+                { "class", "static-class" }
+            }
+        ));
+        var progressbar = cut.Find("[role='progressbar']");
+        var classAttr = progressbar.GetAttribute("class");
+        classAttr.ShouldContain("static-class");
+        classAttr.ShouldContain("dynamic-class");
+        return Task.CompletedTask;
+    }
+
+    // ARIA attributes
+
+    [Fact]
+    public Task HasRoleProgressbar()
+    {
+        var cut = Render(CreateProgressRoot());
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.ShouldNotBeNull();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsAriaValueMin()
+    {
+        var cut = Render(CreateProgressRoot(value: 30, min: 10));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("aria-valuemin").ShouldBe("10");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsAriaValueMax()
+    {
+        var cut = Render(CreateProgressRoot(value: 30, max: 200));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("aria-valuemax").ShouldBe("200");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsAriaValueNow()
+    {
+        var cut = Render(CreateProgressRoot(value: 30));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("aria-valuenow").ShouldBe("30");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsAriaValueText()
+    {
+        var cut = Render(CreateProgressRoot(value: 30));
+        var progressbar = cut.Find("[role='progressbar']");
+        var expected = (30.0 / 100.0).ToString("P0", CultureInfo.CurrentCulture);
+        progressbar.GetAttribute("aria-valuetext").ShouldBe(expected);
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsAriaLabelledByWhenLabelPresent()
+    {
+        var cut = Render(CreateProgressWithLabel(value: 30, labelText: "Downloading"));
+        var progressbar = cut.Find("[role='progressbar']");
+        var label = cut.Find("span");
+        var labelId = label.GetAttribute("id");
+        labelId.ShouldNotBeNullOrEmpty();
+        progressbar.GetAttribute("aria-labelledby").ShouldBe(labelId);
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task UpdatesAriaValueNowWhenValueChanges()
+    {
+        var cut = Render(CreateProgressRoot(value: 50));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("aria-valuenow").ShouldBe("50");
+
+        var cut2 = Render(CreateProgressRoot(value: 77));
+        var progressbar2 = cut2.Find("[role='progressbar']");
+        progressbar2.GetAttribute("aria-valuenow").ShouldBe("77");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotSetAriaValueNowWhenIndeterminate()
+    {
+        var cut = Render(CreateProgressRoot(value: null));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.HasAttribute("aria-valuenow").ShouldBeFalse();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsIndeterminateAriaValueText()
+    {
+        var cut = Render(CreateProgressRoot(value: null));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("aria-valuetext").ShouldBe("indeterminate progress");
+        return Task.CompletedTask;
+    }
+
+    // Data attributes
+
+    [Fact]
+    public Task HasDataProgressingWhenInProgress()
+    {
+        var cut = Render(CreateProgressRoot(value: 50));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.HasAttribute("data-progressing").ShouldBeTrue();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasDataCompleteWhenComplete()
+    {
+        var cut = Render(CreateProgressRoot(value: 100, max: 100));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.HasAttribute("data-complete").ShouldBeTrue();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasDataIndeterminateWhenNull()
+    {
+        var cut = Render(CreateProgressRoot(value: null));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.HasAttribute("data-indeterminate").ShouldBeTrue();
+        return Task.CompletedTask;
+    }
+
+    // Formatting
+
+    [Fact]
+    public Task FormatsValueWithCustomFormat()
+    {
+        var cut = Render(CreateProgressWithValue(value: 30, format: "F1"));
+        var progressbar = cut.Find("[role='progressbar']");
+        var expected = 30.0.ToString("F1", CultureInfo.CurrentCulture);
+        progressbar.GetAttribute("aria-valuetext").ShouldBe(expected);
+        var valueElement = cut.Find("[data-testid='value']");
+        valueElement.TextContent.ShouldBe(expected);
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task FormatsValueWithFormatProvider()
+    {
+        var germanCulture = CultureInfo.GetCultureInfo("de-DE");
+        var cut = Render(CreateProgressWithValue(
+            value: 70.51,
+            format: "F2",
+            formatProvider: germanCulture));
+        var valueElement = cut.Find("[data-testid='value']");
+        var expected = 70.51.ToString("F2", germanCulture);
+        valueElement.TextContent.ShouldBe(expected);
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task GetAriaValueTextCallbackOverridesDefault()
+    {
+        var cut = Render(CreateProgressRoot(
+            value: 50,
+            getAriaValueText: (formatted, val) => $"Step {val} of 100"
+        ));
+        var progressbar = cut.Find("[role='progressbar']");
+        progressbar.GetAttribute("aria-valuetext").ShouldBe("Step 50 of 100");
+        return Task.CompletedTask;
+    }
+
+    // Context cascading
+
+    [Fact]
+    public Task CascadesContextToChildren()
+    {
+        ProgressRootState? capturedState = null;
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<ProgressRoot>(0);
+            builder.AddAttribute(1, "Value", 50.0);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<ProgressTrack>(0);
+                innerBuilder.AddAttribute(1, "ClassValue", (Func<ProgressRootState, string>)(state =>
+                {
+                    capturedState = state;
+                    return "track-class";
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+        capturedState.ShouldNotBeNull();
+        capturedState!.Status.ShouldBe(ProgressStatus.Progressing);
+        return Task.CompletedTask;
+    }
+
+    // Element reference
+
+    [Fact]
+    public Task ExposesElementReference()
+    {
+        ProgressRoot? component = null;
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<ProgressRoot>(0);
+            builder.AddAttribute(1, "Value", 50.0);
+            builder.AddComponentReferenceCapture(2, obj => component = (ProgressRoot)obj);
+            builder.CloseComponent();
+        });
+        component.ShouldNotBeNull();
+        cut.WaitForState(() => component!.Element.HasValue);
+        component!.Element.HasValue.ShouldBeTrue();
+        return Task.CompletedTask;
+    }
+
+    // RenderAs validation
+
+    [Fact]
+    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
+    {
+        Should.Throw<InvalidOperationException>(() =>
+        {
+            Render(builder =>
+            {
+                builder.OpenComponent<ProgressRoot>(0);
+                builder.AddAttribute(1, "Value", 50.0);
+                builder.AddAttribute(2, "RenderAs", typeof(NonReferencableComponent));
+                builder.CloseComponent();
+            });
+        });
+        return Task.CompletedTask;
+    }
+
+    private sealed class NonReferencableComponent : ComponentBase
+    {
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "div");
+            builder.CloseElement();
+        }
+    }
+}

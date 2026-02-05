@@ -617,6 +617,46 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Progress-specific parameters
+    public TestPageUrlBuilder WithProgressValue(double? value)
+    {
+        if (value.HasValue)
+            queryParams["value"] = value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        else
+            queryParams["indeterminate"] = "true";
+        return this;
+    }
+
+    public TestPageUrlBuilder WithProgressFormat(string format)
+    {
+        queryParams["format"] = format;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithLocale(string locale)
+    {
+        queryParams["locale"] = locale;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowProgressLabel(bool value)
+    {
+        queryParams["showLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowProgressValue(bool value)
+    {
+        queryParams["showValue"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithLabelText(string text)
+    {
+        queryParams["labelText"] = text;
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();
