@@ -165,4 +165,65 @@ public static class JsInteropSetup
         module.SetupVoid("initializePopup", _ => true).SetVoidResult();
         module.SetupVoid("disposePopup", _ => true).SetVoidResult();
     }
+
+    private const string FieldModule = "./_content/BlazorBaseUI/blazor-baseui-field.js";
+
+    public static void SetupFieldModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(FieldModule);
+        module.Setup<object?>("getValidityState", _ => true).SetResult(null);
+        module.Setup<string>("getValidationMessage", _ => true).SetResult("");
+        module.SetupVoid("setCustomValidity", _ => true);
+        module.Setup<bool>("checkValidity", _ => true).SetResult(true);
+        module.Setup<bool>("reportValidity", _ => true).SetResult(true);
+        module.SetupVoid("focusElement", _ => true);
+        module.Setup<object?>("getValue", _ => true).SetResult(null);
+        module.SetupVoid("setValue", _ => true);
+        module.Setup<string?>("observeValidity", _ => true).SetResult(null);
+        module.SetupVoid("disposeObserver", _ => true);
+        module.SetupVoid("dispose", _ => true);
+    }
+
+    private const string LabelModule = "./_content/BlazorBaseUI/blazor-baseui-label.js";
+
+    public static void SetupLabelModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(LabelModule);
+        module.SetupVoid("addLabelMouseDownListener", _ => true);
+        module.SetupVoid("removeLabelMouseDownListener", _ => true);
+        module.SetupVoid("focusControlById", _ => true);
+    }
+
+    private const string DialogModule = "./_content/BlazorBaseUI/blazor-baseui-dialog.js";
+
+    public static void SetupDialogModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(DialogModule);
+        module.SetupVoid("initializeRoot", _ => true);
+        module.SetupVoid("disposeRoot", _ => true);
+        module.SetupVoid("setRootOpen", _ => true);
+        module.SetupVoid("setTriggerElement", _ => true);
+        module.SetupVoid("setPopupElement", _ => true);
+        module.SetupVoid("initializePopup", _ => true);
+        module.SetupVoid("setInitialFocusElement", _ => true);
+        module.SetupVoid("disposePopup", _ => true);
+    }
+
+    private const string RadioModule = "./_content/BlazorBaseUI/blazor-baseui-radio.js";
+
+    public static void SetupRadioModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(RadioModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("focus", _ => true);
+        module.SetupVoid("registerRadio", _ => true);
+        module.SetupVoid("unregisterRadio", _ => true);
+        module.SetupVoid("navigateToPrevious", _ => true);
+        module.SetupVoid("navigateToNext", _ => true);
+        module.SetupVoid("initializeGroup", _ => true);
+        module.SetupVoid("disposeGroup", _ => true);
+        module.Setup<bool>("isBlurWithinGroup", _ => true).SetResult(false);
+    }
 }

@@ -361,3 +361,17 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# User added
+.blazor-docs
+.claude
+.idea
+.serena
+.slopwatch
+.base-ui
+tmpclaude-*-cwd
+nul
+.envrc
+
+# Playwright traces
+tests/BlazorBaseUI.Playwright.Tests/traces/

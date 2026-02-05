@@ -23,4 +23,8 @@ global using BlazorBaseUI.Checkbox;
 global using BlazorBaseUI.Tests.Contracts.Checkbox;
 global using BlazorBaseUI.CheckboxGroup;
 global using BlazorBaseUI.Tests.Contracts.CheckboxGroup;
+global using BlazorBaseUI.Radio;
+global using BlazorBaseUI.RadioGroup;
+global using BlazorBaseUI.Tests.Contracts.Radio;
+global using BlazorBaseUI.Tests.Contracts.RadioGroup;
 global using BlazorBaseUI.Tests.Infrastructure;
