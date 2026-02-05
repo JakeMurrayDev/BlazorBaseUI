@@ -208,4 +208,22 @@ public static class JsInteropSetup
         module.SetupVoid("setInitialFocusElement", _ => true);
         module.SetupVoid("disposePopup", _ => true);
     }
+
+    private const string RadioModule = "./_content/BlazorBaseUI/blazor-baseui-radio.js";
+
+    public static void SetupRadioModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(RadioModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("focus", _ => true);
+        module.SetupVoid("registerRadio", _ => true);
+        module.SetupVoid("unregisterRadio", _ => true);
+        module.SetupVoid("navigateToPrevious", _ => true);
+        module.SetupVoid("navigateToNext", _ => true);
+        module.SetupVoid("initializeGroup", _ => true);
+        module.SetupVoid("disposeGroup", _ => true);
+        module.Setup<bool>("isBlurWithinGroup", _ => true).SetResult(false);
+    }
 }

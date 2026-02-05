@@ -598,6 +598,25 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // RadioGroup-specific parameters
+    public TestPageUrlBuilder WithRadioDefaultValue(string value)
+    {
+        queryParams["defaultValue"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithRadioValue(string value)
+    {
+        queryParams["value"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithRadioName(string name)
+    {
+        queryParams["name"] = name;
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();
