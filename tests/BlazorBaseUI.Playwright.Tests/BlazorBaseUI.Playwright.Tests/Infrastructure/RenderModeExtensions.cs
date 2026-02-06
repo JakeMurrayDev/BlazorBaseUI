@@ -670,6 +670,26 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Toggle-specific parameters
+    public TestPageUrlBuilder WithToggleDefaultPressed(bool value)
+    {
+        queryParams["defaultPressed"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    // ToggleGroup-specific parameters
+    public TestPageUrlBuilder WithToggleGroupDefaultValue(params string[] values)
+    {
+        queryParams["defaultValue"] = string.Join(",", values);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithToggleItem2Disabled(bool value)
+    {
+        queryParams["item2Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

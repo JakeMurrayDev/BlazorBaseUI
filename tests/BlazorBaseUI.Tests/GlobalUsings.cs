@@ -31,4 +31,8 @@ global using BlazorBaseUI.Progress;
 global using BlazorBaseUI.Tests.Contracts.Progress;
 global using BlazorBaseUI.Button;
 global using BlazorBaseUI.Tests.Contracts.Button;
+global using BlazorBaseUI.Toggle;
+global using BlazorBaseUI.ToggleGroup;
+global using BlazorBaseUI.Tests.Contracts.Toggle;
+global using BlazorBaseUI.Tests.Contracts.ToggleGroup;
 global using BlazorBaseUI.Tests.Infrastructure;

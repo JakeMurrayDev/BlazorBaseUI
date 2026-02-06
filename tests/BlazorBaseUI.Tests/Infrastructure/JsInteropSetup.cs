@@ -234,4 +234,26 @@ public static class JsInteropSetup
         module.SetupVoid("disposeGroup", _ => true);
         module.Setup<bool>("isBlurWithinGroup", _ => true).SetResult(false);
     }
+
+    private const string ToggleModule = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
+
+    public static void SetupToggleModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(ToggleModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("initializeGroup", _ => true);
+        module.SetupVoid("updateGroup", _ => true);
+        module.SetupVoid("disposeGroup", _ => true);
+        module.SetupVoid("registerToggle", _ => true);
+        module.SetupVoid("unregisterToggle", _ => true);
+        module.SetupVoid("navigateToPrevious", _ => true);
+        module.SetupVoid("navigateToNext", _ => true);
+        module.SetupVoid("navigateToFirst", _ => true);
+        module.SetupVoid("navigateToLast", _ => true);
+        module.SetupVoid("initializeGroupItem", _ => true);
+        module.SetupVoid("updateGroupItemOrientation", _ => true);
+        module.SetupVoid("disposeGroupItem", _ => true);
+    }
 }
