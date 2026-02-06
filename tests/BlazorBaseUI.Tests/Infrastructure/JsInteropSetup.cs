@@ -209,6 +209,14 @@ public static class JsInteropSetup
         module.SetupVoid("disposePopup", _ => true);
     }
 
+    private const string ButtonModule = "./_content/BlazorBaseUI/blazor-baseui-button.js";
+
+    public static void SetupButtonModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(ButtonModule);
+        module.SetupVoid("sync", _ => true);
+    }
+
     private const string RadioModule = "./_content/BlazorBaseUI/blazor-baseui-radio.js";
 
     public static void SetupRadioModule(BunitJSInterop jsInterop)
@@ -225,5 +233,27 @@ public static class JsInteropSetup
         module.SetupVoid("initializeGroup", _ => true);
         module.SetupVoid("disposeGroup", _ => true);
         module.Setup<bool>("isBlurWithinGroup", _ => true).SetResult(false);
+    }
+
+    private const string ToggleModule = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
+
+    public static void SetupToggleModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(ToggleModule);
+        module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("updateState", _ => true);
+        module.SetupVoid("dispose", _ => true);
+        module.SetupVoid("initializeGroup", _ => true);
+        module.SetupVoid("updateGroup", _ => true);
+        module.SetupVoid("disposeGroup", _ => true);
+        module.SetupVoid("registerToggle", _ => true);
+        module.SetupVoid("unregisterToggle", _ => true);
+        module.SetupVoid("navigateToPrevious", _ => true);
+        module.SetupVoid("navigateToNext", _ => true);
+        module.SetupVoid("navigateToFirst", _ => true);
+        module.SetupVoid("navigateToLast", _ => true);
+        module.SetupVoid("initializeGroupItem", _ => true);
+        module.SetupVoid("updateGroupItemOrientation", _ => true);
+        module.SetupVoid("disposeGroupItem", _ => true);
     }
 }
