@@ -690,6 +690,80 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Toolbar-specific parameters
+    public TestPageUrlBuilder WithShowGroup(bool value)
+    {
+        queryParams["showGroup"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowLink(bool value)
+    {
+        queryParams["showLink"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowSeparator(bool value)
+    {
+        queryParams["showSeparator"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithGroupDisabled(bool value)
+    {
+        queryParams["groupDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithToolbarButton2Disabled(bool value)
+    {
+        queryParams["button2Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithToolbarFocusableWhenDisabled(bool value)
+    {
+        queryParams["focusableWhenDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    // Tabs-specific parameters
+    public TestPageUrlBuilder WithActivateOnFocus(bool value)
+    {
+        queryParams["activateOnFocus"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithTab1Disabled(bool value)
+    {
+        queryParams["tab1Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithTab2Disabled(bool value)
+    {
+        queryParams["tab2Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithTab3Disabled(bool value)
+    {
+        queryParams["tab3Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithTabsDefaultValue(string value)
+    {
+        queryParams["defaultValue"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowIndicator(bool value)
+    {
+        queryParams["showIndicator"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

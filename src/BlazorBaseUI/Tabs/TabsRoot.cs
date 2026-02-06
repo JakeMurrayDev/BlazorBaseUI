@@ -65,6 +65,7 @@ public sealed class TabsRoot<TValue> : ComponentBase, IReferencableComponent
 
         previousValue = CurrentValue;
         rootContext = CreateContext();
+        rootContext.OnTabRegistered = EvaluateAutoSelection;
     }
 
     protected override void OnParametersSet()
@@ -157,6 +158,33 @@ public sealed class TabsRoot<TValue> : ComponentBase, IReferencableComponent
         activationDirection: activationDirection,
         getValue: () => CurrentValue,
         onValueChange: SetValueInternalAsync);
+
+    private void EvaluateAutoSelection()
+    {
+        if (IsControlled || rootContext is null || !rootContext.HasTabs)
+            return;
+
+        var currentValue = CurrentValue;
+
+        var selectionIsDisabled = currentValue is not null && rootContext.IsTabDisabled(currentValue);
+        var noValueSet = currentValue is null && !hasExplicitDefaultValue;
+
+        if (hasExplicitDefaultValue && selectionIsDisabled &&
+            EqualityComparer<TValue>.Default.Equals(currentValue, DefaultValue))
+            return;
+
+        if (!selectionIsDisabled && !noValueSet)
+            return;
+
+        var firstEnabled = rootContext.GetFirstEnabledTabValue();
+        if (EqualityComparer<TValue>.Default.Equals(currentValue, firstEnabled))
+            return;
+
+        internalValue = firstEnabled;
+        activationDirection = ActivationDirection.None;
+        state = new TabsRootState(Orientation, activationDirection);
+        StateHasChanged();
+    }
 
     private async Task SetValueInternalAsync(TValue? value, ActivationDirection direction)
     {

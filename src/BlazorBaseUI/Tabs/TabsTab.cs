@@ -245,7 +245,7 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
         if (firstRender && Element.HasValue)
         {
             hasRendered = true;
-            RootContext?.RegisterTabInfo(Value, Element.Value, tabId);
+            RootContext?.RegisterTabInfo(Value, Element.Value, tabId, Disabled);
 
             if (!NativeButton)
             {
@@ -256,7 +256,7 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
         }
         else if (hasRendered && Element.HasValue)
         {
-            RootContext?.RegisterTabInfo(Value, Element.Value, tabId);
+            RootContext?.RegisterTabInfo(Value, Element.Value, tabId, Disabled);
             await RegisterWithListAsync();
         }
     }
@@ -423,8 +423,13 @@ public sealed class TabsTab<TValue> : ComponentBase, IReferencableComponent, IAs
             var module = await moduleTask.Value;
             var listElement = ListContext.TabsListElement.Value;
 
-            var currentPosition = await module.InvokeAsync<TabPositionResult>("getTabPosition", listElement, currentTabElement.Value);
-            var newPosition = await module.InvokeAsync<TabPositionResult>("getTabPosition", listElement, Element.Value);
+            var currentPosition = await module.InvokeAsync<TabPositionResult?>("getTabPosition", listElement, currentTabElement.Value);
+            var newPosition = await module.InvokeAsync<TabPositionResult?>("getTabPosition", listElement, Element.Value);
+
+            if (currentPosition is null || newPosition is null)
+            {
+                return ActivationDirection.None;
+            }
 
             var orientation = Orientation;
             var isHorizontal = orientation == Orientation.Horizontal;

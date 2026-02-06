@@ -17,21 +17,24 @@ public interface ITabsRootContext<TValue> : ITabsRootContext
 {
     TValue? Value { get; }
     Task OnValueChangeAsync(TValue? value, ActivationDirection direction);
-    void RegisterTabInfo(TValue? value, ElementReference element, string? id);
+    void RegisterTabInfo(TValue? value, ElementReference element, string? id, bool disabled);
     void UnregisterTabInfo(TValue? value);
 }
 
-public sealed class TabInfo<TValue>(TValue? value, ElementReference element, string? id)
+public sealed class TabInfo<TValue>(TValue? value, ElementReference element, string? id, bool disabled, int order)
 {
     public TValue? Value { get; } = value;
     public ElementReference Element { get; set; } = element;
     public string? Id { get; set; } = id;
+    public bool Disabled { get; set; } = disabled;
+    public int Order { get; } = order;
 }
 
 public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
 {
     private readonly Dictionary<object, TabInfo<TValue>> tabsByValue = [];
     private readonly Dictionary<object, string> panelIdsByValue = [];
+    private int nextOrder;
 
     public TabsRootContext(
         Orientation orientation,
@@ -47,6 +50,8 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
 
     public Orientation Orientation { get; set; }
     public ActivationDirection ActivationDirection { get; set; }
+    public bool HasTabs => tabsByValue.Count > 0;
+    public Action? OnTabRegistered { get; set; }
     private Func<TValue?> GetValue { get; }
     private Func<TValue?, ActivationDirection, Task> OnValueChange { get; }
 
@@ -57,7 +62,7 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
         await OnValueChange(value, direction);
     }
 
-    public void RegisterTabInfo(TValue? value, ElementReference element, string? id)
+    public void RegisterTabInfo(TValue? value, ElementReference element, string? id, bool disabled)
     {
         if (value is null)
             return;
@@ -66,11 +71,14 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
         {
             existing.Element = element;
             existing.Id = id;
+            existing.Disabled = disabled;
         }
         else
         {
-            tabsByValue[value] = new TabInfo<TValue>(value, element, id);
+            tabsByValue[value] = new TabInfo<TValue>(value, element, id, disabled, nextOrder++);
         }
+
+        OnTabRegistered?.Invoke();
     }
 
     public void UnregisterTabInfo(TValue? value)
@@ -79,6 +87,27 @@ public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
             return;
 
         tabsByValue.Remove(value!);
+    }
+
+    public bool IsTabDisabled(TValue? value)
+    {
+        if (value is null)
+            return false;
+
+        return tabsByValue.TryGetValue(value, out var info) && info.Disabled;
+    }
+
+    public TValue? GetFirstEnabledTabValue()
+    {
+        TabInfo<TValue>? best = null;
+        foreach (var info in tabsByValue.Values)
+        {
+            if (!info.Disabled && (best is null || info.Order < best.Order))
+            {
+                best = info;
+            }
+        }
+        return best is not null ? best.Value : default;
     }
 
     public void RegisterPanel(object? panelValue, string panelId)

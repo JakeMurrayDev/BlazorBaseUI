@@ -35,4 +35,8 @@ global using BlazorBaseUI.Toggle;
 global using BlazorBaseUI.ToggleGroup;
 global using BlazorBaseUI.Tests.Contracts.Toggle;
 global using BlazorBaseUI.Tests.Contracts.ToggleGroup;
+global using BlazorBaseUI.Toolbar;
+global using BlazorBaseUI.Tests.Contracts.Toolbar;
+global using BlazorBaseUI.Tabs;
+global using BlazorBaseUI.Tests.Contracts.Tabs;
 global using BlazorBaseUI.Tests.Infrastructure;

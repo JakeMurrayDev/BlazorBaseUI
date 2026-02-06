@@ -1,0 +1,25 @@
+namespace BlazorBaseUI.Tests.Contracts.Toolbar;
+
+public interface IToolbarLinkContract
+{
+    // Rendering
+    Task RendersAsAnchorByDefault();
+    Task RendersWithCustomAs();
+    Task RendersChildContent();
+    Task ForwardsAdditionalAttributes();
+    Task AppliesClassValue();
+    Task AppliesStyleValue();
+    Task CombinesClassFromBothSources();
+
+    // Data attributes
+    Task HasDataOrientationFromRoot();
+    Task DoesNotHaveDataDisabledWhenRootDisabled();
+
+    // State cascading
+    Task ClassValueReceivesToolbarLinkState();
+    Task ClassValueReceivesOrientationFromRoot();
+
+    // Validation
+    Task ThrowsWhenNotInsideToolbarRoot();
+    Task ThrowsWhenRenderAsDoesNotImplementInterface();
+}
