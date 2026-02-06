@@ -217,6 +217,18 @@ public static class JsInteropSetup
         module.SetupVoid("sync", _ => true);
     }
 
+    private const string ToolbarModule = "./_content/BlazorBaseUI/blazor-baseui-toolbar.js";
+
+    public static void SetupToolbarModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(ToolbarModule);
+        module.SetupVoid("initToolbar", _ => true);
+        module.SetupVoid("updateToolbar", _ => true);
+        module.SetupVoid("registerItem", _ => true);
+        module.SetupVoid("unregisterItem", _ => true);
+        module.SetupVoid("disposeToolbar", _ => true);
+    }
+
     private const string RadioModule = "./_content/BlazorBaseUI/blazor-baseui-radio.js";
 
     public static void SetupRadioModule(BunitJSInterop jsInterop)

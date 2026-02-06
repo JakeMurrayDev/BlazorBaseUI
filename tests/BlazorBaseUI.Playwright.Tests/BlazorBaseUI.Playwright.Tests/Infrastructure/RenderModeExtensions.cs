@@ -690,6 +690,43 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Toolbar-specific parameters
+    public TestPageUrlBuilder WithShowGroup(bool value)
+    {
+        queryParams["showGroup"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowLink(bool value)
+    {
+        queryParams["showLink"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowSeparator(bool value)
+    {
+        queryParams["showSeparator"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithGroupDisabled(bool value)
+    {
+        queryParams["groupDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithToolbarButton2Disabled(bool value)
+    {
+        queryParams["button2Disabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithToolbarFocusableWhenDisabled(bool value)
+    {
+        queryParams["focusableWhenDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();
