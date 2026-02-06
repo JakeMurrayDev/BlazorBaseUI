@@ -1,0 +1,47 @@
+namespace BlazorBaseUI.Tests.Contracts.Tabs;
+
+public interface ITabsRootContract
+{
+    // Rendering
+    Task RendersAsDivByDefault();
+    Task RendersWithCustomAs();
+    Task RendersChildContent();
+    Task ForwardsAdditionalAttributes();
+    Task AppliesClassValue();
+    Task AppliesStyleValue();
+    Task CombinesClassFromBothSources();
+
+    // Data attributes
+    Task HasDataOrientationHorizontalByDefault();
+    Task HasDataOrientationVerticalWhenVertical();
+    Task HasDataActivationDirectionNoneByDefault();
+
+    // State
+    Task ClassValueReceivesTabsRootState();
+    Task ClassValueReceivesOrientationVertical();
+
+    // Element reference
+    Task ExposesElementReference();
+
+    // Validation
+    Task ThrowsWhenRenderAsDoesNotImplementInterface();
+    Task AcceptsNullChildren();
+
+    // Value management
+    Task SetsDefaultValueOnInit();
+    Task SupportsControlledValue();
+    Task FiresValueChangedCallback();
+    Task FiresOnValueChangeWithCancellation();
+
+    // Composite (Tab + Panel integration)
+    Task SetsAriaControlsOnTabsToCorrespondingPanelId();
+    Task SetsAriaLabelledbyOnPanelsToCorrespondingTabId();
+    Task PutsSelectedChildInTabOrder();
+    Task ShowsOnlyActivePanelContent();
+    Task DisabledTabAutoSelectsFirstEnabled();
+    Task DisabledTabAutoSelectsThirdWhenFirstTwoDisabled();
+    Task HonorsExplicitDefaultValueOnDisabledTab();
+    Task HonorsExplicitValueOnDisabledTab();
+    Task NoTabSelectedWhenAllDisabled();
+    Task SyncsAriaControlsWithKeepMountedFalse();
+}
