@@ -48,6 +48,8 @@ public abstract class ButtonTestsBase : TestBase
             .WithNativeButton(false)
             .WithAs("span"));
 
+        await WaitForButtonJsAsync();
+
         var button = GetButton();
         await button.FocusAsync();
         await Page.Keyboard.PressAsync("Enter");
@@ -62,6 +64,8 @@ public abstract class ButtonTestsBase : TestBase
         await NavigateAsync(CreateUrl("/tests/button")
             .WithNativeButton(false)
             .WithAs("span"));
+
+        await WaitForButtonJsAsync();
 
         var button = GetButton();
         await button.FocusAsync();
@@ -183,6 +187,8 @@ public abstract class ButtonTestsBase : TestBase
             .WithNativeButton(false)
             .WithAs("span"));
 
+        await WaitForButtonJsAsync();
+
         var button = GetButton();
         await button.FocusAsync();
         await Page.Keyboard.PressAsync("Enter");
@@ -277,6 +283,8 @@ public abstract class ButtonTestsBase : TestBase
             .WithNativeButton(false)
             .WithAs("span"));
 
+        await WaitForButtonJsAsync();
+
         var button = GetButton();
         await button.FocusAsync();
 
@@ -294,6 +302,8 @@ public abstract class ButtonTestsBase : TestBase
         await NavigateAsync(CreateUrl("/tests/button")
             .WithNativeButton(false)
             .WithAs("span"));
+
+        await WaitForButtonJsAsync();
 
         var button = GetButton();
         await button.FocusAsync();

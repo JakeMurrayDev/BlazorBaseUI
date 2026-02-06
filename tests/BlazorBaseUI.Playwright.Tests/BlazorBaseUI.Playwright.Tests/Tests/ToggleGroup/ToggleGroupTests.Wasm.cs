@@ -24,10 +24,10 @@ public class ToggleGroupTestsWasm : ToggleGroupTestsBase, IClassFixture<Playwrig
     public override Task ArrowLeft_MovesToPreviousToggle() => Task.CompletedTask;
 
     [Fact(Skip = "WASM JIT warmup causes unreliable keyboard event processing")]
-    public override Task ArrowDown_WrapsToFirst() => Task.CompletedTask;
+    public override Task ArrowRight_WrapsToFirst() => Task.CompletedTask;
 
     [Fact(Skip = "WASM JIT warmup causes unreliable keyboard event processing")]
-    public override Task ArrowUp_WrapsToLast() => Task.CompletedTask;
+    public override Task ArrowLeft_WrapsToLast() => Task.CompletedTask;
 
     [Fact(Skip = "WASM JIT warmup causes unreliable keyboard event processing")]
     public override Task VerticalOrientation_ArrowDownUp() => Task.CompletedTask;

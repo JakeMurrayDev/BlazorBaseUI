@@ -262,7 +262,7 @@ public abstract class ToggleGroupTestsBase : TestBase
     }
 
     [Fact]
-    public virtual async Task ArrowDown_WrapsToFirst()
+    public virtual async Task ArrowRight_WrapsToFirst()
     {
         await NavigateAsync(CreateUrl("/tests/togglegroup")
             .WithToggleGroupDefaultValue("three"));
@@ -272,7 +272,7 @@ public abstract class ToggleGroupTestsBase : TestBase
     }
 
     [Fact]
-    public virtual async Task ArrowUp_WrapsToLast()
+    public virtual async Task ArrowLeft_WrapsToLast()
     {
         await NavigateAsync(CreateUrl("/tests/togglegroup")
             .WithToggleGroupDefaultValue("one"));
