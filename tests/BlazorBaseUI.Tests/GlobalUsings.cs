@@ -29,4 +29,6 @@ global using BlazorBaseUI.Tests.Contracts.Radio;
 global using BlazorBaseUI.Tests.Contracts.RadioGroup;
 global using BlazorBaseUI.Progress;
 global using BlazorBaseUI.Tests.Contracts.Progress;
+global using BlazorBaseUI.Button;
+global using BlazorBaseUI.Tests.Contracts.Button;
 global using BlazorBaseUI.Tests.Infrastructure;

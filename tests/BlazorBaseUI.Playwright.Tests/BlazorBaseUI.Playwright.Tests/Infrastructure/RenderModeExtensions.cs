@@ -617,6 +617,19 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Button-specific parameters
+    public TestPageUrlBuilder WithButtonFocusableWhenDisabled(bool value)
+    {
+        queryParams["buttonFocusableWhenDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithButtonTabIndex(int value)
+    {
+        queryParams["buttonTabIndex"] = value.ToString();
+        return this;
+    }
+
     // Progress-specific parameters
     public TestPageUrlBuilder WithProgressValue(double? value)
     {

@@ -209,6 +209,14 @@ public static class JsInteropSetup
         module.SetupVoid("disposePopup", _ => true);
     }
 
+    private const string ButtonModule = "./_content/BlazorBaseUI/blazor-baseui-button.js";
+
+    public static void SetupButtonModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(ButtonModule);
+        module.SetupVoid("sync", _ => true);
+    }
+
     private const string RadioModule = "./_content/BlazorBaseUI/blazor-baseui-radio.js";
 
     public static void SetupRadioModule(BunitJSInterop jsInterop)
