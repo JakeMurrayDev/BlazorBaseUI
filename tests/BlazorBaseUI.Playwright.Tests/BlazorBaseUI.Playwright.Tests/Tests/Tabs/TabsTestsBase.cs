@@ -481,15 +481,9 @@ public abstract class TabsTestsBase : TestBase
         await WaitForDelayAsync(500);
 
         var indicator = GetIndicator();
-        var isVisible = await indicator.IsVisibleAsync();
-
-        // Indicator may be hidden initially in bUnit-like mock since getIndicatorPosition returns null
-        // In a real browser, it should have CSS custom properties
-        if (isVisible)
-        {
-            var style = await indicator.GetAttributeAsync("style");
-            Assert.NotNull(style);
-        }
+        await Assertions.Expect(indicator).ToBeVisibleAsync();
+        var style = await indicator.GetAttributeAsync("style");
+        Assert.NotNull(style);
     }
 
     [Fact]

@@ -357,9 +357,9 @@ public class TabsRootTests : BunitContext, ITabsRootContract
         receivedArgs!.Value.ShouldBe("tab2");
         receivedArgs.IsCanceled.ShouldBeTrue();
 
-        // Value should not have changed - no tab should be selected
+        // Value should not have changed - tab1 was auto-selected and should remain
         tabs = cut.FindAll("[role='tab']");
-        tabs[0].GetAttribute("aria-selected").ShouldBe("false");
+        tabs[0].GetAttribute("aria-selected").ShouldBe("true");
         tabs[1].GetAttribute("aria-selected").ShouldBe("false");
         tabs[2].GetAttribute("aria-selected").ShouldBe("false");
         return Task.CompletedTask;
@@ -432,9 +432,10 @@ public class TabsRootTests : BunitContext, ITabsRootContract
         var cut = Render(CreateFullTabs(defaultValue: null, tab1Disabled: true));
         var tabs = cut.FindAll("[role='tab']");
 
-        // No default value and first tab disabled - all should be unselected
-        // since the component doesn't auto-select
+        // No default value and first tab disabled - auto-selects first enabled (tab2)
         tabs[0].GetAttribute("aria-selected").ShouldBe("false");
+        tabs[1].GetAttribute("aria-selected").ShouldBe("true");
+        tabs[2].GetAttribute("aria-selected").ShouldBe("false");
         return Task.CompletedTask;
     }
 
@@ -444,10 +445,10 @@ public class TabsRootTests : BunitContext, ITabsRootContract
         var cut = Render(CreateFullTabs(defaultValue: null, tab1Disabled: true, tab2Disabled: true));
         var tabs = cut.FindAll("[role='tab']");
 
-        // No default value, first two disabled - all should be unselected
+        // No default value, first two disabled - auto-selects first enabled (tab3)
         tabs[0].GetAttribute("aria-selected").ShouldBe("false");
         tabs[1].GetAttribute("aria-selected").ShouldBe("false");
-        tabs[2].GetAttribute("aria-selected").ShouldBe("false");
+        tabs[2].GetAttribute("aria-selected").ShouldBe("true");
         return Task.CompletedTask;
     }
 
