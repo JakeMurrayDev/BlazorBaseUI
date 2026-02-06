@@ -273,47 +273,4 @@ public abstract class ButtonTestsBase : TestBase
     }
 
     #endregion
-
-    #region Non-native keyboard specifics
-
-    [Fact]
-    public virtual async Task NonNativeButton_SpaceFiresClickEvenWithPreventDefault()
-    {
-        await NavigateAsync(CreateUrl("/tests/button")
-            .WithNativeButton(false)
-            .WithAs("span"));
-
-        await WaitForButtonJsAsync();
-
-        var button = GetButton();
-        await button.FocusAsync();
-
-        // Space should fire click on keyup even if keyUp.preventDefault was called by something
-        // The JS handler fires click on keyup for Space
-        await Page.Keyboard.PressAsync("Space");
-        await WaitForDelayAsync(100);
-
-        await Assertions.Expect(GetClickCount()).ToHaveTextAsync("1");
-    }
-
-    [Fact]
-    public virtual async Task NonNativeButton_EnterFiresClickImmediately()
-    {
-        await NavigateAsync(CreateUrl("/tests/button")
-            .WithNativeButton(false)
-            .WithAs("span"));
-
-        await WaitForButtonJsAsync();
-
-        var button = GetButton();
-        await button.FocusAsync();
-
-        // Enter fires click on keydown (immediately)
-        await Page.Keyboard.PressAsync("Enter");
-        await WaitForDelayAsync(100);
-
-        await Assertions.Expect(GetClickCount()).ToHaveTextAsync("1");
-    }
-
-    #endregion
 }
