@@ -8,7 +8,8 @@
                    StyleValue="StyleValue"
                    ComponentAttributes="componentAttributes"
                    ChildContent="ChildContent"
-                   @attributes="AdditionalAttributes" />
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
 </CascadingValue>
 
 @code {
@@ -17,6 +18,7 @@
     private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
     private CollapsibleRootContext context = null!;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+    private RenderElement<CollapsibleRootState> renderElementReference = null!;
     private Dictionary<string, object> componentAttributes = new();
 
     private bool IsControlled => Open.HasValue;
@@ -88,6 +90,11 @@
     /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
 
     /// <inheritdoc />
     protected override void OnInitialized()

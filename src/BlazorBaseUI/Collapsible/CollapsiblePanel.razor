@@ -103,6 +103,11 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
     public CollapsiblePanel()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
