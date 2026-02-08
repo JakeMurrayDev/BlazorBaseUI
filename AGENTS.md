@@ -38,6 +38,7 @@ BlazorBaseUI/
 - Use context7 to check for documentation and best practices
 - Use `/dev/null` in Git Bash, not `nul`
 - Put all `tmpclaude-*-cwd` files in `/.claude/tmp-files`
+- **`gh api` on Windows**: Omit the leading `/` from endpoint paths. Windows shells rewrite `/repos/...` as filesystem paths (e.g., `F:/Git/repos/...`). Use `gh api repos/owner/repo/...` instead of `gh api /repos/owner/repo/...`
 
 ---
 
