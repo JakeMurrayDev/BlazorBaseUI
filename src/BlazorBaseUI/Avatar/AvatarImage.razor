@@ -124,7 +124,15 @@
         {
             hasRendered = true;
             previousSrc = Src;
-            await LoadImageAsync();
+
+            try
+            {
+                await LoadImageAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading image in {Component}", nameof(AvatarImage));
+            }
         }
     }
 

@@ -129,6 +129,7 @@
     private async Task StartDelayAsync()
     {
         delayCts?.Cancel();
+        delayCts?.Dispose();
         delayCts = new CancellationTokenSource();
 
         try
