@@ -18,7 +18,7 @@ public class AccordionTriggerTests : BunitContext, IAccordionTriggerContract
         Func<AccordionTriggerState, string>? classValue = null,
         Func<AccordionTriggerState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        RenderFragment<RenderProps<AccordionTriggerState>>? render = null)
     {
         return builder =>
         {
@@ -45,8 +45,8 @@ public class AccordionTriggerTests : BunitContext, IAccordionTriggerContract
                             headerBuilder.AddAttribute(4, "StyleValue", styleValue);
                         if (additionalAttributes is not null)
                             headerBuilder.AddAttribute(5, "AdditionalAttributes", additionalAttributes);
-                        if (asElement is not null)
-                            headerBuilder.AddAttribute(6, "As", asElement);
+                        if (render is not null)
+                            headerBuilder.AddAttribute(6, "Render", render);
                         headerBuilder.AddAttribute(7, "ChildContent", (RenderFragment)(tb => tb.AddContent(0, "Trigger")));
                         headerBuilder.CloseComponent();
                     }));
@@ -75,9 +75,18 @@ public class AccordionTriggerTests : BunitContext, IAccordionTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateAccordionWithTrigger(asElement: "span", nativeButton: false));
+        var cut = Render(CreateAccordionWithTrigger(
+            nativeButton: false,
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var trigger = cut.Find("span[role='button']");
         trigger.ShouldNotBeNull();
@@ -223,7 +232,16 @@ public class AccordionTriggerTests : BunitContext, IAccordionTriggerContract
     [Fact]
     public Task HasRoleButtonWhenNotNativeButton()
     {
-        var cut = Render(CreateAccordionWithTrigger(nativeButton: false, asElement: "span"));
+        var cut = Render(CreateAccordionWithTrigger(
+            nativeButton: false,
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var trigger = cut.Find("span[role='button']");
         trigger.ShouldNotBeNull();

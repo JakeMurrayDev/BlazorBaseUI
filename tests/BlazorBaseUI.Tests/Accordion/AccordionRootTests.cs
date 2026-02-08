@@ -23,7 +23,7 @@ public class AccordionRootTests : BunitContext, IAccordionRootContract
         Func<AccordionRootState<string>, string>? classValue = null,
         Func<AccordionRootState<string>, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<AccordionRootState<string>>>? render = null,
         RenderFragment? childContent = null)
     {
         return builder =>
@@ -48,8 +48,8 @@ public class AccordionRootTests : BunitContext, IAccordionRootContract
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
 
             builder.AddAttribute(attrIndex++, "ChildContent", childContent ?? CreateDefaultItems());
             builder.CloseComponent();
@@ -117,9 +117,17 @@ public class AccordionRootTests : BunitContext, IAccordionRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateAccordionRoot(asElement: "section"));
+        var cut = Render(CreateAccordionRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var section = cut.Find("section[role='region']");
         section.ShouldNotBeNull();

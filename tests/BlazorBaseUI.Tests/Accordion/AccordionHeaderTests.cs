@@ -16,7 +16,7 @@ public class AccordionHeaderTests : BunitContext, IAccordionHeaderContract
         Func<AccordionHeaderState, string>? classValue = null,
         Func<AccordionHeaderState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        RenderFragment<RenderProps<AccordionHeaderState>>? render = null)
     {
         return builder =>
         {
@@ -37,8 +37,8 @@ public class AccordionHeaderTests : BunitContext, IAccordionHeaderContract
                         itemBuilder.AddAttribute(2, "StyleValue", styleValue);
                     if (additionalAttributes is not null)
                         itemBuilder.AddAttribute(3, "AdditionalAttributes", additionalAttributes);
-                    if (asElement is not null)
-                        itemBuilder.AddAttribute(4, "As", asElement);
+                    if (render is not null)
+                        itemBuilder.AddAttribute(4, "Render", render);
                     itemBuilder.AddAttribute(5, "ChildContent", (RenderFragment)(b =>
                     {
                         b.OpenComponent<AccordionTrigger>(0);
@@ -70,9 +70,17 @@ public class AccordionHeaderTests : BunitContext, IAccordionHeaderContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateAccordionWithHeader(asElement: "h2"));
+        var cut = Render(CreateAccordionWithHeader(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "h2");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var header = cut.Find("h2[data-index]");
         header.ShouldNotBeNull();
