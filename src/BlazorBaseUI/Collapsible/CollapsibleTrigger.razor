@@ -1,0 +1,127 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<RenderElement TState="CollapsibleRootState"
+               Tag="button"
+               State="state"
+               Enabled="Context is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
+    private RenderElement<CollapsibleRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool ResolvedDisabled => Disabled ?? Context?.Disabled ?? false;
+
+    private bool IsNativeButton => NativeButton;
+
+    [CascadingParameter]
+    private CollapsibleRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the component should ignore user interaction.
+    /// When <see langword="null"/>, inherits the value from the parent <see cref="CollapsibleRoot"/>.
+    /// </summary>
+    [Parameter]
+    public bool? Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether to render a native <c>&lt;button&gt;</c> element.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool NativeButton { get; set; } = true;
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<CollapsibleRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<CollapsibleRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<CollapsibleRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentOpen = Context?.Open ?? false;
+        var currentDisabled = ResolvedDisabled;
+        var currentTransitionStatus = Context?.TransitionStatus ?? TransitionStatus.Undefined;
+        if (state.Open != currentOpen || state.Disabled != currentDisabled || state.TransitionStatus != currentTransitionStatus)
+        {
+            state = state with { Open = currentOpen, Disabled = currentDisabled, TransitionStatus = currentTransitionStatus };
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        if (Context is null) return;
+
+        var attrs = new Dictionary<string, object>();
+
+        if (IsNativeButton)
+            attrs["type"] = "button";
+        else
+            attrs["role"] = "button";
+
+        if (Context.Open)
+            attrs["aria-controls"] = Context.PanelId;
+
+        attrs["aria-expanded"] = Context.Open ? "true" : "false";
+        attrs["disabled"] = ResolvedDisabled;
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+        attrs["data-panel-open"] = state.Open;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+
+    private Task HandleClickAsync(MouseEventArgs args)
+    {
+        if (ResolvedDisabled)
+        {
+            return Task.CompletedTask;
+        }
+
+        Context?.HandleTrigger();
+        return EventUtilities.InvokeOnClickAsync(AdditionalAttributes, args);
+    }
+}

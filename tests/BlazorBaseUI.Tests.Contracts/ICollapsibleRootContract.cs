@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts;
 public interface ICollapsibleRootContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -12,6 +12,9 @@ public interface ICollapsibleRootContract
     Task ControlledModeRespectsOpenParameter();
     Task UncontrolledModeUsesDefaultOpen();
     Task InvokesOnOpenChange();
+    Task InvokesOnOpenChangeWithCorrectReason();
+    Task OnOpenChangeCancellationPreventsStateChange();
+    Task ReceivesCorrectState();
     Task HasDataOpenWhenOpen();
     Task HasDataClosedWhenClosed();
     Task HasDataDisabledWhenDisabled();

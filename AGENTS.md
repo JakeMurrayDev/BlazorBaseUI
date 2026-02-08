@@ -109,7 +109,7 @@ No reordering is allowed.
 - **Do not add business logic**
 - Do not simplify or "improve" behavior unless explicitly requested
 - Do not create Class or Style parameter property unless needed (like passing context/state). Use the `Func<TState, string>?` types for these, and name these as `ClassValue` and `StyleValue` accordingly.
-- Use `As (string?)` and `RenderAs(Type?)` to simulate `useRender`. Have a `DefaultTag` constant.
+- Use the shared `RenderElement<TState>` component to simulate `useRender`. Components expose a `Render` parameter of type `RenderFragment<RenderProps<TState>>?` and pass it to `<RenderElement>` along with a `Tag` (default HTML element), `State`, `ClassValue`, `StyleValue`, `ComponentAttributes`, and `ChildContent`.
 
 #### Attribute Handling
 
@@ -179,67 +179,44 @@ Move heavy or complex behavior to JavaScript. The following **must** be handled 
 
 ### 6. Element Reference Capture
 
-Always include a public `Element` property after all parameter properties:
+Capture element references by adding `@ref` to `<RenderElement>` and delegating via a public `Element` property:
 
-```csharp
-public ElementReference? Element { get; private set; }
-```
+```razor
+<RenderElement TState="MyComponentState"
+               Tag="div"
+               State="state"
+               Enabled="true"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
 
-#### Capture Logic in BuildRenderTree
+@code {
+    private RenderElement<MyComponentState>? renderElementReference;
 
-When using `As` and `RenderAs`, capture the reference based on whether a component or element is rendered. Use `IReferencableComponent` interface for component captures:
-
-```csharp
-if (isComponent)
-{
-  if (!typeof(IReferencableComponent).IsAssignableFrom(RenderAs))
-  {
-    throw new InvalidOperationException(
-      $"Type {RenderAs!.Name} must implement IReferencableComponent."
-    );
-  }
-  builder.OpenRegion(0);
-  builder.OpenComponent(0, RenderAs!);
-  // ... attributes (1, 2, 3, etc.) ...
-  builder.AddComponentReferenceCapture(
-    4,
-    component => { Element = ((IReferencableComponent)component).Element; }
-  );
-  builder.CloseComponent();
-  builder.CloseRegion();
-}
-else
-{
-  builder.OpenRegion(1);
-  builder.OpenElement(0, !string.IsNullOrEmpty(As) ? As : DefaultTag);
-  // ... attributes (1, 2, 3, etc.) ...
-  builder.AddElementReferenceCapture(
-    4,
-    elementReference => (Element = elementReference)
-  );
-  builder.CloseElement();
-  builder.CloseRegion();
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
 }
 ```
+
+`RenderElement.Element` is `ElementReference?` (nullable). The public `Element` property delegates through `renderElementReference?.Element`, returning `null` before first render.
 
 ### 7. Cascading Parameters Rules
 
-- **Always** create a context class (record type)
+- **Always** create a context sealed class
 - Never cascade the parent component directly
 - Cascading parameters are **always private**
 
 ### 8. Code Placement and Rendering Rules
 
 - Never generate partial classes or code-behind files (`.razor.cs`)
-
-**Render Mode Rule:**
-
-If the component contains properties named `As` or `RenderAs`:
-- Use **code-based rendering** (`BuildRenderTree`) in a pure `.cs` file
-- Do **not** use Razor markup (`.razor` files)
-
-For simple components **without** `As`/`RenderAs` properties:
-- Use `.razor` files with all code inside `@code { }`
+- All components use `.razor` files with `<RenderElement>` in Razor markup and logic inside `@code { }`
+- The `.cs` stub file contains only the namespace, XML doc comment, and `public partial class ComponentName;` declaration
 
 ### 9. RenderTreeBuilder Sequencing (Strict)
 
@@ -330,7 +307,9 @@ public void Dispose()
 
 ### 13. ElementReference and Module Guard Checks
 
-#### ElementReference Guard
+#### ElementReference Guard (RenderElement pattern)
+
+Guard on `Element.HasValue` before JS interop calls. `RenderElement.Element` is `ElementReference?`, and the component's public `Element` property delegates through `renderElementReference?.Element`:
 
 ```csharp
 if (Element.HasValue)
@@ -347,7 +326,7 @@ if (moduleTask.IsValueCreated && Element.HasValue)
   try
   {
     var module = await moduleTask.Value;
-    await module.InvokeVoidAsync("sync", Element.Value, ..., true); // dispose: true
+    await module.InvokeVoidAsync("dispose", Element.Value);
     await module.DisposeAsync();
   }
   catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

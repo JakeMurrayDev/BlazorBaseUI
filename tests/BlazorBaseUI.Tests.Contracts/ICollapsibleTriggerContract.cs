@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts;
 public interface ICollapsibleTriggerContract
 {
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -17,5 +17,7 @@ public interface ICollapsibleTriggerContract
     Task HasDisabledAttributeWhenDisabled();
     Task TogglesOnClick();
     Task DoesNotToggleWhenDisabled();
+    Task ReceivesCorrectState();
+    Task ReferencesCustomPanelIdInAriaControls();
     Task RequiresContext();
 }
