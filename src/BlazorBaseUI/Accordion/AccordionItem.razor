@@ -205,7 +205,7 @@
                 currentOpen,
                 transitionStatus);
         }
-        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation || state.TransitionStatus != transitionStatus)
+        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation || state.TransitionStatus != transitionStatus || !ReferenceEquals(state.Value, TypedRootContext.Value))
         {
             state = state with
             {
