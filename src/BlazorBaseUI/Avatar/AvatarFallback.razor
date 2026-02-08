@@ -1,0 +1,144 @@
+@using Microsoft.Extensions.Logging
+@implements IDisposable
+
+@inject ILogger<AvatarFallback> Logger
+@inject TimeProvider TimeProvider
+
+<RenderElement TState="AvatarRootState"
+               Tag="span"
+               State="state"
+               Enabled="Context?.ImageLoadingStatus != ImageLoadingStatus.Loaded && delayPassed"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private CancellationTokenSource? delayCts;
+    private Func<Task> cachedStartDelayCallback = default!;
+    private AvatarRootState state = new(ImageLoadingStatus.Idle);
+    private int? previousDelay;
+    private bool delayPassed;
+    private RenderElement<AvatarRootState>? renderElementReference;
+
+    [CascadingParameter]
+    private AvatarRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long to wait before showing the fallback, in milliseconds.
+    /// </summary>
+    [Parameter]
+    public int? Delay { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<AvatarRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<AvatarRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<AvatarRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (Context is null)
+        {
+            throw new InvalidOperationException(
+                "AvatarRootContext is missing. Avatar parts must be placed within <AvatarRoot>.");
+        }
+
+        delayPassed = Delay is null;
+
+        cachedStartDelayCallback = async () =>
+        {
+            try
+            {
+                await StartDelayAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error starting delay in {Component}", nameof(AvatarFallback));
+            }
+        };
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentStatus = Context?.ImageLoadingStatus ?? ImageLoadingStatus.Idle;
+        if (state.ImageLoadingStatus != currentStatus)
+        {
+            state = new AvatarRootState(currentStatus);
+        }
+
+        if (Delay != previousDelay)
+        {
+            previousDelay = Delay;
+            delayCts?.Cancel();
+
+            if (Delay is null)
+            {
+                delayPassed = true;
+            }
+            else
+            {
+                delayPassed = false;
+                _ = InvokeAsync(cachedStartDelayCallback);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        delayCts?.Cancel();
+        delayCts?.Dispose();
+    }
+
+    private async Task StartDelayAsync()
+    {
+        delayCts?.Cancel();
+        delayCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(Delay!.Value), TimeProvider, delayCts.Token);
+            delayPassed = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+}

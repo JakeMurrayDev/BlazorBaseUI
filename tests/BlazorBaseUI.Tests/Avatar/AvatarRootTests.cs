@@ -20,10 +20,16 @@ public class AvatarRootTests : BunitContext, IAvatarRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
         var cut = Render<AvatarRoot>(parameters => parameters
-            .Add(p => p.As, "div")
+            .Add(p => p.Render, ctx => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            })
             .Add(p => p.ChildContent, builder => builder.AddContent(0, "Content"))
         );
 
