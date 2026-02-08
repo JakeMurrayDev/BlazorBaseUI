@@ -26,7 +26,7 @@
     private DotNetObjectReference<CollapsiblePanel>? dotNetRef;
     private CollapsiblePanelState state = new(false, false, TransitionStatus.Undefined);
     private bool? animationTarget;
-    private RenderElement<CollapsiblePanelState> renderElementReference = null!;
+    private RenderElement<CollapsiblePanelState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private Func<CollapsiblePanelState, string?>? computedStyleValue;
 
@@ -153,6 +153,12 @@
                 animationTarget = false;
             }
         }
+        else if (currentOpen && !isMounted)
+        {
+            // Race condition recovery: close animation completed after state was already set to open
+            isMounted = true;
+            animationTarget = true;
+        }
 
         if (state.Open != currentOpen || state.Disabled != currentDisabled)
         {
@@ -174,12 +180,12 @@
             hasRendered = true;
             dotNetRef = DotNetObjectReference.Create(this);
 
-            if (IsPresent && renderElementReference is not null)
+            if (IsPresent && Element.HasValue)
             {
                 try
                 {
                     var module = await moduleTask.Value;
-                    await module.InvokeVoidAsync("initialize", renderElementReference.Element, dotNetRef, CurrentOpen);
+                    await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, CurrentOpen);
                     jsInitialized = true;
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -205,12 +211,12 @@
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask.IsValueCreated && renderElementReference is not null)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("dispose", renderElementReference.Element);
+                await module.InvokeVoidAsync("dispose", Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -251,7 +257,7 @@
     {
         if (animationType == "close")
         {
-            if (completed && !KeepMounted && !HiddenUntilFound)
+            if (completed && !KeepMounted && !HiddenUntilFound && !CurrentOpen)
             {
                 isMounted = false;
                 jsInitialized = false;
@@ -291,7 +297,7 @@
 
     private async Task OpenAsync()
     {
-        if (!hasRendered || renderElementReference is null)
+        if (!hasRendered || !Element.HasValue)
         {
             return;
         }
@@ -303,11 +309,11 @@
 
             if (!jsInitialized)
             {
-                await module.InvokeVoidAsync("initialize", renderElementReference.Element, dotNetRef, false);
+                await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, false);
                 jsInitialized = true;
             }
 
-            await module.InvokeVoidAsync("open", renderElementReference.Element, false);
+            await module.InvokeVoidAsync("open", Element.Value, false);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -316,7 +322,7 @@
 
     private async Task CloseAsync()
     {
-        if (!hasRendered || renderElementReference is null)
+        if (!hasRendered || !Element.HasValue)
         {
             return;
         }
@@ -324,7 +330,7 @@
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("close", renderElementReference.Element);
+            await module.InvokeVoidAsync("close", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

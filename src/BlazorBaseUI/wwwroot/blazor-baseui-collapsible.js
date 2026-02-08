@@ -96,12 +96,11 @@ export function initialize(panel, dotNetRef, initialOpen, prefix) {
     const state = getOrCreateState(panel, dotNetRef, prefix);
     const vars = getVarNames(state.prefix);
 
-    // Always measure and set dimensions on initialize
-    const dims = measureDimensions(panel);
     if (initialOpen) {
+        // Use auto so the panel can resize naturally when nested content changes
         setCssVariables(panel, {
-            [vars.height]: dims.height === 0 ? 'auto' : `${dims.height}px`,
-            [vars.width]: dims.width === 0 ? 'auto' : `${dims.width}px`
+            [vars.height]: 'auto',
+            [vars.width]: 'auto'
         });
     } else {
         setCssVariables(panel, {

@@ -18,7 +18,7 @@
     private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
     private CollapsibleRootContext context = null!;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
-    private RenderElement<CollapsibleRootState> renderElementReference = null!;
+    private RenderElement<CollapsibleRootState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
     private bool IsControlled => Open.HasValue;

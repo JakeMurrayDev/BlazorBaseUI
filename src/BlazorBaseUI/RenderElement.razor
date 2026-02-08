@@ -81,7 +81,7 @@ else
     /// <summary>
     /// Gets or sets the associated <see cref="ElementReference"/>.
     /// </summary>
-    public ElementReference Element { get; protected set; }
+    public ElementReference? Element { get; protected set; }
 
     private RenderFragment RenderDefaultElement => (RenderTreeBuilder builder) =>
     {

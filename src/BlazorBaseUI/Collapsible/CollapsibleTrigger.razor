@@ -14,7 +14,7 @@
 
 @code {
     private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
-    private RenderElement<CollapsibleRootState> renderElementReference = null!;
+    private RenderElement<CollapsibleRootState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
     private bool ResolvedDisabled => Disabled ?? Context?.Disabled ?? false;
