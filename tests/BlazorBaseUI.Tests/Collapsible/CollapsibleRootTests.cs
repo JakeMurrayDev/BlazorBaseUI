@@ -15,7 +15,7 @@ public class CollapsibleRootTests : BunitContext, ICollapsibleRootContract
         Func<CollapsibleRootState, string>? classValue = null,
         Func<CollapsibleRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<CollapsibleRootState>>? render = null,
         EventCallback<CollapsibleOpenChangeEventArgs>? onOpenChange = null,
         bool includeTrigger = true,
         bool includePanel = true)
@@ -36,8 +36,8 @@ public class CollapsibleRootTests : BunitContext, ICollapsibleRootContract
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (onOpenChange.HasValue)
                 builder.AddAttribute(attrIndex++, "OnOpenChange", onOpenChange.Value);
 
@@ -78,9 +78,17 @@ public class CollapsibleRootTests : BunitContext, ICollapsibleRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateCollapsibleRoot(asElement: "section"));
+        var cut = Render(CreateCollapsibleRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var section = cut.Find("section");
         section.ShouldNotBeNull();
@@ -216,6 +224,68 @@ public class CollapsibleRootTests : BunitContext, ICollapsibleRootContract
 
         invoked.ShouldBeTrue();
         receivedOpen.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task InvokesOnOpenChangeWithCorrectReason()
+    {
+        CollapsibleOpenChangeReason? receivedReason = null;
+
+        var cut = Render(CreateCollapsibleRoot(
+            onOpenChange: EventCallback.Factory.Create<CollapsibleOpenChangeEventArgs>(this, args =>
+            {
+                receivedReason = args.Reason;
+            })
+        ));
+
+        var trigger = cut.Find("button");
+        trigger.Click();
+
+        receivedReason.ShouldNotBeNull();
+        receivedReason.ShouldBe(CollapsibleOpenChangeReason.TriggerPress);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task OnOpenChangeCancellationPreventsStateChange()
+    {
+        var cut = Render(CreateCollapsibleRoot(
+            onOpenChange: EventCallback.Factory.Create<CollapsibleOpenChangeEventArgs>(this, args =>
+            {
+                args.Canceled = true;
+            })
+        ));
+
+        var trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+
+        trigger.Click();
+
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ReceivesCorrectState()
+    {
+        CollapsibleRootState? capturedState = null;
+
+        var cut = Render(CreateCollapsibleRoot(
+            defaultOpen: true,
+            classValue: state =>
+            {
+                capturedState = state;
+                return "test-class";
+            }
+        ));
+
+        capturedState.ShouldNotBeNull();
+        capturedState!.Open.ShouldBeTrue();
+        capturedState.Disabled.ShouldBeFalse();
 
         return Task.CompletedTask;
     }

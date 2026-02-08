@@ -1,0 +1,156 @@
+@namespace BlazorBaseUI
+@using Microsoft.AspNetCore.Components.Rendering
+
+@typeparam TState
+
+@if (!Enabled)
+{
+    return;
+}
+
+@if (Render is not null)
+{
+    @Render(BuildRenderProps())
+}
+else
+{
+    @RenderDefaultElement
+}
+
+@code {
+    /// <summary>
+    /// Gets or sets the HTML element tag used to render the component.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Tag { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the component state record, used for <see cref="ClassValue"/>/<see cref="StyleValue"/>
+    /// callbacks and passed through to the <see cref="Render"/> function.
+    /// </summary>
+    [Parameter]
+    public TState? State { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should render.
+    /// When <see langword="false"/>, nothing is rendered.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<TState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the component-internal attributes (aria-*, data-*, role, etc.)
+    /// that the parent component computes. Merged on top of <see cref="AdditionalAttributes"/>.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyDictionary<string, object>? ComponentAttributes { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference Element { get; protected set; }
+
+    private RenderFragment RenderDefaultElement => (RenderTreeBuilder builder) =>
+    {
+        var attrs = BuildMergedAttributes();
+
+        builder.OpenElement(0, Tag);
+        builder.AddMultipleAttributes(1, attrs);
+        builder.AddElementReferenceCapture(2, e => Element = e);
+        builder.AddContent(3, ChildContent);
+        builder.CloseElement();
+    };
+
+    private Dictionary<string, object> BuildMergedAttributes()
+    {
+        var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Consumer's additional attributes (filtered: skip class & style)
+        if (AdditionalAttributes is not null)
+        {
+            foreach (var kvp in AdditionalAttributes)
+            {
+                if (!IsClassOrStyle(kvp.Key))
+                {
+                    result[kvp.Key] = kvp.Value;
+                }
+            }
+        }
+
+        // 2. Component-computed attributes (win for same key)
+        if (ComponentAttributes is not null)
+        {
+            foreach (var kvp in ComponentAttributes)
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+        }
+
+        // 3. Merged class
+        var resolvedClass = AttributeUtilities.CombineClassNames(
+            AdditionalAttributes,
+            State is not null ? ClassValue?.Invoke(State) : null);
+
+        if (!string.IsNullOrEmpty(resolvedClass))
+        {
+            result["class"] = resolvedClass;
+        }
+
+        // 4. Merged style
+        var resolvedStyle = AttributeUtilities.CombineStyles(
+            AdditionalAttributes,
+            State is not null ? StyleValue?.Invoke(State) : null);
+
+        if (!string.IsNullOrEmpty(resolvedStyle))
+        {
+            result["style"] = resolvedStyle;
+        }
+
+        return result;
+    }
+
+    private RenderProps<TState> BuildRenderProps()
+    {
+        return new RenderProps<TState>(
+            Attributes: BuildMergedAttributes(),
+            State: State!,
+            ChildContent: ChildContent);
+    }
+
+    private static bool IsClassOrStyle(string key) =>
+        string.Equals(key, "class", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(key, "style", StringComparison.OrdinalIgnoreCase);
+}

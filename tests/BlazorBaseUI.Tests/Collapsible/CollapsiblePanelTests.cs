@@ -16,7 +16,7 @@ public class CollapsiblePanelTests : BunitContext, ICollapsiblePanelContract
         Func<CollapsiblePanelState, string>? classValue = null,
         Func<CollapsiblePanelState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<CollapsiblePanelState>>? render = null,
         RenderFragment? childContent = null)
     {
         return builder =>
@@ -42,8 +42,8 @@ public class CollapsiblePanelTests : BunitContext, ICollapsiblePanelContract
                     innerBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     innerBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
                 innerBuilder.AddAttribute(attrIndex++, "ChildContent", childContent ?? ((RenderFragment)(b => b.AddContent(0, "Panel Content"))));
                 innerBuilder.CloseComponent();
             }));
@@ -63,9 +63,18 @@ public class CollapsiblePanelTests : BunitContext, ICollapsiblePanelContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePanelInRoot(defaultOpen: true, asElement: "section"));
+        var cut = Render(CreatePanelInRoot(
+            defaultOpen: true,
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var panel = cut.Find("section[data-open]");
         panel.ShouldNotBeNull();

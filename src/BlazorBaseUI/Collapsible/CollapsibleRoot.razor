@@ -1,0 +1,233 @@
+<CascadingValue Value="context"
+                IsFixed="true">
+    <RenderElement TState="CollapsibleRootState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes" />
+</CascadingValue>
+
+@code {
+    private bool isOpen;
+    private string panelId = string.Empty;
+    private CollapsibleRootState state = new(false, false, TransitionStatus.Undefined);
+    private CollapsibleRootContext context = null!;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool IsControlled => Open.HasValue;
+
+    private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
+
+    /// <summary>
+    /// Gets or sets whether the collapsible panel is currently open.
+    /// To render an uncontrolled collapsible, use <see cref="DefaultOpen"/> instead.
+    /// </summary>
+    [Parameter]
+    public bool? Open { get; set; }
+
+    /// <summary>
+    /// Determines whether the collapsible panel is initially open.
+    /// To render a controlled collapsible, use <see cref="Open"/> instead.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DefaultOpen { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the <see cref="Open"/> value changes via two-way binding.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the panel is opened or closed.
+    /// </summary>
+    [Parameter]
+    public EventCallback<CollapsibleOpenChangeEventArgs> OnOpenChange { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<CollapsibleRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<CollapsibleRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<CollapsibleRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        isOpen = DefaultOpen;
+        context = new CollapsibleRootContext
+        {
+            Open = CurrentOpen,
+            Disabled = Disabled,
+            TransitionStatus = transitionStatus,
+            PanelId = panelId,
+            HandleTrigger = HandleTrigger,
+            HandleBeforeMatch = HandleBeforeMatch,
+            SetPanelId = SetPanelId,
+            SetTransitionStatus = SetTransitionStatus
+        };
+        state = new CollapsibleRootState(CurrentOpen, Disabled, transitionStatus);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(panelId))
+        {
+            var id = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id");
+            if (!string.IsNullOrEmpty(id))
+            {
+                SetPanelId(id);
+            }
+        }
+
+        var currentOpen = CurrentOpen;
+        if (state.Open != currentOpen || state.Disabled != Disabled || state.TransitionStatus != transitionStatus)
+        {
+            state = state with { Open = currentOpen, Disabled = Disabled, TransitionStatus = transitionStatus };
+            context.Open = currentOpen;
+            context.Disabled = Disabled;
+            context.TransitionStatus = transitionStatus;
+            BuildComponentAttributes();
+        }
+    }
+
+    /// <summary>
+    /// Registers the panel element identifier so the trigger can reference it via <c>aria-controls</c>.
+    /// </summary>
+    /// <param name="id">The panel element identifier.</param>
+    internal void SetPanelId(string id)
+    {
+        if (panelId != id)
+        {
+            panelId = id;
+            context.PanelId = id;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Updates the current transition status and synchronizes it across the component state and context.
+    /// </summary>
+    /// <param name="status">The new transition status.</param>
+    internal void SetTransitionStatus(TransitionStatus status)
+    {
+        if (transitionStatus != status)
+        {
+            transitionStatus = status;
+            state = state with { TransitionStatus = status };
+            context.TransitionStatus = status;
+            BuildComponentAttributes();
+            StateHasChanged();
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-open"] = state.Open;
+        attrs["data-closed"] = !state.Open;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+
+    private void HandleTrigger()
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        var nextOpen = !CurrentOpen;
+        var args = new CollapsibleOpenChangeEventArgs(nextOpen, CollapsibleOpenChangeReason.TriggerPress);
+
+        _ = OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        if (!IsControlled)
+        {
+            isOpen = nextOpen;
+        }
+
+        _ = OpenChanged.InvokeAsync(nextOpen);
+        state = state with { Open = nextOpen };
+        context.Open = nextOpen;
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+
+    private void HandleBeforeMatch()
+    {
+        // beforematch event should only open, not toggle
+        if (CurrentOpen || Disabled)
+        {
+            return;
+        }
+
+        var args = new CollapsibleOpenChangeEventArgs(true, CollapsibleOpenChangeReason.None);
+
+        _ = OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        if (!IsControlled)
+        {
+            isOpen = true;
+        }
+
+        _ = OpenChanged.InvokeAsync(true);
+        state = state with { Open = true };
+        context.Open = true;
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+}

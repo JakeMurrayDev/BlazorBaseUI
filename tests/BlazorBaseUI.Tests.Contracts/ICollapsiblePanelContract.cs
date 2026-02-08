@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts;
 public interface ICollapsiblePanelContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();

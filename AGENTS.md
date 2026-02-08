@@ -224,7 +224,7 @@ else
 
 ### 7. Cascading Parameters Rules
 
-- **Always** create a context class (record type)
+- **Always** create a context sealed class
 - Never cascade the parent component directly
 - Cascading parameters are **always private**
 

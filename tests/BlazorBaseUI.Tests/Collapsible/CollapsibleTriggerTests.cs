@@ -14,8 +14,9 @@ public class CollapsibleTriggerTests : BunitContext, ICollapsibleTriggerContract
         Func<CollapsibleRootState, string>? classValue = null,
         Func<CollapsibleRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
-        bool includePanel = true)
+        RenderFragment<RenderProps<CollapsibleRootState>>? render = null,
+        bool includePanel = true,
+        IReadOnlyDictionary<string, object>? panelAdditionalAttributes = null)
     {
         return builder =>
         {
@@ -34,16 +35,19 @@ public class CollapsibleTriggerTests : BunitContext, ICollapsibleTriggerContract
                     innerBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     innerBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
                 innerBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Toggle")));
                 innerBuilder.CloseComponent();
 
                 if (includePanel)
                 {
                     innerBuilder.OpenComponent<CollapsiblePanel>(10);
-                    innerBuilder.AddAttribute(11, "KeepMounted", true);
-                    innerBuilder.AddAttribute(12, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Content")));
+                    var panelAttrIndex = 11;
+                    innerBuilder.AddAttribute(panelAttrIndex++, "KeepMounted", true);
+                    if (panelAdditionalAttributes is not null)
+                        innerBuilder.AddAttribute(panelAttrIndex++, "AdditionalAttributes", panelAdditionalAttributes);
+                    innerBuilder.AddAttribute(panelAttrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Content")));
                     innerBuilder.CloseComponent();
                 }
             }));
@@ -63,9 +67,17 @@ public class CollapsibleTriggerTests : BunitContext, ICollapsibleTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTriggerInRoot(asElement: "div"));
+        var cut = Render(CreateTriggerInRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var trigger = cut.Find("div[aria-expanded]");
         trigger.ShouldNotBeNull();
@@ -248,6 +260,52 @@ public class CollapsibleTriggerTests : BunitContext, ICollapsibleTriggerContract
         trigger.Click();
 
         trigger.GetAttribute("aria-expanded").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ReceivesCorrectState()
+    {
+        CollapsibleRootState? capturedState = null;
+
+        var cut = Render(CreateTriggerInRoot(
+            defaultOpen: true,
+            classValue: state =>
+            {
+                capturedState = state;
+                return "test-class";
+            }
+        ));
+
+        capturedState.ShouldNotBeNull();
+        capturedState!.Open.ShouldBeTrue();
+        capturedState.Disabled.ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ReferencesCustomPanelIdInAriaControls()
+    {
+        var cut = Render(CreateTriggerInRoot(
+            defaultOpen: true,
+            panelAdditionalAttributes: new Dictionary<string, object>
+            {
+                { "id", "custom-panel-id" }
+            }
+        ));
+
+        var trigger = cut.Find("button");
+
+        // Close and reopen to pick up panel ID registration
+        trigger.Click();
+        trigger.Click();
+
+        trigger.GetAttribute("aria-controls").ShouldBe("custom-panel-id");
+
+        var panel = cut.Find("#custom-panel-id");
+        panel.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }
