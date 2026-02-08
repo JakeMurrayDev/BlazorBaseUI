@@ -1,0 +1,99 @@
+@namespace BlazorBaseUI.Accordion
+
+<RenderElement TState="AccordionHeaderState"
+               Tag="h3"
+               State="state"
+               Enabled="ItemContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private AccordionHeaderState state = new(0, Orientation.Vertical, false, false);
+    private RenderElement<AccordionHeaderState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private IAccordionItemContext? ItemContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<AccordionHeaderState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<AccordionHeaderState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<AccordionHeaderState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        state = new AccordionHeaderState(
+            ItemContext?.Index ?? 0,
+            ItemContext?.Orientation ?? Orientation.Vertical,
+            ItemContext?.Disabled ?? false,
+            ItemContext?.Open ?? false);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentIndex = ItemContext?.Index ?? 0;
+        var currentOrientation = ItemContext?.Orientation ?? Orientation.Vertical;
+        var currentDisabled = ItemContext?.Disabled ?? false;
+        var currentOpen = ItemContext?.Open ?? false;
+
+        if (state.Index != currentIndex || state.Orientation != currentOrientation || state.Disabled != currentDisabled || state.Open != currentOpen)
+        {
+            state = state with { Index = currentIndex, Orientation = currentOrientation, Disabled = currentDisabled, Open = currentOpen };
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-index"] = state.Index.ToString();
+        attrs["data-orientation"] = state.Orientation.ToDataAttributeString()!;
+        attrs["data-open"] = state.Open;
+        attrs["data-closed"] = !state.Open;
+        attrs["data-disabled"] = state.Disabled;
+
+        componentAttributes = attrs;
+    }
+}

@@ -1,0 +1,341 @@
+@namespace BlazorBaseUI.Accordion
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+
+<RenderElement TState="AccordionPanelState"
+               Tag="div"
+               State="state"
+               Enabled="IsPresent"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-collapsible.js";
+    private const string CssVarPrefix = "accordion-panel";
+
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
+    private string? defaultId;
+    private bool hasRendered;
+    private bool isMounted;
+    private bool jsInitialized;
+    private DotNetObjectReference<AccordionPanel>? dotNetRef;
+    private AccordionPanelState state = null!;
+    private bool? animationTarget;
+    private RenderElement<AccordionPanelState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<AccordionPanelState, string?>? computedStyleValue;
+
+    private bool CurrentOpen => ItemContext?.Open ?? false;
+
+    private bool ResolvedKeepMounted => KeepMounted ?? RootContext?.KeepMounted ?? false;
+
+    private bool ResolvedHiddenUntilFound => HiddenUntilFound ?? RootContext?.HiddenUntilFound ?? false;
+
+    private string ResolvedId
+    {
+        get
+        {
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            if (id != ItemContext?.PanelId)
+            {
+                ItemContext?.SetPanelId(id);
+            }
+            return id;
+        }
+    }
+
+    private bool IsPresent => ResolvedKeepMounted || ResolvedHiddenUntilFound || isMounted;
+
+    private bool IsHidden => !ResolvedKeepMounted && !ResolvedHiddenUntilFound && !CurrentOpen && animationTarget != false;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = null!;
+
+    [CascadingParameter]
+    private IAccordionRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private IAccordionItemContext? ItemContext { get; set; }
+
+    /// <summary>
+    /// Determines whether to keep the element in the DOM while the panel is closed.
+    /// When <see langword="null"/>, inherits from the parent <see cref="AccordionRoot{TValue}"/>.
+    /// </summary>
+    [Parameter]
+    public bool? KeepMounted { get; set; }
+
+    /// <summary>
+    /// Determines whether the browser's built-in page search can find and expand the panel contents.
+    /// When <see langword="null"/>, inherits from the parent <see cref="AccordionRoot{TValue}"/>.
+    /// </summary>
+    [Parameter]
+    public bool? HiddenUntilFound { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<AccordionPanelState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<AccordionPanelState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<AccordionPanelState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    public AccordionPanel()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+    }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var initialOpen = CurrentOpen;
+        isMounted = initialOpen;
+        state = new AccordionPanelState(
+            initialOpen,
+            ItemContext?.Disabled ?? false,
+            ItemContext?.Index ?? 0,
+            RootContext?.Orientation ?? Orientation.Vertical,
+            TransitionStatus.Undefined);
+
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            if (!jsInitialized && (ResolvedKeepMounted || ResolvedHiddenUntilFound) && !CurrentOpen)
+            {
+                var cssVars = $"--{CssVarPrefix}-height: 0px; --{CssVarPrefix}-width: 0px";
+                return string.IsNullOrEmpty(userStyle) ? cssVars : $"{cssVars}; {userStyle}";
+            }
+            return userStyle;
+        };
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentOpen = CurrentOpen;
+        var currentDisabled = ItemContext?.Disabled ?? false;
+        var currentIndex = ItemContext?.Index ?? 0;
+        var currentOrientation = RootContext?.Orientation ?? Orientation.Vertical;
+
+        if (currentOpen != state.Open)
+        {
+            if (currentOpen)
+            {
+                isMounted = true;
+                animationTarget = true;
+            }
+            else
+            {
+                animationTarget = false;
+            }
+        }
+        else if (currentOpen && !isMounted)
+        {
+            isMounted = true;
+            animationTarget = true;
+        }
+
+        if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != currentIndex || state.Orientation != currentOrientation)
+        {
+            state = state with { Open = currentOpen, Disabled = currentDisabled, Index = currentIndex, Orientation = currentOrientation };
+        }
+
+        _ = ResolvedId;
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            if (IsPresent && Element.HasValue)
+            {
+                try
+                {
+                    var module = await moduleTask.Value;
+                    await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, CurrentOpen, CssVarPrefix);
+                    jsInitialized = true;
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
+            }
+
+            return;
+        }
+
+        if (animationTarget == true)
+        {
+            animationTarget = null;
+            _ = OpenAsync();
+        }
+        else if (animationTarget == false)
+        {
+            animationTarget = null;
+            _ = CloseAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated && Element.HasValue)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("dispose", Element.Value);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    /// <summary>
+    /// Called from JavaScript when the panel's transition status changes.
+    /// </summary>
+    /// <param name="status">The new transition status string.</param>
+    [JSInvokable]
+    public void OnTransitionStatusChanged(string status)
+    {
+        state = status switch
+        {
+            "starting" => state with { TransitionStatus = TransitionStatus.Starting },
+            "ending" => state with { TransitionStatus = TransitionStatus.Ending },
+            "idle" => state with { TransitionStatus = TransitionStatus.Idle },
+            _ => state with { TransitionStatus = TransitionStatus.Undefined }
+        };
+    }
+
+    /// <summary>
+    /// Called from JavaScript when a panel animation completes.
+    /// </summary>
+    /// <param name="animationType">The type of animation that ended (e.g., "close").</param>
+    /// <param name="completed">Whether the animation completed successfully.</param>
+    [JSInvokable]
+    public void OnAnimationEnded(string animationType, bool completed)
+    {
+        if (animationType == "close")
+        {
+            if (completed && !ResolvedKeepMounted && !ResolvedHiddenUntilFound && !CurrentOpen)
+            {
+                isMounted = false;
+                jsInitialized = false;
+            }
+        }
+
+        state = state with { TransitionStatus = TransitionStatus.Idle };
+        StateHasChanged();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["id"] = ResolvedId;
+        attrs["role"] = "region";
+        attrs["aria-labelledby"] = ItemContext?.TriggerId ?? string.Empty;
+
+        if (IsHidden)
+            attrs["hidden"] = ResolvedHiddenUntilFound ? "until-found" : true;
+
+        attrs["data-index"] = state.Index.ToString();
+        attrs["data-orientation"] = state.Orientation.ToDataAttributeString()!;
+        attrs["data-open"] = state.Open;
+        attrs["data-closed"] = !state.Open;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+
+    private async Task OpenAsync()
+    {
+        if (!hasRendered || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            dotNetRef ??= DotNetObjectReference.Create(this);
+
+            if (!jsInitialized)
+            {
+                await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, false, CssVarPrefix);
+                jsInitialized = true;
+            }
+
+            await module.InvokeVoidAsync("open", Element.Value, false);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (!hasRendered || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("close", Element.Value);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+}

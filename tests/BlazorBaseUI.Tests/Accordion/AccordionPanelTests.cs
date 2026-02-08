@@ -17,7 +17,7 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
         Func<AccordionPanelState, string>? classValue = null,
         Func<AccordionPanelState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        RenderFragment<RenderProps<AccordionPanelState>>? render = null)
     {
         return builder =>
         {
@@ -48,8 +48,8 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
                         itemBuilder.AddAttribute(5, "StyleValue", styleValue);
                     if (additionalAttributes is not null)
                         itemBuilder.AddAttribute(6, "AdditionalAttributes", additionalAttributes);
-                    if (asElement is not null)
-                        itemBuilder.AddAttribute(7, "As", asElement);
+                    if (render is not null)
+                        itemBuilder.AddAttribute(7, "Render", render);
                     itemBuilder.AddAttribute(8, "ChildContent", (RenderFragment)(pb => pb.AddContent(0, "Panel Content")));
                     itemBuilder.CloseComponent();
                 }));
@@ -71,9 +71,18 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateAccordionWithPanel(defaultValue: ["test-item"], asElement: "section"));
+        var cut = Render(CreateAccordionWithPanel(
+            defaultValue: ["test-item"],
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var panel = cut.Find("section[role='region']");
         panel.ShouldNotBeNull();

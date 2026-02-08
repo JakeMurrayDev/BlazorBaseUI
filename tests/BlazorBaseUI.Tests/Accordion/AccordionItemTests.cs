@@ -17,7 +17,7 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
         Func<AccordionItemState<string>, string>? classValue = null,
         Func<AccordionItemState<string>, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        RenderFragment<RenderProps<AccordionItemState<string>>>? render = null)
     {
         return builder =>
         {
@@ -36,8 +36,8 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
                     innerBuilder.AddAttribute(4, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     innerBuilder.AddAttribute(5, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(6, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(6, "Render", render);
                 innerBuilder.AddAttribute(7, "ChildContent", CreateItemContent());
                 innerBuilder.CloseComponent();
             }));
@@ -77,9 +77,17 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateAccordionWithItem(asElement: "section"));
+        var cut = Render(CreateAccordionWithItem(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var item = cut.Find("section[data-index]");
         item.ShouldNotBeNull();

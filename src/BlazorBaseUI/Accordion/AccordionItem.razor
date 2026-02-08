@@ -1,0 +1,321 @@
+@namespace BlazorBaseUI.Accordion
+@using BlazorBaseUI.Collapsible
+
+@typeparam TValue where TValue : notnull
+
+<CascadingValue Value="itemContext"
+                IsFixed="true">
+    <CascadingValue Value="collapsibleContext"
+                    IsFixed="true">
+        <RenderElement TState="AccordionItemState<TValue>"
+                       Tag="div"
+                       State="state"
+                       Enabled="RootContext is not null && itemContext is not null && collapsibleContext is not null"
+                       Render="Render"
+                       ClassValue="ClassValue"
+                       StyleValue="StyleValue"
+                       ComponentAttributes="componentAttributes"
+                       ChildContent="ChildContent"
+                       @attributes="AdditionalAttributes"
+                       @ref="renderElementReference" />
+    </CascadingValue>
+</CascadingValue>
+
+@code {
+    private int index = -1;
+    private string panelId = string.Empty;
+    private TValue resolvedValue = default!;
+    private AccordionItemContext<TValue>? itemContext;
+    private CollapsibleRootContext? collapsibleContext;
+    private AccordionItemState<TValue> state = null!;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+    private RenderElement<AccordionItemState<TValue>>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool ResolvedDisabled => Disabled || (RootContext?.Disabled ?? false);
+
+    private bool IsOpen => RootContext?.IsValueOpen(resolvedValue) ?? false;
+
+    private AccordionRootContext<TValue>? TypedRootContext => RootContext as AccordionRootContext<TValue>;
+
+    [CascadingParameter]
+    private IAccordionRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a unique value that identifies this accordion item.
+    /// If no value is provided, a unique ID will be generated automatically for string types.
+    /// </summary>
+    [Parameter]
+    public TValue? Value { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction. Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the panel is opened or closed.
+    /// </summary>
+    [Parameter]
+    public EventCallback<CollapsibleOpenChangeEventArgs> OnOpenChange { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<AccordionItemState<TValue>>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<AccordionItemState<TValue>, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<AccordionItemState<TValue>, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        resolvedValue = ResolveValue();
+
+        if (RootContext is not null)
+        {
+            index = RootContext.RegisterItem();
+        }
+
+        if (TypedRootContext is not null)
+        {
+            var currentOpen = IsOpen;
+            state = new AccordionItemState<TValue>(
+                TypedRootContext.Value,
+                ResolvedDisabled,
+                TypedRootContext.Orientation,
+                index,
+                currentOpen,
+                transitionStatus);
+
+            itemContext = new AccordionItemContext<TValue>
+            {
+                RootContext = TypedRootContext,
+                Value = resolvedValue,
+                Index = index,
+                Disabled = ResolvedDisabled,
+                TriggerHandler = HandleTrigger,
+                PanelIdSetter = SetPanelId
+            };
+
+            collapsibleContext = new CollapsibleRootContext
+            {
+                Open = currentOpen,
+                Disabled = ResolvedDisabled,
+                TransitionStatus = transitionStatus,
+                PanelId = panelId,
+                HandleTrigger = HandleTrigger,
+                HandleBeforeMatch = HandleBeforeMatch,
+                SetPanelId = SetPanelId,
+                SetTransitionStatus = SetTransitionStatus
+            };
+
+            BuildComponentAttributes();
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (TypedRootContext is null)
+        {
+            return;
+        }
+
+        var currentOpen = IsOpen;
+        var currentDisabled = ResolvedDisabled;
+
+        if (itemContext is null)
+        {
+            itemContext = new AccordionItemContext<TValue>
+            {
+                RootContext = TypedRootContext,
+                Value = resolvedValue,
+                Index = index,
+                Disabled = currentDisabled,
+                TriggerHandler = HandleTrigger,
+                PanelIdSetter = SetPanelId
+            };
+        }
+        else
+        {
+            itemContext.RootContext = TypedRootContext;
+            itemContext.Index = index;
+            itemContext.Disabled = currentDisabled;
+        }
+
+        if (collapsibleContext is null)
+        {
+            collapsibleContext = new CollapsibleRootContext
+            {
+                Open = currentOpen,
+                Disabled = currentDisabled,
+                TransitionStatus = transitionStatus,
+                PanelId = panelId,
+                HandleTrigger = HandleTrigger,
+                HandleBeforeMatch = HandleBeforeMatch,
+                SetPanelId = SetPanelId,
+                SetTransitionStatus = SetTransitionStatus
+            };
+        }
+        else
+        {
+            collapsibleContext.Open = currentOpen;
+            collapsibleContext.Disabled = currentDisabled;
+            collapsibleContext.TransitionStatus = transitionStatus;
+        }
+
+        if (state is null)
+        {
+            state = new AccordionItemState<TValue>(
+                TypedRootContext.Value,
+                currentDisabled,
+                TypedRootContext.Orientation,
+                index,
+                currentOpen,
+                transitionStatus);
+        }
+        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation || state.TransitionStatus != transitionStatus)
+        {
+            state = state with
+            {
+                Value = TypedRootContext.Value,
+                Open = currentOpen,
+                Disabled = currentDisabled,
+                Index = index,
+                Orientation = TypedRootContext.Orientation,
+                TransitionStatus = transitionStatus
+            };
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private TValue ResolveValue()
+    {
+        if (Value is not null)
+        {
+            return Value;
+        }
+
+        if (typeof(TValue) == typeof(string))
+        {
+            return (TValue)(object)Guid.NewGuid().ToIdString();
+        }
+
+        throw new InvalidOperationException(
+            $"AccordionItem requires a Value when TValue is '{typeof(TValue).Name}'. " +
+            "Auto-generation is only supported for string type.");
+    }
+
+    private void SetPanelId(string id)
+    {
+        panelId = id;
+        if (collapsibleContext is not null)
+        {
+            collapsibleContext.PanelId = id;
+        }
+    }
+
+    private void SetTransitionStatus(TransitionStatus status)
+    {
+        if (transitionStatus != status)
+        {
+            transitionStatus = status;
+            if (collapsibleContext is not null)
+            {
+                collapsibleContext.TransitionStatus = status;
+            }
+            if (state is not null)
+            {
+                state = state with { TransitionStatus = status };
+                BuildComponentAttributes();
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void HandleTrigger()
+    {
+        if (ResolvedDisabled)
+        {
+            return;
+        }
+
+        var nextOpen = !IsOpen;
+        var args = new CollapsibleOpenChangeEventArgs(nextOpen, CollapsibleOpenChangeReason.TriggerPress);
+
+        _ = OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        RootContext?.HandleValueChange(resolvedValue, nextOpen);
+    }
+
+    private void HandleBeforeMatch()
+    {
+        if (IsOpen || ResolvedDisabled)
+        {
+            return;
+        }
+
+        var args = new CollapsibleOpenChangeEventArgs(true, CollapsibleOpenChangeReason.None);
+
+        _ = OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        RootContext?.HandleValueChange(resolvedValue, true);
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-index"] = (state?.Index ?? index).ToString();
+        attrs["data-orientation"] = (state?.Orientation ?? Orientation.Vertical).ToDataAttributeString()!;
+        attrs["data-open"] = state?.Open ?? false;
+        attrs["data-closed"] = !(state?.Open ?? false);
+        attrs["data-disabled"] = state?.Disabled ?? false;
+        attrs["data-starting-style"] = state?.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state?.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+}
