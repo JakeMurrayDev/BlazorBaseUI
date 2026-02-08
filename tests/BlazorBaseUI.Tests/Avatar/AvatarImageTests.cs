@@ -168,14 +168,20 @@ public class AvatarImageTests : BunitContext, IAvatarImageContract
     }
 
     [Fact]
-    public void Render_WithAsDifferentElement()
+    public void Render_WithCustomRender_RendersCustomElement()
     {
         JsInteropSetup.SetupLoadedImage(JSInterop);
 
         var cut = Render(CreateAvatarRootWrapper(builder =>
         {
             builder.OpenComponent<AvatarImage>(0);
-            builder.AddAttribute(1, "As", "picture");
+            builder.AddAttribute(1, "Render", (RenderFragment<RenderProps<AvatarRootState>>)(ctx => innerBuilder =>
+            {
+                innerBuilder.OpenElement(0, "picture");
+                innerBuilder.AddMultipleAttributes(1, ctx.Attributes);
+                innerBuilder.AddContent(2, ctx.ChildContent);
+                innerBuilder.CloseElement();
+            }));
             builder.AddAttribute(2, "AdditionalAttributes", new Dictionary<string, object>
             {
                 { "src", "https://example.com/image.jpg" }

@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts;
 public interface IAvatarRootContract
 {
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();

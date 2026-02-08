@@ -15,7 +15,7 @@ public class AvatarFallbackTests : BunitContext, IAvatarFallbackContract
     private RenderFragment CreateFallbackInRoot(
         RenderFragment? childContent = null,
         int? delay = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<AvatarRootState>>? render = null,
         Func<AvatarRootState, string?>? classValue = null,
         Func<AvatarRootState, string?>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null)
@@ -41,9 +41,9 @@ public class AvatarFallbackTests : BunitContext, IAvatarFallbackContract
                 {
                     innerBuilder.AddAttribute(attrIndex++, "Delay", delay.Value);
                 }
-                if (asElement is not null)
+                if (render is not null)
                 {
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
                 }
                 if (classValue is not null)
                 {
@@ -192,11 +192,17 @@ public class AvatarFallbackTests : BunitContext, IAvatarFallbackContract
     }
 
     [Fact]
-    public void Render_WithAsDiv_RendersAsDivElement()
+    public void Render_WithCustomRender_RendersCustomElement()
     {
         var cut = Render(CreateFallbackInRoot(
             childContent: builder => builder.AddContent(0, "FB"),
-            asElement: "div"
+            render: ctx => innerBuilder =>
+            {
+                innerBuilder.OpenElement(0, "div");
+                innerBuilder.AddMultipleAttributes(1, ctx.Attributes);
+                innerBuilder.AddContent(2, ctx.ChildContent);
+                innerBuilder.CloseElement();
+            }
         ));
 
         var div = cut.Find("div");
