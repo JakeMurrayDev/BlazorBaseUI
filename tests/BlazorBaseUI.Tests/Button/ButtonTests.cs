@@ -13,8 +13,7 @@ public class ButtonTests : BunitContext, IButtonContract
         bool focusableWhenDisabled = false,
         bool nativeButton = true,
         int tabIndex = 0,
-        string? asElement = null,
-        Type? renderAs = null,
+        RenderFragment<RenderProps<ButtonState>>? render = null,
         Func<ButtonState, string?>? classValue = null,
         Func<ButtonState, string?>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -23,25 +22,22 @@ public class ButtonTests : BunitContext, IButtonContract
         return builder =>
         {
             builder.OpenComponent<BlazorBaseUI.Button.Button>(0);
-            var attrIndex = 1;
 
-            builder.AddAttribute(attrIndex++, "Disabled", disabled);
-            builder.AddAttribute(attrIndex++, "FocusableWhenDisabled", focusableWhenDisabled);
-            builder.AddAttribute(attrIndex++, "NativeButton", nativeButton);
-            builder.AddAttribute(attrIndex++, "TabIndex", tabIndex);
+            builder.AddAttribute(1, "Disabled", disabled);
+            builder.AddAttribute(2, "FocusableWhenDisabled", focusableWhenDisabled);
+            builder.AddAttribute(3, "NativeButton", nativeButton);
+            builder.AddAttribute(4, "TabIndex", tabIndex);
 
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
-            if (renderAs is not null)
-                builder.AddAttribute(attrIndex++, "RenderAs", renderAs);
+            if (render is not null)
+                builder.AddAttribute(5, "Render", render);
             if (classValue is not null)
-                builder.AddAttribute(attrIndex++, "ClassValue", classValue);
+                builder.AddAttribute(6, "ClassValue", classValue);
             if (styleValue is not null)
-                builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
+                builder.AddAttribute(7, "StyleValue", styleValue);
             if (additionalAttributes is not null)
-                builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
+                builder.AddAttribute(8, "AdditionalAttributes", additionalAttributes);
             if (childContent is not null)
-                builder.AddAttribute(attrIndex++, "ChildContent", childContent);
+                builder.AddAttribute(9, "ChildContent", childContent);
 
             builder.CloseComponent();
         };
@@ -59,11 +55,25 @@ public class ButtonTests : BunitContext, IButtonContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span"));
+        RenderFragment<RenderProps<ButtonState>> renderAsSpan = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateButton(
+            nativeButton: false,
+            render: renderAsSpan,
+            childContent: b => b.AddContent(0, "Custom")));
         var element = cut.Find("span");
         element.TagName.ShouldBe("SPAN");
+        element.TextContent.ShouldBe("Custom");
         return Task.CompletedTask;
     }
 
@@ -166,12 +176,30 @@ public class ButtonTests : BunitContext, IButtonContract
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public Task NativeButton_DoesNotHaveDisabledWhenNotDisabled()
+    {
+        var cut = Render(CreateButton());
+        var button = cut.Find("button");
+        button.HasAttribute("disabled").ShouldBeFalse();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task NativeButton_DisabledDoesNotHaveTabIndex()
+    {
+        var cut = Render(CreateButton(disabled: true));
+        var button = cut.Find("button");
+        button.HasAttribute("tabindex").ShouldBeFalse();
+        return Task.CompletedTask;
+    }
+
     // Non-native button attributes
 
     [Fact]
     public Task NonNativeButton_HasRoleButton()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span"));
+        var cut = Render(CreateButton(nativeButton: false));
         var element = cut.Find("[role='button']");
         element.ShouldNotBeNull();
         return Task.CompletedTask;
@@ -180,8 +208,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeButton_DoesNotHaveTypeButton()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span"));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false));
+        var element = cut.Find("button");
         element.HasAttribute("type").ShouldBeFalse();
         return Task.CompletedTask;
     }
@@ -189,8 +217,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeButton_HasAriaDisabledTrueWhenDisabled()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("aria-disabled").ShouldBe("true");
         return Task.CompletedTask;
     }
@@ -198,9 +226,27 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeButton_HasTabIndexMinusOneWhenDisabled()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("tabindex").ShouldBe("-1");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task NonNativeButton_DoesNotHaveAriaDisabledWhenNotDisabled()
+    {
+        var cut = Render(CreateButton(nativeButton: false));
+        var element = cut.Find("button");
+        element.HasAttribute("aria-disabled").ShouldBeFalse();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task NonNativeButton_DoesNotHaveDisabledAttribute()
+    {
+        var cut = Render(CreateButton(nativeButton: false));
+        var element = cut.Find("button");
+        element.HasAttribute("disabled").ShouldBeFalse();
         return Task.CompletedTask;
     }
 
@@ -267,8 +313,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeFocusableWhenDisabled_HasAriaDisabledTrue()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true, focusableWhenDisabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true, focusableWhenDisabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("aria-disabled").ShouldBe("true");
         return Task.CompletedTask;
     }
@@ -276,8 +322,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeFocusableWhenDisabled_HasTabIndex()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true, focusableWhenDisabled: true, tabIndex: 2));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true, focusableWhenDisabled: true, tabIndex: 2));
+        var element = cut.Find("button");
         element.GetAttribute("tabindex").ShouldBe("2");
         return Task.CompletedTask;
     }
@@ -285,8 +331,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeFocusableWhenDisabled_HasRoleButton()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true, focusableWhenDisabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true, focusableWhenDisabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("role").ShouldBe("button");
         return Task.CompletedTask;
     }
@@ -294,8 +340,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeFocusableWhenDisabled_HasDataDisabled()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true, focusableWhenDisabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true, focusableWhenDisabled: true));
+        var element = cut.Find("button");
         element.HasAttribute("data-disabled").ShouldBeTrue();
         return Task.CompletedTask;
     }
@@ -314,8 +360,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeButton_HasDefaultTabIndex()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span"));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false));
+        var element = cut.Find("button");
         element.GetAttribute("tabindex").ShouldBe("0");
         return Task.CompletedTask;
     }
@@ -332,8 +378,8 @@ public class ButtonTests : BunitContext, IButtonContract
     [Fact]
     public Task NonNativeDisabled_HasTabIndexMinusOne()
     {
-        var cut = Render(CreateButton(nativeButton: false, asElement: "span", disabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateButton(nativeButton: false, disabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("tabindex").ShouldBe("-1");
         return Task.CompletedTask;
     }
@@ -371,6 +417,22 @@ public class ButtonTests : BunitContext, IButtonContract
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public Task CascadesButtonStateToStyleValue()
+    {
+        ButtonState? capturedState = null;
+        var cut = Render(CreateButton(
+            disabled: true,
+            styleValue: state =>
+            {
+                capturedState = state;
+                return "color: red";
+            }));
+        capturedState.ShouldNotBeNull();
+        capturedState!.Disabled.ShouldBeTrue();
+        return Task.CompletedTask;
+    }
+
     // Element reference
 
     [Fact]
@@ -389,29 +451,39 @@ public class ButtonTests : BunitContext, IButtonContract
         return Task.CompletedTask;
     }
 
-    // RenderAs validation
+    // Disposal
 
     [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
+    public async Task DisposeAsync_DoesNotThrow()
     {
-        Should.Throw<InvalidOperationException>(() =>
+        BlazorBaseUI.Button.Button? component = null;
+        var cut = Render(builder =>
         {
-            Render(builder =>
-            {
-                builder.OpenComponent<BlazorBaseUI.Button.Button>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
+            builder.OpenComponent<BlazorBaseUI.Button.Button>(0);
+            builder.AddComponentReferenceCapture(1, obj => component = (BlazorBaseUI.Button.Button)obj);
+            builder.CloseComponent();
         });
-        return Task.CompletedTask;
+        component.ShouldNotBeNull();
+        await component!.DisposeAsync();
     }
 
-    private sealed class NonReferencableComponent : ComponentBase
+    [Fact]
+    public async Task DisposeAsync_SkipsJsWhenModuleNotCreated()
     {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        // Render a native, non-disabled button (NeedsJsInterop = false)
+        // so the JS module is never loaded. Disposal should not invoke JS.
+        BlazorBaseUI.Button.Button? component = null;
+        var cut = Render(builder =>
         {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
+            builder.OpenComponent<BlazorBaseUI.Button.Button>(0);
+            builder.AddAttribute(1, "NativeButton", true);
+            builder.AddAttribute(2, "Disabled", false);
+            builder.AddComponentReferenceCapture(3, obj => component = (BlazorBaseUI.Button.Button)obj);
+            builder.CloseComponent();
+        });
+        component.ShouldNotBeNull();
+
+        // Should complete without any JS calls since the module was never created
+        await component!.DisposeAsync();
     }
 }

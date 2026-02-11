@@ -4,7 +4,7 @@ public interface IButtonContract
 {
     // Rendering
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -16,12 +16,16 @@ public interface IButtonContract
     Task NativeButton_HasDisabledAttributeWhenDisabled();
     Task NativeButton_DoesNotHaveAriaDisabledWhenDisabled();
     Task NativeButton_DoesNotHaveRoleButton();
+    Task NativeButton_DoesNotHaveDisabledWhenNotDisabled();
+    Task NativeButton_DisabledDoesNotHaveTabIndex();
 
     // Non-native button attributes
     Task NonNativeButton_HasRoleButton();
     Task NonNativeButton_DoesNotHaveTypeButton();
     Task NonNativeButton_HasAriaDisabledTrueWhenDisabled();
     Task NonNativeButton_HasTabIndexMinusOneWhenDisabled();
+    Task NonNativeButton_DoesNotHaveAriaDisabledWhenNotDisabled();
+    Task NonNativeButton_DoesNotHaveDisabledAttribute();
 
     // Data attributes
     Task HasDataDisabledWhenDisabled();
@@ -48,10 +52,12 @@ public interface IButtonContract
     // State cascading
     Task CascadesButtonStateToClassValue();
     Task CascadesButtonStateDisabledTrue();
+    Task CascadesButtonStateToStyleValue();
 
     // Element reference
     Task ExposesElementReference();
 
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
+    // Disposal
+    Task DisposeAsync_DoesNotThrow();
+    Task DisposeAsync_SkipsJsWhenModuleNotCreated();
 }
