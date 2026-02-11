@@ -2,89 +2,108 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Menu;
 
-internal sealed record MenuRootContext
+/// <summary>
+/// Provides shared state and callbacks for the <see cref="MenuRoot"/> and its descendant components.
+/// </summary>
+internal sealed class MenuRootContext
 {
-    public MenuRootContext(
-        string rootId,
-        bool open,
-        bool mounted,
-        bool disabled,
-        MenuParentType parentType,
-        MenuOrientation orientation,
-        bool highlightItemOnHover,
-        OpenChangeReason openChangeReason,
-        TransitionStatus transitionStatus,
-        InstantType instantType,
-        int activeIndex,
-        Func<bool> getOpen,
-        Func<bool> getMounted,
-        Func<ElementReference?> getTriggerElement,
-        Action<ElementReference?> setTriggerElement,
-        Action<ElementReference?> setPositionerElement,
-        Action<ElementReference?> setPopupElement,
-        Action<int> setActiveIndex,
-        Func<bool, OpenChangeReason, object?, Task> setOpenAsync,
-        Action<OpenChangeReason, object?> emitClose)
-    {
-        RootId = rootId;
-        Open = open;
-        Mounted = mounted;
-        Disabled = disabled;
-        ParentType = parentType;
-        Orientation = orientation;
-        HighlightItemOnHover = highlightItemOnHover;
-        OpenChangeReason = openChangeReason;
-        TransitionStatus = transitionStatus;
-        InstantType = instantType;
-        ActiveIndex = activeIndex;
-        GetOpen = getOpen;
-        GetMounted = getMounted;
-        GetTriggerElement = getTriggerElement;
-        SetTriggerElement = setTriggerElement;
-        SetPositionerElement = setPositionerElement;
-        SetPopupElement = setPopupElement;
-        SetActiveIndex = setActiveIndex;
-        SetOpenAsync = setOpenAsync;
-        EmitClose = emitClose;
-    }
+    /// <summary>
+    /// Gets the unique identifier for this menu root instance.
+    /// </summary>
+    public string RootId { get; init; } = string.Empty;
 
-    public string RootId { get; }
-
+    /// <summary>
+    /// Gets or sets whether the menu is open.
+    /// </summary>
     public bool Open { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether the menu is mounted in the DOM.
+    /// </summary>
     public bool Mounted { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether the menu is disabled.
+    /// </summary>
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Gets or sets the type of the menu's parent container.
+    /// </summary>
     public MenuParentType ParentType { get; set; }
 
-    public MenuOrientation Orientation { get; }
+    /// <summary>
+    /// Gets the visual orientation of the menu.
+    /// </summary>
+    public MenuOrientation Orientation { get; init; }
 
-    public bool HighlightItemOnHover { get; }
+    /// <summary>
+    /// Gets whether moving the pointer over items highlights them.
+    /// </summary>
+    public bool HighlightItemOnHover { get; init; }
 
+    /// <summary>
+    /// Gets or sets the reason the menu's open state last changed.
+    /// </summary>
     public OpenChangeReason OpenChangeReason { get; set; }
 
+    /// <summary>
+    /// Gets or sets the current transition animation status.
+    /// </summary>
     public TransitionStatus TransitionStatus { get; set; }
 
+    /// <summary>
+    /// Gets or sets the type of instant transition to apply.
+    /// </summary>
     public InstantType InstantType { get; set; }
 
+    /// <summary>
+    /// Gets or sets the index of the currently active (focused) item.
+    /// </summary>
     public int ActiveIndex { get; set; }
 
-    public Func<bool> GetOpen { get; }
+    /// <summary>
+    /// Gets the delegate that returns the current open state.
+    /// </summary>
+    public Func<bool> GetOpen { get; init; } = null!;
 
-    public Func<bool> GetMounted { get; }
+    /// <summary>
+    /// Gets the delegate that returns whether the menu is mounted.
+    /// </summary>
+    public Func<bool> GetMounted { get; init; } = null!;
 
-    public Func<ElementReference?> GetTriggerElement { get; }
+    /// <summary>
+    /// Gets the delegate that returns the trigger element reference.
+    /// </summary>
+    public Func<ElementReference?> GetTriggerElement { get; init; } = null!;
 
-    public Action<ElementReference?> SetTriggerElement { get; }
+    /// <summary>
+    /// Gets the delegate that sets the trigger element reference.
+    /// </summary>
+    public Action<ElementReference?> SetTriggerElement { get; init; } = null!;
 
-    public Action<ElementReference?> SetPositionerElement { get; }
+    /// <summary>
+    /// Gets the delegate that sets the positioner element reference.
+    /// </summary>
+    public Action<ElementReference?> SetPositionerElement { get; init; } = null!;
 
-    public Action<ElementReference?> SetPopupElement { get; }
+    /// <summary>
+    /// Gets the delegate that sets the popup element reference.
+    /// </summary>
+    public Action<ElementReference?> SetPopupElement { get; init; } = null!;
 
-    public Action<int> SetActiveIndex { get; }
+    /// <summary>
+    /// Gets the delegate that sets the active item index.
+    /// </summary>
+    public Action<int> SetActiveIndex { get; init; } = null!;
 
-    public Func<bool, OpenChangeReason, object?, Task> SetOpenAsync { get; }
+    /// <summary>
+    /// Gets the delegate that sets the open state asynchronously with a reason and optional payload.
+    /// </summary>
+    public Func<bool, OpenChangeReason, object?, Task> SetOpenAsync { get; init; } = null!;
 
-    public Action<OpenChangeReason, object?> EmitClose { get; }
+    /// <summary>
+    /// Gets the delegate that emits a close event with a reason and optional payload.
+    /// </summary>
+    public Action<OpenChangeReason, object?> EmitClose { get; init; } = null!;
 }

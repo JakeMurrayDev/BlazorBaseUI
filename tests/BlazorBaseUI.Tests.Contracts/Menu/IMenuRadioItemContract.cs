@@ -3,6 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Menu;
 public interface IMenuRadioItemContract
 {
     Task HasRoleMenuitemradio();
+    Task RendersWithCustomRender();
     Task HasAriaCheckedWhenSelected();
     Task HasDataCheckedWhenSelected();
     Task SelectsOnClick();

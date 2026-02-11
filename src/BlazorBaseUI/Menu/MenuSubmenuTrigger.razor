@@ -1,0 +1,239 @@
+@using BlazorBaseUI.Utilities
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<RenderElement TState="MenuSubmenuTriggerState"
+               Tag="div"
+               State="state"
+               Enabled="RootContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private bool hoverInitialized;
+    private MenuSubmenuTriggerState state;
+    private RenderElement<MenuSubmenuTriggerState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-menu.js").AsTask());
+
+    [CascadingParameter]
+    private MenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private MenuSubmenuRootContext? SubmenuContext { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether the submenu should also open when the trigger is hovered.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool OpenOnHover { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the delay in milliseconds before the submenu may be opened on hover.
+    /// Requires the <see cref="OpenOnHover"/> property.
+    /// </summary>
+    [Parameter]
+    public int Delay { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets the delay in milliseconds before closing the submenu that was opened on hover.
+    /// Requires the <see cref="OpenOnHover"/> property.
+    /// </summary>
+    [Parameter]
+    public int CloseDelay { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text label to use when the item is matched during keyboard text navigation.
+    /// </summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuSubmenuTriggerState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuSubmenuTriggerState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuSubmenuTriggerState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (SubmenuContext is null)
+        {
+            throw new InvalidOperationException("MenuSubmenuTrigger must be placed inside a MenuSubmenuRoot.");
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var highlighted = GetHighlighted();
+        var disabled = Disabled || (RootContext?.Disabled ?? false);
+
+        state = new MenuSubmenuTriggerState(
+            Disabled: disabled,
+            Highlighted: highlighted,
+            Open: open);
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            RootContext?.SetTriggerElement(Element);
+
+            if (OpenOnHover && !hoverInitialized)
+            {
+                _ = InitializeHoverInteractionAsync();
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && RootContext is not null)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var open = RootContext?.GetOpen() ?? false;
+        var highlighted = GetHighlighted();
+        var disabled = Disabled || (RootContext?.Disabled ?? false);
+
+        attrs["role"] = "menuitem";
+        attrs["aria-haspopup"] = "menu";
+        attrs["aria-expanded"] = open ? "true" : "false";
+
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+
+        if (disabled)
+        {
+            attrs["aria-disabled"] = "true";
+        }
+
+        attrs["tabindex"] = open || highlighted ? 0 : -1;
+
+        attrs["data-open"] = open;
+        attrs["data-closed"] = !open;
+
+        if (open)
+        {
+            attrs["data-popup-open"] = true;
+        }
+
+        attrs["data-disabled"] = disabled;
+        attrs["data-highlighted"] = highlighted;
+
+        if (!string.IsNullOrEmpty(Label))
+        {
+            attrs["data-label"] = Label;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private bool GetHighlighted()
+    {
+        return SubmenuContext?.ParentMenu?.ActiveIndex >= 0;
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (Disabled || RootContext is null)
+        {
+            return;
+        }
+
+        var nextOpen = !RootContext.GetOpen();
+        await RootContext.SetOpenAsync(nextOpen, OpenChangeReason.TriggerPress, null);
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task InitializeHoverInteractionAsync()
+    {
+        if (RootContext is null || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            var effectiveCloseDelay = CloseDelay > 0 ? CloseDelay : Delay;
+            await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
+            hoverInitialized = true;
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+}

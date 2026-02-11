@@ -14,6 +14,7 @@ public class MenuCheckboxItemTests : BunitContext, IMenuCheckboxItemContract
         bool defaultChecked = false,
         bool itemDisabled = false,
         bool closeOnClick = false,
+        RenderFragment<RenderProps<MenuCheckboxItemState>>? render = null,
         EventCallback<MenuCheckboxItemChangeEventArgs>? onCheckedChange = null)
     {
         return builder =>
@@ -41,6 +42,8 @@ public class MenuCheckboxItemTests : BunitContext, IMenuCheckboxItemContract
                         if (itemDisabled)
                             popupBuilder.AddAttribute(attrIndex++, "Disabled", true);
                         popupBuilder.AddAttribute(attrIndex++, "CloseOnClick", closeOnClick);
+                        if (render is not null)
+                            popupBuilder.AddAttribute(attrIndex++, "Render", render);
                         if (onCheckedChange.HasValue)
                             popupBuilder.AddAttribute(attrIndex++, "OnCheckedChange", onCheckedChange.Value);
                         popupBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Checkbox Item")));
@@ -61,6 +64,27 @@ public class MenuCheckboxItemTests : BunitContext, IMenuCheckboxItemContract
 
         var item = cut.Find("[role='menuitemcheckbox']");
         item.GetAttribute("role").ShouldBe("menuitemcheckbox");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        RenderFragment<RenderProps<MenuCheckboxItemState>> renderAsSpan = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateCheckboxItemInRoot(render: renderAsSpan));
+
+        var item = cut.Find("span[role='menuitemcheckbox']");
+        item.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }

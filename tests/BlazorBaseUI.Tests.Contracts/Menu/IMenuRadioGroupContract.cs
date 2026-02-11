@@ -3,6 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Menu;
 public interface IMenuRadioGroupContract
 {
     Task HasRoleGroup();
+    Task RendersWithCustomRender();
     Task CascadesContextToRadioItems();
     Task ControlledModeRespectsValueParameter();
     Task UncontrolledModeUsesDefaultValue();

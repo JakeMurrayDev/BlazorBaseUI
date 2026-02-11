@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Menu;
 public interface IMenuItemContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task HasRoleMenuitem();
     Task HasTabindexMinusOneByDefault();
     Task HasDataDisabledWhenDisabled();

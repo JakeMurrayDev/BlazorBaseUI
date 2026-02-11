@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Menu;
 public interface IMenuTriggerContract
 {
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task HasAriaHaspopupMenu();
     Task HasAriaExpandedFalseWhenClosed();

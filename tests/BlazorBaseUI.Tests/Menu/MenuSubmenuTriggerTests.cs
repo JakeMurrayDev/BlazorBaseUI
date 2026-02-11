@@ -12,7 +12,7 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
         bool parentDefaultOpen = true,
         bool submenuDefaultOpen = false,
         bool triggerDisabled = false,
-        string? asElement = null)
+        RenderFragment<RenderProps<MenuSubmenuTriggerState>>? render = null)
     {
         return builder =>
         {
@@ -43,8 +43,8 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
 
                             if (triggerDisabled)
                                 submenuBuilder.AddAttribute(attrIndex++, "Disabled", true);
-                            if (asElement is not null)
-                                submenuBuilder.AddAttribute(attrIndex++, "As", asElement);
+                            if (render is not null)
+                                submenuBuilder.AddAttribute(attrIndex++, "Render", render);
                             submenuBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Submenu")));
                             submenuBuilder.CloseComponent();
 
@@ -85,9 +85,19 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSubmenuTriggerInRoot(asElement: "span"));
+        RenderFragment<RenderProps<MenuSubmenuTriggerState>> renderAsSpan = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateSubmenuTriggerInRoot(render: renderAsSpan));
 
         var submenuTrigger = cut.Find("span[role='menuitem'][aria-haspopup='menu']");
         submenuTrigger.ShouldNotBeNull();

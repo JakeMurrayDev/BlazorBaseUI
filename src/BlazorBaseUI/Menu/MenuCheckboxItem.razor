@@ -1,0 +1,233 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<CascadingValue TValue="MenuCheckboxItemContext" Value="itemContext" IsFixed="true">
+    <RenderElement TState="MenuCheckboxItemState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private bool highlighted;
+    private bool internalChecked;
+    private MenuCheckboxItemContext? itemContext;
+    private MenuCheckboxItemState state;
+    private RenderElement<MenuCheckboxItemState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool IsControlled => Checked.HasValue;
+
+    private bool IsChecked => IsControlled ? Checked!.Value : internalChecked;
+
+    [CascadingParameter]
+    private MenuRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the checkbox item is currently ticked.
+    /// To render an uncontrolled checkbox item, use the <see cref="DefaultChecked"/> property instead.
+    /// </summary>
+    [Parameter]
+    public bool? Checked { get; set; }
+
+    /// <summary>
+    /// Determines whether the checkbox item is initially ticked.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DefaultChecked { get; set; }
+
+    /// <summary>
+    /// Determines whether the menu closes when this item is clicked.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool CloseOnClick { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the checkbox item is ticked or unticked.
+    /// </summary>
+    [Parameter]
+    public EventCallback<MenuCheckboxItemChangeEventArgs> OnCheckedChange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback for two-way binding of the checked state.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> CheckedChanged { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuCheckboxItemState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuCheckboxItemState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuCheckboxItemState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (!IsControlled)
+        {
+            internalChecked = DefaultChecked;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (itemContext is null)
+        {
+            itemContext = new MenuCheckboxItemContext
+            {
+                Checked = IsChecked,
+                Highlighted = highlighted,
+                Disabled = Disabled
+            };
+        }
+        else
+        {
+            itemContext.Checked = IsChecked;
+            itemContext.Highlighted = highlighted;
+            itemContext.Disabled = Disabled;
+        }
+
+        state = new MenuCheckboxItemState(
+            Disabled: Disabled,
+            Highlighted: highlighted,
+            Checked: IsChecked);
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "menuitemcheckbox";
+        attrs["aria-checked"] = IsChecked ? "true" : "false";
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+
+        if (Disabled)
+        {
+            attrs["aria-disabled"] = "true";
+        }
+
+        attrs["tabindex"] = highlighted ? 0 : -1;
+        attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
+        attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+
+        attrs["data-checked"] = IsChecked;
+        attrs["data-unchecked"] = !IsChecked;
+        attrs["data-disabled"] = Disabled;
+        attrs["data-highlighted"] = highlighted;
+
+        componentAttributes = attrs;
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        var newChecked = !IsChecked;
+        var eventArgs = new MenuCheckboxItemChangeEventArgs(newChecked);
+        await OnCheckedChange.InvokeAsync(eventArgs);
+
+        if (eventArgs.IsCanceled)
+        {
+            return;
+        }
+
+        if (!IsControlled)
+        {
+            internalChecked = newChecked;
+        }
+
+        state = state with { Checked = newChecked };
+
+        if (itemContext is not null)
+        {
+            itemContext.Checked = newChecked;
+        }
+
+        BuildComponentAttributes();
+
+        await CheckedChanged.InvokeAsync(newChecked);
+
+        if (CloseOnClick && RootContext is not null)
+        {
+            RootContext.EmitClose(OpenChangeReason.ItemPress, null);
+        }
+
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseEnterAsync(MouseEventArgs e)
+    {
+        if (!Disabled && itemContext is not null)
+        {
+            highlighted = true;
+            itemContext.Highlighted = true;
+            state = state with { Highlighted = true };
+            BuildComponentAttributes();
+        }
+
+        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseLeaveAsync(MouseEventArgs e)
+    {
+        highlighted = false;
+        if (itemContext is not null)
+        {
+            itemContext.Highlighted = false;
+            state = state with { Highlighted = false };
+            BuildComponentAttributes();
+        }
+
+        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+    }
+}

@@ -1,0 +1,98 @@
+<RenderElement TState="MenuArrowState"
+               Tag="div"
+               State="state"
+               Enabled="RootContext is not null && PositionerContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private MenuArrowState state;
+    private RenderElement<MenuArrowState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private MenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private MenuPositionerContext? PositionerContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuArrowState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuArrowState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuArrowState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var side = PositionerContext?.Side ?? Side.Bottom;
+        var align = PositionerContext?.Align ?? Align.Center;
+        var uncentered = PositionerContext?.ArrowUncentered ?? false;
+        state = new MenuArrowState(open, side, align, uncentered);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            PositionerContext?.SetArrowElement(Element);
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["aria-hidden"] = "true";
+        attrs["data-side"] = state.Side.ToDataAttributeString()!;
+        attrs["data-align"] = state.Align.ToDataAttributeString()!;
+        attrs["data-open"] = state.Open;
+        attrs["data-closed"] = !state.Open;
+        attrs["data-uncentered"] = state.Uncentered;
+
+        if (PositionerContext?.AnchorHidden == true)
+        {
+            attrs["data-anchor-hidden"] = true;
+        }
+
+        componentAttributes = attrs;
+    }
+}
