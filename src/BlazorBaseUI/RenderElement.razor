@@ -147,7 +147,8 @@ else
         return new RenderProps<TState>(
             Attributes: BuildMergedAttributes(),
             State: State!,
-            ChildContent: ChildContent);
+            ChildContent: ChildContent,
+            ElementReferenceCallback: e => Element = e);
     }
 
     private static bool IsClassOrStyle(string key) =>

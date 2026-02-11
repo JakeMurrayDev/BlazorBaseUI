@@ -1,4 +1,5 @@
 @using BlazorBaseUI.Button
+@using Microsoft.AspNetCore.Components.Rendering
 
 <ComponentShowcase ComponentName="Button"
                    Description="A versatile button component supporting custom tags, ARIA-compliant disabled states, and focus management."
@@ -28,7 +29,7 @@
                 <p class="text-xs text-gray-500">Custom Span (aria-disabled, tabindex=-1, data-disabled)</p>
                 <Button Disabled="true"
                         NativeButton="false"
-                        As="span"
+                        Render="RenderAsSpan"
                         class="inline-block rounded bg-gray-300 px-4 py-2 text-gray-700"
                         @onclick="@(() => customDisabledClicks++)">
                     Custom Disabled (@customDisabledClicks clicks)
@@ -57,7 +58,7 @@
                 <Button Disabled="true"
                         FocusableWhenDisabled="true"
                         NativeButton="false"
-                        As="span"
+                        Render="RenderAsSpan"
                         class="inline-block rounded border border-purple-300 bg-white px-4 py-2 text-purple-400 focus:outline focus:outline-2 focus:outline-purple-500"
                         @onclick="@(() => focusableCustomClicks++)">
                     Tab to Focus (@focusableCustomClicks clicks)
@@ -115,9 +116,9 @@
         </div>
     </DemoSection>
 
-    @* Scenario: Advanced rendering (TabIndex and RenderAs) *@
+    @* Scenario: Advanced rendering (TabIndex and Render) *@
     <DemoSection Title="Advanced Configuration"
-                 Description="Custom tab order and component composition via RenderAs.">
+                 Description="Custom tab order and component composition via the Render parameter.">
         <div class="flex flex-wrap gap-4">
             <div class="space-y-2">
                 <p class="text-xs text-gray-500">Custom TabIndex</p>
@@ -129,8 +130,8 @@
             </div>
 
             <div class="space-y-2">
-                <p class="text-xs text-gray-500">RenderAs custom component</p>
-                <Button RenderAs="typeof(CustomButtonWrapper)"
+                <p class="text-xs text-gray-500">Custom Render function</p>
+                <Button Render="RenderAsCustomWrapper"
                         class="rounded border-2 border-dashed border-gray-400 p-2"
                         @onclick="HandleClick">
                     Wrapped Content
@@ -146,7 +147,7 @@
             <div class="space-y-2">
                 <p class="text-xs text-gray-500">Div as button (role='button')</p>
                 <Button NativeButton="false"
-                        As="div"
+                        Render="RenderAsDiv"
                         class="inline-block rounded bg-amber-500 px-4 py-2 text-white cursor-pointer hover:bg-amber-600 focus:outline focus:outline-2 focus:outline-amber-700"
                         @onclick="@(() => keyboardClicks++)">
                     Press Enter or Space (@keyboardClicks)
@@ -156,7 +157,7 @@
             <div class="space-y-2">
                 <p class="text-xs text-gray-500">Anchor without href (role='button')</p>
                 <Button NativeButton="false"
-                        As="a"
+                        Render="RenderAsAnchor"
                         class="inline-block rounded bg-rose-500 px-4 py-2 text-white cursor-pointer hover:bg-rose-600 focus:outline focus:outline-2 focus:outline-rose-700"
                         @onclick="@(() => anchorClicks++)">
                     Anchor Button (@anchorClicks)
@@ -182,6 +183,53 @@
     private int focusableCustomClicks;
     private int keyboardClicks;
     private int anchorClicks;
+
+    private RenderFragment<RenderProps<ButtonState>> RenderAsSpan => props =>
+        (RenderTreeBuilder builder) =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+    private RenderFragment<RenderProps<ButtonState>> RenderAsDiv => props =>
+        (RenderTreeBuilder builder) =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+    private RenderFragment<RenderProps<ButtonState>> RenderAsAnchor => props =>
+        (RenderTreeBuilder builder) =>
+        {
+            builder.OpenElement(0, "a");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+    private RenderFragment<RenderProps<ButtonState>> RenderAsCustomWrapper => props =>
+        (RenderTreeBuilder builder) =>
+        {
+            builder.OpenElement(0, "button");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.OpenElement(3, "span");
+            builder.AddAttribute(4, "style", "font-weight: bold;");
+            builder.AddContent(5, props.ChildContent);
+            builder.CloseElement();
+            builder.CloseElement();
+        };
 
     private async Task HandleLoadingClick()
     {

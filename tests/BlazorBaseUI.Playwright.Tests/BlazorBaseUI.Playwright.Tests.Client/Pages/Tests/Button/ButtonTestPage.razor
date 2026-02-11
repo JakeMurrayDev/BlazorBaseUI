@@ -1,5 +1,6 @@
 @page "/tests/button/wasm"
 @using BlazorBaseUI.Button
+@using Microsoft.AspNetCore.Components.Rendering
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 
 <PageTitle>Button Test Page (WASM)</PageTitle>
@@ -21,7 +22,7 @@
         FocusableWhenDisabled="@IsFocusableWhenDisabled"
         NativeButton="@IsNativeButton"
         TabIndex="@ResolvedTabIndex"
-        As="@ResolvedAs"
+        Render="@ResolvedRender"
         class="test-button"
         data-testid="button-under-test"
         @onclick="OnClick"
@@ -42,6 +43,7 @@
 
     <div style="margin-top: 10px;">
         <button data-testid="toggle-disabled" type="button" @onclick="ToggleDisabled">Toggle Disabled</button>
+        <button data-testid="toggle-focusable-when-disabled" type="button" @onclick="ToggleFocusableWhenDisabled">Toggle FocusableWhenDisabled</button>
         <button data-testid="reset-counters" type="button" @onclick="ResetCounters">Reset Counters</button>
     </div>
 </div>
@@ -63,10 +65,12 @@
     public string? QueryAs { get; set; }
 
     private bool IsDisabled { get; set; }
-    private bool IsFocusableWhenDisabled => QueryFocusableWhenDisabled ?? false;
+    private bool IsFocusableWhenDisabled { get; set; }
     private bool IsNativeButton => QueryNativeButton ?? true;
     private int ResolvedTabIndex => QueryTabIndex ?? 0;
-    private string? ResolvedAs => QueryAs;
+
+    private RenderFragment<RenderProps<ButtonState>>? ResolvedRender =>
+        QueryAs is not null ? CreateCustomRender(QueryAs) : null;
 
     private int clickCount;
     private int focusCount;
@@ -75,6 +79,7 @@
     protected override void OnInitialized()
     {
         IsDisabled = QueryDisabled ?? false;
+        IsFocusableWhenDisabled = QueryFocusableWhenDisabled ?? false;
     }
 
     private void OnClick() => clickCount++;
@@ -86,10 +91,28 @@
         IsDisabled = !IsDisabled;
     }
 
+    private void ToggleFocusableWhenDisabled()
+    {
+        IsFocusableWhenDisabled = !IsFocusableWhenDisabled;
+    }
+
     private void ResetCounters()
     {
         clickCount = 0;
         focusCount = 0;
         blurCount = 0;
+    }
+
+    private static RenderFragment<RenderProps<ButtonState>> CreateCustomRender(string tag)
+    {
+        return props => (RenderTreeBuilder builder) =>
+        {
+            builder.OpenElement(0, tag);
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
     }
 }
