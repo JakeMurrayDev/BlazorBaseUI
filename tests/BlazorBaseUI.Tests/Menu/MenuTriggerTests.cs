@@ -210,9 +210,11 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         trigger.GetAttribute("aria-expanded").ShouldBe("false");
 
         await trigger.TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        cut.FindComponent<MenuTrigger>().Render();
 
-        var ariaExpanded = trigger.GetAttribute("aria-expanded");
-        throw new Exception($"aria-expanded={ariaExpanded}, userHandlerCalled={userHandlerCalled}");
+        trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        userHandlerCalled.ShouldBeTrue();
     }
 
     [Fact]

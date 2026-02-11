@@ -165,7 +165,7 @@
         var open = RootContext?.GetOpen() ?? false;
         var nested = RootContext?.ParentType == MenuParentType.Menu;
 
-        var effectiveSide = nested ? Side.InlineEnd : Side;
+        var effectiveSide = nested && Side == Side.Bottom ? Side.InlineEnd : Side;
         var effectiveAlign = Align;
 
         state = new MenuPositionerState(open, effectiveSide, effectiveAlign, false, nested);

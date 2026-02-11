@@ -16,6 +16,7 @@
     private bool isMounted;
     private TransitionStatus transitionStatus = TransitionStatus.None;
     private CancellationTokenSource? transitionCts;
+    private bool hasInitialized;
     private MenuCheckboxItemIndicatorState state;
     private bool previousChecked;
     private bool previousDisabled;
@@ -88,8 +89,9 @@
                            previousHighlighted != itemHighlighted ||
                            previousTransitionStatus != transitionStatus;
 
-        if (stateChanged)
+        if (!hasInitialized || stateChanged)
         {
+            hasInitialized = true;
             state = new MenuCheckboxItemIndicatorState(
                 Checked: itemChecked,
                 Disabled: itemDisabled,

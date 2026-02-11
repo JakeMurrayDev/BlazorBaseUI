@@ -194,10 +194,10 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
     }
 
     [Fact]
-    public Task TracksHasSubmenuOpenState()
+    public async Task TracksHasSubmenuOpenState()
     {
         // This test verifies that the MenuBarRoot tracks has-submenu-open state
-        // In bUnit, the state tracking works through the context, but the 
+        // In bUnit, the state tracking works through the context, but the
         // actual data attribute update requires full rendering cycles.
         // This test verifies the initial state and that the triggers render correctly.
         var cut = Render(CreateMenuBarRoot());
@@ -207,17 +207,19 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         // Initially no submenu is open
         menubar.GetAttribute("data-has-submenu-open").ShouldBe("false");
 
-        // Click first trigger to open menu
+        // Click first trigger to open menu (must use TriggerEventAsync to properly await the async handler chain)
         var trigger = cut.Find("button[aria-haspopup='menu']");
-        trigger.Click();
+        await trigger.TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        // Force re-render since the open state propagates through a fixed cascading context
+        cut.FindComponent<MenuTrigger>().Render();
 
         // Verify the menu opened (the trigger's aria-expanded should change)
+        trigger = cut.Find("button[aria-haspopup='menu']");
         trigger.GetAttribute("aria-expanded").ShouldBe("true");
 
         // Note: The data-has-submenu-open attribute update happens through
         // MenuBarContext.SetHasSubmenuOpen which is called from MenuRoot.SetOpenAsync.
         // Full integration of this behavior is better tested via Playwright E2E tests.
-
-        return Task.CompletedTask;
     }
 }

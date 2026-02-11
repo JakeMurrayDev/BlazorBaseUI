@@ -33,12 +33,12 @@ public sealed class MenuOpenChangeEventArgs : EventArgs
     /// <summary>
     /// Gets whether the open change has been canceled.
     /// </summary>
-    public bool Canceled { get; private set; }
+    public bool IsCanceled { get; private set; }
 
     /// <summary>
     /// Cancels the open state change, preventing the menu from opening or closing.
     /// </summary>
-    public void Cancel() => Canceled = true;
+    public void Cancel() => IsCanceled = true;
 }
 
 /// <summary>

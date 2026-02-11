@@ -332,7 +332,7 @@
         var args = new MenuOpenChangeEventArgs(nextOpen, reason, payload);
         await OnOpenChange.InvokeAsync(args);
 
-        if (args.Canceled)
+        if (args.IsCanceled)
         {
             return;
         }
