@@ -390,14 +390,34 @@
         {
             if (currentChecked != previousChecked)
             {
-                _ = HandleCheckedChangedAsync();
+                _ = InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        await HandleCheckedChangedAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        await DispatchExceptionAsync(ex);
+                    }
+                });
             }
 
             if (currentDisabled != previousDisabled ||
                 ReadOnly != previousReadOnly ||
                 currentIndeterminate != previousIndeterminate)
             {
-                _ = UpdateJsStateAsync();
+                _ = InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        await UpdateJsStateAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        await DispatchExceptionAsync(ex);
+                    }
+                });
             }
         }
 

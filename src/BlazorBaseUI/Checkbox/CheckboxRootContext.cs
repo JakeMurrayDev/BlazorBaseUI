@@ -34,14 +34,4 @@ public sealed class CheckboxRootContext
     /// Gets or sets the current state of the checkbox.
     /// </summary>
     public CheckboxRootState State { get; set; }
-
-    internal static CheckboxRootContext Default { get; } = new()
-    {
-        Checked = false,
-        Disabled = false,
-        ReadOnly = false,
-        Required = false,
-        Indeterminate = false,
-        State = CheckboxRootState.Default
-    };
 }

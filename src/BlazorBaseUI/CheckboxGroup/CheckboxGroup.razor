@@ -160,7 +160,25 @@
         previousFocused = FieldState.Focused;
 
         state = CheckboxGroupState.FromFieldState(FieldState, ResolvedDisabled);
-        context = CreateContext();
+
+        context = new CheckboxGroupContext
+        {
+            Value = CurrentValue,
+            DefaultValue = DefaultValue,
+            AllValues = AllValues,
+            Disabled = ResolvedDisabled,
+            Parent = AllValues is not null ? new CheckboxGroupParent
+            {
+                Id = groupId,
+                AllValues = AllValues,
+                DefaultValue = DefaultValue,
+                GetValue = () => CurrentValue,
+                SetValue = SetValueInternal
+            } : null,
+            Validation = FieldContext?.Validation,
+            SetValueFunc = SetValueInternal,
+            RegisterControlAction = RegisterControl
+        };
 
         BuildComponentAttributes();
     }
@@ -187,7 +205,7 @@
 
         if (stateChanged || valueChanged)
         {
-            context = CreateContext();
+            UpdateContext();
         }
 
         BuildComponentAttributes();
@@ -257,32 +275,38 @@
         componentAttributes = attrs;
     }
 
-    private CheckboxGroupContext CreateContext()
+    private void UpdateContext()
     {
-        CheckboxGroupParent? parent = null;
+        context!.Value = CurrentValue;
+        context.DefaultValue = DefaultValue;
+        context.AllValues = AllValues;
+        context.Disabled = ResolvedDisabled;
+        context.Validation = FieldContext?.Validation;
+
         if (AllValues is not null)
         {
-            parent = new CheckboxGroupParent
+            if (context.Parent is null)
             {
-                Id = groupId,
-                AllValues = AllValues,
-                DefaultValue = DefaultValue,
-                GetValue = () => CurrentValue,
-                SetValue = SetValueInternal
-            };
+                context.Parent = new CheckboxGroupParent
+                {
+                    Id = groupId,
+                    AllValues = AllValues,
+                    DefaultValue = DefaultValue,
+                    GetValue = () => CurrentValue,
+                    SetValue = SetValueInternal
+                };
+            }
+            else
+            {
+                context.Parent.Id = groupId;
+                context.Parent.AllValues = AllValues;
+                context.Parent.DefaultValue = DefaultValue;
+            }
         }
-
-        return new CheckboxGroupContext
+        else
         {
-            Value = CurrentValue,
-            DefaultValue = DefaultValue,
-            AllValues = AllValues,
-            Disabled = ResolvedDisabled,
-            Parent = parent,
-            Validation = FieldContext?.Validation,
-            SetValueFunc = SetValueInternal,
-            RegisterControlAction = RegisterControl
-        };
+            context.Parent = null;
+        }
     }
 
     private void RegisterControl(CheckboxRoot checkbox)
@@ -324,7 +348,7 @@
             await ValueChanged.InvokeAsync(newValue);
         }
 
-        context = CreateContext();
+        UpdateContext();
         BuildComponentAttributes();
         await HandleValueChangedAsync();
         StateHasChanged();

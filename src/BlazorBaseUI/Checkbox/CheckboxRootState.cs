@@ -13,7 +13,7 @@ namespace BlazorBaseUI.Checkbox;
 /// <param name="Valid">Whether the checkbox is in a valid state, or <see langword="null"/> if not validated.</param>
 /// <param name="Touched">Whether the checkbox has been touched.</param>
 /// <param name="Dirty">Whether the checkbox's value has changed from its initial value.</param>
-/// <param name="Filled">Whether the checkbox is checked.</param>
+/// <param name="Filled">Whether the checkbox has a value (is filled).</param>
 /// <param name="Focused">Whether the checkbox is focused.</param>
 public readonly record struct CheckboxRootState(
     bool Checked,
