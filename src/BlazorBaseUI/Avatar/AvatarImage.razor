@@ -89,6 +89,12 @@
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        if (Context is null)
+        {
+            throw new InvalidOperationException(
+                "AvatarRootContext is missing. Avatar parts must be placed within <AvatarRoot>.");
+        }
+
         cachedLoadImageCallback = async () =>
         {
             try
@@ -154,18 +160,12 @@
 
     private async Task LoadImageAsync()
     {
-        if (Context is null)
-        {
-            throw new InvalidOperationException(
-                "AvatarRootContext is missing. Avatar parts must be placed within <AvatarRoot>.");
-        }
-
         try
         {
             imageLoadingStatus = ImageLoadingStatus.Loading;
             state = new AvatarRootState(imageLoadingStatus);
             await OnLoadingStatusChange.InvokeAsync(imageLoadingStatus);
-            Context.SetImageLoadingStatus(imageLoadingStatus);
+            Context!.SetImageLoadingStatus(imageLoadingStatus);
 
             var module = await moduleTask.Value;
             var status = await module.InvokeAsync<string>("loadImage", Src, ReferrerPolicy, CrossOrigin);
@@ -179,7 +179,7 @@
 
             state = new AvatarRootState(imageLoadingStatus);
             await OnLoadingStatusChange.InvokeAsync(imageLoadingStatus);
-            Context.SetImageLoadingStatus(imageLoadingStatus);
+            Context!.SetImageLoadingStatus(imageLoadingStatus);
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
