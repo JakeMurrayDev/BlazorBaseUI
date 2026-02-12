@@ -15,7 +15,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         Func<MenuTriggerState, string>? classValue = null,
         Func<MenuTriggerState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<MenuTriggerState>>? render = null,
         bool includePositioner = true)
     {
         return builder =>
@@ -37,8 +37,8 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
                     innerBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     innerBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
                 innerBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Toggle")));
                 innerBuilder.CloseComponent();
 
@@ -75,9 +75,19 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTriggerInRoot(asElement: "div"));
+        RenderFragment<RenderProps<MenuTriggerState>> renderAsDiv = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateTriggerInRoot(render: renderAsDiv));
 
         var trigger = cut.Find("div[aria-expanded]");
         trigger.ShouldNotBeNull();
@@ -186,18 +196,25 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
     }
 
     [Fact]
-    public Task ToggleMenuOnClick()
+    public async Task ToggleMenuOnClick()
     {
-        var cut = Render(CreateTriggerInRoot(defaultOpen: false));
+        bool userHandlerCalled = false;
+        var cut = Render(CreateTriggerInRoot(defaultOpen: false,
+            additionalAttributes: new Dictionary<string, object>
+            {
+                { "onclick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs>(
+                    new object(), e => { userHandlerCalled = true; return Task.CompletedTask; }) }
+            }));
 
         var trigger = cut.Find("button");
         trigger.GetAttribute("aria-expanded").ShouldBe("false");
 
-        trigger.Click();
+        await trigger.TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        cut.FindComponent<MenuTrigger>().Render();
 
+        trigger = cut.Find("button");
         trigger.GetAttribute("aria-expanded").ShouldBe("true");
-
-        return Task.CompletedTask;
+        userHandlerCalled.ShouldBeTrue();
     }
 
     [Fact]

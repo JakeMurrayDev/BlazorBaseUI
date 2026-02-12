@@ -1,31 +1,53 @@
 namespace BlazorBaseUI.Menu;
 
+/// <summary>
+/// Defines the contract for a radio group context that manages single-selection state.
+/// </summary>
 public interface IMenuRadioGroupContext
 {
+    /// <summary>
+    /// Gets the currently selected value.
+    /// </summary>
     object? Value { get; }
+
+    /// <summary>
+    /// Gets whether the radio group is disabled.
+    /// </summary>
     bool Disabled { get; }
+
+    /// <summary>
+    /// Sets the selected value asynchronously.
+    /// </summary>
     Task SetValueAsync(object? newValue, MenuRadioGroupChangeEventArgs eventArgs);
 }
 
-public sealed record MenuRadioGroupContext : IMenuRadioGroupContext
+/// <summary>
+/// Provides shared state for a <see cref="MenuRadioGroup"/> and its descendant <see cref="MenuRadioItem"/> components.
+/// </summary>
+public sealed class MenuRadioGroupContext : IMenuRadioGroupContext
 {
-    private readonly Func<object?> getValue;
-    private readonly Func<object?, MenuRadioGroupChangeEventArgs, Task> setValue;
+    private Func<object?> getValue = null!;
+    private Func<object?, MenuRadioGroupChangeEventArgs, Task> setValue = null!;
 
-    public MenuRadioGroupContext(
-        bool disabled,
-        Func<object?> getValue,
-        Func<object?, MenuRadioGroupChangeEventArgs, Task> setValue)
-    {
-        Disabled = disabled;
-        this.getValue = getValue;
-        this.setValue = setValue;
-    }
-
+    /// <summary>
+    /// Gets or sets whether the radio group is disabled.
+    /// </summary>
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Gets or sets the delegate that retrieves the current value.
+    /// </summary>
+    public Func<object?> GetValue { get => getValue; init => getValue = value; }
+
+    /// <summary>
+    /// Gets or sets the delegate that sets the current value.
+    /// </summary>
+    public Func<object?, MenuRadioGroupChangeEventArgs, Task> SetValue { get => setValue; init => setValue = value; }
+
+    /// <inheritdoc />
     public object? Value => getValue();
 
+    /// <inheritdoc />
     public async Task SetValueAsync(object? newValue, MenuRadioGroupChangeEventArgs eventArgs)
     {
         await setValue(newValue, eventArgs);

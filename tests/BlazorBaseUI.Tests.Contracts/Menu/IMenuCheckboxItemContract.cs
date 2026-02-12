@@ -3,6 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Menu;
 public interface IMenuCheckboxItemContract
 {
     Task HasRoleMenuitemcheckbox();
+    Task RendersWithCustomRender();
     Task HasAriaCheckedFalseWhenUnchecked();
     Task HasAriaCheckedTrueWhenChecked();
     Task HasDataCheckedWhenChecked();

@@ -12,7 +12,7 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         bool defaultOpen = true,
         bool itemDisabled = false,
         bool closeOnClick = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<MenuItemState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null)
     {
         return builder =>
@@ -37,8 +37,8 @@ public class MenuItemTests : BunitContext, IMenuItemContract
                         if (itemDisabled)
                             popupBuilder.AddAttribute(attrIndex++, "Disabled", true);
                         popupBuilder.AddAttribute(attrIndex++, "CloseOnClick", closeOnClick);
-                        if (asElement is not null)
-                            popupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                        if (render is not null)
+                            popupBuilder.AddAttribute(attrIndex++, "Render", render);
                         if (additionalAttributes is not null)
                             popupBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
                         popupBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item 1")));
@@ -64,9 +64,19 @@ public class MenuItemTests : BunitContext, IMenuItemContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateMenuItemInRoot(asElement: "span"));
+        RenderFragment<RenderProps<MenuItemState>> renderAsSpan = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateMenuItemInRoot(render: renderAsSpan));
 
         var item = cut.Find("span[role='menuitem']");
         item.ShouldNotBeNull();

@@ -1,0 +1,352 @@
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<CascadingValue TValue="MenuPositionerContext" Value="positionerContext" IsFixed="true">
+    <RenderElement TState="MenuPositionerState"
+                   Tag="div"
+                   State="state"
+                   Enabled="RootContext is not null"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private ElementReference? arrowElement;
+    private string? positionerId;
+    private MenuPositionerState state;
+    private MenuPositionerContext positionerContext = null!;
+    private RenderElement<MenuPositionerState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-menu.js").AsTask());
+
+    [CascadingParameter]
+    private MenuRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets which side of the anchor element to align the popup against.
+    /// May automatically change to avoid collisions.
+    /// </summary>
+    [Parameter]
+    public Side Side { get; set; } = Side.Bottom;
+
+    /// <summary>
+    /// Gets or sets how to align the popup relative to the specified side.
+    /// </summary>
+    [Parameter]
+    public Align Align { get; set; } = Align.Start;
+
+    /// <summary>
+    /// Gets or sets the distance between the anchor and the popup in pixels.
+    /// </summary>
+    [Parameter]
+    public int SideOffset { get; set; }
+
+    /// <summary>
+    /// Gets or sets additional offset along the alignment axis in pixels.
+    /// </summary>
+    [Parameter]
+    public int AlignOffset { get; set; }
+
+    /// <summary>
+    /// Gets or sets additional space to maintain from the edge of the collision boundary.
+    /// </summary>
+    [Parameter]
+    public int CollisionPadding { get; set; } = 5;
+
+    /// <summary>
+    /// Gets or sets an element or rectangle that delimits the area the popup is confined to.
+    /// </summary>
+    [Parameter]
+    public CollisionBoundary CollisionBoundary { get; set; } = CollisionBoundary.ClippingAncestors;
+
+    /// <summary>
+    /// Gets or sets how to handle collisions when positioning the popup.
+    /// </summary>
+    [Parameter]
+    public CollisionAvoidance CollisionAvoidance { get; set; } = CollisionAvoidance.FlipShift;
+
+    /// <summary>
+    /// Gets or sets the minimum distance to maintain between the arrow and the edges of the popup.
+    /// </summary>
+    [Parameter]
+    public int ArrowPadding { get; set; } = 5;
+
+    /// <summary>
+    /// Determines whether the popup is maintained in the viewport after the anchor element is scrolled out of view.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Sticky { get; set; }
+
+    /// <summary>
+    /// Determines whether the popup is prevented from tracking any layout shift of its positioning anchor.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DisableAnchorTracking { get; set; }
+
+    /// <summary>
+    /// Gets or sets which CSS <c>position</c> property to use.
+    /// </summary>
+    [Parameter]
+    public PositionMethod PositionMethod { get; set; } = PositionMethod.Absolute;
+
+    /// <summary>
+    /// Gets or sets an element to position the popup against.
+    /// By default, the popup will be positioned against the trigger.
+    /// </summary>
+    [Parameter]
+    public ElementReference? Anchor { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuPositionerState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuPositionerState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuPositionerState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        positionerContext = new MenuPositionerContext
+        {
+            Side = Side,
+            Align = Align,
+            GetArrowElement = () => arrowElement,
+            SetArrowElement = SetArrowElement
+        };
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var nested = RootContext?.ParentType == MenuParentType.Menu;
+
+        var effectiveSide = nested && Side == Side.Bottom ? Side.InlineEnd : Side;
+        var effectiveAlign = Align;
+
+        state = new MenuPositionerState(open, effectiveSide, effectiveAlign, false, nested);
+
+        positionerContext.Side = effectiveSide;
+        positionerContext.Align = effectiveAlign;
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            RootContext?.SetPositionerElement(Element);
+        }
+
+        if (hasRendered && Element.HasValue && RootContext?.GetMounted() == true)
+        {
+            if (string.IsNullOrEmpty(positionerId))
+            {
+                await InitializePositionerAsync();
+            }
+            else if (!DisableAnchorTracking)
+            {
+                await UpdatePositionAsync();
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask?.IsValueCreated == true && Element.HasValue && hasRendered && !string.IsNullOrEmpty(positionerId))
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposePositioner", positionerId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var open = RootContext?.GetOpen() ?? false;
+        var mounted = RootContext?.GetMounted() ?? false;
+        var instantType = RootContext?.InstantType ?? InstantType.None;
+        var nested = RootContext?.ParentType == MenuParentType.Menu;
+        var effectiveSide = nested && Side == Side.Bottom ? Side.InlineEnd : Side;
+
+        attrs["role"] = "presentation";
+
+        if (!mounted)
+        {
+            attrs["hidden"] = true;
+        }
+
+        attrs["data-side"] = effectiveSide.ToDataAttributeString()!;
+        attrs["data-align"] = Align.ToDataAttributeString()!;
+        attrs["data-open"] = open;
+        attrs["data-closed"] = !open;
+
+        if (state.AnchorHidden)
+        {
+            attrs["data-anchor-hidden"] = true;
+        }
+
+        attrs["data-nested"] = nested;
+
+        var instantAttr = instantType.ToDataAttributeString();
+        if (!string.IsNullOrEmpty(instantAttr))
+        {
+            attrs["data-instant"] = instantAttr;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private void SetArrowElement(ElementReference? element)
+    {
+        if (Nullable.Equals(arrowElement, element))
+        {
+            return;
+        }
+
+        arrowElement = element;
+
+        if (hasRendered && !string.IsNullOrEmpty(positionerId))
+        {
+            _ = UpdatePositionAsync();
+        }
+    }
+
+    private async Task InitializePositionerAsync()
+    {
+        if (!Element.HasValue || RootContext is null)
+        {
+            return;
+        }
+
+        var anchorElement = Anchor ?? RootContext.GetTriggerElement();
+        if (!anchorElement.HasValue)
+        {
+            return;
+        }
+
+        var nested = RootContext.ParentType == MenuParentType.Menu;
+        var effectiveSide = nested && Side == Side.Bottom ? Side.InlineEnd : Side;
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            var effectiveCollisionAvoidance = nested ? CollisionAvoidance.Shift : CollisionAvoidance;
+            positionerId = await module.InvokeAsync<string>(
+                "initializePositioner",
+                Element.Value,
+                anchorElement.Value,
+                effectiveSide.ToDataAttributeString(),
+                Align.ToDataAttributeString(),
+                SideOffset,
+                AlignOffset,
+                CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
+                ArrowPadding,
+                arrowElement,
+                Sticky,
+                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
+                DisableAnchorTracking,
+                effectiveCollisionAvoidance.ToDataAttributeString());
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdatePositionAsync()
+    {
+        if (string.IsNullOrEmpty(positionerId) || RootContext is null)
+        {
+            return;
+        }
+
+        var anchorElement = Anchor ?? RootContext.GetTriggerElement();
+        if (!anchorElement.HasValue)
+        {
+            return;
+        }
+
+        var nested = RootContext.ParentType == MenuParentType.Menu;
+        var effectiveSide = nested && Side == Side.Bottom ? Side.InlineEnd : Side;
+        var effectiveCollisionAvoidance = nested ? CollisionAvoidance.Shift : CollisionAvoidance;
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync(
+                "updatePosition",
+                positionerId,
+                anchorElement.Value,
+                effectiveSide.ToDataAttributeString(),
+                Align.ToDataAttributeString(),
+                SideOffset,
+                AlignOffset,
+                CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
+                ArrowPadding,
+                arrowElement,
+                Sticky,
+                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
+                effectiveCollisionAvoidance.ToDataAttributeString());
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+}

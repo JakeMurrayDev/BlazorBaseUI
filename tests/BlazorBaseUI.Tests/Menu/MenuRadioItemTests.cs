@@ -12,7 +12,8 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
         bool defaultOpen = true,
         object? defaultValue = null,
         bool groupDisabled = false,
-        bool itemDisabled = false)
+        bool itemDisabled = false,
+        RenderFragment<RenderProps<MenuRadioItemState>>? render = null)
     {
         return builder =>
         {
@@ -41,10 +42,13 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
                         popupBuilder.AddAttribute(groupAttrIndex++, "ChildContent", (RenderFragment)(groupBuilder =>
                         {
                             groupBuilder.OpenComponent<MenuRadioItem>(0);
-                            groupBuilder.AddAttribute(1, "Value", "option1");
+                            var firstItemAttrIndex = 1;
+                            groupBuilder.AddAttribute(firstItemAttrIndex++, "Value", "option1");
                             if (itemDisabled)
-                                groupBuilder.AddAttribute(2, "Disabled", true);
-                            groupBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Option 1")));
+                                groupBuilder.AddAttribute(firstItemAttrIndex++, "Disabled", true);
+                            if (render is not null)
+                                groupBuilder.AddAttribute(firstItemAttrIndex++, "Render", render);
+                            groupBuilder.AddAttribute(firstItemAttrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Option 1")));
                             groupBuilder.CloseComponent();
 
                             groupBuilder.OpenComponent<MenuRadioItem>(4);
@@ -69,6 +73,27 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
 
         var item = cut.Find("[role='menuitemradio']");
         item.GetAttribute("role").ShouldBe("menuitemradio");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        RenderFragment<RenderProps<MenuRadioItemState>> renderAsSpan = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateRadioItemInRoot(render: renderAsSpan));
+
+        var item = cut.Find("span[role='menuitemradio']");
+        item.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }

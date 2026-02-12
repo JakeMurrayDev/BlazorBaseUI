@@ -1,0 +1,558 @@
+@using BlazorBaseUI.MenuBar
+@using BlazorBaseUI.Utilities
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<CascadingValue TValue="MenuRootContext" Value="context" IsFixed="true">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    private readonly string rootId = Guid.NewGuid().ToIdString();
+
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private bool isOpen;
+    private bool isMounted;
+    private int activeIndex = -1;
+    private ElementReference? triggerElement;
+    private ElementReference? popupElement;
+    private OpenChangeReason openChangeReason = OpenChangeReason.None;
+    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private InstantType instantType = InstantType.None;
+    private MenuRootState state;
+    private MenuRootContext context = null!;
+    private DotNetObjectReference<MenuRoot>? dotNetRef;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-menu.js").AsTask());
+
+    private bool IsControlled => Open.HasValue;
+
+    private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
+
+    private MenuParentType ParentType =>
+        ParentMenuContext is not null ? MenuParentType.Menu :
+        MenuBarContext is not null ? MenuParentType.Menubar :
+        MenuParentType.None;
+
+    [CascadingParameter]
+    private MenuRootContext? ParentMenuContext { get; set; }
+
+    [CascadingParameter]
+    private MenuBarRootContext? MenuBarContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the menu is currently open.
+    /// </summary>
+    [Parameter]
+    public bool? Open { get; set; }
+
+    /// <summary>
+    /// Determines whether the menu is initially open.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DefaultOpen { get; set; }
+
+    /// <summary>
+    /// Gets or sets the modal behavior of the menu when open.
+    /// When <see cref="ModalMode.True"/>, user interaction is limited to the menu: page scroll is locked and pointer interactions on outside elements are disabled.
+    /// </summary>
+    [Parameter]
+    public ModalMode Modal { get; set; } = ModalMode.True;
+
+    /// <summary>
+    /// Determines whether keyboard focus loops back to the first item when the end of the list is reached while using the arrow keys.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool LoopFocus { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the visual orientation of the menu.
+    /// Controls whether roving focus uses up/down or left/right arrow keys.
+    /// </summary>
+    [Parameter]
+    public MenuOrientation Orientation { get; set; } = MenuOrientation.Vertical;
+
+    /// <summary>
+    /// Determines whether moving the pointer over items highlights them.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool HighlightItemOnHover { get; set; } = true;
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether pressing the Escape key closes the parent menu in a submenu context.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool CloseParentOnEsc { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text direction of the menu.
+    /// </summary>
+    [Parameter]
+    public TextDirection Direction { get; set; } = TextDirection.Ltr;
+
+    /// <summary>
+    /// Gets or sets a reference to imperative actions for controlling the menu programmatically.
+    /// </summary>
+    [Parameter]
+    public MenuRootActions? ActionsRef { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback for two-way binding of the open state.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the menu is opened or closed.
+    /// </summary>
+    [Parameter]
+    public EventCallback<MenuOpenChangeEventArgs> OnOpenChange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked after any open/close transition animations complete.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OnOpenChangeComplete { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        isOpen = DefaultOpen;
+        isMounted = CurrentOpen;
+        state = new MenuRootState(CurrentOpen);
+        context = new MenuRootContext
+        {
+            RootId = rootId,
+            Open = CurrentOpen,
+            Mounted = isMounted,
+            Disabled = Disabled,
+            ParentType = ParentType,
+            Orientation = Orientation,
+            HighlightItemOnHover = HighlightItemOnHover,
+            OpenChangeReason = openChangeReason,
+            TransitionStatus = transitionStatus,
+            InstantType = instantType,
+            ActiveIndex = activeIndex,
+            GetOpen = () => CurrentOpen,
+            GetMounted = () => isMounted,
+            GetTriggerElement = () => triggerElement,
+            SetTriggerElement = SetTriggerElement,
+            SetPositionerElement = SetPositionerElement,
+            SetPopupElement = SetPopupElement,
+            SetActiveIndex = SetActiveIndex,
+            SetOpenAsync = SetOpenAsyncFromContext,
+            EmitClose = EmitClose
+        };
+
+        if (ActionsRef is not null)
+        {
+            ActionsRef.Unmount = ForceUnmount;
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentOpen = CurrentOpen;
+        if (state.Open != currentOpen)
+        {
+            state = new MenuRootState(currentOpen);
+            if (currentOpen)
+            {
+                isMounted = true;
+            }
+            context.Open = currentOpen;
+            context.Mounted = isMounted;
+        }
+
+        context.Disabled = Disabled;
+
+        if (ActionsRef is not null)
+        {
+            ActionsRef.Unmount = ForceUnmount;
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+            _ = InitializeJsAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask?.IsValueCreated == true && hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeRoot", rootId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when a click occurs outside the menu.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnOutsidePress()
+    {
+        await SetOpenAsync(false, OpenChangeReason.OutsidePress);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when the Escape key is pressed.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnEscapeKey()
+    {
+        await SetOpenAsync(false, OpenChangeReason.EscapeKey);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript after the starting transition style has been applied.
+    /// </summary>
+    [JSInvokable]
+    public void OnStartingStyleApplied()
+    {
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            transitionStatus = TransitionStatus.None;
+            context.TransitionStatus = transitionStatus;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when a transition animation completes.
+    /// </summary>
+    [JSInvokable]
+    public void OnTransitionEnd(bool open)
+    {
+        transitionStatus = TransitionStatus.None;
+        context.TransitionStatus = transitionStatus;
+
+        if (!open)
+        {
+            isMounted = false;
+            context.Mounted = false;
+            activeIndex = -1;
+            context.ActiveIndex = activeIndex;
+        }
+
+        instantType = InstantType.None;
+        context.InstantType = instantType;
+
+        _ = InvokeOpenChangeCompleteAsync(open);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when the active item index changes.
+    /// </summary>
+    [JSInvokable]
+    public void OnActiveIndexChange(int index)
+    {
+        if (activeIndex != index)
+        {
+            activeIndex = index;
+            context.ActiveIndex = index;
+        }
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when the trigger is hovered to open the menu.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnHoverOpen()
+    {
+        if (MenuBarContext is not null && !MenuBarContext.GetHasSubmenuOpen())
+        {
+            return;
+        }
+
+        await SetOpenAsync(true, OpenChangeReason.TriggerHover);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when hover ends to close the menu.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnHoverClose()
+    {
+        await SetOpenAsync(false, OpenChangeReason.TriggerHover);
+    }
+
+    /// <summary>
+    /// Sets the open state of the menu with the specified reason and optional payload.
+    /// </summary>
+    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, object? payload = null)
+    {
+        if (CurrentOpen == nextOpen)
+        {
+            return;
+        }
+
+        var args = new MenuOpenChangeEventArgs(nextOpen, reason, payload);
+        await OnOpenChange.InvokeAsync(args);
+
+        if (args.IsCanceled)
+        {
+            return;
+        }
+
+        openChangeReason = reason;
+        context.OpenChangeReason = reason;
+
+        if (nextOpen)
+        {
+            instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
+            transitionStatus = TransitionStatus.Starting;
+            isMounted = true;
+            activeIndex = payload is "highlight-last" ? -1 : 0;
+        }
+        else
+        {
+            instantType = reason switch
+            {
+                OpenChangeReason.EscapeKey or OpenChangeReason.OutsidePress => InstantType.Dismiss,
+                OpenChangeReason.TriggerPress or OpenChangeReason.ClosePress or OpenChangeReason.ItemPress => InstantType.Click,
+                OpenChangeReason.ListNavigation or OpenChangeReason.TriggerFocus or OpenChangeReason.TriggerHover or OpenChangeReason.SiblingOpen => InstantType.Group,
+                _ => InstantType.None
+            };
+            transitionStatus = TransitionStatus.Ending;
+        }
+
+        context.InstantType = instantType;
+        context.TransitionStatus = transitionStatus;
+        context.Mounted = isMounted;
+        context.ActiveIndex = activeIndex;
+
+        if (!IsControlled)
+        {
+            isOpen = nextOpen;
+        }
+
+        state = new MenuRootState(nextOpen);
+        context.Open = nextOpen;
+
+        if (hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                var reasonString = reason switch
+                {
+                    OpenChangeReason.TriggerHover => "trigger-hover",
+                    OpenChangeReason.EscapeKey => "escape-key",
+                    OpenChangeReason.ItemPress => "item-press",
+                    OpenChangeReason.OutsidePress => "outside-press",
+                    OpenChangeReason.ClosePress => "close-press",
+                    _ => null
+                };
+                var highlightLast = payload is "highlight-last";
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString, highlightLast);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        await OpenChanged.InvokeAsync(nextOpen);
+
+        if (ParentType == MenuParentType.Menubar)
+        {
+            MenuBarContext?.SetHasSubmenuOpen(nextOpen);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task InitializeJsAsync()
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            var isNested = ParentType != MenuParentType.None;
+            var modal = !isNested && Modal == ModalMode.True;
+            var menubarElement = ParentType == MenuParentType.Menubar ? MenuBarContext?.GetElement() : null;
+            var orientationStr = Orientation == MenuOrientation.Horizontal ? "horizontal" : "vertical";
+            var directionStr = Direction == TextDirection.Rtl ? "rtl" : "ltr";
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, CloseParentOnEsc, LoopFocus, modal, menubarElement, orientationStr, HighlightItemOnHover, directionStr, isNested);
+
+            if (triggerElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setTriggerElement", rootId, triggerElement.Value);
+            }
+
+            if (popupElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setPopupElement", rootId, popupElement.Value);
+            }
+
+            if (CurrentOpen)
+            {
+                await module.InvokeVoidAsync("setRootOpen", rootId, true, (string?)null, false);
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetTriggerElement(ElementReference? element)
+    {
+        triggerElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetTriggerElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetTriggerElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setTriggerElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetPositionerElement(ElementReference? element)
+    {
+    }
+
+    private void SetPopupElement(ElementReference? element)
+    {
+        popupElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetPopupElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetPopupElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setPopupElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetActiveIndex(int index)
+    {
+        if (activeIndex == index)
+        {
+            return;
+        }
+
+        activeIndex = index;
+        context.ActiveIndex = index;
+
+        if (hasRendered)
+        {
+            _ = SetActiveIndexAsync(index);
+        }
+    }
+
+    private async Task SetActiveIndexAsync(int index)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setActiveIndex", rootId, index);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private Task SetOpenAsyncFromContext(bool nextOpen, OpenChangeReason reason, object? payload)
+    {
+        return SetOpenAsync(nextOpen, reason, payload);
+    }
+
+    private void EmitClose(OpenChangeReason reason, object? payload)
+    {
+        _ = SetOpenAsync(false, reason, payload);
+    }
+
+    private void ForceUnmount()
+    {
+        isMounted = false;
+        context.Mounted = false;
+        transitionStatus = TransitionStatus.None;
+        context.TransitionStatus = transitionStatus;
+        _ = InvokeOpenChangeCompleteAsync(false);
+        StateHasChanged();
+    }
+
+    private async Task SetOpenWithExceptionHandlingAsync(bool nextOpen, OpenChangeReason reason)
+    {
+        try
+        {
+            await SetOpenAsync(nextOpen, reason);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
+    private async Task InvokeOpenChangeCompleteAsync(bool open)
+    {
+        try
+        {
+            await OnOpenChangeComplete.InvokeAsync(open);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+}

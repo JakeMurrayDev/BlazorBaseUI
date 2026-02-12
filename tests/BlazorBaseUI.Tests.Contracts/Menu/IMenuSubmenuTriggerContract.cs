@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Menu;
 public interface IMenuSubmenuTriggerContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task HasAriaHaspopupMenu();
     Task HasAriaExpandedFalseWhenClosed();
     Task HasAriaExpandedTrueWhenOpen();

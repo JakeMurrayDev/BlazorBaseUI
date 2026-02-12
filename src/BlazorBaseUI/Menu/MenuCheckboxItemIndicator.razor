@@ -1,0 +1,199 @@
+@implements IDisposable
+
+<RenderElement TState="MenuCheckboxItemIndicatorState"
+               Tag="span"
+               State="state"
+               Enabled="IsPresent"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private bool isMounted;
+    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private CancellationTokenSource? transitionCts;
+    private bool hasInitialized;
+    private MenuCheckboxItemIndicatorState state;
+    private bool previousChecked;
+    private bool previousDisabled;
+    private bool previousHighlighted;
+    private TransitionStatus previousTransitionStatus = TransitionStatus.None;
+    private RenderElement<MenuCheckboxItemIndicatorState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool Rendered => ItemContext?.Checked == true;
+
+    private bool IsPresent => KeepMounted || isMounted || Rendered;
+
+    [CascadingParameter]
+    private MenuCheckboxItemContext? ItemContext { get; set; }
+
+    /// <summary>
+    /// Determines whether the indicator should remain in the DOM when the checkbox is unchecked.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool KeepMounted { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuCheckboxItemIndicatorState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuCheckboxItemIndicatorState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuCheckboxItemIndicatorState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        UpdateTransitionStatus();
+
+        var itemChecked = ItemContext?.Checked ?? false;
+        var itemDisabled = ItemContext?.Disabled ?? false;
+        var itemHighlighted = ItemContext?.Highlighted ?? false;
+
+        var stateChanged = previousChecked != itemChecked ||
+                           previousDisabled != itemDisabled ||
+                           previousHighlighted != itemHighlighted ||
+                           previousTransitionStatus != transitionStatus;
+
+        if (!hasInitialized || stateChanged)
+        {
+            hasInitialized = true;
+            state = new MenuCheckboxItemIndicatorState(
+                Checked: itemChecked,
+                Disabled: itemDisabled,
+                Highlighted: itemHighlighted,
+                TransitionStatus: transitionStatus);
+            BuildComponentAttributes();
+        }
+
+        previousChecked = itemChecked;
+        previousDisabled = itemDisabled;
+        previousHighlighted = itemHighlighted;
+        previousTransitionStatus = transitionStatus;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        transitionCts?.Cancel();
+        transitionCts?.Dispose();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["aria-hidden"] = "true";
+        attrs["data-checked"] = state.Checked;
+        attrs["data-unchecked"] = !state.Checked;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-highlighted"] = state.Highlighted;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+
+    private void UpdateTransitionStatus()
+    {
+        var wasRendered = isMounted;
+        var isRendered = Rendered;
+
+        if (isRendered && !wasRendered)
+        {
+            isMounted = true;
+            transitionStatus = TransitionStatus.Starting;
+            ScheduleTransitionEnd();
+        }
+        else if (!isRendered && wasRendered)
+        {
+            transitionStatus = TransitionStatus.Ending;
+            ScheduleUnmount();
+        }
+    }
+
+    private void ScheduleTransitionEnd()
+    {
+        transitionCts?.Cancel();
+        transitionCts?.Dispose();
+        transitionCts = new CancellationTokenSource();
+        var token = transitionCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(1, token);
+                if (!token.IsCancellationRequested)
+                {
+                    transitionStatus = TransitionStatus.None;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        }, token);
+    }
+
+    private void ScheduleUnmount()
+    {
+        transitionCts?.Cancel();
+        transitionCts?.Dispose();
+        transitionCts = new CancellationTokenSource();
+        var token = transitionCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(150, token);
+                if (!token.IsCancellationRequested)
+                {
+                    isMounted = false;
+                    transitionStatus = TransitionStatus.None;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        }, token);
+    }
+}

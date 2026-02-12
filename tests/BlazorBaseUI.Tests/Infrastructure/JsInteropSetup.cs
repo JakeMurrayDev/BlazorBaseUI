@@ -44,19 +44,19 @@ public static class JsInteropSetup
     public static void SetupMenuModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(MenuModule);
-        module.SetupVoid("initializeRoot", _ => true);
-        module.SetupVoid("disposeRoot", _ => true);
-        module.SetupVoid("setRootOpen", _ => true);
-        module.SetupVoid("setTriggerElement", _ => true);
-        module.SetupVoid("setPopupElement", _ => true);
-        module.SetupVoid("setActiveIndex", _ => true);
-        module.SetupVoid("initializeHoverInteraction", _ => true);
-        module.SetupVoid("disposeHoverInteraction", _ => true);
-        module.SetupVoid("updateHoverInteractionFloatingElement", _ => true);
-        module.SetupVoid("setHoverInteractionOpen", _ => true);
+        module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("setRootOpen", _ => true).SetVoidResult();
+        module.SetupVoid("setTriggerElement", _ => true).SetVoidResult();
+        module.SetupVoid("setPopupElement", _ => true).SetVoidResult();
+        module.SetupVoid("setActiveIndex", _ => true).SetVoidResult();
+        module.SetupVoid("initializeHoverInteraction", _ => true).SetVoidResult();
+        module.SetupVoid("disposeHoverInteraction", _ => true).SetVoidResult();
+        module.SetupVoid("updateHoverInteractionFloatingElement", _ => true).SetVoidResult();
+        module.SetupVoid("setHoverInteractionOpen", _ => true).SetVoidResult();
         module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
-        module.SetupVoid("updatePosition", _ => true);
-        module.SetupVoid("disposePositioner", _ => true);
+        module.SetupVoid("updatePosition", _ => true).SetVoidResult();
+        module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
     }
 
     private const string MenuBarModule = "./_content/BlazorBaseUI/blazor-baseui-menubar.js";

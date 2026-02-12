@@ -1,0 +1,158 @@
+<CascadingValue TValue="IMenuRadioGroupContext" Value="groupContext" IsFixed="true">
+    <RenderElement TState="MenuRadioGroupState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private object? internalValue;
+    private MenuRadioGroupContext? groupContext;
+    private MenuRadioGroupState state;
+    private RenderElement<MenuRadioGroupState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool IsControlled => ValueChanged.HasDelegate;
+
+    private object? CurrentValue => IsControlled ? Value : internalValue;
+
+    /// <summary>
+    /// Gets or sets the controlled value of the radio item that should be currently selected.
+    /// To render an uncontrolled radio group, use the <see cref="DefaultValue"/> property instead.
+    /// </summary>
+    [Parameter]
+    public object? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the uncontrolled value of the radio item that should be initially selected.
+    /// To render a controlled radio group, use the <see cref="Value"/> property instead.
+    /// </summary>
+    [Parameter]
+    public object? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback for two-way binding of the selected value.
+    /// </summary>
+    [Parameter]
+    public EventCallback<object?> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the selected value changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<MenuRadioGroupChangeEventArgs> OnValueChange { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuRadioGroupState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuRadioGroupState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuRadioGroupState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        internalValue = DefaultValue;
+        groupContext = new MenuRadioGroupContext
+        {
+            Disabled = Disabled,
+            GetValue = () => CurrentValue,
+            SetValue = SetValueInternalAsync
+        };
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (groupContext is not null)
+        {
+            groupContext.Disabled = Disabled;
+        }
+
+        state = new MenuRadioGroupState(Disabled);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "group";
+
+        if (Disabled)
+        {
+            attrs["aria-disabled"] = "true";
+            attrs["data-disabled"] = true;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private async Task SetValueInternalAsync(object? newValue, MenuRadioGroupChangeEventArgs eventArgs)
+    {
+        if (OnValueChange.HasDelegate)
+        {
+            await OnValueChange.InvokeAsync(eventArgs);
+
+            if (eventArgs.IsCanceled)
+            {
+                StateHasChanged();
+                return;
+            }
+        }
+
+        if (!IsControlled)
+        {
+            internalValue = newValue;
+        }
+
+        if (ValueChanged.HasDelegate)
+        {
+            await ValueChanged.InvokeAsync(newValue);
+        }
+
+        StateHasChanged();
+    }
+}

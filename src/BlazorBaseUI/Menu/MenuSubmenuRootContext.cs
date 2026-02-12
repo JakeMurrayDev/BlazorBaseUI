@@ -1,3 +1,12 @@
 namespace BlazorBaseUI.Menu;
 
-internal sealed record MenuSubmenuRootContext(MenuRootContext? ParentMenu);
+/// <summary>
+/// Provides shared state for a <see cref="MenuSubmenuRoot"/> and its descendant components.
+/// </summary>
+internal sealed class MenuSubmenuRootContext
+{
+    /// <summary>
+    /// Gets the parent menu's root context.
+    /// </summary>
+    public MenuRootContext? ParentMenu { get; init; }
+}

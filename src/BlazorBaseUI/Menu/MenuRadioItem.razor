@@ -1,0 +1,188 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<CascadingValue TValue="MenuRadioItemContext" Value="itemContext" IsFixed="true">
+    <RenderElement TState="MenuRadioItemState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private bool highlighted;
+    private MenuRadioItemContext? itemContext;
+    private MenuRadioItemState state;
+    private RenderElement<MenuRadioItemState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool ResolvedDisabled => Disabled || (RadioGroupContext?.Disabled ?? false);
+
+    private bool Checked => RadioGroupContext is not null && Equals(RadioGroupContext.Value, Value);
+
+    [CascadingParameter]
+    private MenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private IMenuRadioGroupContext? RadioGroupContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets the value of the radio item.
+    /// This is the value that will be set in the <see cref="MenuRadioGroup"/> when the item is selected.
+    /// </summary>
+    [Parameter]
+    public object? Value { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether the menu closes when this item is clicked.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool CloseOnClick { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuRadioItemState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuRadioItemState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuRadioItemState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (itemContext is null)
+        {
+            itemContext = new MenuRadioItemContext
+            {
+                Checked = Checked,
+                Highlighted = highlighted,
+                Disabled = ResolvedDisabled
+            };
+        }
+        else
+        {
+            itemContext.Checked = Checked;
+            itemContext.Highlighted = highlighted;
+            itemContext.Disabled = ResolvedDisabled;
+        }
+
+        state = new MenuRadioItemState(
+            Disabled: ResolvedDisabled,
+            Highlighted: highlighted,
+            Checked: Checked);
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "menuitemradio";
+        attrs["aria-checked"] = Checked ? "true" : "false";
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+
+        if (ResolvedDisabled)
+        {
+            attrs["aria-disabled"] = "true";
+        }
+
+        attrs["tabindex"] = highlighted ? 0 : -1;
+        attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
+        attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+
+        attrs["data-checked"] = Checked;
+        attrs["data-unchecked"] = !Checked;
+        attrs["data-disabled"] = ResolvedDisabled;
+        attrs["data-highlighted"] = highlighted;
+
+        componentAttributes = attrs;
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (ResolvedDisabled)
+        {
+            return;
+        }
+
+        if (RadioGroupContext is not null)
+        {
+            var eventArgs = new MenuRadioGroupChangeEventArgs(Value);
+            await RadioGroupContext.SetValueAsync(Value, eventArgs);
+        }
+
+        if (CloseOnClick && RootContext is not null)
+        {
+            RootContext.EmitClose(OpenChangeReason.ItemPress, null);
+        }
+
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseEnterAsync(MouseEventArgs e)
+    {
+        if (!ResolvedDisabled && itemContext is not null)
+        {
+            highlighted = true;
+            itemContext.Highlighted = true;
+            state = state with { Highlighted = true };
+            BuildComponentAttributes();
+        }
+
+        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseLeaveAsync(MouseEventArgs e)
+    {
+        highlighted = false;
+        if (itemContext is not null)
+        {
+            itemContext.Highlighted = false;
+            state = state with { Highlighted = false };
+            BuildComponentAttributes();
+        }
+
+        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+    }
+}

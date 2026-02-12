@@ -13,6 +13,7 @@ public class MenuRadioGroupTests : BunitContext, IMenuRadioGroupContract
         object? groupValue = null,
         object? defaultValue = null,
         bool groupDisabled = false,
+        RenderFragment<RenderProps<MenuRadioGroupState>>? render = null,
         EventCallback<object?>? valueChanged = null,
         EventCallback<MenuRadioGroupChangeEventArgs>? onValueChange = null)
     {
@@ -41,6 +42,8 @@ public class MenuRadioGroupTests : BunitContext, IMenuRadioGroupContract
                             popupBuilder.AddAttribute(attrIndex++, "DefaultValue", defaultValue);
                         if (groupDisabled)
                             popupBuilder.AddAttribute(attrIndex++, "Disabled", true);
+                        if (render is not null)
+                            popupBuilder.AddAttribute(attrIndex++, "Render", render);
                         if (valueChanged.HasValue)
                             popupBuilder.AddAttribute(attrIndex++, "ValueChanged", valueChanged.Value);
                         if (onValueChange.HasValue)
@@ -75,6 +78,27 @@ public class MenuRadioGroupTests : BunitContext, IMenuRadioGroupContract
 
         var group = cut.Find("[role='group']");
         group.GetAttribute("role").ShouldBe("group");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        RenderFragment<RenderProps<MenuRadioGroupState>> renderAsSection = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateRadioGroupInRoot(render: renderAsSection));
+
+        var group = cut.Find("section[role='group']");
+        group.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }
