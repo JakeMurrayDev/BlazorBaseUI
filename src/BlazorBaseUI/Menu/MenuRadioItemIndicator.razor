@@ -147,6 +147,7 @@
     private void ScheduleTransitionEnd()
     {
         transitionCts?.Cancel();
+        transitionCts?.Dispose();
         transitionCts = new CancellationTokenSource();
         var token = transitionCts.Token;
 
@@ -171,6 +172,7 @@
     private void ScheduleUnmount()
     {
         transitionCts?.Cancel();
+        transitionCts?.Dispose();
         transitionCts = new CancellationTokenSource();
         var token = transitionCts.Token;
 
