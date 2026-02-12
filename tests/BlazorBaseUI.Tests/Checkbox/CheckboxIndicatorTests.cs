@@ -19,7 +19,7 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
         Func<CheckboxIndicatorState, string>? indicatorClassValue = null,
         Func<CheckboxIndicatorState, string>? indicatorStyleValue = null,
         IReadOnlyDictionary<string, object>? indicatorAdditionalAttributes = null,
-        string? indicatorAsElement = null)
+        RenderFragment<RenderProps<CheckboxIndicatorState>>? indicatorRender = null)
     {
         return builder =>
         {
@@ -52,8 +52,8 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
                     innerBuilder.AddAttribute(indicatorAttrIndex++, "StyleValue", indicatorStyleValue);
                 if (indicatorAdditionalAttributes is not null)
                     innerBuilder.AddAttribute(indicatorAttrIndex++, "AdditionalAttributes", indicatorAdditionalAttributes);
-                if (indicatorAsElement is not null)
-                    innerBuilder.AddAttribute(indicatorAttrIndex++, "As", indicatorAsElement);
+                if (indicatorRender is not null)
+                    innerBuilder.AddAttribute(indicatorAttrIndex++, "Render", indicatorRender);
 
                 innerBuilder.CloseComponent();
             }));
@@ -66,8 +66,7 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
         bool keepMounted = false,
         Func<CheckboxIndicatorState, string>? classValue = null,
         Func<CheckboxIndicatorState, string>? styleValue = null,
-        IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        IReadOnlyDictionary<string, object>? additionalAttributes = null)
     {
         return builder =>
         {
@@ -86,8 +85,6 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
                     innerBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     innerBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
 
                 innerBuilder.CloseComponent();
             }));
@@ -111,11 +108,21 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
+        RenderFragment<RenderProps<CheckboxIndicatorState>> renderAsDiv = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
         var cut = Render(CreateCheckboxWithIndicator(
             defaultChecked: true,
-            indicatorAsElement: "div",
+            indicatorRender: renderAsDiv,
             indicatorAdditionalAttributes: new Dictionary<string, object> { { "data-testid", "indicator" } }
         ));
 
@@ -389,13 +396,15 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
             Filled: true,
             Focused: false);
 
-        var context = new CheckboxRootContext(
-            Checked: true,
-            Disabled: true,
-            ReadOnly: true,
-            Required: true,
-            Indeterminate: false,
-            State: rootState);
+        var context = new CheckboxRootContext
+        {
+            Checked = true,
+            Disabled = true,
+            ReadOnly = true,
+            Required = true,
+            Indeterminate = false,
+            State = rootState
+        };
 
         var cut = Render(CreateIndicatorWithContext(
             context,
@@ -475,38 +484,5 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
         capturedState!.Value.Checked.ShouldBeTrue();
 
         return Task.CompletedTask;
-    }
-
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<CheckboxRoot>(0);
-                builder.AddAttribute(1, "DefaultChecked", true);
-                builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
-                {
-                    innerBuilder.OpenComponent<CheckboxIndicator>(0);
-                    innerBuilder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                    innerBuilder.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
-    // Helper class for RenderAs validation test
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }
