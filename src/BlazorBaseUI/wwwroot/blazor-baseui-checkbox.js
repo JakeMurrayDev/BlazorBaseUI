@@ -7,9 +7,9 @@ const STATE_KEY = Symbol.for('BlazorBaseUI.Checkbox.State');
  */
 function applyOptimisticState(element, checked, indeterminate) {
     element.setAttribute('aria-checked', indeterminate ? 'mixed' : checked ? 'true' : 'false');
-    element.setAttribute('data-checked', checked && !indeterminate);
-    element.setAttribute('data-unchecked', !checked && !indeterminate);
-    element.setAttribute('data-indeterminate', indeterminate);
+    checked && !indeterminate ? element.setAttribute('data-checked', '') : element.removeAttribute('data-checked');
+    !checked && !indeterminate ? element.setAttribute('data-unchecked', '') : element.removeAttribute('data-unchecked');
+    indeterminate ? element.setAttribute('data-indeterminate', '') : element.removeAttribute('data-indeterminate');
 }
 
 /**
