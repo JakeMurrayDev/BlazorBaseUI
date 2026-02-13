@@ -1,0 +1,113 @@
+@implements IReferencableComponent
+
+<CascadingValue Value="context" IsFixed="true">
+    <RenderElement TState="FieldsetRootState"
+                   Tag="fieldset"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private string? legendId;
+    private FieldsetRootState state = new(Disabled: false);
+    private FieldsetRootContext context = null!;
+    private RenderElement<FieldsetRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    /// <summary>
+    /// Determines whether the fieldset and its child fields should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<FieldsetRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<FieldsetRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<FieldsetRootState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        context = new FieldsetRootContext
+        {
+            LegendId = null,
+            SetLegendId = SetLegendId,
+            Disabled = Disabled
+        };
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (state.Disabled != Disabled)
+        {
+            state = new FieldsetRootState(Disabled);
+        }
+
+        context.Disabled = Disabled;
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        if (!string.IsNullOrEmpty(legendId))
+        {
+            attrs["aria-labelledby"] = legendId;
+        }
+
+        attrs["disabled"] = Disabled;
+        attrs["data-disabled"] = Disabled;
+
+        componentAttributes = attrs;
+    }
+
+    private void SetLegendId(string? id)
+    {
+        if (legendId == id) return;
+        legendId = id;
+        context.LegendId = id;
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+}

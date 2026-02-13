@@ -20,7 +20,8 @@ public class FieldItemTests : BunitContext, IFieldItemContract
         Services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
     }
 
-    private RenderFragment CreateFieldItem()
+    private RenderFragment CreateFieldItem(
+        RenderFragment<RenderProps<FieldRootState>>? render = null)
     {
         return builder =>
         {
@@ -30,6 +31,8 @@ public class FieldItemTests : BunitContext, IFieldItemContract
                 fieldBuilder.OpenComponent<FieldItem>(0);
                 fieldBuilder.AddAttribute(1, "data-testid", "field-item");
                 fieldBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item content")));
+                if (render is not null)
+                    fieldBuilder.AddAttribute(3, "Render", render);
                 fieldBuilder.CloseComponent();
             }));
             builder.CloseComponent();
@@ -43,6 +46,25 @@ public class FieldItemTests : BunitContext, IFieldItemContract
         var item = cut.Find("[data-testid='field-item']");
         item.ShouldNotBeNull();
         item.TagName.ShouldBe("DIV");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldItem(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var section = cut.Find("section");
+        section.ShouldNotBeNull();
+        section.TextContent.ShouldContain("Item content");
         return Task.CompletedTask;
     }
 }

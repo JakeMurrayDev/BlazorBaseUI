@@ -20,7 +20,8 @@ public class FieldControlTests : BunitContext, IFieldControlContract
         Services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
     }
 
-    private RenderFragment CreateFieldControl()
+    private RenderFragment CreateFieldControl(
+        RenderFragment<RenderProps<FieldRootState>>? render = null)
     {
         return builder =>
         {
@@ -29,6 +30,8 @@ public class FieldControlTests : BunitContext, IFieldControlContract
             {
                 fieldBuilder.OpenComponent<FieldControl<string>>(0);
                 fieldBuilder.AddAttribute(1, "data-testid", "field-control");
+                if (render is not null)
+                    fieldBuilder.AddAttribute(2, "Render", render);
                 fieldBuilder.CloseComponent();
             }));
             builder.CloseComponent();
@@ -42,6 +45,24 @@ public class FieldControlTests : BunitContext, IFieldControlContract
         var input = cut.Find("input[data-testid='field-control']");
         input.ShouldNotBeNull();
         input.TagName.ShouldBe("INPUT");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldControl(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "textarea");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.CloseElement();
+            }
+        ));
+
+        var textarea = cut.Find("textarea");
+        textarea.ShouldNotBeNull();
+        textarea.HasAttribute("id").ShouldBeTrue();
         return Task.CompletedTask;
     }
 }

@@ -20,7 +20,8 @@ public class FieldDescriptionTests : BunitContext, IFieldDescriptionContract
         Services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
     }
 
-    private RenderFragment CreateFieldWithDescription()
+    private RenderFragment CreateFieldWithDescription(
+        RenderFragment<RenderProps<FieldRootState>>? descriptionRender = null)
     {
         return builder =>
         {
@@ -33,6 +34,8 @@ public class FieldDescriptionTests : BunitContext, IFieldDescriptionContract
 
                 fieldBuilder.OpenComponent<FieldDescription>(10);
                 fieldBuilder.AddAttribute(11, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Help text")));
+                if (descriptionRender is not null)
+                    fieldBuilder.AddAttribute(12, "Render", descriptionRender);
                 fieldBuilder.CloseComponent();
             }));
             builder.CloseComponent();
@@ -47,6 +50,26 @@ public class FieldDescriptionTests : BunitContext, IFieldDescriptionContract
         p.ShouldNotBeNull();
         p.TagName.ShouldBe("P");
         p.TextContent.ShouldContain("Help text");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldWithDescription(
+            descriptionRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var span = cut.Find("span");
+        span.ShouldNotBeNull();
+        span.TextContent.ShouldContain("Help text");
+
         return Task.CompletedTask;
     }
 

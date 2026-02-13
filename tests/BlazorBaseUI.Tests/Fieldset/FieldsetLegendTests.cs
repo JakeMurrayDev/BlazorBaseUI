@@ -12,7 +12,9 @@ public class FieldsetLegendTests : BunitContext, IFieldsetLegendContract
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
-    private RenderFragment CreateFieldsetWithLegend(string? customLegendId = null)
+    private RenderFragment CreateFieldsetWithLegend(
+        string? customLegendId = null,
+        RenderFragment<RenderProps<FieldsetLegendState>>? legendRender = null)
     {
         return builder =>
         {
@@ -24,7 +26,10 @@ public class FieldsetLegendTests : BunitContext, IFieldsetLegendContract
                 if (!string.IsNullOrEmpty(customLegendId))
                     fieldsetBuilder.AddAttribute(1, "id", customLegendId);
 
-                fieldsetBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Legend text")));
+                if (legendRender is not null)
+                    fieldsetBuilder.AddAttribute(2, "Render", legendRender);
+
+                fieldsetBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Legend text")));
                 fieldsetBuilder.CloseComponent();
             }));
             builder.CloseComponent();
@@ -40,6 +45,26 @@ public class FieldsetLegendTests : BunitContext, IFieldsetLegendContract
         legendDiv.ShouldNotBeNull();
         legendDiv.TagName.ShouldBe("DIV");
         legendDiv.TextContent.ShouldContain("Legend text");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldsetWithLegend(
+            legendRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "h3");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var h3 = cut.Find("fieldset h3");
+        h3.ShouldNotBeNull();
+        h3.TextContent.ShouldContain("Legend text");
+
         return Task.CompletedTask;
     }
 

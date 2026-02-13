@@ -27,7 +27,8 @@ public class FieldRootTests : BunitContext, IFieldRootContract
         bool? touchedState = null,
         Func<object?, Task<string[]?>>? validate = null,
         int validationDebounceTime = 0,
-        RenderFragment? childContent = null)
+        RenderFragment? childContent = null,
+        RenderFragment<RenderProps<FieldRootState>>? render = null)
     {
         return builder =>
         {
@@ -44,6 +45,8 @@ public class FieldRootTests : BunitContext, IFieldRootContract
                 builder.AddAttribute(5, "Validate", validate);
             if (validationDebounceTime > 0)
                 builder.AddAttribute(6, "ValidationDebounceTime", validationDebounceTime);
+            if (render is not null)
+                builder.AddAttribute(8, "Render", render);
 
             builder.AddAttribute(7, "ChildContent", childContent ?? ((RenderFragment)(b =>
             {
@@ -159,6 +162,24 @@ public class FieldRootTests : BunitContext, IFieldRootContract
         var cut = Render(CreateFieldRoot(touchedState: true));
         var root = cut.Find("[data-touched]");
         root.ShouldNotBeNull();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var section = cut.Find("section");
+        section.ShouldNotBeNull();
         return Task.CompletedTask;
     }
 }

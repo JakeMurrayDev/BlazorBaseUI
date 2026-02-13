@@ -10,4 +10,5 @@ public interface IFieldRootContract
     Task DefaultValueNotResetToNonEmptyOnFocus();
     Task DirtyStateControlsDirtyState();
     Task TouchedStateControlsTouchedState();
+    Task RendersWithCustomRender();
 }
