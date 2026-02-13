@@ -1,0 +1,219 @@
+@implements IReferencableComponent
+@implements IDisposable
+
+<RenderElement TState="CheckboxIndicatorState"
+               Tag="span"
+               State="state"
+               Enabled="IsPresent"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private bool isMounted;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+    private CancellationTokenSource? transitionCts;
+    private CheckboxIndicatorState state;
+    private RenderElement<CheckboxIndicatorState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private bool previousChecked;
+    private bool previousDisabled;
+    private bool previousReadOnly;
+    private bool previousRequired;
+    private bool previousIndeterminate;
+    private bool? previousValid;
+    private bool previousTouched;
+    private bool previousDirty;
+    private bool previousFilled;
+    private bool previousFocused;
+    private TransitionStatus previousTransitionStatus = TransitionStatus.Undefined;
+
+    private bool Rendered => CheckboxContext?.Checked == true || CheckboxContext?.Indeterminate == true;
+
+    private bool IsPresent => KeepMounted || isMounted || Rendered;
+
+    [CascadingParameter]
+    private CheckboxRootContext? CheckboxContext { get; set; }
+
+    /// <summary>
+    /// Determines whether to keep the element in the DOM when the checkbox is not checked.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool KeepMounted { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<CheckboxIndicatorState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<CheckboxIndicatorState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<CheckboxIndicatorState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        UpdateTransitionStatus();
+
+        var rootState = CheckboxContext?.State ?? CheckboxRootState.Default;
+
+        var stateChanged = previousChecked != rootState.Checked ||
+                           previousDisabled != rootState.Disabled ||
+                           previousReadOnly != rootState.ReadOnly ||
+                           previousRequired != rootState.Required ||
+                           previousIndeterminate != rootState.Indeterminate ||
+                           previousValid != rootState.Valid ||
+                           previousTouched != rootState.Touched ||
+                           previousDirty != rootState.Dirty ||
+                           previousFilled != rootState.Filled ||
+                           previousFocused != rootState.Focused ||
+                           previousTransitionStatus != transitionStatus;
+
+        if (stateChanged)
+        {
+            state = CheckboxIndicatorState.FromRootState(rootState, transitionStatus);
+        }
+
+        BuildComponentAttributes();
+
+        previousChecked = rootState.Checked;
+        previousDisabled = rootState.Disabled;
+        previousReadOnly = rootState.ReadOnly;
+        previousRequired = rootState.Required;
+        previousIndeterminate = rootState.Indeterminate;
+        previousValid = rootState.Valid;
+        previousTouched = rootState.Touched;
+        previousDirty = rootState.Dirty;
+        previousFilled = rootState.Filled;
+        previousFocused = rootState.Focused;
+        previousTransitionStatus = transitionStatus;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        transitionCts?.Cancel();
+        transitionCts?.Dispose();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-indeterminate"] = state.Indeterminate;
+        attrs["data-checked"] = state.Checked && !state.Indeterminate;
+        attrs["data-unchecked"] = !state.Checked && !state.Indeterminate;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-readonly"] = state.ReadOnly;
+        attrs["data-required"] = state.Required;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-filled"] = state.Filled;
+        attrs["data-focused"] = state.Focused;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+
+    private void UpdateTransitionStatus()
+    {
+        var wasRendered = isMounted;
+        var isRendered = Rendered;
+
+        if (isRendered && !wasRendered)
+        {
+            isMounted = true;
+            transitionStatus = TransitionStatus.Starting;
+            ScheduleTransitionEnd();
+        }
+        else if (!isRendered && wasRendered)
+        {
+            transitionStatus = TransitionStatus.Ending;
+            ScheduleUnmount();
+        }
+    }
+
+    private void ScheduleTransitionEnd()
+    {
+        transitionCts?.Cancel();
+        transitionCts = new CancellationTokenSource();
+        var token = transitionCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(1, token);
+                if (!token.IsCancellationRequested)
+                {
+                    transitionStatus = TransitionStatus.Undefined;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        }, token);
+    }
+
+    private void ScheduleUnmount()
+    {
+        transitionCts?.Cancel();
+        transitionCts = new CancellationTokenSource();
+        var token = transitionCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(150, token);
+                if (!token.IsCancellationRequested)
+                {
+                    isMounted = false;
+                    transitionStatus = TransitionStatus.Undefined;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        }, token);
+    }
+}

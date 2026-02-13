@@ -4,7 +4,7 @@ public interface ICheckboxGroupContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -51,7 +51,4 @@ public interface ICheckboxGroupContract
     Task ParentCheckbox_CheckedWhenAllChildrenChecked();
     Task ParentCheckbox_IndeterminateWhenSomeChildrenChecked();
     Task ParentCheckbox_UncheckedWhenNoChildrenChecked();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

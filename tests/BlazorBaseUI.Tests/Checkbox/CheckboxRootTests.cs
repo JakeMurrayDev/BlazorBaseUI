@@ -21,7 +21,7 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         Func<CheckboxRootState, string>? classValue = null,
         Func<CheckboxRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<CheckboxRootState>>? render = null,
         EventCallback<CheckboxCheckedChangeEventArgs>? onCheckedChange = null,
         EventCallback<bool>? checkedChanged = null,
         RenderFragment? childContent = null)
@@ -55,8 +55,8 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (onCheckedChange.HasValue)
                 builder.AddAttribute(attrIndex++, "OnCheckedChange", onCheckedChange.Value);
             if (checkedChanged.HasValue)
@@ -120,12 +120,25 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateCheckboxRoot(asElement: "div"));
+        RenderFragment<RenderProps<CheckboxRootState>> renderAsDiv = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var checkbox = cut.Find("[role='checkbox']");
-        checkbox.TagName.ShouldBe("DIV");
+        var cut = Render(CreateCheckboxRoot(
+            render: renderAsDiv,
+            childContent: b => b.AddContent(0, "Custom")));
+
+        var element = cut.Find("[role='checkbox']");
+        element.TagName.ShouldBe("DIV");
+        element.TextContent.ShouldBe("Custom");
 
         return Task.CompletedTask;
     }
@@ -830,23 +843,6 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         return Task.CompletedTask;
     }
 
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<CheckboxRoot>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
     // ClassValue/StyleValue state tests
     [Fact]
     public Task ClassValueReceivesCorrectState()
@@ -893,15 +889,5 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         capturedState!.Value.Checked.ShouldBeTrue();
 
         return Task.CompletedTask;
-    }
-
-    // Helper class for RenderAs validation test
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }
