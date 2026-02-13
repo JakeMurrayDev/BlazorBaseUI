@@ -104,6 +104,13 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        var newId = ResolvedId;
+        if (newId != labelId)
+        {
+            labelId = newId;
+            LabelableContext?.SetLabelId(labelId);
+        }
+
         state = State;
         BuildComponentAttributes();
     }

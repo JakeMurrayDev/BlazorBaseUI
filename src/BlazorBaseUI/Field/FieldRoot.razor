@@ -215,7 +215,7 @@
         validation = new FieldValidation(
             getValidityData: () => validityData,
             setValidityData: data => validityData = data,
-            validate: Validate,
+            validate: value => Validate is not null ? Validate(value) : Task.FromResult<string[]?>(null),
             getInvalid: () => Invalid ?? false,
             getMarkedDirty: () => markedDirty,
             debounceTime: ValidationDebounceTime,
