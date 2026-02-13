@@ -20,7 +20,8 @@ public class FieldLabelTests : BunitContext, IFieldLabelContract
         Services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
     }
 
-    private RenderFragment CreateFieldWithLabel()
+    private RenderFragment CreateFieldWithLabel(
+        RenderFragment<RenderProps<FieldRootState>>? labelRender = null)
     {
         return builder =>
         {
@@ -29,6 +30,8 @@ public class FieldLabelTests : BunitContext, IFieldLabelContract
             {
                 fieldBuilder.OpenComponent<FieldLabel>(0);
                 fieldBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Field Label")));
+                if (labelRender is not null)
+                    fieldBuilder.AddAttribute(2, "Render", labelRender);
                 fieldBuilder.CloseComponent();
 
                 fieldBuilder.OpenComponent<FieldControl<string>>(10);
@@ -47,6 +50,26 @@ public class FieldLabelTests : BunitContext, IFieldLabelContract
         label.ShouldNotBeNull();
         label.TagName.ShouldBe("LABEL");
         label.TextContent.ShouldContain("Field Label");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldWithLabel(
+            labelRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var span = cut.Find("span");
+        span.ShouldNotBeNull();
+        span.TextContent.ShouldContain("Field Label");
+
         return Task.CompletedTask;
     }
 

@@ -224,7 +224,7 @@
     <DemoSection Title="NativeLabel (Click to Focus)"
                  Description="Non-label element with NativeLabel=false focuses control on click">
         <FieldRoot ClassValue="@(_ => "p-4 border rounded border-gray-300")">
-            <FieldLabel As="span"
+            <FieldLabel Render="RenderLabelAsSpan"
                         NativeLabel="@false"
                         ClassValue="@(_ => "block text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600")">
                 Click this span to focus the input (NativeLabel=false)
@@ -346,4 +346,7 @@
 
         return Task.FromResult<string[]?>(errors.Count > 0 ? errors.ToArray() : null);
     }
+
+    private RenderFragment<RenderProps<FieldRootState>> RenderLabelAsSpan =>
+        ctx => @<span @attributes="ctx.Attributes">@ctx.ChildContent</span>;
 }

@@ -29,7 +29,8 @@ public class FormTests : BunitContext, IFormContract
 
     private RenderFragment CreateForm(
         Dictionary<string, string[]>? errors = null,
-        RenderFragment? customContent = null)
+        RenderFragment? customContent = null,
+        RenderFragment<RenderProps<FormState>>? render = null)
     {
         return builder =>
         {
@@ -39,7 +40,10 @@ public class FormTests : BunitContext, IFormContract
             if (errors is not null)
                 builder.AddAttribute(2, "Errors", errors);
 
-            builder.AddAttribute(3, "ChildContent", (RenderFragment<Microsoft.AspNetCore.Components.Forms.EditContext>)(context =>
+            if (render is not null)
+                builder.AddAttribute(3, "Render", render);
+
+            builder.AddAttribute(4, "ChildContent", (RenderFragment<Microsoft.AspNetCore.Components.Forms.EditContext>)(context =>
                 customContent ?? ((RenderFragment)(b => b.AddContent(0, "Form content")))));
             builder.CloseComponent();
         };
@@ -80,6 +84,25 @@ public class FormTests : BunitContext, IFormContract
         var cut = Render(CreateForm());
         var form = cut.Find("form");
         form.ShouldNotBeNull();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateForm(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var section = cut.Find("section");
+        section.ShouldNotBeNull();
+
         return Task.CompletedTask;
     }
 

@@ -150,11 +150,11 @@
         </div>
     </DemoSection>
 
-    <DemoSection Title="Custom Element (As Parameter)"
-                 Description="Render the fieldset root as a different HTML element using the As parameter">
-        <FieldsetRoot As="div"
+    <DemoSection Title="Custom Element (Render Parameter)"
+                 Description="Render the fieldset root as a different HTML element using the Render parameter">
+        <FieldsetRoot Render="RenderAsDiv"
                       ClassValue="@(_ => "rounded-lg border border-orange-300 bg-orange-50 p-4")">
-            <FieldsetLegend As="h3" ClassValue="@(_ => "text-lg font-bold text-orange-900")">
+            <FieldsetLegend Render="RenderLegendAsH3" ClassValue="@(_ => "text-lg font-bold text-orange-900")">
                 Rendered as div/h3
             </FieldsetLegend>
             <p class="mt-4 text-sm text-orange-700">
@@ -472,4 +472,10 @@
     {
         return "flex items-center justify-center";
     }
+
+    private RenderFragment<RenderProps<FieldsetRootState>> RenderAsDiv =>
+        ctx => @<div @attributes="ctx.Attributes">@ctx.ChildContent</div>;
+
+    private RenderFragment<RenderProps<FieldsetLegendState>> RenderLegendAsH3 =>
+        ctx => @<h3 @attributes="ctx.Attributes">@ctx.ChildContent</h3>;
 }

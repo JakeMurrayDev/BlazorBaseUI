@@ -118,11 +118,11 @@ public static class JsInteropSetup
     public static void SetupCheckboxModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(CheckboxModule);
-        module.SetupVoid("initialize", _ => true);
-        module.SetupVoid("dispose", _ => true);
-        module.SetupVoid("updateState", _ => true);
-        module.SetupVoid("setInputChecked", _ => true);
-        module.SetupVoid("focus", _ => true);
+        module.SetupVoid("initialize", _ => true).SetVoidResult();
+        module.SetupVoid("dispose", _ => true).SetVoidResult();
+        module.SetupVoid("updateState", _ => true).SetVoidResult();
+        module.SetupVoid("setInputChecked", _ => true).SetVoidResult();
+        module.SetupVoid("focus", _ => true).SetVoidResult();
     }
 
     private const string PopoverModule = "./_content/BlazorBaseUI/blazor-baseui-popover.js";

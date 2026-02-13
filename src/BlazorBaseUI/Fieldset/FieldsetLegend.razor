@@ -1,0 +1,108 @@
+@implements IReferencableComponent
+@implements IDisposable
+
+<RenderElement TState="FieldsetLegendState"
+               Tag="div"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private string? defaultId;
+    private string resolvedId = null!;
+    private FieldsetLegendState state = new(Disabled: false);
+    private bool disabled;
+    private RenderElement<FieldsetLegendState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private FieldsetRootContext? FieldsetContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<FieldsetLegendState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<FieldsetLegendState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<FieldsetLegendState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(
+        AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        resolvedId = ResolvedId;
+        FieldsetContext?.SetLegendId(resolvedId);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var newId = ResolvedId;
+        if (newId != resolvedId)
+        {
+            resolvedId = newId;
+            FieldsetContext?.SetLegendId(resolvedId);
+        }
+
+        disabled = FieldsetContext?.Disabled ?? false;
+
+        if (state.Disabled != disabled)
+        {
+            state = new FieldsetLegendState(disabled);
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["id"] = resolvedId;
+        attrs["data-disabled"] = disabled;
+
+        componentAttributes = attrs;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        FieldsetContext?.SetLegendId(null);
+    }
+}

@@ -1,0 +1,320 @@
+@using System.Diagnostics
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Rendering
+
+@implements IReferencableComponent
+
+<RenderElement TState="FormState"
+               Tag="form"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="wrappedChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private readonly FieldRegistry fieldRegistry = new();
+
+    private EditContext? editContext;
+    private bool hasSetEditContextExplicitly;
+    private bool submitAttempted;
+    private Dictionary<string, string[]> errors = new(4);
+    private Dictionary<string, string[]>? previousExternalErrors;
+    private FormContext formContext = null!;
+    private FormActions? actions;
+    private FormState state = FormState.Default;
+    private RenderElement<FormState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private RenderFragment? wrappedChildContent;
+
+    /// <summary>
+    /// Gets or sets the <see cref="Microsoft.AspNetCore.Components.Forms.EditContext"/> explicitly.
+    /// If provided, the form uses this context instead of creating one from <see cref="Model"/>.
+    /// </summary>
+    [Parameter]
+#pragma warning disable BL0007
+    public EditContext? EditContext
+#pragma warning restore BL0007
+    {
+        get => editContext;
+        set
+        {
+            editContext = value;
+            hasSetEditContextExplicitly = value is not null;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the top-level model object for the form.
+    /// An <see cref="Microsoft.AspNetCore.Components.Forms.EditContext"/> will be constructed from this model.
+    /// </summary>
+    [Parameter]
+    public object? Model { get; set; }
+
+    /// <summary>
+    /// Gets or sets when form validation occurs.
+    /// Defaults to <see cref="Form.ValidationMode.OnSubmit"/>.
+    /// Field-level <see cref="FieldRoot.ValidationMode"/> takes precedence.
+    /// </summary>
+    [Parameter]
+    public ValidationMode ValidationMode { get; set; } = ValidationMode.OnSubmit;
+
+    /// <summary>
+    /// Gets or sets the validation errors returned externally, typically after submission by a server.
+    /// Keys correspond to the <see cref="FieldRoot.Name"/> attribute, and values correspond to error(s) related to that field.
+    /// </summary>
+    [Parameter]
+    public Dictionary<string, string[]>? Errors { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the form is submitted, regardless of validation state.
+    /// When this is supplied, do not also supply <see cref="OnValidSubmit"/> or <see cref="OnInvalidSubmit"/>.
+    /// </summary>
+    [Parameter]
+    public EventCallback<EditContext> OnSubmit { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the form is submitted and all fields pass validation.
+    /// </summary>
+    [Parameter]
+    public EventCallback<EditContext> OnValidSubmit { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the form is submitted and one or more fields fail validation.
+    /// </summary>
+    [Parameter]
+    public EventCallback<EditContext> OnInvalidSubmit { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the form is submitted and all fields pass validation.
+    /// Provides the collected form values keyed by field name.
+    /// </summary>
+    [Parameter]
+    public EventCallback<FormSubmitEventArgs> OnFormSubmit { get; set; }
+
+    /// <summary>
+    /// Gets or sets a callback that receives a <see cref="FormActions"/> reference for imperative actions.
+    /// Includes a <c>ValidateAsync</c> method to validate all fields or a single field by name.
+    /// </summary>
+    [Parameter]
+    public Action<FormActions>? ActionsRef { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<FormState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<FormState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<FormState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<EditContext>? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        // Ensure editContext is created before formContext needs it
+        if (!hasSetEditContextExplicitly && Model is not null && editContext?.Model != Model)
+        {
+            editContext = new EditContext(Model);
+        }
+
+        formContext = new FormContext(
+            editContext: editContext,
+            fieldRegistry: fieldRegistry,
+            clearErrors: ClearErrors,
+            getSubmitAttempted: () => submitAttempted);
+
+        actions = new FormActions(ImperativeValidateAsync);
+        ActionsRef?.Invoke(actions);
+
+        BuildComponentAttributes();
+        BuildWrappedChildContent();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (hasSetEditContextExplicitly && Model is not null)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(Form)} requires a {nameof(Model)} parameter, or an {nameof(EditContext)} parameter, but not both.");
+        }
+
+        if (!hasSetEditContextExplicitly && Model is null)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(Form)} requires either a {nameof(Model)} parameter, or an {nameof(EditContext)} parameter.");
+        }
+
+        if (OnSubmit.HasDelegate && (OnValidSubmit.HasDelegate || OnInvalidSubmit.HasDelegate))
+        {
+            throw new InvalidOperationException(
+                $"When supplying an {nameof(OnSubmit)} parameter to {nameof(Form)}, do not also supply {nameof(OnValidSubmit)} or {nameof(OnInvalidSubmit)}.");
+        }
+
+        if (Model is not null && Model != editContext?.Model)
+        {
+            editContext = new EditContext(Model);
+        }
+
+        if (!ReferenceEquals(Errors, previousExternalErrors))
+        {
+            previousExternalErrors = Errors;
+            errors = Errors is not null
+                ? new Dictionary<string, string[]>(Errors)
+                : new Dictionary<string, string[]>(4);
+        }
+
+        UpdateContext();
+        BuildComponentAttributes();
+        BuildWrappedChildContent();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["novalidate"] = true;
+        attrs["onsubmit"] = EventCallback.Factory.Create<EventArgs>(this, HandleSubmitAsync);
+
+        componentAttributes = attrs;
+    }
+
+    private void BuildWrappedChildContent()
+    {
+        Debug.Assert(editContext is not null);
+
+        var capturedEditContext = editContext;
+        var capturedFormContext = formContext;
+        var capturedChildContent = ChildContent;
+
+        wrappedChildContent = builder =>
+        {
+            builder.OpenComponent<CascadingValue<EditContext>>(0);
+            builder.AddComponentParameter(1, "Value", capturedEditContext);
+            builder.AddComponentParameter(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<CascadingValue<FormContext>>(0);
+                innerBuilder.AddComponentParameter(1, "Value", capturedFormContext);
+                innerBuilder.AddComponentParameter(2, "ChildContent", (RenderFragment)(formBuilder =>
+                {
+                    formBuilder.AddContent(0, capturedChildContent?.Invoke(capturedEditContext!));
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+    }
+
+    private void UpdateContext()
+    {
+        formContext.Update(
+            editContext: editContext,
+            errors: errors,
+            validationMode: ValidationMode);
+    }
+
+    private void ClearErrors(string? name)
+    {
+        if (name is not null && errors.Remove(name))
+        {
+            UpdateContext();
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ImperativeValidateAsync(string? fieldName)
+    {
+        if (fieldName is not null)
+        {
+            var field = fieldRegistry.Fields.Values.FirstOrDefault(f => f.Name == fieldName);
+            if (field is not null)
+            {
+                await field.ValidateAsync();
+            }
+        }
+        else
+        {
+            await fieldRegistry.ValidateAllAsync();
+        }
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        Debug.Assert(editContext is not null);
+
+        submitAttempted = true;
+        UpdateContext();
+
+        if (OnSubmit.HasDelegate)
+        {
+            await OnSubmit.InvokeAsync(editContext);
+            return;
+        }
+
+        await fieldRegistry.ValidateAllAsync();
+
+        var isValid = editContext.Validate();
+
+        var firstInvalidField = fieldRegistry.GetFirstInvalid();
+        if (firstInvalidField is not null)
+        {
+            isValid = false;
+            await firstInvalidField.FocusAsync();
+        }
+
+        if (isValid && OnValidSubmit.HasDelegate)
+        {
+            await OnValidSubmit.InvokeAsync(editContext);
+        }
+
+        if (!isValid && OnInvalidSubmit.HasDelegate)
+        {
+            await OnInvalidSubmit.InvokeAsync(editContext);
+        }
+
+        if (isValid && OnFormSubmit.HasDelegate)
+        {
+            var fieldCount = fieldRegistry.Fields.Count;
+            var formValues = new Dictionary<string, object?>(fieldCount);
+            foreach (var (_, field) in fieldRegistry.Fields)
+            {
+                if (field.Name is not null)
+                {
+                    formValues[field.Name] = field.GetValue();
+                }
+            }
+
+            await OnFormSubmit.InvokeAsync(new FormSubmitEventArgs(formValues));
+        }
+    }
+}

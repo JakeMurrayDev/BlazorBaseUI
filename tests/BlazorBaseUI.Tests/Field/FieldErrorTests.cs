@@ -22,7 +22,8 @@ public class FieldErrorTests : BunitContext, IFieldErrorContract
 
     private RenderFragment CreateFieldWithError(
         bool? invalid = null,
-        bool? match = null)
+        bool? match = null,
+        RenderFragment<RenderProps<FieldRootState>>? errorRender = null)
     {
         return builder =>
         {
@@ -42,6 +43,8 @@ public class FieldErrorTests : BunitContext, IFieldErrorContract
                     fieldBuilder.AddAttribute(11, "Match", match.Value);
                 fieldBuilder.AddAttribute(12, "data-testid", "field-error");
                 fieldBuilder.AddAttribute(13, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Error message")));
+                if (errorRender is not null)
+                    fieldBuilder.AddAttribute(14, "Render", errorRender);
                 fieldBuilder.CloseComponent();
             }));
             builder.CloseComponent();
@@ -57,6 +60,27 @@ public class FieldErrorTests : BunitContext, IFieldErrorContract
         var error = cut.Find("[data-testid='field-error']");
         error.ShouldNotBeNull();
         error.TagName.ShouldBe("DIV");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersWithCustomRender()
+    {
+        var cut = Render(CreateFieldWithError(
+            match: true,
+            errorRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+
+        var section = cut.Find("section");
+        section.ShouldNotBeNull();
+        section.TextContent.ShouldContain("Error message");
+
         return Task.CompletedTask;
     }
 
