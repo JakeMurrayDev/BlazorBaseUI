@@ -4,7 +4,7 @@ public interface ISwitchThumbContract
 {
     // Rendering
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -24,7 +24,4 @@ public interface ISwitchThumbContract
     // State
     Task ClassValueReceivesCorrectState();
     Task StyleValueReceivesCorrectState();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

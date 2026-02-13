@@ -4,7 +4,7 @@ public interface ISwitchRootContract
 {
     // Rendering
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -75,9 +75,6 @@ public interface ISwitchRootContract
     // Element reference
     Task ExposesElementReference();
     Task ExposesInputElementReference();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 
     // ClassValue/StyleValue state
     Task ClassValueReceivesCorrectState();

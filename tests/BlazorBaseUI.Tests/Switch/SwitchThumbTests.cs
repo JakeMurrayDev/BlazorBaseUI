@@ -17,7 +17,7 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
         Func<SwitchRootState, string>? thumbClassValue = null,
         Func<SwitchRootState, string>? thumbStyleValue = null,
         IReadOnlyDictionary<string, object>? thumbAdditionalAttributes = null,
-        string? thumbAsElement = null)
+        RenderFragment<RenderProps<SwitchRootState>>? thumbRender = null)
     {
         return builder =>
         {
@@ -46,8 +46,8 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
                     innerBuilder.AddAttribute(thumbAttrIndex++, "StyleValue", thumbStyleValue);
                 if (thumbAdditionalAttributes is not null)
                     innerBuilder.AddAttribute(thumbAttrIndex++, "AdditionalAttributes", thumbAdditionalAttributes);
-                if (thumbAsElement is not null)
-                    innerBuilder.AddAttribute(thumbAttrIndex++, "As", thumbAsElement);
+                if (thumbRender is not null)
+                    innerBuilder.AddAttribute(thumbAttrIndex++, "Render", thumbRender);
 
                 innerBuilder.CloseComponent();
             }));
@@ -60,7 +60,7 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
         Func<SwitchRootState, string>? classValue = null,
         Func<SwitchRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        RenderFragment<RenderProps<SwitchRootState>>? render = null)
     {
         return builder =>
         {
@@ -77,8 +77,8 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
                     innerBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     innerBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
 
                 innerBuilder.CloseComponent();
             }));
@@ -101,10 +101,17 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
         var cut = Render(CreateSwitchWithThumb(
-            thumbAsElement: "div",
+            thumbRender: props => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, props.Attributes);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddContent(3, props.ChildContent);
+                builder.CloseElement();
+            },
             thumbAdditionalAttributes: new Dictionary<string, object> { { "data-testid", "thumb" } }
         ));
 
@@ -255,12 +262,13 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
     [Fact]
     public Task ReceivesStateFromContext()
     {
-        var context = new SwitchRootContext(
-            Checked: true,
-            Disabled: true,
-            ReadOnly: true,
-            Required: true,
-            State: new SwitchRootState(
+        var context = new SwitchRootContext
+        {
+            Checked = true,
+            Disabled = true,
+            ReadOnly = true,
+            Required = true,
+            State = new SwitchRootState(
                 Checked: true,
                 Disabled: true,
                 ReadOnly: true,
@@ -269,7 +277,8 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
                 Touched: false,
                 Dirty: false,
                 Filled: true,
-                Focused: false));
+                Focused: false)
+        };
 
         var cut = Render(CreateThumbWithContext(
             context,
@@ -288,7 +297,6 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
     [Fact]
     public Task HandlesNullContext()
     {
-        // When rendered outside of SwitchRoot context, should use default state
         var cut = Render(builder =>
         {
             builder.OpenComponent<SwitchThumb>(0);
@@ -299,7 +307,6 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
 
         var thumb = cut.Find("[data-testid='thumb']");
         thumb.ShouldNotBeNull();
-        // Should have default (unchecked) state
         thumb.HasAttribute("data-unchecked").ShouldBeTrue();
 
         return Task.CompletedTask;
@@ -348,37 +355,5 @@ public class SwitchThumbTests : BunitContext, ISwitchThumbContract
         capturedState!.Checked.ShouldBeTrue();
 
         return Task.CompletedTask;
-    }
-
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<SwitchRoot>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(innerBuilder =>
-                {
-                    innerBuilder.OpenComponent<SwitchThumb>(0);
-                    innerBuilder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                    innerBuilder.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
-    // Helper class for RenderAs validation test
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }

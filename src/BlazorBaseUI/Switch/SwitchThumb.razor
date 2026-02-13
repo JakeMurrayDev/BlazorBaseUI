@@ -1,0 +1,118 @@
+@implements IReferencableComponent
+
+<RenderElement TState="SwitchRootState"
+               Tag="span"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private SwitchRootState state = SwitchRootState.Default;
+    private RenderElement<SwitchRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private bool previousChecked;
+    private bool previousDisabled;
+    private bool previousReadOnly;
+    private bool previousRequired;
+    private bool? previousValid;
+    private bool previousTouched;
+    private bool previousDirty;
+    private bool previousFilled;
+    private bool previousFocused;
+
+    [CascadingParameter]
+    private SwitchRootContext? SwitchContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SwitchRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SwitchRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SwitchRootState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var newState = SwitchContext?.State ?? SwitchRootState.Default;
+
+        var stateChanged = previousChecked != newState.Checked ||
+                           previousDisabled != newState.Disabled ||
+                           previousReadOnly != newState.ReadOnly ||
+                           previousRequired != newState.Required ||
+                           previousValid != newState.Valid ||
+                           previousTouched != newState.Touched ||
+                           previousDirty != newState.Dirty ||
+                           previousFilled != newState.Filled ||
+                           previousFocused != newState.Focused;
+
+        if (stateChanged)
+        {
+            state = newState;
+        }
+
+        BuildComponentAttributes();
+
+        previousChecked = newState.Checked;
+        previousDisabled = newState.Disabled;
+        previousReadOnly = newState.ReadOnly;
+        previousRequired = newState.Required;
+        previousValid = newState.Valid;
+        previousTouched = newState.Touched;
+        previousDirty = newState.Dirty;
+        previousFilled = newState.Filled;
+        previousFocused = newState.Focused;
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-checked"] = state.Checked;
+        attrs["data-unchecked"] = !state.Checked;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-readonly"] = state.ReadOnly;
+        attrs["data-required"] = state.Required;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-filled"] = state.Filled;
+        attrs["data-focused"] = state.Focused;
+
+        componentAttributes = attrs;
+    }
+}

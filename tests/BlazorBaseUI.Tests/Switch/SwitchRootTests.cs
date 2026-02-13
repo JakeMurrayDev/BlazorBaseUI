@@ -21,7 +21,7 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
         Func<SwitchRootState, string>? classValue = null,
         Func<SwitchRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<SwitchRootState>>? render = null,
         EventCallback<SwitchCheckedChangeEventArgs>? onCheckedChange = null,
         EventCallback<bool>? checkedChanged = null,
         RenderFragment? childContent = null)
@@ -55,8 +55,8 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (onCheckedChange.HasValue)
                 builder.AddAttribute(attrIndex++, "OnCheckedChange", onCheckedChange.Value);
             if (checkedChanged.HasValue)
@@ -117,9 +117,18 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSwitchRoot(asElement: "div"));
+        var cut = Render(CreateSwitchRoot(
+            render: props => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, props.Attributes);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddContent(3, props.ChildContent);
+                builder.CloseElement();
+            }
+        ));
 
         var switchEl = cut.Find("[role='switch']");
         switchEl.TagName.ShouldBe("DIV");
@@ -193,9 +202,6 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
     [Fact]
     public Task OverridesBuiltInAttributes()
     {
-        // The component sets role="switch" AFTER AddMultipleAttributes, so role cannot be overridden.
-        // But we can verify that AdditionalAttributes are applied before built-in attributes.
-        // Test that custom tabindex is applied (then overridden by component's tabindex)
         var cut = Render(CreateSwitchRoot(
             additionalAttributes: new Dictionary<string, object>
             {
@@ -523,12 +529,10 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
     [Fact]
     public Task UpdatesStateWhenControlledValueChanges()
     {
-        // Test that controlled value of false renders correctly
         var cutFalse = Render(CreateSwitchRoot(isChecked: false));
         var switchElFalse = cutFalse.Find("[role='switch']");
         switchElFalse.GetAttribute("aria-checked").ShouldBe("false");
 
-        // Test that controlled value of true renders correctly
         var cutTrue = Render(CreateSwitchRoot(isChecked: true));
         var switchElTrue = cutTrue.Find("[role='switch']");
         switchElTrue.GetAttribute("aria-checked").ShouldBe("true");
@@ -635,7 +639,6 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
         var input = cut.Find("input[type='checkbox']");
         input.Change(true);
 
-        // State should not change because the event was cancelled
         switchEl = cut.Find("[role='switch']");
         switchEl.GetAttribute("aria-checked").ShouldBe("false");
 
@@ -738,7 +741,6 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
         });
 
         component.ShouldNotBeNull();
-        // Element reference is captured after render
         cut.WaitForState(() => component!.Element.HasValue);
         component!.Element.HasValue.ShouldBeTrue();
 
@@ -759,23 +761,6 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
 
         component.ShouldNotBeNull();
         component!.InputElement.Id.ShouldNotBeNullOrEmpty();
-
-        return Task.CompletedTask;
-    }
-
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<SwitchRoot>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
 
         return Task.CompletedTask;
     }
@@ -842,28 +827,16 @@ public class SwitchRootTests : BunitContext, ISwitchRootContract
         var switchEl = cut.Find("[role='switch']");
         var thumb = cut.Find("[data-testid='thumb']");
 
-        // Root should have all data attributes
         switchEl.HasAttribute("data-checked").ShouldBeTrue();
         switchEl.HasAttribute("data-disabled").ShouldBeTrue();
         switchEl.HasAttribute("data-readonly").ShouldBeTrue();
         switchEl.HasAttribute("data-required").ShouldBeTrue();
 
-        // Thumb should have all data attributes
         thumb.HasAttribute("data-checked").ShouldBeTrue();
         thumb.HasAttribute("data-disabled").ShouldBeTrue();
         thumb.HasAttribute("data-readonly").ShouldBeTrue();
         thumb.HasAttribute("data-required").ShouldBeTrue();
 
         return Task.CompletedTask;
-    }
-
-    // Helper class for RenderAs validation test
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }
