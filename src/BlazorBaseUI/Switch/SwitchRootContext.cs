@@ -1,16 +1,32 @@
 namespace BlazorBaseUI.Switch;
 
-public sealed record SwitchRootContext(
-    bool Checked,
-    bool Disabled,
-    bool ReadOnly,
-    bool Required,
-    SwitchRootState State)
+/// <summary>
+/// Provides cascading state from <see cref="SwitchRoot"/> to its child components.
+/// </summary>
+public sealed class SwitchRootContext
 {
-    internal static SwitchRootContext Default { get; } = new(
-        Checked: false,
-        Disabled: false,
-        ReadOnly: false,
-        Required: false,
-        State: SwitchRootState.Default);
+    /// <summary>
+    /// Gets or sets whether the switch is checked.
+    /// </summary>
+    public bool Checked { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the switch is disabled.
+    /// </summary>
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the switch is read-only.
+    /// </summary>
+    public bool ReadOnly { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the switch is required.
+    /// </summary>
+    public bool Required { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current state of the switch.
+    /// </summary>
+    public SwitchRootState State { get; set; }
 }
