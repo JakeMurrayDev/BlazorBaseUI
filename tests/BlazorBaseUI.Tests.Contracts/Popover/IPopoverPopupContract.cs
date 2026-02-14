@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Popover;
 public interface IPopoverPopupContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task RendersChildren();
     Task HasRoleDialog();

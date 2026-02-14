@@ -17,7 +17,7 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
 
     private RenderFragment CreatePositionerInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverPositionerState>>? render = null,
         BlazorBaseUI.Popover.Side side = BlazorBaseUI.Popover.Side.Bottom,
         BlazorBaseUI.Popover.Align align = BlazorBaseUI.Popover.Align.Center,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -40,8 +40,8 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
                     portalBuilder.OpenComponent<PopoverPositioner>(0);
                     var attrIndex = 1;
 
-                    if (asElement is not null)
-                        portalBuilder.AddAttribute(attrIndex++, "As", asElement);
+                    if (render is not null)
+                        portalBuilder.AddAttribute(attrIndex++, "Render", render);
                     portalBuilder.AddAttribute(attrIndex++, "Side", side);
                     portalBuilder.AddAttribute(attrIndex++, "Align", align);
                     if (classValue is not null)
@@ -78,9 +78,19 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePositionerInPopover(asElement: "section"));
+        RenderFragment<RenderProps<PopoverPositionerState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreatePositionerInPopover(render: render));
 
         var positioner = cut.Find("section[role='presentation']");
         positioner.ShouldNotBeNull();

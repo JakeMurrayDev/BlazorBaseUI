@@ -1,0 +1,630 @@
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@implements IPopoverHandleSubscriber
+@inject IJSRuntime JSRuntime
+
+<CascadingValue Value="context" IsFixed="true">
+    @if (ChildContentWithPayload is not null)
+    {
+        @ChildContentWithPayload(new PopoverRootPayloadContext(payload))
+    }
+    else
+    {
+        @ChildContent
+    }
+</CascadingValue>
+
+@code {
+    private readonly string rootId = Guid.NewGuid().ToIdString();
+    private readonly Dictionary<string, ElementReference?> triggerElements = [];
+
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private bool isOpen;
+    private bool isMounted;
+    private string? titleId;
+    private string? descriptionId;
+    private string? activeTriggerId;
+    private ElementReference? triggerElement;
+    private ElementReference? positionerElement;
+    private ElementReference? popupElement;
+    private OpenChangeReason openChangeReason = OpenChangeReason.None;
+    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private InstantType instantType = InstantType.None;
+    private object? payload;
+    private PopoverRootState state;
+    private PopoverRootContext context = null!;
+    private DotNetObjectReference<PopoverRoot>? dotNetRef;
+    private IPopoverHandle? subscribedHandle;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-popover.js").AsTask());
+
+    /// <summary>
+    /// Determines whether the popover is currently open.
+    /// To render a controlled popover, use this prop. Otherwise, the component manages its own state.
+    /// </summary>
+    [Parameter]
+    public bool? Open { get; set; }
+
+    /// <summary>
+    /// Determines whether the popover is initially open.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DefaultOpen { get; set; }
+
+    /// <summary>
+    /// Gets or sets the modal behavior of the popover when open.
+    /// Defaults to <see cref="ModalMode.False"/>.
+    /// </summary>
+    [Parameter]
+    public ModalMode Modal { get; set; } = ModalMode.False;
+
+    /// <summary>
+    /// Gets or sets the ID of the trigger that the popover is associated with.
+    /// This is useful in conjunction with the <see cref="Open"/> prop to create a controlled popover.
+    /// </summary>
+    [Parameter]
+    public string? TriggerId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ID of the trigger that the popover is initially associated with.
+    /// This is useful in conjunction with the <see cref="DefaultOpen"/> prop.
+    /// </summary>
+    [Parameter]
+    public string? DefaultTriggerId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the imperative actions reference for the popover.
+    /// Provides <see cref="PopoverRootActions.Unmount"/> and <see cref="PopoverRootActions.Close"/> actions.
+    /// </summary>
+    [Parameter]
+    public PopoverRootActions? ActionsRef { get; set; }
+
+    /// <summary>
+    /// Gets or sets the handle to associate the popover with detached triggers.
+    /// If specified, allows external triggers to control the popover's open state.
+    /// </summary>
+    [Parameter]
+    public IPopoverHandle? Handle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the open state changes for two-way binding.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the popover is opened or closed.
+    /// The event args include the reason for the state change and can be canceled.
+    /// </summary>
+    [Parameter]
+    public EventCallback<PopoverOpenChangeEventArgs> OnOpenChange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked after any animations complete when the popover is opened or closed.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OnOpenChangeComplete { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance with access to the active trigger's payload.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<PopoverRootPayloadContext>? ChildContentWithPayload { get; set; }
+
+    private bool IsControlled => Open.HasValue;
+
+    private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
+
+    private string? CurrentTriggerId => TriggerId ?? activeTriggerId;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        isOpen = DefaultOpen;
+        isMounted = CurrentOpen;
+        activeTriggerId = DefaultTriggerId;
+        state = new PopoverRootState(CurrentOpen);
+        context = new PopoverRootContext
+        {
+            RootId = rootId,
+            Open = CurrentOpen,
+            Mounted = isMounted,
+            Modal = Modal,
+            OpenChangeReason = openChangeReason,
+            TransitionStatus = transitionStatus,
+            InstantType = instantType,
+            TitleId = titleId,
+            DescriptionId = descriptionId,
+            ActiveTriggerId = activeTriggerId,
+            Payload = payload,
+            GetOpen = () => CurrentOpen,
+            GetMounted = () => isMounted,
+            GetTriggerElement = GetTriggerElement,
+            GetPositionerElement = () => positionerElement,
+            GetPopupElement = () => popupElement,
+            SetTitleId = SetTitleId,
+            SetDescriptionId = SetDescriptionId,
+            SetTriggerElement = SetTriggerElement,
+            SetPositionerElement = SetPositionerElement,
+            SetPopupElement = SetPopupElement,
+            SetOpenAsync = SetOpenAsyncFromContext,
+            Close = Close,
+            ForceUnmount = ForceUnmount
+        };
+
+        if (ActionsRef is not null)
+        {
+            ActionsRef.Unmount = ForceUnmount;
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction, null);
+        }
+
+        SubscribeToHandle();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentOpen = CurrentOpen;
+        if (state.Open != currentOpen)
+        {
+            state = new PopoverRootState(currentOpen);
+            if (currentOpen)
+            {
+                isMounted = true;
+            }
+            context.Open = currentOpen;
+            context.Mounted = isMounted;
+        }
+
+        if (TriggerId is not null)
+        {
+            activeTriggerId = TriggerId;
+            context.ActiveTriggerId = activeTriggerId;
+        }
+
+        context.Modal = Modal;
+
+        if (ActionsRef is not null)
+        {
+            ActionsRef.Unmount = ForceUnmount;
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction, null);
+        }
+
+        // Handle change of handle parameter
+        if (Handle != subscribedHandle)
+        {
+            UnsubscribeFromHandle();
+            SubscribeToHandle();
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+            await InitializeJsAsync();
+        }
+    }
+
+    private async Task InitializeJsAsync()
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetTitleId(string id)
+    {
+        titleId = id;
+        context.TitleId = id;
+    }
+
+    private void SetDescriptionId(string id)
+    {
+        descriptionId = id;
+        context.DescriptionId = id;
+    }
+
+    private void SetTriggerElement(ElementReference? element)
+    {
+        triggerElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetTriggerElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetTriggerElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setTriggerElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetPositionerElement(ElementReference? element)
+    {
+        positionerElement = element;
+    }
+
+    private void SetPopupElement(ElementReference? element)
+    {
+        popupElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetPopupElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetPopupElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setPopupElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private Task SetOpenAsyncFromContext(bool nextOpen, OpenChangeReason reason, object? payloadFromTrigger)
+    {
+        return SetOpenAsync(nextOpen, reason, (string?)null);
+    }
+
+    private void Close()
+    {
+        _ = SetOpenAsync(false, OpenChangeReason.ClosePress, null);
+    }
+
+    private void ForceUnmount()
+    {
+        isMounted = false;
+        context.Mounted = false;
+        transitionStatus = TransitionStatus.None;
+        context.TransitionStatus = transitionStatus;
+        activeTriggerId = null;
+        context.ActiveTriggerId = null;
+        payload = null;
+        context.Payload = null;
+        _ = InvokeOpenChangeCompleteAsync(false);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handles an outside press event from JavaScript interop.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnOutsidePress()
+    {
+        await SetOpenAsync(false, OpenChangeReason.OutsidePress, null);
+    }
+
+    /// <summary>
+    /// Handles an escape key press event from JavaScript interop.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnEscapeKey()
+    {
+        await SetOpenAsync(false, OpenChangeReason.EscapeKey, null);
+    }
+
+    /// <summary>
+    /// Handles the starting style application event from JavaScript interop.
+    /// </summary>
+    [JSInvokable]
+    public void OnStartingStyleApplied()
+    {
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            transitionStatus = TransitionStatus.None;
+            context.TransitionStatus = transitionStatus;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Handles a hover open event from JavaScript interop.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnHoverOpen()
+    {
+        await SetOpenAsync(true, OpenChangeReason.TriggerHover, null);
+    }
+
+    /// <summary>
+    /// Handles a hover close event from JavaScript interop.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnHoverClose()
+    {
+        await SetOpenAsync(false, OpenChangeReason.TriggerHover, null);
+    }
+
+    /// <summary>
+    /// Handles a transition end event from JavaScript interop.
+    /// </summary>
+    /// <param name="open">Whether the popover is open after the transition.</param>
+    [JSInvokable]
+    public void OnTransitionEnd(bool open)
+    {
+        transitionStatus = TransitionStatus.None;
+        context.TransitionStatus = transitionStatus;
+
+        if (!open)
+        {
+            isMounted = false;
+            context.Mounted = false;
+            activeTriggerId = null;
+            context.ActiveTriggerId = null;
+            payload = null;
+            context.Payload = null;
+        }
+
+        instantType = InstantType.None;
+        context.InstantType = instantType;
+
+        _ = InvokeOpenChangeCompleteAsync(open);
+        StateHasChanged();
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        UnsubscribeFromHandle();
+
+        if (moduleTask?.IsValueCreated == true && hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeRoot", rootId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    /// <summary>
+    /// Sets the popover's open state with the specified reason and trigger association.
+    /// </summary>
+    /// <param name="nextOpen">The desired open state.</param>
+    /// <param name="reason">The reason for the state change.</param>
+    /// <param name="triggerId">The ID of the trigger initiating the change, or <see langword="null"/>.</param>
+    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, string? triggerId)
+    {
+        if (CurrentOpen == nextOpen)
+        {
+            return;
+        }
+
+        var args = new PopoverOpenChangeEventArgs(nextOpen, reason);
+        await OnOpenChange.InvokeAsync(args);
+
+        if (args.Canceled)
+        {
+            return;
+        }
+
+        openChangeReason = reason;
+        context.OpenChangeReason = reason;
+
+        if (nextOpen)
+        {
+            if (triggerId is not null)
+            {
+                activeTriggerId = triggerId;
+                context.ActiveTriggerId = triggerId;
+
+                var handlePayload = GetPayloadFromHandle(triggerId);
+                if (handlePayload is not null)
+                {
+                    payload = handlePayload;
+                }
+                context.Payload = payload;
+            }
+
+            instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
+            transitionStatus = TransitionStatus.Starting;
+            isMounted = true;
+        }
+        else
+        {
+            instantType = reason switch
+            {
+                OpenChangeReason.EscapeKey or OpenChangeReason.OutsidePress => InstantType.Dismiss,
+                OpenChangeReason.TriggerPress or OpenChangeReason.ClosePress => InstantType.Click,
+                _ => InstantType.None
+            };
+            transitionStatus = TransitionStatus.Ending;
+        }
+
+        context.InstantType = instantType;
+        context.TransitionStatus = transitionStatus;
+        context.Mounted = isMounted;
+
+        if (!IsControlled)
+        {
+            isOpen = nextOpen;
+        }
+
+        state = new PopoverRootState(nextOpen);
+        context.Open = nextOpen;
+
+        SyncHandleState(nextOpen, activeTriggerId);
+
+        if (hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                var reasonString = reason == OpenChangeReason.TriggerHover ? "trigger-hover" : null;
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        await OpenChanged.InvokeAsync(nextOpen);
+        StateHasChanged();
+    }
+
+    void IPopoverHandleSubscriber.OnTriggerRegistered(string triggerId, ElementReference? element)
+    {
+        triggerElements[triggerId] = element;
+
+        if (hasRendered && element.HasValue && activeTriggerId == triggerId)
+        {
+            _ = SetTriggerElementAsync(element.Value);
+        }
+    }
+
+    void IPopoverHandleSubscriber.OnTriggerUnregistered(string triggerId)
+    {
+        triggerElements.Remove(triggerId);
+    }
+
+    void IPopoverHandleSubscriber.OnTriggerElementUpdated(string triggerId, ElementReference? element)
+    {
+        triggerElements[triggerId] = element;
+
+        if (hasRendered && element.HasValue && activeTriggerId == triggerId)
+        {
+            _ = SetTriggerElementAsync(element.Value);
+        }
+    }
+
+    void IPopoverHandleSubscriber.OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await SetOpenAsync(open, reason, triggerId);
+            }
+            catch (Exception ex)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        });
+    }
+
+    void IPopoverHandleSubscriber.OnStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SetOpenWithExceptionHandlingAsync(bool nextOpen, OpenChangeReason reason, string? triggerId)
+    {
+        try
+        {
+            await SetOpenAsync(nextOpen, reason, triggerId);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
+    private async Task InvokeOpenChangeCompleteAsync(bool open)
+    {
+        try
+        {
+            await OnOpenChangeComplete.InvokeAsync(open);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
+    private void SubscribeToHandle()
+    {
+        if (Handle is null)
+        {
+            return;
+        }
+
+        subscribedHandle = Handle;
+        Handle.Subscribe(this);
+    }
+
+    private void UnsubscribeFromHandle()
+    {
+        if (subscribedHandle is null)
+        {
+            return;
+        }
+
+        subscribedHandle.Unsubscribe(this);
+        subscribedHandle = null;
+    }
+
+    private void SyncHandleState(bool open, string? triggerId)
+    {
+        Handle?.SyncState(open, triggerId, payload);
+    }
+
+    private object? GetPayloadFromHandle(string triggerId)
+    {
+        return Handle?.GetTriggerPayloadAsObject(triggerId);
+    }
+
+    private ElementReference? GetTriggerElementFromHandle(string triggerId)
+    {
+        return Handle?.GetTriggerElement(triggerId);
+    }
+
+    private ElementReference? GetTriggerElement()
+    {
+        if (triggerElement.HasValue)
+        {
+            return triggerElement;
+        }
+
+        if (activeTriggerId is not null && triggerElements.TryGetValue(activeTriggerId, out var element))
+        {
+            return element;
+        }
+
+        if (Handle is not null && activeTriggerId is not null)
+        {
+            var handleElement = GetTriggerElementFromHandle(activeTriggerId);
+            if (handleElement.HasValue)
+            {
+                return handleElement;
+            }
+        }
+
+        return triggerElements.Values.FirstOrDefault();
+    }
+}

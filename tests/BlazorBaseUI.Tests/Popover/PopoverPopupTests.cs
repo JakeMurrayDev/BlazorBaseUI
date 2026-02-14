@@ -17,7 +17,7 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
 
     private RenderFragment CreatePopupInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverPopupState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverPopupState, string>? classValue = null,
         Func<PopoverPopupState, string>? styleValue = null,
@@ -44,8 +44,8 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
                         posBuilder.OpenComponent<PopoverPopup>(0);
                         var attrIndex = 1;
 
-                        if (asElement is not null)
-                            posBuilder.AddAttribute(attrIndex++, "As", asElement);
+                        if (render is not null)
+                            posBuilder.AddAttribute(attrIndex++, "Render", render);
                         if (classValue is not null)
                             posBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                         if (styleValue is not null)
@@ -94,9 +94,19 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePopupInPopover(asElement: "section"));
+        RenderFragment<RenderProps<PopoverPopupState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreatePopupInPopover(render: render));
 
         var popup = cut.Find("section[role='dialog']");
         popup.ShouldNotBeNull();

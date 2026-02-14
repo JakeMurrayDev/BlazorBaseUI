@@ -1,0 +1,122 @@
+@using Microsoft.AspNetCore.Components.Web
+@implements IReferencableComponent
+
+<RenderElement TState="PopoverBackdropState"
+               Tag="div"
+               Enabled="RootContext is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="ComputedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string ForcedStyle = "user-select: none; -webkit-user-select: none;";
+
+    private PopoverBackdropState state;
+    private RenderElement<PopoverBackdropState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private PopoverRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the backdrop element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<PopoverBackdropState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverBackdropState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverBackdropState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    private Func<PopoverBackdropState, string>? ComputedStyleValue =>
+        s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            return string.IsNullOrEmpty(userStyle) ? ForcedStyle : $"{ForcedStyle} {userStyle}";
+        };
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        state = new PopoverBackdropState(open, transitionStatus);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "presentation";
+
+        if (!(RootContext?.GetMounted() ?? false))
+        {
+            attrs["hidden"] = true;
+        }
+
+        if (RootContext?.GetOpen() ?? false)
+        {
+            attrs["data-open"] = string.Empty;
+        }
+        else
+        {
+            attrs["data-closed"] = string.Empty;
+        }
+
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            attrs["data-starting-style"] = string.Empty;
+        }
+        else if (transitionStatus == TransitionStatus.Ending)
+        {
+            attrs["data-ending-style"] = string.Empty;
+        }
+
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+
+        componentAttributes = attrs;
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (RootContext is null)
+        {
+            return;
+        }
+
+        await RootContext.SetOpenAsync(false, OpenChangeReason.OutsidePress, null);
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+}

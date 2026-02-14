@@ -1,0 +1,76 @@
+@implements IReferencableComponent
+@implements IDisposable
+
+<RenderElement TState="PopoverRootState"
+               Tag="p"
+               State="state"
+               Render="Render"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private string descriptionId = string.Empty;
+    private PopoverRootState state;
+    private RenderElement<PopoverRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private PopoverRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the description element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<PopoverRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        descriptionId = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id")
+            ?? $"popover-description-{Guid.NewGuid():N}";
+
+        RootContext?.SetDescriptionId(descriptionId);
+
+        state = new PopoverRootState(RootContext?.GetOpen() ?? false);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        state = new PopoverRootState(RootContext?.GetOpen() ?? false);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        attrs["id"] = descriptionId;
+        componentAttributes = attrs;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        RootContext?.SetDescriptionId(string.Empty);
+    }
+}
