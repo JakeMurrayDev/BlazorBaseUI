@@ -49,9 +49,6 @@
             ?? $"popover-title-{Guid.NewGuid():N}";
 
         RootContext?.SetTitleId(titleId);
-
-        state = new PopoverRootState(RootContext?.GetOpen() ?? false);
-        BuildComponentAttributes();
     }
 
     /// <inheritdoc />

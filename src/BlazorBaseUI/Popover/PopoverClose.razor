@@ -57,13 +57,6 @@
     public ElementReference? Element => renderElementReference?.Element;
 
     /// <inheritdoc />
-    protected override void OnInitialized()
-    {
-        state = new PopoverRootState(RootContext?.GetOpen() ?? false);
-        BuildComponentAttributes();
-    }
-
-    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         state = new PopoverRootState(RootContext?.GetOpen() ?? false);

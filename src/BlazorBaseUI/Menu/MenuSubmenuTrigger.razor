@@ -59,9 +59,10 @@
     /// <summary>
     /// Gets or sets the delay in milliseconds before closing the submenu that was opened on hover.
     /// Requires the <see cref="OpenOnHover"/> property.
+    /// When <see langword="null"/>, falls back to the <see cref="Delay"/> value.
     /// </summary>
     [Parameter]
-    public int CloseDelay { get; set; }
+    public int? CloseDelay { get; set; }
 
     /// <summary>
     /// Gets or sets the text label to use when the item is matched during keyboard text navigation.
@@ -155,6 +156,7 @@
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -228,7 +230,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            var effectiveCloseDelay = CloseDelay > 0 ? CloseDelay : Delay;
+            var effectiveCloseDelay = CloseDelay ?? Delay;
             await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
             hoverInitialized = true;
         }

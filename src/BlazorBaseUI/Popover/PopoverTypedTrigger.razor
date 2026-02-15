@@ -78,10 +78,11 @@
     /// <summary>
     /// Gets or sets how long to wait, in milliseconds, before closing the popover that was opened on hover.
     /// Requires the <see cref="OpenOnHover"/> prop.
-    /// Defaults to <c>0</c>.
+    /// When <see langword="null"/>, falls back to the <see cref="Delay"/> value.
+    /// Defaults to <see langword="null"/>.
     /// </summary>
     [Parameter]
-    public int CloseDelay { get; set; }
+    public int? CloseDelay { get; set; }
 
     /// <summary>
     /// Gets or sets the ID of the trigger. In addition to being forwarded to the rendered element,
@@ -250,6 +251,7 @@
             {
                 var module = await ModuleTask.Value;
                 await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+                await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -329,7 +331,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            var effectiveCloseDelay = CloseDelay > 0 ? CloseDelay : Delay;
+            var effectiveCloseDelay = CloseDelay ?? Delay;
             await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
             hoverInitialized = true;
         }

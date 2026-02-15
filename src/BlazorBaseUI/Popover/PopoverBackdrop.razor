@@ -7,7 +7,7 @@
                State="state"
                Render="Render"
                ClassValue="ClassValue"
-               StyleValue="ComputedStyleValue"
+               StyleValue="computedStyleValue"
                ComponentAttributes="componentAttributes"
                ChildContent="ChildContent"
                @attributes="AdditionalAttributes"
@@ -19,6 +19,7 @@
     private PopoverBackdropState state;
     private RenderElement<PopoverBackdropState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
+    private Func<PopoverBackdropState, string>? computedStyleValue;
 
     [CascadingParameter]
     private PopoverRootContext? RootContext { get; set; }
@@ -58,19 +59,17 @@
     /// </summary>
     public ElementReference? Element => renderElementReference?.Element;
 
-    private Func<PopoverBackdropState, string>? ComputedStyleValue =>
-        s =>
-        {
-            var userStyle = StyleValue?.Invoke(s);
-            return string.IsNullOrEmpty(userStyle) ? ForcedStyle : $"{ForcedStyle} {userStyle}";
-        };
-
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
         var open = RootContext?.GetOpen() ?? false;
         var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
         state = new PopoverBackdropState(open, transitionStatus);
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            return string.IsNullOrEmpty(userStyle) ? ForcedStyle : $"{ForcedStyle} {userStyle}";
+        };
         BuildComponentAttributes();
     }
 
