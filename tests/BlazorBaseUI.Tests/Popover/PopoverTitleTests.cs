@@ -17,7 +17,7 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
 
     private RenderFragment CreateTitleInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverRootState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null)
     {
         return builder =>
@@ -42,8 +42,8 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
                             popupBuilder.OpenComponent<PopoverTitle>(0);
                             var attrIndex = 1;
 
-                            if (asElement is not null)
-                                popupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                            if (render is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "Render", render);
                             if (additionalAttributes is not null)
                                 popupBuilder.AddMultipleAttributes(attrIndex++, additionalAttributes);
                             popupBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Title text")));
@@ -73,9 +73,19 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTitleInPopover(asElement: "h3"));
+        RenderFragment<RenderProps<PopoverRootState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "h3");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateTitleInPopover(render: render));
 
         var title = cut.Find("h3");
         title.TextContent.ShouldBe("Title text");

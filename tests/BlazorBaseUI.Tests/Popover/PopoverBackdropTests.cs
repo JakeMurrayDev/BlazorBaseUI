@@ -17,7 +17,7 @@ public class PopoverBackdropTests : BunitContext, IPopoverBackdropContract
 
     private RenderFragment CreateBackdropInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverBackdropState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverBackdropState, string>? classValue = null,
         Func<PopoverBackdropState, string>? styleValue = null)
@@ -38,8 +38,8 @@ public class PopoverBackdropTests : BunitContext, IPopoverBackdropContract
                     portalBuilder.OpenComponent<PopoverBackdrop>(0);
                     var attrIndex = 1;
 
-                    if (asElement is not null)
-                        portalBuilder.AddAttribute(attrIndex++, "As", asElement);
+                    if (render is not null)
+                        portalBuilder.AddAttribute(attrIndex++, "Render", render);
                     if (classValue is not null)
                         portalBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                     if (styleValue is not null)
@@ -76,9 +76,19 @@ public class PopoverBackdropTests : BunitContext, IPopoverBackdropContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateBackdropInPopover(asElement: "span"));
+        RenderFragment<RenderProps<PopoverBackdropState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateBackdropInPopover(render: render));
 
         var backdrop = cut.Find("span[role='presentation']");
         backdrop.ShouldNotBeNull();
@@ -138,6 +148,18 @@ public class PopoverBackdropTests : BunitContext, IPopoverBackdropContract
         backdrop.HasAttribute("data-open").ShouldBeTrue();
 
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task HasPointerEventsNoneWhenHoverOpened()
+    {
+        var cut = Render(CreateBackdropInPopover(defaultOpen: false));
+
+        var root = cut.FindComponent<PopoverRoot>();
+        await root.InvokeAsync(() => root.Instance.OnHoverOpen());
+
+        var backdrop = cut.Find("div[role='presentation']");
+        backdrop.GetAttribute("style")!.ShouldContain("pointer-events: none");
     }
 
     [Fact]

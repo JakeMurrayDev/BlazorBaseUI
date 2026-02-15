@@ -366,6 +366,21 @@ private async Task HandleClickAsync(MouseEventArgs e)
 - PR descriptions should focus on what changed and why
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
 
+### PR Review Comment Workflow
+
+When addressing PR review comments, follow this process:
+
+1. **Fetch comments** — Use `gh api repos/{owner}/{repo}/pulls/{number}/comments` with `--jq` to extract comment IDs, paths, lines, user, and body summary
+2. **Validate each concern** — Cross-reference against:
+   - The base-ui source in `.base-ui/` for behavioral fidelity
+   - The AGENTS.md coding guidelines for pattern compliance
+   - Existing reference implementations (e.g., Switch) for consistency
+3. **Classify validity** — For each comment, determine: Valid, Partially Valid, or Invalid (with reasoning)
+4. **Fix valid issues** — Apply changes, then build the full solution (`dotnet build BlazorBaseUI.slnx`) to verify 0 errors
+5. **Check for same bug elsewhere** — If a bug is found in one component, grep for the same pattern in sibling components and fix those too
+6. **Commit and push** — Single commit covering all fixes with a descriptive message
+7. **Reply to each comment** — Use `gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies -f body="..."` to reply inline, referencing the commit SHA and describing what was fixed
+
 ---
 
 ## Testing Instructions

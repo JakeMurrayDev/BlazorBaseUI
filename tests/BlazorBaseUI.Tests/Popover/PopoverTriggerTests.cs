@@ -18,7 +18,8 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
     private RenderFragment CreateTriggerInRoot(
         bool defaultOpen = false,
         bool triggerDisabled = false,
-        string? asElement = null,
+        bool openOnHover = false,
+        RenderFragment<RenderProps<PopoverTriggerState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverTriggerState, string>? classValue = null,
         Func<PopoverTriggerState, string>? styleValue = null,
@@ -35,8 +36,10 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
 
                 if (triggerDisabled)
                     innerBuilder.AddAttribute(attrIndex++, "Disabled", true);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (openOnHover)
+                    innerBuilder.AddAttribute(attrIndex++, "OpenOnHover", true);
+                if (render is not null)
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
                 if (classValue is not null)
                     innerBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -79,9 +82,19 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTriggerInRoot(asElement: "div"));
+        RenderFragment<RenderProps<PopoverTriggerState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateTriggerInRoot(render: render));
 
         var trigger = cut.Find("div[aria-expanded]");
         trigger.ShouldNotBeNull();
@@ -217,6 +230,20 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
         trigger.GetAttribute("style")!.ShouldContain("color: blue");
 
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task HasFocusHandlersWhenOpenOnHover()
+    {
+        var cut = Render(CreateTriggerInRoot(openOnHover: true));
+
+        var trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+
+        await trigger.FocusAsync(new FocusEventArgs());
+
+        trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("true");
     }
 
     [Fact]

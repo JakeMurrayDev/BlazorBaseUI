@@ -3,10 +3,11 @@ namespace BlazorBaseUI.Tests.Contracts.Popover;
 public interface IPopoverBackdropContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task HasDataOpenWhenOpen();
+    Task HasPointerEventsNoneWhenHoverOpened();
     Task RequiresContext();
 }

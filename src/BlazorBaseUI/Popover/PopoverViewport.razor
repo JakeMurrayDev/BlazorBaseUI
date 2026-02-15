@@ -1,0 +1,92 @@
+@implements IReferencableComponent
+
+<RenderElement TState="PopoverViewportState"
+               Tag="div"
+               Enabled="RootContext is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private PopoverViewportState state;
+    private RenderElement<PopoverViewportState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private PopoverRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the viewport element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<PopoverViewportState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverViewportState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverViewportState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        state = new PopoverViewportState(open, transitionStatus);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        if (RootContext?.GetOpen() ?? false)
+        {
+            attrs["data-open"] = string.Empty;
+        }
+        else
+        {
+            attrs["data-closed"] = string.Empty;
+        }
+
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            attrs["data-starting-style"] = string.Empty;
+        }
+        else if (transitionStatus == TransitionStatus.Ending)
+        {
+            attrs["data-ending-style"] = string.Empty;
+        }
+
+        componentAttributes = attrs;
+    }
+}

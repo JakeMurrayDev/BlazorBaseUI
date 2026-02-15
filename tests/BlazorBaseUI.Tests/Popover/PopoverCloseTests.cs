@@ -17,7 +17,7 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
 
     private RenderFragment CreateCloseInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverRootState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null)
     {
         return builder =>
@@ -44,8 +44,8 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
                             popupBuilder.OpenComponent<PopoverClose>(10);
                             var attrIndex = 11;
 
-                            if (asElement is not null)
-                                popupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                            if (render is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "Render", render);
                             if (additionalAttributes is not null)
                                 popupBuilder.AddMultipleAttributes(attrIndex++, additionalAttributes);
                             popupBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Close")));
@@ -77,9 +77,19 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateCloseInPopover(asElement: "div"));
+        RenderFragment<RenderProps<PopoverRootState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateCloseInPopover(render: render));
 
         var closeButton = cut.Find("div[type='button']");
         closeButton.ShouldNotBeNull();

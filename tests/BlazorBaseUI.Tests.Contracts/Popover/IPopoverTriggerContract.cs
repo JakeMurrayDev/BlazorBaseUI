@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Popover;
 public interface IPopoverTriggerContract
 {
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task HasAriaHaspopupDialog();
     Task HasAriaExpandedFalseWhenClosed();
@@ -12,6 +12,7 @@ public interface IPopoverTriggerContract
     Task HasDisabledAttributeWhenDisabled();
     Task DoesNotToggleWhenDisabled();
     Task TogglesOnClick();
+    Task HasFocusHandlersWhenOpenOnHover();
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task RequiresContext();

@@ -1,0 +1,350 @@
+@using Microsoft.JSInterop
+@implements IReferencableComponent
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+@if (RootContext is not null)
+{
+    <CascadingValue Value="positionerContext" IsFixed="true">
+        <RenderElement TState="PopoverPositionerState"
+                       Tag="div"
+                       State="state"
+                       Render="Render"
+                       ClassValue="ClassValue"
+                       StyleValue="StyleValue"
+                       ComponentAttributes="componentAttributes"
+                       ChildContent="ChildContent"
+                       @attributes="AdditionalAttributes"
+                       @ref="renderElementReference" />
+    </CascadingValue>
+}
+
+@code {
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private ElementReference? arrowElement;
+    private string? positionerId;
+    private PopoverPositionerState state;
+    private PopoverPositionerContext positionerContext = null!;
+    private RenderElement<PopoverPositionerState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private ElementReference? previousElement;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-popover.js").AsTask());
+
+    [CascadingParameter]
+    private PopoverRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private PopoverPortalContext? PortalContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the positioner element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<PopoverPositionerState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the side of the anchor element to position against.
+    /// Defaults to <see cref="Popover.Side.Bottom"/>.
+    /// </summary>
+    [Parameter]
+    public Side Side { get; set; } = Side.Bottom;
+
+    /// <summary>
+    /// Gets or sets the alignment of the popover relative to the specified side.
+    /// Defaults to <see cref="Popover.Align.Center"/>.
+    /// </summary>
+    [Parameter]
+    public Align Align { get; set; } = Align.Center;
+
+    /// <summary>
+    /// Gets or sets the offset in pixels from the side of the anchor element.
+    /// Defaults to <c>0</c>.
+    /// </summary>
+    [Parameter]
+    public int SideOffset { get; set; }
+
+    /// <summary>
+    /// Gets or sets the offset in pixels from the alignment edge of the anchor element.
+    /// Defaults to <c>0</c>.
+    /// </summary>
+    [Parameter]
+    public int AlignOffset { get; set; }
+
+    /// <summary>
+    /// Gets or sets the padding in pixels between the popover and the collision boundary edge.
+    /// Defaults to <c>5</c>.
+    /// </summary>
+    [Parameter]
+    public int CollisionPadding { get; set; } = 5;
+
+    /// <summary>
+    /// Gets or sets the boundary used to detect collisions for repositioning.
+    /// Defaults to <see cref="Popover.CollisionBoundary.ClippingAncestors"/>.
+    /// </summary>
+    [Parameter]
+    public CollisionBoundary CollisionBoundary { get; set; } = CollisionBoundary.ClippingAncestors;
+
+    /// <summary>
+    /// Gets or sets the minimum padding in pixels between the arrow and the edges of the popup.
+    /// Defaults to <c>5</c>.
+    /// </summary>
+    [Parameter]
+    public int ArrowPadding { get; set; } = 5;
+
+    /// <summary>
+    /// Determines whether the popover stays attached to its anchor element when it overflows.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Sticky { get; set; }
+
+    /// <summary>
+    /// Determines whether anchor tracking updates are disabled as the popup repositions on scroll/resize.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DisableAnchorTracking { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS positioning method for the popover.
+    /// Defaults to <see cref="Popover.PositionMethod.Fixed"/>.
+    /// </summary>
+    [Parameter]
+    public PositionMethod PositionMethod { get; set; } = PositionMethod.Fixed;
+
+    /// <summary>
+    /// Gets or sets a custom anchor element to position the popover against instead of the trigger.
+    /// </summary>
+    [Parameter]
+    public ElementReference? Anchor { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverPositionerState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverPositionerState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        positionerContext = new PopoverPositionerContext
+        {
+            Side = Side,
+            Align = Align,
+            AnchorHidden = false,
+            ArrowUncentered = false,
+            GetArrowElement = () => arrowElement,
+            SetArrowElement = SetArrowElement
+        };
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        state = new PopoverPositionerState(open, Side, Align, false);
+
+        positionerContext.Side = Side;
+        positionerContext.Align = Align;
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+        }
+
+        var currentElement = Element;
+        if (!Nullable.Equals(previousElement, currentElement))
+        {
+            previousElement = currentElement;
+            RootContext?.SetPositionerElement(currentElement);
+        }
+
+        if (hasRendered && Element.HasValue && RootContext?.GetMounted() == true)
+        {
+            if (string.IsNullOrEmpty(positionerId))
+            {
+                await InitializePositionerAsync();
+            }
+            else if (!DisableAnchorTracking)
+            {
+                await UpdatePositionAsync();
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "presentation";
+
+        if (!(RootContext?.GetMounted() ?? false))
+        {
+            attrs["hidden"] = true;
+        }
+
+        attrs["data-side"] = Side.ToDataAttributeString();
+        attrs["data-align"] = Align.ToDataAttributeString();
+
+        if (RootContext?.GetOpen() ?? false)
+        {
+            attrs["data-open"] = string.Empty;
+        }
+        else
+        {
+            attrs["data-closed"] = string.Empty;
+        }
+
+        if (state.AnchorHidden)
+        {
+            attrs["data-anchor-hidden"] = string.Empty;
+        }
+
+        var instantType = RootContext?.InstantType ?? InstantType.None;
+        var instantAttr = instantType.ToDataAttributeString();
+        if (!string.IsNullOrEmpty(instantAttr))
+        {
+            attrs["data-instant"] = instantAttr;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private void SetArrowElement(ElementReference? element)
+    {
+        if (Nullable.Equals(arrowElement, element))
+        {
+            return;
+        }
+
+        arrowElement = element;
+
+        if (hasRendered && !string.IsNullOrEmpty(positionerId))
+        {
+            _ = UpdatePositionAsync();
+        }
+    }
+
+    private async Task InitializePositionerAsync()
+    {
+        if (!Element.HasValue || RootContext is null)
+        {
+            return;
+        }
+
+        var anchorElement = Anchor ?? RootContext.GetTriggerElement();
+        if (!anchorElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            positionerId = await module.InvokeAsync<string>(
+                "initializePositioner",
+                Element.Value,
+                anchorElement.Value,
+                Side.ToDataAttributeString(),
+                Align.ToDataAttributeString(),
+                SideOffset,
+                AlignOffset,
+                CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
+                ArrowPadding,
+                arrowElement,
+                Sticky,
+                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
+                DisableAnchorTracking);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdatePositionAsync()
+    {
+        if (string.IsNullOrEmpty(positionerId) || RootContext is null)
+        {
+            return;
+        }
+
+        var anchorElement = Anchor ?? RootContext.GetTriggerElement();
+        if (!anchorElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync(
+                "updatePosition",
+                positionerId,
+                anchorElement.Value,
+                Side.ToDataAttributeString(),
+                Align.ToDataAttributeString(),
+                SideOffset,
+                AlignOffset,
+                CollisionPadding,
+                CollisionBoundary.ToDataAttributeString(),
+                ArrowPadding,
+                arrowElement,
+                Sticky,
+                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute");
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask?.IsValueCreated == true && hasRendered && !string.IsNullOrEmpty(positionerId))
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposePositioner", positionerId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+}

@@ -1,0 +1,108 @@
+@implements IReferencableComponent
+
+<RenderElement TState="PopoverArrowState"
+               Tag="div"
+               Enabled="RootContext is not null && PositionerContext is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private PopoverArrowState state;
+    private RenderElement<PopoverArrowState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private ElementReference? previousElement;
+
+    [CascadingParameter]
+    private PopoverRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private PopoverPositionerContext? PositionerContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the arrow element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<PopoverArrowState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverArrowState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverArrowState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var side = PositionerContext?.Side ?? Side.Bottom;
+        var align = PositionerContext?.Align ?? Align.Center;
+        var uncentered = PositionerContext?.ArrowUncentered ?? false;
+        state = new PopoverArrowState(open, side, align, uncentered);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var currentElement = Element;
+        if (!Nullable.Equals(previousElement, currentElement))
+        {
+            previousElement = currentElement;
+            PositionerContext?.SetArrowElement(currentElement);
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["aria-hidden"] = "true";
+        attrs["data-side"] = (PositionerContext?.Side ?? Side.Bottom).ToDataAttributeString();
+        attrs["data-align"] = (PositionerContext?.Align ?? Align.Center).ToDataAttributeString();
+
+        if (RootContext?.GetOpen() ?? false)
+        {
+            attrs["data-open"] = string.Empty;
+        }
+        else
+        {
+            attrs["data-closed"] = string.Empty;
+        }
+
+        if (state.Uncentered)
+        {
+            attrs["data-uncentered"] = string.Empty;
+        }
+
+        componentAttributes = attrs;
+    }
+}

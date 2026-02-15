@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Popover;
 public interface IPopoverPositionerContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task HasDataSideAttribute();
     Task HasDataAlignAttribute();

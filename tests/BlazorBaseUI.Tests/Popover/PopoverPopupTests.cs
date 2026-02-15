@@ -4,6 +4,7 @@ using BlazorBaseUI.Tests.Infrastructure;
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using ModalMode = BlazorBaseUI.Popover.ModalMode;
 
 namespace BlazorBaseUI.Tests.Popover;
 
@@ -17,18 +18,20 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
 
     private RenderFragment CreatePopupInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverPopupState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverPopupState, string>? classValue = null,
         Func<PopoverPopupState, string>? styleValue = null,
         RenderFragment? childContent = null,
         bool includeTitle = false,
-        bool includeDescription = false)
+        bool includeDescription = false,
+        ModalMode modal = ModalMode.False)
     {
         return builder =>
         {
             builder.OpenComponent<PopoverRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", defaultOpen);
+            builder.AddAttribute(3, "Modal", modal);
             builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
             {
                 innerBuilder.OpenComponent<PopoverTrigger>(0);
@@ -44,8 +47,8 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
                         posBuilder.OpenComponent<PopoverPopup>(0);
                         var attrIndex = 1;
 
-                        if (asElement is not null)
-                            posBuilder.AddAttribute(attrIndex++, "As", asElement);
+                        if (render is not null)
+                            posBuilder.AddAttribute(attrIndex++, "Render", render);
                         if (classValue is not null)
                             posBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                         if (styleValue is not null)
@@ -94,9 +97,19 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePopupInPopover(asElement: "section"));
+        RenderFragment<RenderProps<PopoverPopupState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreatePopupInPopover(render: render));
 
         var popup = cut.Find("section[role='dialog']");
         popup.ShouldNotBeNull();
@@ -216,6 +229,41 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
 
         var popup = cut.Find("[role='dialog']");
         popup.GetAttribute("style")!.ShouldContain("background: white");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasAriaModalTrueWhenModalTrue()
+    {
+        var cut = Render(CreatePopupInPopover(modal: ModalMode.True));
+
+        var popup = cut.Find("[role='dialog']");
+        popup.HasAttribute("aria-modal").ShouldBeTrue();
+        popup.GetAttribute("aria-modal").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasAriaModalTrueWhenTrapFocus()
+    {
+        var cut = Render(CreatePopupInPopover(modal: ModalMode.TrapFocus));
+
+        var popup = cut.Find("[role='dialog']");
+        popup.HasAttribute("aria-modal").ShouldBeTrue();
+        popup.GetAttribute("aria-modal").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotHaveAriaModalWhenNonModal()
+    {
+        var cut = Render(CreatePopupInPopover(modal: ModalMode.False));
+
+        var popup = cut.Find("[role='dialog']");
+        popup.HasAttribute("aria-modal").ShouldBeFalse();
 
         return Task.CompletedTask;
     }

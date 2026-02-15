@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Popover;
 public interface IPopoverTitleContract
 {
     Task RendersAsH2ByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task SetsAriaLabelledByOnPopup();
     Task RendersWithDefaultContext();

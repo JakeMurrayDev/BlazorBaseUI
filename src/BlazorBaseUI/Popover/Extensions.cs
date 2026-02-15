@@ -1,7 +1,13 @@
 namespace BlazorBaseUI.Popover;
 
+/// <summary>
+/// Provides extension methods for converting popover enumerations to their data attribute string representations.
+/// </summary>
 internal static class Extensions
 {
+    /// <summary>
+    /// Converts a <see cref="Side"/> value to its corresponding data attribute string.
+    /// </summary>
     public static string? ToDataAttributeString(this Side side) => side switch
     {
         Side.Top => "top",
@@ -13,6 +19,9 @@ internal static class Extensions
         _ => null
     };
 
+    /// <summary>
+    /// Converts an <see cref="Align"/> value to its corresponding data attribute string.
+    /// </summary>
     public static string? ToDataAttributeString(this Align align) => align switch
     {
         Align.Start => "start",
@@ -21,6 +30,9 @@ internal static class Extensions
         _ => null
     };
 
+    /// <summary>
+    /// Converts a <see cref="TransitionStatus"/> value to its corresponding data attribute string.
+    /// </summary>
     public static string? ToDataAttributeString(this TransitionStatus status) => status switch
     {
         TransitionStatus.Starting => "starting",
@@ -28,6 +40,9 @@ internal static class Extensions
         _ => null
     };
 
+    /// <summary>
+    /// Converts an <see cref="InstantType"/> value to its corresponding data attribute string.
+    /// </summary>
     public static string? ToDataAttributeString(this InstantType instant) => instant switch
     {
         InstantType.Click => "click",
@@ -35,6 +50,9 @@ internal static class Extensions
         _ => null
     };
 
+    /// <summary>
+    /// Converts a <see cref="CollisionBoundary"/> value to its corresponding data attribute string.
+    /// </summary>
     public static string ToDataAttributeString(this CollisionBoundary collisionBoundary) => collisionBoundary switch
     {
         CollisionBoundary.Viewport => "viewport",

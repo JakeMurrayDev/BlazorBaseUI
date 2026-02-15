@@ -2,105 +2,128 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Popover;
 
-internal sealed record PopoverRootContext
+/// <summary>
+/// Provides cascading state and callbacks from the <see cref="PopoverRoot"/> to child popover components.
+/// </summary>
+internal sealed class PopoverRootContext
 {
-    public PopoverRootContext(
-        string rootId,
-        bool open,
-        bool mounted,
-        ModalMode modal,
-        OpenChangeReason openChangeReason,
-        TransitionStatus transitionStatus,
-        InstantType instantType,
-        string? titleId,
-        string? descriptionId,
-        string? activeTriggerId,
-        object? payload,
-        Func<bool> getOpen,
-        Func<bool> getMounted,
-        Func<ElementReference?> getTriggerElement,
-        Func<ElementReference?> getPositionerElement,
-        Func<ElementReference?> getPopupElement,
-        Action<string> setTitleId,
-        Action<string> setDescriptionId,
-        Action<ElementReference?> setTriggerElement,
-        Action<ElementReference?> setPositionerElement,
-        Action<ElementReference?> setPopupElement,
-        Func<bool, OpenChangeReason, object?, Task> setOpenAsync,
-        Action close,
-        Action forceUnmount)
-    {
-        RootId = rootId;
-        Open = open;
-        Mounted = mounted;
-        Modal = modal;
-        OpenChangeReason = openChangeReason;
-        TransitionStatus = transitionStatus;
-        InstantType = instantType;
-        TitleId = titleId;
-        DescriptionId = descriptionId;
-        ActiveTriggerId = activeTriggerId;
-        Payload = payload;
-        GetOpen = getOpen;
-        GetMounted = getMounted;
-        GetTriggerElement = getTriggerElement;
-        GetPositionerElement = getPositionerElement;
-        GetPopupElement = getPopupElement;
-        SetTitleId = setTitleId;
-        SetDescriptionId = setDescriptionId;
-        SetTriggerElement = setTriggerElement;
-        SetPositionerElement = setPositionerElement;
-        SetPopupElement = setPopupElement;
-        SetOpenAsync = setOpenAsync;
-        Close = close;
-        ForceUnmount = forceUnmount;
-    }
+    /// <summary>
+    /// Gets or sets the unique identifier for the popover root instance.
+    /// </summary>
+    public string RootId { get; set; } = string.Empty;
 
-    public string RootId { get; }
-
+    /// <summary>
+    /// Gets or sets a value indicating whether the popover is currently open.
+    /// </summary>
     public bool Open { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the popover is currently mounted in the DOM.
+    /// </summary>
     public bool Mounted { get; set; }
 
+    /// <summary>
+    /// Gets or sets the modal behavior of the popover.
+    /// </summary>
     public ModalMode Modal { get; set; }
 
+    /// <summary>
+    /// Gets or sets the reason for the most recent open state change.
+    /// </summary>
     public OpenChangeReason OpenChangeReason { get; set; }
 
+    /// <summary>
+    /// Gets or sets the current transition status of the popover.
+    /// </summary>
     public TransitionStatus TransitionStatus { get; set; }
 
+    /// <summary>
+    /// Gets or sets the type of instant transition currently in effect.
+    /// </summary>
     public InstantType InstantType { get; set; }
 
+    /// <summary>
+    /// Gets or sets the element ID of the popover title, used for <c>aria-labelledby</c>.
+    /// </summary>
     public string? TitleId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the element ID of the popover description, used for <c>aria-describedby</c>.
+    /// </summary>
     public string? DescriptionId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the ID of the currently active trigger.
+    /// </summary>
     public string? ActiveTriggerId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the payload associated with the current popover interaction.
+    /// </summary>
     public object? Payload { get; set; }
 
-    public Func<bool> GetOpen { get; }
+    /// <summary>
+    /// Gets or sets a delegate that returns the current open state.
+    /// </summary>
+    public Func<bool> GetOpen { get; set; } = null!;
 
-    public Func<bool> GetMounted { get; }
+    /// <summary>
+    /// Gets or sets a delegate that returns the current mounted state.
+    /// </summary>
+    public Func<bool> GetMounted { get; set; } = null!;
 
-    public Func<ElementReference?> GetTriggerElement { get; }
+    /// <summary>
+    /// Gets or sets a delegate that returns the trigger element reference.
+    /// </summary>
+    public Func<ElementReference?> GetTriggerElement { get; set; } = null!;
 
-    public Func<ElementReference?> GetPositionerElement { get; }
+    /// <summary>
+    /// Gets or sets a delegate that returns the positioner element reference.
+    /// </summary>
+    public Func<ElementReference?> GetPositionerElement { get; set; } = null!;
 
-    public Func<ElementReference?> GetPopupElement { get; }
+    /// <summary>
+    /// Gets or sets a delegate that returns the popup element reference.
+    /// </summary>
+    public Func<ElementReference?> GetPopupElement { get; set; } = null!;
 
-    public Action<string> SetTitleId { get; }
+    /// <summary>
+    /// Gets or sets a delegate that sets the title element ID.
+    /// </summary>
+    public Action<string> SetTitleId { get; set; } = null!;
 
-    public Action<string> SetDescriptionId { get; }
+    /// <summary>
+    /// Gets or sets a delegate that sets the description element ID.
+    /// </summary>
+    public Action<string> SetDescriptionId { get; set; } = null!;
 
-    public Action<ElementReference?> SetTriggerElement { get; }
+    /// <summary>
+    /// Gets or sets a delegate that sets the trigger element reference.
+    /// </summary>
+    public Action<ElementReference?> SetTriggerElement { get; set; } = null!;
 
-    public Action<ElementReference?> SetPositionerElement { get; }
+    /// <summary>
+    /// Gets or sets a delegate that sets the positioner element reference.
+    /// </summary>
+    public Action<ElementReference?> SetPositionerElement { get; set; } = null!;
 
-    public Action<ElementReference?> SetPopupElement { get; }
+    /// <summary>
+    /// Gets or sets a delegate that sets the popup element reference.
+    /// </summary>
+    public Action<ElementReference?> SetPopupElement { get; set; } = null!;
 
-    public Func<bool, OpenChangeReason, object?, Task> SetOpenAsync { get; }
+    /// <summary>
+    /// Gets or sets a delegate that asynchronously sets the open state with a reason, optional payload, and optional trigger ID.
+    /// </summary>
+    public Func<bool, OpenChangeReason, object?, string?, Task> SetOpenAsync { get; set; } = null!;
 
-    public Action Close { get; }
+    /// <summary>
+    /// Gets or sets a delegate that closes the popover.
+    /// </summary>
+    public Action Close { get; set; } = null!;
 
-    public Action ForceUnmount { get; }
+    /// <summary>
+    /// Gets or sets a delegate that forces the popover to unmount immediately.
+    /// </summary>
+    public Action ForceUnmount { get; set; } = null!;
 }

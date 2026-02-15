@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Popover;
 public interface IPopoverCloseContract
 {
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task HasTypeButtonAttribute();
     Task ClosesPopoverOnClick();

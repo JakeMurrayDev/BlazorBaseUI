@@ -17,7 +17,7 @@ public class PopoverArrowTests : BunitContext, IPopoverArrowContract
 
     private RenderFragment CreateArrowInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverArrowState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverArrowState, string>? classValue = null,
         Func<PopoverArrowState, string>? styleValue = null)
@@ -44,8 +44,8 @@ public class PopoverArrowTests : BunitContext, IPopoverArrowContract
                             popupBuilder.OpenComponent<PopoverArrow>(0);
                             var attrIndex = 1;
 
-                            if (asElement is not null)
-                                popupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                            if (render is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "Render", render);
                             if (classValue is not null)
                                 popupBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                             if (styleValue is not null)
@@ -77,9 +77,19 @@ public class PopoverArrowTests : BunitContext, IPopoverArrowContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateArrowInPopover(asElement: "span"));
+        RenderFragment<RenderProps<PopoverArrowState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateArrowInPopover(render: render));
 
         var arrow = cut.Find("span[aria-hidden='true']");
         arrow.ShouldNotBeNull();

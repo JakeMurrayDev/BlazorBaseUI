@@ -17,7 +17,7 @@ public class PopoverViewportTests : BunitContext, IPopoverViewportContract
 
     private RenderFragment CreateViewportInPopover(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<PopoverViewportState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverViewportState, string>? classValue = null,
         Func<PopoverViewportState, string>? styleValue = null)
@@ -44,8 +44,8 @@ public class PopoverViewportTests : BunitContext, IPopoverViewportContract
                             popupBuilder.OpenComponent<PopoverViewport>(0);
                             var attrIndex = 1;
 
-                            if (asElement is not null)
-                                popupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                            if (render is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "Render", render);
                             if (classValue is not null)
                                 popupBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                             if (styleValue is not null)
@@ -79,9 +79,19 @@ public class PopoverViewportTests : BunitContext, IPopoverViewportContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateViewportInPopover(asElement: "section"));
+        RenderFragment<RenderProps<PopoverViewportState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateViewportInPopover(render: render));
 
         var popup = cut.Find("[role='dialog']");
         var viewport = popup.QuerySelector("section");
