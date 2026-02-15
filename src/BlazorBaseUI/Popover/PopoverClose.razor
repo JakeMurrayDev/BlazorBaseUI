@@ -96,7 +96,7 @@
             return;
         }
 
-        await RootContext.SetOpenAsync(false, OpenChangeReason.ClosePress, null);
+        await RootContext.SetOpenAsync(false, OpenChangeReason.ClosePress, null, null);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 }

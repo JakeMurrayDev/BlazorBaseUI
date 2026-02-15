@@ -391,7 +391,7 @@
 
         if (RootContext is not null)
         {
-            return RootContext.SetOpenAsync(open, reason, open ? Payload : null);
+            return RootContext.SetOpenAsync(open, reason, open ? Payload : null, triggerId);
         }
 
         return Task.CompletedTask;

@@ -298,9 +298,9 @@
         }
     }
 
-    private Task SetOpenAsyncFromContext(bool nextOpen, OpenChangeReason reason, object? payloadFromTrigger)
+    private Task SetOpenAsyncFromContext(bool nextOpen, OpenChangeReason reason, object? payloadFromTrigger, string? triggerId)
     {
-        return SetOpenAsync(nextOpen, reason, (string?)null);
+        return SetOpenAsync(nextOpen, reason, triggerId, payloadFromTrigger);
     }
 
     private void Close()
@@ -436,7 +436,7 @@
     /// <param name="nextOpen">The desired open state.</param>
     /// <param name="reason">The reason for the state change.</param>
     /// <param name="triggerId">The ID of the trigger initiating the change, or <see langword="null"/>.</param>
-    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, string? triggerId)
+    internal async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason, string? triggerId, object? payloadFromContext = null)
     {
         if (CurrentOpen == nextOpen)
         {
@@ -465,6 +465,10 @@
                 if (handlePayload is not null)
                 {
                     payload = handlePayload;
+                }
+                else if (payloadFromContext is not null)
+                {
+                    payload = payloadFromContext;
                 }
                 context.Payload = payload;
             }

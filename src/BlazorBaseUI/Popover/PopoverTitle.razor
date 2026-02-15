@@ -54,6 +54,13 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        var userProvidedId = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id");
+        if (userProvidedId is not null && userProvidedId != titleId)
+        {
+            titleId = userProvidedId;
+            RootContext?.SetTitleId(titleId);
+        }
+
         state = new PopoverRootState(RootContext?.GetOpen() ?? false);
         BuildComponentAttributes();
     }

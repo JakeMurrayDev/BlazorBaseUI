@@ -113,9 +113,9 @@ internal sealed class PopoverRootContext
     public Action<ElementReference?> SetPopupElement { get; set; } = null!;
 
     /// <summary>
-    /// Gets or sets a delegate that asynchronously sets the open state with a reason and optional payload.
+    /// Gets or sets a delegate that asynchronously sets the open state with a reason, optional payload, and optional trigger ID.
     /// </summary>
-    public Func<bool, OpenChangeReason, object?, Task> SetOpenAsync { get; set; } = null!;
+    public Func<bool, OpenChangeReason, object?, string?, Task> SetOpenAsync { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets a delegate that closes the popover.
