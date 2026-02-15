@@ -21,6 +21,7 @@
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
     private bool hoverInitialized;
+    private string? hoverRootId;
     private string triggerId = null!;
     private PopoverTriggerState state;
     private PopoverHandle<TPayload>? registeredHandle;
@@ -251,12 +252,12 @@
     {
         UnregisterFromCurrentStore(triggerId);
 
-        if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && RootContext is not null)
+        if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && hoverRootId is not null)
         {
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+                await module.InvokeVoidAsync("disposeHoverInteraction", hoverRootId);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -366,6 +367,7 @@
             var effectiveCloseDelay = CloseDelay ?? Delay;
             await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
             hoverInitialized = true;
+            hoverRootId = RootContext.RootId;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

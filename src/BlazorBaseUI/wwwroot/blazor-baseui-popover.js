@@ -314,8 +314,11 @@ function focusPopup(rootState, popupElement) {
         return;
     }
 
-    // Find the first focusable element inside the popup
-    const firstFocusable = popupElement.querySelector(focusableSelector);
+    // Find the first focusable element inside the popup that is not disabled or hidden
+    const candidates = popupElement.querySelectorAll(focusableSelector);
+    const firstFocusable = Array.from(candidates).find(el =>
+        !el.hasAttribute('disabled') && el.offsetParent !== null
+    );
 
     if (firstFocusable) {
         firstFocusable.focus();
@@ -474,7 +477,7 @@ async function startTransition(rootState, isOpen) {
                 }
 
                 if (hasTransition) {
-                    setupTransitionEndListener(rootState, isOpen);
+                    setupTransitionEndListener(rootState, isOpen, floating);
                 }
                 if (rootState.dotNetRef) {
                     rootState.dotNetRef.invokeMethodAsync('OnStartingStyleApplied').catch(() => { });
@@ -483,7 +486,7 @@ async function startTransition(rootState, isOpen) {
         });
     } else {
         if (hasTransition) {
-            setupTransitionEndListener(rootState, isOpen);
+            setupTransitionEndListener(rootState, isOpen, floating);
         } else {
             if (rootState.dotNetRef) {
                 rootState.dotNetRef.invokeMethodAsync('OnTransitionEnd', isOpen).catch(() => { });
@@ -503,11 +506,9 @@ function cleanupTransition(rootState) {
     }
 }
 
-async function setupTransitionEndListener(rootState, isOpen) {
+function setupTransitionEndListener(rootState, isOpen, floating) {
     const popupElement = rootState.popupElement;
     if (!popupElement) return;
-
-    const floating = await ensureFloatingModule();
 
     cleanupTransition(rootState);
 
