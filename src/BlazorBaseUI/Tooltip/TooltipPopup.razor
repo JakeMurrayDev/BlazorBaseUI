@@ -24,7 +24,6 @@
     private RenderElement<TooltipPopupState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private ElementReference? previousElement;
-    private DotNetObjectReference<TooltipPopup>? dotNetRef;
     private CancellationTokenSource? hoverCts;
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
@@ -90,7 +89,6 @@
         if (firstRender)
         {
             hasRendered = true;
-            dotNetRef = DotNetObjectReference.Create(this);
         }
 
         var currentElement = Element;
@@ -166,7 +164,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            await module.InvokeVoidAsync("initializePopup", Element.Value, dotNetRef);
+            await module.InvokeVoidAsync("initializePopup", Element.Value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -254,6 +252,5 @@
             }
         }
 
-        dotNetRef?.Dispose();
     }
 }

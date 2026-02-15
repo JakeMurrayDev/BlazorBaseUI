@@ -380,15 +380,10 @@ export async function disposePositioner(positionerId) {
 // Popup Management
 // ============================================================================
 
-export function initializePopup(popupElement, dotNetRef) {
+export function initializePopup(popupElement) {
     if (!popupElement) return;
 
-    const popupState = {
-        popupElement,
-        dotNetRef
-    };
-
-    state.popups.set(popupElement, popupState);
+    state.popups.set(popupElement, { popupElement });
 }
 
 export function disposePopup(popupElement) {
