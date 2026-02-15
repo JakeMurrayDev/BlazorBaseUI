@@ -71,10 +71,10 @@
 
     /// <summary>
     /// Gets or sets the delay in milliseconds before the tooltip closes after the cursor leaves.
-    /// Defaults to <c>0</c>.
+    /// Defaults to <see langword="null"/>.
     /// </summary>
     [Parameter]
-    public int CloseDelay { get; set; }
+    public int? CloseDelay { get; set; }
 
     /// <summary>
     /// When true, uses JavaScript-based hover interaction with safePolygon support,
@@ -270,12 +270,23 @@
         CancelHoverDelay();
         UnregisterFromCurrentStore(triggerId);
 
-        if (UseJsHover && hoverInitialized && moduleTask?.IsValueCreated == true && RootContext is not null && Element.HasValue)
+        if (hoverInitialized && moduleTask?.IsValueCreated == true && RootContext is not null && Element.HasValue)
         {
             try
             {
                 var module = await moduleTask.Value;
                 await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        if (moduleTask?.IsValueCreated == true)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -350,7 +361,7 @@
 
     private int GetEffectiveCloseDelay()
     {
-        return ProviderContext?.CloseDelay ?? CloseDelay;
+        return CloseDelay ?? ProviderContext?.CloseDelay ?? 0;
     }
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
