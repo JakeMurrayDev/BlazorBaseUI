@@ -43,15 +43,17 @@
 
     /// <summary>
     /// Gets or sets the element to focus when the popover is opened.
+    /// When <see langword="null"/>, focuses the first focusable element inside the popup.
     /// </summary>
     [Parameter]
-    public object? InitialFocus { get; set; }
+    public ElementReference? InitialFocus { get; set; }
 
     /// <summary>
     /// Gets or sets the element to focus when the popover is closed.
+    /// When <see langword="null"/>, focuses the trigger element.
     /// </summary>
     [Parameter]
-    public object? FinalFocus { get; set; }
+    public ElementReference? FinalFocus { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns CSS class names based on the current state.
@@ -123,6 +125,12 @@
         attrs["role"] = "dialog";
         attrs["tabindex"] = "-1";
 
+        var modal = RootContext?.Modal ?? ModalMode.False;
+        if (modal is ModalMode.True or ModalMode.TrapFocus)
+        {
+            attrs["aria-modal"] = "true";
+        }
+
         var titleId = RootContext?.TitleId;
         if (!string.IsNullOrEmpty(titleId))
         {
@@ -181,7 +189,15 @@
         try
         {
             var module = await ModuleTask.Value;
-            await module.InvokeVoidAsync("initializePopup", Element.Value, dotNetRef);
+            var modalString = RootContext.Modal switch
+            {
+                ModalMode.True => "true",
+                ModalMode.TrapFocus => "trap-focus",
+                _ => "false"
+            };
+            await module.InvokeVoidAsync("initializePopup",
+                RootContext.RootId, Element.Value, dotNetRef, modalString,
+                InitialFocus, FinalFocus);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

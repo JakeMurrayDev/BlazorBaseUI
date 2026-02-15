@@ -151,6 +151,18 @@ public class PopoverBackdropTests : BunitContext, IPopoverBackdropContract
     }
 
     [Fact]
+    public async Task HasPointerEventsNoneWhenHoverOpened()
+    {
+        var cut = Render(CreateBackdropInPopover(defaultOpen: false));
+
+        var root = cut.FindComponent<PopoverRoot>();
+        await root.InvokeAsync(() => root.Instance.OnHoverOpen());
+
+        var backdrop = cut.Find("div[role='presentation']");
+        backdrop.GetAttribute("style")!.ShouldContain("pointer-events: none");
+    }
+
+    [Fact]
     public Task RequiresContext()
     {
         var cut = Render<PopoverBackdrop>(parameters => parameters

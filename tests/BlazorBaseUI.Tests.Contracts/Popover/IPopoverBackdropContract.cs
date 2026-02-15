@@ -8,5 +8,6 @@ public interface IPopoverBackdropContract
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task HasDataOpenWhenOpen();
+    Task HasPointerEventsNoneWhenHoverOpened();
     Task RequiresContext();
 }

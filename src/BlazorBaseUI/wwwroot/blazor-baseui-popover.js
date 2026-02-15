@@ -4,6 +4,8 @@
  * Popover-specific functionality that builds on the shared floating infrastructure.
  */
 
+import { acquireScrollLock } from './blazor-baseui-scroll-lock.js';
+
 // Reference to shared floating module (loaded separately)
 let floatingModule = null;
 
@@ -159,16 +161,26 @@ function handleGlobalMouseDown(e) {
 // Root Management
 // ============================================================================
 
-export function initializeRoot(rootId, dotNetRef) {
+export function initializeRoot(rootId, dotNetRef, modal) {
     initGlobalListeners();
 
     state.roots.set(rootId, {
         dotNetRef,
         isOpen: false,
+        modal: modal || 'false',
         triggerElement: null,
         positionerElement: null,
         popupElement: null,
-        hoverInteraction: null
+        hoverInteraction: null,
+        focusTrapCleanup: null,
+        focusOutCleanup: null,
+        releaseScrollLock: null,
+        initialFocusElement: null,
+        finalFocusElement: null,
+        transitionCleanup: null,
+        fallbackTimeoutId: null,
+        pendingOpen: false,
+        openReason: null
     });
 }
 
@@ -178,6 +190,21 @@ export function disposeRoot(rootId) {
         // Clean up hover interaction
         if (rootState.hoverInteraction) {
             rootState.hoverInteraction.cleanup();
+        }
+
+        // Clean up focus trap
+        cleanupFocusTrap(rootState);
+
+        // Clean up focusout listener
+        cleanupFocusOutListener(rootState);
+
+        // Clean up transition listener
+        cleanupTransition(rootState);
+
+        // Release scroll lock
+        if (rootState.releaseScrollLock) {
+            rootState.releaseScrollLock();
+            rootState.releaseScrollLock = null;
         }
     }
     state.roots.delete(rootId);
@@ -197,10 +224,178 @@ export function setRootOpen(rootId, isOpen, reason) {
     }
 
     if (isOpen) {
+        // Acquire scroll lock for modal popovers
+        if (rootState.modal === 'true') {
+            rootState.releaseScrollLock = acquireScrollLock(rootState.popupElement);
+        }
+
         waitForPopupAndStartTransition(rootState, isOpen);
     } else {
+        // Release scroll lock
+        if (rootState.releaseScrollLock) {
+            rootState.releaseScrollLock();
+            rootState.releaseScrollLock = null;
+        }
+
+        // Clean up focus management
+        cleanupFocusTrap(rootState);
+        cleanupFocusOutListener(rootState);
+
+        // Return focus to trigger or final focus element (skip for hover-opened popovers)
+        if (reason !== 'trigger-hover') {
+            returnFocus(rootState);
+        }
+
         startTransition(rootState, isOpen);
     }
+}
+
+// ============================================================================
+// Focus Management
+// ============================================================================
+
+const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function setupFocusTrap(rootState) {
+    const popupElement = rootState.popupElement;
+    if (!popupElement) return;
+
+    cleanupFocusTrap(rootState);
+
+    const handleKeyDown = (e) => {
+        if (e.key !== 'Tab') return;
+
+        const focusableElements = popupElement.querySelectorAll(focusableSelector);
+        const focusableArray = Array.from(focusableElements).filter(el =>
+            !el.hasAttribute('disabled') && el.offsetParent !== null
+        );
+
+        if (focusableArray.length === 0) {
+            e.preventDefault();
+            return;
+        }
+
+        const firstFocusable = focusableArray[0];
+        const lastFocusable = focusableArray[focusableArray.length - 1];
+
+        if (e.shiftKey) {
+            if (document.activeElement === firstFocusable || document.activeElement === popupElement) {
+                e.preventDefault();
+                lastFocusable.focus();
+            }
+        } else {
+            if (document.activeElement === lastFocusable) {
+                e.preventDefault();
+                firstFocusable.focus();
+            }
+        }
+    };
+
+    popupElement.addEventListener('keydown', handleKeyDown);
+
+    rootState.focusTrapCleanup = () => {
+        popupElement.removeEventListener('keydown', handleKeyDown);
+    };
+}
+
+function cleanupFocusTrap(rootState) {
+    if (rootState.focusTrapCleanup) {
+        rootState.focusTrapCleanup();
+        rootState.focusTrapCleanup = null;
+    }
+}
+
+function focusPopup(rootState, popupElement) {
+    if (!popupElement) return;
+
+    // Use custom initial focus element if provided
+    if (rootState.initialFocusElement) {
+        rootState.initialFocusElement.focus();
+        return;
+    }
+
+    // Find the first focusable element inside the popup
+    const firstFocusable = popupElement.querySelector(focusableSelector);
+
+    if (firstFocusable) {
+        firstFocusable.focus();
+    } else {
+        // If no focusable element, focus the popup itself
+        popupElement.focus();
+    }
+}
+
+function returnFocus(rootState) {
+    // Use custom final focus element if provided, otherwise trigger element
+    const focusTarget = rootState.finalFocusElement || rootState.triggerElement;
+
+    if (focusTarget) {
+        requestAnimationFrame(() => {
+            focusTarget.focus();
+        });
+    }
+}
+
+function setupFocusOutListener(rootState) {
+    const popupElement = rootState.popupElement;
+    if (!popupElement) return;
+
+    cleanupFocusOutListener(rootState);
+
+    const handleFocusOut = (e) => {
+        if (!rootState.isOpen) return;
+
+        const relatedTarget = e.relatedTarget;
+
+        // If focus moved to null (e.g., outside browser), don't close
+        if (!relatedTarget) return;
+
+        const { triggerElement, popupElement: popup } = rootState;
+
+        const isInsidePopup = popup && popup.contains(relatedTarget);
+        const isOnTrigger = triggerElement && triggerElement.contains(relatedTarget);
+
+        if (!isInsidePopup && !isOnTrigger && rootState.dotNetRef) {
+            rootState.dotNetRef.invokeMethodAsync('OnFocusOut').catch(() => { });
+        }
+    };
+
+    popupElement.addEventListener('focusout', handleFocusOut);
+
+    rootState.focusOutCleanup = () => {
+        popupElement.removeEventListener('focusout', handleFocusOut);
+    };
+}
+
+function cleanupFocusOutListener(rootState) {
+    if (rootState.focusOutCleanup) {
+        rootState.focusOutCleanup();
+        rootState.focusOutCleanup = null;
+    }
+}
+
+export function setInitialFocusElement(rootId, element) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.initialFocusElement = element;
+
+        // If popup is already open, focus the element now
+        if (rootState.isOpen && element) {
+            element.focus();
+        }
+    }
+}
+
+export function setFinalFocusElement(rootId, element) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.finalFocusElement = element;
+    }
+}
+
+export function focusElement(element) {
+    if (!element) return;
+    element.focus();
 }
 
 // ============================================================================
@@ -259,6 +454,25 @@ async function startTransition(rootState, isOpen) {
                 if (rootState.pendingOpen !== isOpen) {
                     return;
                 }
+
+                // Skip focus management for hover-opened popovers
+                const isHoverOpen = rootState.openReason === 'trigger-hover';
+
+                if (!isHoverOpen) {
+                    // Set up focus trap for modal/trap-focus popovers
+                    if (rootState.modal === 'true' || rootState.modal === 'trap-focus') {
+                        setupFocusTrap(rootState);
+                    }
+
+                    // Set up focusout listener for non-modal popovers
+                    if (rootState.modal === 'false') {
+                        setupFocusOutListener(rootState);
+                    }
+
+                    // Focus the popup or initial focus element
+                    focusPopup(rootState, popupElement);
+                }
+
                 if (hasTransition) {
                     setupTransitionEndListener(rootState, isOpen);
                 }
@@ -278,12 +492,7 @@ async function startTransition(rootState, isOpen) {
     }
 }
 
-async function setupTransitionEndListener(rootState, isOpen) {
-    const popupElement = rootState.popupElement;
-    if (!popupElement) return;
-
-    const floating = await ensureFloatingModule();
-
+function cleanupTransition(rootState) {
     if (rootState.transitionCleanup) {
         rootState.transitionCleanup();
         rootState.transitionCleanup = null;
@@ -292,6 +501,15 @@ async function setupTransitionEndListener(rootState, isOpen) {
         clearTimeout(rootState.fallbackTimeoutId);
         rootState.fallbackTimeoutId = null;
     }
+}
+
+async function setupTransitionEndListener(rootState, isOpen) {
+    const popupElement = rootState.popupElement;
+    if (!popupElement) return;
+
+    const floating = await ensureFloatingModule();
+
+    cleanupTransition(rootState);
 
     let called = false;
     const handleEnd = (event) => {
@@ -409,8 +627,16 @@ export async function disposePositioner(positionerId) {
 // Popup Management
 // ============================================================================
 
-export function initializePopup(popupElement, dotNetRef) {
+export function initializePopup(rootId, popupElement, dotNetRef, modal, initialFocusElement, finalFocusElement) {
     if (!popupElement) return;
+
+    // Store modal and focus elements on root state
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.modal = modal || 'false';
+        rootState.initialFocusElement = initialFocusElement || null;
+        rootState.finalFocusElement = finalFocusElement || null;
+    }
 
     const popupState = {
         popupElement,
@@ -442,13 +668,4 @@ export function disposePopup(popupElement) {
         popupState.resizeObserver.disconnect();
     }
     state.popups.delete(popupElement);
-}
-
-// ============================================================================
-// Focus Management
-// ============================================================================
-
-export function focusElement(element) {
-    if (!element) return;
-    element.focus();
 }

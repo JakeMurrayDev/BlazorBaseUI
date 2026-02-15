@@ -4,6 +4,7 @@ using BlazorBaseUI.Tests.Infrastructure;
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using ModalMode = BlazorBaseUI.Popover.ModalMode;
 
 namespace BlazorBaseUI.Tests.Popover;
 
@@ -23,12 +24,14 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
         Func<PopoverPopupState, string>? styleValue = null,
         RenderFragment? childContent = null,
         bool includeTitle = false,
-        bool includeDescription = false)
+        bool includeDescription = false,
+        ModalMode modal = ModalMode.False)
     {
         return builder =>
         {
             builder.OpenComponent<PopoverRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", defaultOpen);
+            builder.AddAttribute(3, "Modal", modal);
             builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
             {
                 innerBuilder.OpenComponent<PopoverTrigger>(0);
@@ -226,6 +229,41 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
 
         var popup = cut.Find("[role='dialog']");
         popup.GetAttribute("style")!.ShouldContain("background: white");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasAriaModalTrueWhenModalTrue()
+    {
+        var cut = Render(CreatePopupInPopover(modal: ModalMode.True));
+
+        var popup = cut.Find("[role='dialog']");
+        popup.HasAttribute("aria-modal").ShouldBeTrue();
+        popup.GetAttribute("aria-modal").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasAriaModalTrueWhenTrapFocus()
+    {
+        var cut = Render(CreatePopupInPopover(modal: ModalMode.TrapFocus));
+
+        var popup = cut.Find("[role='dialog']");
+        popup.HasAttribute("aria-modal").ShouldBeTrue();
+        popup.GetAttribute("aria-modal").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotHaveAriaModalWhenNonModal()
+    {
+        var cut = Render(CreatePopupInPopover(modal: ModalMode.False));
+
+        var popup = cut.Find("[role='dialog']");
+        popup.HasAttribute("aria-modal").ShouldBeFalse();
 
         return Task.CompletedTask;
     }

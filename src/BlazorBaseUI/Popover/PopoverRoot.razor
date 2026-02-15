@@ -224,7 +224,13 @@
         try
         {
             var module = await ModuleTask.Value;
-            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef);
+            var modalString = Modal switch
+            {
+                ModalMode.True => "true",
+                ModalMode.TrapFocus => "trap-focus",
+                _ => "false"
+            };
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, modalString);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -364,6 +370,16 @@
     public async Task OnHoverClose()
     {
         await SetOpenAsync(false, OpenChangeReason.TriggerHover, null);
+    }
+
+    /// <summary>
+    /// Handles a focus-out event from JavaScript interop when focus leaves
+    /// the popup and trigger elements for non-modal popovers.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnFocusOut()
+    {
+        await SetOpenAsync(false, OpenChangeReason.FocusOut, null);
     }
 
     /// <summary>

@@ -67,8 +67,11 @@
         state = new PopoverBackdropState(open, transitionStatus);
         computedStyleValue = s =>
         {
+            var baseStyle = RootContext?.OpenChangeReason == OpenChangeReason.TriggerHover
+                ? $"{ForcedStyle} pointer-events: none;"
+                : ForcedStyle;
             var userStyle = StyleValue?.Invoke(s);
-            return string.IsNullOrEmpty(userStyle) ? ForcedStyle : $"{ForcedStyle} {userStyle}";
+            return string.IsNullOrEmpty(userStyle) ? baseStyle : $"{baseStyle} {userStyle}";
         };
         BuildComponentAttributes();
     }

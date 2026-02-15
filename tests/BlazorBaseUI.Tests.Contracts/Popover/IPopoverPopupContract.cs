@@ -8,6 +8,9 @@ public interface IPopoverPopupContract
     Task RendersChildren();
     Task HasRoleDialog();
     Task HasAriaModal();
+    Task HasAriaModalTrueWhenModalTrue();
+    Task HasAriaModalTrueWhenTrapFocus();
+    Task DoesNotHaveAriaModalWhenNonModal();
     Task HasDataOpenWhenOpen();
     Task HasAriaLabelledByWhenTitlePresent();
     Task HasAriaDescribedByWhenDescriptionPresent();

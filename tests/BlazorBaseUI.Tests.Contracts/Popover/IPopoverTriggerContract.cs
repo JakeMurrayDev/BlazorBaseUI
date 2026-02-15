@@ -12,6 +12,7 @@ public interface IPopoverTriggerContract
     Task HasDisabledAttributeWhenDisabled();
     Task DoesNotToggleWhenDisabled();
     Task TogglesOnClick();
+    Task HasFocusHandlersWhenOpenOnHover();
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task RequiresContext();
