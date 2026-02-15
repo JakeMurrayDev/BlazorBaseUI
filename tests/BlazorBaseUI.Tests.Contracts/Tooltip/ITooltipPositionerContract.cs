@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Tooltip;
 public interface ITooltipPositionerContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task HasRolePresentation();
     Task HasDataSideAttribute();
@@ -11,8 +11,8 @@ public interface ITooltipPositionerContract
     Task HasDataOpenWhenOpen();
     Task HasDataClosedWhenClosed();
     Task HasHiddenWhenNotMounted();
-    Task AppliesClassValue();
-    Task AppliesStyleValue();
+    Task AppliesClassValueWithState();
+    Task AppliesStyleValueWithState();
     Task CascadesPositionerContext();
     Task RequiresContext();
 }

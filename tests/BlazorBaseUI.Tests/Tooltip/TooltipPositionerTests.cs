@@ -20,7 +20,7 @@ public class TooltipPositionerTests : BunitContext, ITooltipPositionerContract
         bool defaultOpen = true,
         Side side = Side.Top,
         Align align = Align.Center,
-        string? asElement = null,
+        RenderFragment<RenderProps<TooltipPositionerState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<TooltipPositionerState, string>? classValue = null,
         Func<TooltipPositionerState, string>? styleValue = null)
@@ -43,8 +43,8 @@ public class TooltipPositionerTests : BunitContext, ITooltipPositionerContract
                     var attrIndex = 1;
                     portalBuilder.AddAttribute(attrIndex++, "Side", side);
                     portalBuilder.AddAttribute(attrIndex++, "Align", align);
-                    if (asElement is not null)
-                        portalBuilder.AddAttribute(attrIndex++, "As", asElement);
+                    if (render is not null)
+                        portalBuilder.AddAttribute(attrIndex++, "Render", render);
                     if (classValue is not null)
                         portalBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                     if (styleValue is not null)
@@ -77,12 +77,22 @@ public class TooltipPositionerTests : BunitContext, ITooltipPositionerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePositionerInRoot(asElement: "section"));
+        RenderFragment<RenderProps<TooltipPositionerState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var positioner = cut.Find("[role='presentation']");
-        positioner.TagName.ShouldBe("SECTION");
+        var cut = Render(CreatePositionerInRoot(render: render));
+
+        var positioner = cut.Find("section[role='presentation']");
+        positioner.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }
@@ -172,7 +182,7 @@ public class TooltipPositionerTests : BunitContext, ITooltipPositionerContract
     }
 
     [Fact]
-    public Task AppliesClassValue()
+    public Task AppliesClassValueWithState()
     {
         var cut = Render(CreatePositionerInRoot(
             classValue: _ => "positioner-class"
@@ -185,7 +195,7 @@ public class TooltipPositionerTests : BunitContext, ITooltipPositionerContract
     }
 
     [Fact]
-    public Task AppliesStyleValue()
+    public Task AppliesStyleValueWithState()
     {
         var cut = Render(CreatePositionerInRoot(
             styleValue: _ => "z-index: 100"

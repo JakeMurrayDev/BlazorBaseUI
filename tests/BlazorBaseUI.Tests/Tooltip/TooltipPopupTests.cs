@@ -16,7 +16,7 @@ public class TooltipPopupTests : BunitContext, ITooltipPopupContract
 
     private RenderFragment CreatePopupInRoot(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<TooltipPopupState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<TooltipPopupState, string>? classValue = null,
         Func<TooltipPopupState, string>? styleValue = null)
@@ -40,8 +40,8 @@ public class TooltipPopupTests : BunitContext, ITooltipPopupContract
                     {
                         posBuilder.OpenComponent<TooltipPopup>(0);
                         var attrIndex = 1;
-                        if (asElement is not null)
-                            posBuilder.AddAttribute(attrIndex++, "As", asElement);
+                        if (render is not null)
+                            posBuilder.AddAttribute(attrIndex++, "Render", render);
                         if (classValue is not null)
                             posBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                         if (styleValue is not null)
@@ -71,12 +71,22 @@ public class TooltipPopupTests : BunitContext, ITooltipPopupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePopupInRoot(asElement: "section"));
+        RenderFragment<RenderProps<TooltipPopupState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var popup = cut.Find("[role='tooltip']");
-        popup.TagName.ShouldBe("SECTION");
+        var cut = Render(CreatePopupInRoot(render: render));
+
+        var popup = cut.Find("section[role='tooltip']");
+        popup.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }
@@ -156,7 +166,7 @@ public class TooltipPopupTests : BunitContext, ITooltipPopupContract
     }
 
     [Fact]
-    public Task AppliesClassValue()
+    public Task AppliesClassValueWithState()
     {
         var cut = Render(CreatePopupInRoot(
             classValue: _ => "popup-class"
@@ -169,7 +179,7 @@ public class TooltipPopupTests : BunitContext, ITooltipPopupContract
     }
 
     [Fact]
-    public Task AppliesStyleValue()
+    public Task AppliesStyleValueWithState()
     {
         var cut = Render(CreatePopupInRoot(
             styleValue: _ => "background: red"

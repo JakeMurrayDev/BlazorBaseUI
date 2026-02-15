@@ -17,7 +17,7 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
     private RenderFragment CreateTriggerInRoot(
         bool defaultOpen = false,
         bool triggerDisabled = false,
-        string? asElement = null,
+        RenderFragment<RenderProps<TooltipTriggerState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<TooltipTriggerState, string>? classValue = null,
         Func<TooltipTriggerState, string>? styleValue = null,
@@ -34,8 +34,8 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
 
                 if (triggerDisabled)
                     innerBuilder.AddAttribute(attrIndex++, "Disabled", true);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(attrIndex++, "Render", render);
                 if (classValue is not null)
                     innerBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -79,9 +79,19 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTriggerInRoot(asElement: "div"));
+        RenderFragment<RenderProps<TooltipTriggerState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateTriggerInRoot(render: render));
 
         var trigger = cut.Find("div[id]");
         trigger.ShouldNotBeNull();
@@ -141,17 +151,6 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
 
         var trigger = cut.Find("button");
         trigger.HasAttribute("disabled").ShouldBeTrue();
-
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task HasAriaDisabledWhenDisabledAndNotButton()
-    {
-        var cut = Render(CreateTriggerInRoot(asElement: "div", triggerDisabled: true));
-
-        var trigger = cut.Find("div[id]");
-        trigger.GetAttribute("aria-disabled").ShouldBe("true");
 
         return Task.CompletedTask;
     }

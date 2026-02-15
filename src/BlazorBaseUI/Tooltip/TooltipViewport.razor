@@ -1,0 +1,81 @@
+@implements IReferencableComponent
+
+<RenderElement TState="TooltipViewportState"
+               Tag="div"
+               Enabled="RootContext is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference">
+    <div data-current>
+        @ChildContent
+    </div>
+</RenderElement>
+
+@code {
+    private TooltipViewportState state;
+    private RenderElement<TooltipViewportState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private TooltipRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the viewport element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<TooltipViewportState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<TooltipViewportState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<TooltipViewportState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var instantType = RootContext?.InstantType ?? TooltipInstantType.None;
+        state = new TooltipViewportState(instantType);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        var instantAttr = state.Instant.ToDataAttributeString();
+        if (!string.IsNullOrEmpty(instantAttr))
+        {
+            attrs["data-instant"] = instantAttr;
+        }
+
+        componentAttributes = attrs;
+    }
+}
