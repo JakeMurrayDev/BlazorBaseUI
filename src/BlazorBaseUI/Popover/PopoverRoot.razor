@@ -194,6 +194,12 @@
 
         context.Modal = Modal;
 
+        if (ActionsRef is not null)
+        {
+            ActionsRef.Unmount = ForceUnmount;
+            ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction, null);
+        }
+
         // Handle change of handle parameter
         if (Handle != subscribedHandle)
         {
