@@ -305,7 +305,7 @@
 
     private void Close()
     {
-        _ = SetOpenAsync(false, OpenChangeReason.ClosePress, null);
+        _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ClosePress, null);
     }
 
     private void ForceUnmount()
