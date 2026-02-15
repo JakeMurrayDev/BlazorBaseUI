@@ -16,7 +16,7 @@ public class TooltipViewportTests : BunitContext, ITooltipViewportContract
 
     private RenderFragment CreateViewportInRoot(
         bool defaultOpen = true,
-        string? asElement = null,
+        RenderFragment<RenderProps<TooltipViewportState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<TooltipViewportState, string>? classValue = null,
         Func<TooltipViewportState, string>? styleValue = null)
@@ -43,8 +43,8 @@ public class TooltipViewportTests : BunitContext, ITooltipViewportContract
                         {
                             popupBuilder.OpenComponent<TooltipViewport>(0);
                             var attrIndex = 1;
-                            if (asElement is not null)
-                                popupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                            if (render is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "Render", render);
                             if (classValue is not null)
                                 popupBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                             if (styleValue is not null)
@@ -77,9 +77,19 @@ public class TooltipViewportTests : BunitContext, ITooltipViewportContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateViewportInRoot(asElement: "section"));
+        RenderFragment<RenderProps<TooltipViewportState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateViewportInRoot(render: render));
 
         var currentContainer = cut.Find("[data-current]");
         currentContainer.ParentElement!.TagName.ShouldBe("SECTION");
@@ -115,7 +125,7 @@ public class TooltipViewportTests : BunitContext, ITooltipViewportContract
     }
 
     [Fact]
-    public Task AppliesClassValue()
+    public Task AppliesClassValueWithState()
     {
         var cut = Render(CreateViewportInRoot(
             classValue: _ => "viewport-class"
@@ -128,7 +138,7 @@ public class TooltipViewportTests : BunitContext, ITooltipViewportContract
     }
 
     [Fact]
-    public Task AppliesStyleValue()
+    public Task AppliesStyleValueWithState()
     {
         var cut = Render(CreateViewportInRoot(
             styleValue: _ => "overflow: hidden"

@@ -3,101 +3,123 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Tooltip;
 
-internal sealed record class TooltipRootContext
+/// <summary>
+/// Provides shared state and operations for child components of a <see cref="TooltipRoot"/>.
+/// </summary>
+internal sealed class TooltipRootContext
 {
-    public TooltipRootContext(
-        string rootId,
-        string popupId,
-        bool open,
-        bool mounted,
-        bool disabled,
-        TooltipOpenChangeReason openChangeReason,
-        Popover.TransitionStatus transitionStatus,
-        TooltipInstantType instantType,
-        TrackCursorAxis trackCursorAxis,
-        bool disableHoverablePopup,
-        string? activeTriggerId,
-        object? payload,
-        Func<bool> getOpen,
-        Func<bool> getMounted,
-        Func<object?> getPayload,
-        Func<ElementReference?> getTriggerElement,
-        Action<string, ElementReference?> registerTriggerElement,
-        Action<string> unregisterTriggerElement,
-        Action<ElementReference?> setPositionerElement,
-        Action<ElementReference?> setPopupElement,
-        Func<bool, TooltipOpenChangeReason, string?, Task> setOpenAsync,
-        Action<string, object?> setTriggerPayload,
-        Action forceUnmount)
-    {
-        RootId = rootId;
-        PopupId = popupId;
-        Open = open;
-        Mounted = mounted;
-        Disabled = disabled;
-        OpenChangeReason = openChangeReason;
-        TransitionStatus = transitionStatus;
-        InstantType = instantType;
-        TrackCursorAxis = trackCursorAxis;
-        DisableHoverablePopup = disableHoverablePopup;
-        ActiveTriggerId = activeTriggerId;
-        Payload = payload;
-        GetOpen = getOpen;
-        GetMounted = getMounted;
-        GetPayload = getPayload;
-        GetTriggerElement = getTriggerElement;
-        RegisterTriggerElement = registerTriggerElement;
-        UnregisterTriggerElement = unregisterTriggerElement;
-        SetPositionerElement = setPositionerElement;
-        SetPopupElement = setPopupElement;
-        SetOpenAsync = setOpenAsync;
-        SetTriggerPayload = setTriggerPayload;
-        ForceUnmount = forceUnmount;
-    }
+    /// <summary>
+    /// Gets or sets the unique identifier of the tooltip root.
+    /// </summary>
+    public string RootId { get; set; } = string.Empty;
 
-    public string RootId { get; }
+    /// <summary>
+    /// Gets or sets the unique identifier of the popup element.
+    /// </summary>
+    public string PopupId { get; set; } = string.Empty;
 
-    public string PopupId { get; }
-
+    /// <summary>
+    /// Gets or sets a value indicating whether the tooltip is currently open.
+    /// </summary>
     public bool Open { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the tooltip is mounted in the DOM.
+    /// </summary>
     public bool Mounted { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the tooltip is disabled.
+    /// </summary>
     public bool Disabled { get; set; }
 
+    /// <summary>
+    /// Gets or sets the reason for the most recent open state change.
+    /// </summary>
     public TooltipOpenChangeReason OpenChangeReason { get; set; }
 
+    /// <summary>
+    /// Gets or sets the current transition status.
+    /// </summary>
     public Popover.TransitionStatus TransitionStatus { get; set; }
 
+    /// <summary>
+    /// Gets or sets the current instant transition type.
+    /// </summary>
     public TooltipInstantType InstantType { get; set; }
 
+    /// <summary>
+    /// Gets or sets which axis the tooltip tracks the cursor on.
+    /// </summary>
     public TrackCursorAxis TrackCursorAxis { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether hovering over the popup is disabled.
+    /// </summary>
     public bool DisableHoverablePopup { get; set; }
 
+    /// <summary>
+    /// Gets or sets the ID of the currently active trigger.
+    /// </summary>
     public string? ActiveTriggerId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the current payload value from the active trigger.
+    /// </summary>
     public object? Payload { get; set; }
 
-    public Func<bool> GetOpen { get; }
+    /// <summary>
+    /// Gets or sets the delegate that returns the current open state.
+    /// </summary>
+    public Func<bool> GetOpen { get; set; } = null!;
 
-    public Func<bool> GetMounted { get; }
+    /// <summary>
+    /// Gets or sets the delegate that returns the current mounted state.
+    /// </summary>
+    public Func<bool> GetMounted { get; set; } = null!;
 
-    public Func<object?> GetPayload { get; }
+    /// <summary>
+    /// Gets or sets the delegate that returns the current payload.
+    /// </summary>
+    public Func<object?> GetPayload { get; set; } = null!;
 
-    public Func<ElementReference?> GetTriggerElement { get; }
+    /// <summary>
+    /// Gets or sets the delegate that returns the active trigger element reference.
+    /// </summary>
+    public Func<ElementReference?> GetTriggerElement { get; set; } = null!;
 
-    public Action<string, ElementReference?> RegisterTriggerElement { get; }
+    /// <summary>
+    /// Gets or sets the delegate that registers a trigger element.
+    /// </summary>
+    public Action<string, ElementReference?> RegisterTriggerElement { get; set; } = null!;
 
-    public Action<string> UnregisterTriggerElement { get; }
+    /// <summary>
+    /// Gets or sets the delegate that unregisters a trigger element.
+    /// </summary>
+    public Action<string> UnregisterTriggerElement { get; set; } = null!;
 
-    public Action<ElementReference?> SetPositionerElement { get; }
+    /// <summary>
+    /// Gets or sets the delegate that stores the positioner element reference.
+    /// </summary>
+    public Action<ElementReference?> SetPositionerElement { get; set; } = null!;
 
-    public Action<ElementReference?> SetPopupElement { get; }
+    /// <summary>
+    /// Gets or sets the delegate that stores the popup element reference.
+    /// </summary>
+    public Action<ElementReference?> SetPopupElement { get; set; } = null!;
 
-    public Func<bool, TooltipOpenChangeReason, string?, Task> SetOpenAsync { get; }
+    /// <summary>
+    /// Gets or sets the delegate that sets the tooltip's open state.
+    /// </summary>
+    public Func<bool, TooltipOpenChangeReason, string?, Task> SetOpenAsync { get; set; } = null!;
 
-    public Action<string, object?> SetTriggerPayload { get; }
+    /// <summary>
+    /// Gets or sets the delegate that sets a trigger's payload.
+    /// </summary>
+    public Action<string, object?> SetTriggerPayload { get; set; } = null!;
 
-    public Action ForceUnmount { get; }
+    /// <summary>
+    /// Gets or sets the delegate that forces the tooltip to unmount immediately.
+    /// </summary>
+    public Action ForceUnmount { get; set; } = null!;
 }
