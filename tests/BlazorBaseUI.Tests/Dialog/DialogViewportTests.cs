@@ -17,7 +17,7 @@ public class DialogViewportTests : BunitContext, IDialogViewportContract
 
     private RenderFragment CreateDialogWithViewport(
         bool open = true,
-        string? viewportAs = null,
+        RenderFragment<RenderProps<DialogViewportState>>? render = null,
         bool keepMounted = false,
         Dictionary<string, object>? viewportAttributes = null,
         Func<DialogViewportState, string>? classValue = null,
@@ -37,8 +37,8 @@ public class DialogViewportTests : BunitContext, IDialogViewportContract
                     portalBuilder.OpenComponent<DialogViewport>(0);
                     portalBuilder.AddAttribute(1, "data-testid", "viewport");
 
-                    if (viewportAs is not null)
-                        portalBuilder.AddAttribute(2, "As", viewportAs);
+                    if (render is not null)
+                        portalBuilder.AddAttribute(2, "Render", render);
 
                     if (viewportAttributes is not null)
                     {
@@ -81,12 +81,22 @@ public class DialogViewportTests : BunitContext, IDialogViewportContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithViewport(viewportAs: "section"));
+        RenderFragment<RenderProps<DialogViewportState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var viewport = cut.Find("[data-testid='viewport']");
-        viewport.TagName.ShouldBe("SECTION");
+        var cut = Render(CreateDialogWithViewport(render: render));
+
+        var viewport = cut.Find("section");
+        viewport.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }

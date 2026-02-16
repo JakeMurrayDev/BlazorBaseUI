@@ -16,7 +16,7 @@ public class DialogCloseTests : BunitContext, IDialogCloseContract
     }
 
     private RenderFragment CreateDialogWithClose(
-        string? closeAs = null,
+        RenderFragment<RenderProps<DialogCloseState>>? render = null,
         bool closeDisabled = false,
         bool nativeButton = true,
         Dictionary<string, object>? closeAttributes = null,
@@ -44,8 +44,8 @@ public class DialogCloseTests : BunitContext, IDialogCloseContract
                         popupBuilder.OpenComponent<DialogClose>(0);
                         popupBuilder.AddAttribute(1, "data-testid", "close");
 
-                        if (closeAs is not null)
-                            popupBuilder.AddAttribute(2, "As", closeAs);
+                        if (render is not null)
+                            popupBuilder.AddAttribute(2, "Render", render);
 
                         popupBuilder.AddAttribute(3, "Disabled", closeDisabled);
                         popupBuilder.AddAttribute(4, "NativeButton", nativeButton);
@@ -87,12 +87,22 @@ public class DialogCloseTests : BunitContext, IDialogCloseContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithClose(closeAs: "span", nativeButton: false));
+        RenderFragment<RenderProps<DialogCloseState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var closeButton = cut.Find("[data-testid='close']");
-        closeButton.TagName.ShouldBe("SPAN");
+        var cut = Render(CreateDialogWithClose(render: render, nativeButton: false));
+
+        var closeButton = cut.Find("span");
+        closeButton.TextContent.ShouldBe("Close");
 
         return Task.CompletedTask;
     }
@@ -169,8 +179,18 @@ public class DialogCloseTests : BunitContext, IDialogCloseContract
     [Fact]
     public Task DisabledCustomElement()
     {
+        RenderFragment<RenderProps<DialogCloseState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
         var cut = Render(CreateDialogWithClose(
-            closeAs: "span",
+            render: render,
             closeDisabled: true,
             nativeButton: false
         ));

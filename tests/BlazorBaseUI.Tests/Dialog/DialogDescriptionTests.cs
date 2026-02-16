@@ -16,7 +16,7 @@ public class DialogDescriptionTests : BunitContext, IDialogDescriptionContract
     }
 
     private RenderFragment CreateDialogWithDescription(
-        string? descriptionAs = null,
+        RenderFragment<RenderProps<DialogDescriptionState>>? render = null,
         Dictionary<string, object>? descriptionAttributes = null,
         Func<DialogDescriptionState, string>? classValue = null,
         Func<DialogDescriptionState, string>? styleValue = null)
@@ -38,8 +38,8 @@ public class DialogDescriptionTests : BunitContext, IDialogDescriptionContract
                         popupBuilder.OpenComponent<DialogDescription>(0);
                         popupBuilder.AddAttribute(1, "data-testid", "description");
 
-                        if (descriptionAs is not null)
-                            popupBuilder.AddAttribute(2, "As", descriptionAs);
+                        if (render is not null)
+                            popupBuilder.AddAttribute(2, "Render", render);
 
                         if (descriptionAttributes is not null)
                         {
@@ -78,12 +78,22 @@ public class DialogDescriptionTests : BunitContext, IDialogDescriptionContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithDescription(descriptionAs: "div"));
+        RenderFragment<RenderProps<DialogDescriptionState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var description = cut.Find("[data-testid='description']");
-        description.TagName.ShouldBe("DIV");
+        var cut = Render(CreateDialogWithDescription(render: render));
+
+        var description = cut.Find("div");
+        description.TextContent.ShouldBe("Description Text");
 
         return Task.CompletedTask;
     }

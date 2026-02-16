@@ -2,26 +2,12 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Dialog;
 
-internal sealed record class DialogRootContext(
-    string RootId,
-    bool Nested,
-    Func<bool> GetOpen,
-    Func<bool> GetMounted,
-    Func<object?> GetPayload,
-    Func<ElementReference?> GetTriggerElement,
-    Func<ElementReference?> GetPopupElement,
-    Action<string> SetTitleId,
-    Action<string> SetDescriptionId,
-    Action<string, ElementReference?> RegisterTriggerElement,
-    Action<string> UnregisterTriggerElement,
-    Action<ElementReference?> SetPopupElement,
-    Func<bool, OpenChangeReason, Task> SetOpenAsync,
-    Func<object?, OpenChangeReason, Task> SetOpenWithPayloadAsync,
-    Func<string?, object?, OpenChangeReason, Task> SetOpenWithTriggerIdAsync,
-    Action<string, object?> SetTriggerPayload,
-    Action Close,
-    Action ForceUnmount)
+internal sealed class DialogRootContext
 {
+    public string RootId { get; set; } = string.Empty;
+
+    public bool Nested { get; set; }
+
     public bool Open { get; set; }
 
     public bool Mounted { get; set; }
@@ -49,4 +35,36 @@ internal sealed record class DialogRootContext(
     public string? ActiveTriggerId { get; set; }
 
     public object? Payload { get; set; }
+
+    public Func<bool> GetOpen { get; set; } = null!;
+
+    public Func<bool> GetMounted { get; set; } = null!;
+
+    public Func<object?> GetPayload { get; set; } = null!;
+
+    public Func<ElementReference?> GetTriggerElement { get; set; } = null!;
+
+    public Func<ElementReference?> GetPopupElement { get; set; } = null!;
+
+    public Action<string> SetTitleId { get; set; } = null!;
+
+    public Action<string> SetDescriptionId { get; set; } = null!;
+
+    public Action<string, ElementReference?> RegisterTriggerElement { get; set; } = null!;
+
+    public Action<string> UnregisterTriggerElement { get; set; } = null!;
+
+    public Action<ElementReference?> SetPopupElement { get; set; } = null!;
+
+    public Func<bool, OpenChangeReason, Task> SetOpenAsync { get; set; } = null!;
+
+    public Func<object?, OpenChangeReason, Task> SetOpenWithPayloadAsync { get; set; } = null!;
+
+    public Func<string?, object?, OpenChangeReason, Task> SetOpenWithTriggerIdAsync { get; set; } = null!;
+
+    public Action<string, object?> SetTriggerPayload { get; set; } = null!;
+
+    public Action Close { get; set; } = null!;
+
+    public Action ForceUnmount { get; set; } = null!;
 }

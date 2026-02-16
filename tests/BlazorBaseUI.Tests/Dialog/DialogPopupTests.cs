@@ -18,7 +18,7 @@ public class DialogPopupTests : BunitContext, IDialogPopupContract
     private RenderFragment CreateDialogWithPopup(
         bool open = true,
         BlazorBaseUI.Dialog.ModalMode modal = BlazorBaseUI.Dialog.ModalMode.False,
-        string? popupAs = null,
+        RenderFragment<RenderProps<DialogPopupState>>? render = null,
         Dictionary<string, object>? popupAttributes = null,
         Func<DialogPopupState, string>? classValue = null,
         Func<DialogPopupState, string>? styleValue = null,
@@ -38,8 +38,8 @@ public class DialogPopupTests : BunitContext, IDialogPopupContract
                     portalBuilder.OpenComponent<DialogPopup>(0);
                     portalBuilder.AddAttribute(1, "data-testid", "dialog-popup");
 
-                    if (popupAs is not null)
-                        portalBuilder.AddAttribute(2, "As", popupAs);
+                    if (render is not null)
+                        portalBuilder.AddAttribute(2, "Render", render);
 
                     if (popupAttributes is not null)
                     {
@@ -118,12 +118,22 @@ public class DialogPopupTests : BunitContext, IDialogPopupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithPopup(popupAs: "section"));
+        RenderFragment<RenderProps<DialogPopupState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var popup = cut.Find("[data-testid='dialog-popup']");
-        popup.TagName.ShouldBe("SECTION");
+        var cut = Render(CreateDialogWithPopup(render: render));
+
+        var popup = cut.Find("section");
+        popup.TextContent.ShouldBe("Content");
 
         return Task.CompletedTask;
     }

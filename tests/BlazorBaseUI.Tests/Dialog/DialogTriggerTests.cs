@@ -17,7 +17,7 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
 
     private RenderFragment CreateDialogWithTrigger(
         bool open = false,
-        string? triggerAs = null,
+        RenderFragment<RenderProps<DialogTriggerState>>? render = null,
         bool triggerDisabled = false,
         bool nativeButton = true,
         Dictionary<string, object>? triggerAttributes = null,
@@ -34,8 +34,8 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
                 innerBuilder.OpenComponent<DialogTrigger>(0);
                 innerBuilder.AddAttribute(1, "data-testid", "trigger");
 
-                if (triggerAs is not null)
-                    innerBuilder.AddAttribute(2, "As", triggerAs);
+                if (render is not null)
+                    innerBuilder.AddAttribute(2, "Render", render);
 
                 innerBuilder.AddAttribute(3, "Disabled", triggerDisabled);
                 innerBuilder.AddAttribute(4, "NativeButton", nativeButton);
@@ -82,12 +82,22 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithTrigger(triggerAs: "span", nativeButton: false));
+        RenderFragment<RenderProps<DialogTriggerState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var trigger = cut.Find("[data-testid='trigger']");
-        trigger.TagName.ShouldBe("SPAN");
+        var cut = Render(CreateDialogWithTrigger(render: render, nativeButton: false));
+
+        var trigger = cut.Find("span");
+        trigger.TextContent.ShouldBe("Open");
 
         return Task.CompletedTask;
     }
@@ -183,8 +193,18 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
     [Fact]
     public Task DisabledCustomElement()
     {
+        RenderFragment<RenderProps<DialogTriggerState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
         var cut = Render(CreateDialogWithTrigger(
-            triggerAs: "span",
+            render: render,
             triggerDisabled: true,
             nativeButton: false
         ));

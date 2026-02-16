@@ -1,0 +1,269 @@
+@using Microsoft.JSInterop
+@implements IReferencableComponent
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<RenderElement TState="DialogPopupState"
+               Tag="div"
+               Enabled="shouldRender"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private bool shouldRender;
+    private bool initialFocusSent;
+    private DialogPopupState state;
+    private RenderElement<DialogPopupState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<DialogPopupState, string>? computedStyleValue;
+    private ElementReference? previousElement;
+    private DotNetObjectReference<DialogPopup>? dotNetRef;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-dialog.js").AsTask());
+
+    [CascadingParameter]
+    private DialogRootContext? Context { get; set; }
+
+    [CascadingParameter]
+    private DialogPortalContext? PortalContext { get; set; }
+
+    [Parameter]
+    public RenderFragment<RenderProps<DialogPopupState>>? Render { get; set; }
+
+    [Parameter]
+    public Func<DialogPopupState, string>? ClassValue { get; set; }
+
+    [Parameter]
+    public Func<DialogPopupState, string>? StyleValue { get; set; }
+
+    [Parameter]
+    public ElementReference? InitialFocus { get; set; }
+
+    [Parameter]
+    public ElementReference? FinalFocus { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    public ElementReference? Element => renderElementReference?.Element;
+
+    protected override void OnInitialized()
+    {
+        if (Context is null)
+        {
+            throw new InvalidOperationException("DialogPopup must be used within a DialogRoot.");
+        }
+
+        state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
+        UpdateShouldRender();
+        UpdateComputedStyleValue();
+        BuildComponentAttributes();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Context is not null)
+        {
+            state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
+        }
+
+        UpdateShouldRender();
+        UpdateComputedStyleValue();
+        BuildComponentAttributes();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+        }
+
+        var currentElement = Element;
+        if (!Nullable.Equals(previousElement, currentElement))
+        {
+            previousElement = currentElement;
+            Context?.SetPopupElement(currentElement);
+        }
+
+        if (firstRender && Element.HasValue && Context is not null)
+        {
+            initialFocusSent = InitialFocus.HasValue;
+
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync(
+                    "initializePopup",
+                    Context.RootId,
+                    Element.Value,
+                    dotNetRef,
+                    Context.Modal.ToDataAttributeString(),
+                    InitialFocus,
+                    FinalFocus);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+        else if (hasRendered && !initialFocusSent && InitialFocus.HasValue && Context is not null)
+        {
+            initialFocusSent = true;
+
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("setInitialFocusElement", Context.RootId, InitialFocus.Value);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask?.IsValueCreated == true && hasRendered && Element.HasValue && Context is not null)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposePopup", Context.RootId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    private void UpdateShouldRender()
+    {
+        if (Context is null)
+        {
+            shouldRender = false;
+            return;
+        }
+
+        var keepMounted = PortalContext?.KeepMounted ?? false;
+        shouldRender = keepMounted || Context.Mounted;
+    }
+
+    private void UpdateComputedStyleValue()
+    {
+        if (Context is null)
+        {
+            return;
+        }
+
+        computedStyleValue = s =>
+        {
+            var nestedDialogsStyle = Context.NestedDialogCount > 0 ? $"--nested-dialogs: {Context.NestedDialogCount};" : null;
+            var userStyle = StyleValue?.Invoke(s);
+
+            if (string.IsNullOrEmpty(nestedDialogsStyle) && string.IsNullOrEmpty(userStyle))
+            {
+                return string.Empty;
+            }
+
+            if (string.IsNullOrEmpty(nestedDialogsStyle))
+            {
+                return userStyle!;
+            }
+
+            if (string.IsNullOrEmpty(userStyle))
+            {
+                return nestedDialogsStyle;
+            }
+
+            return $"{nestedDialogsStyle} {userStyle}";
+        };
+    }
+
+    private void BuildComponentAttributes()
+    {
+        if (Context is null)
+        {
+            return;
+        }
+
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = Context.Role.ToRoleString();
+        attrs["tabindex"] = "-1";
+
+        if (Context.Modal != ModalMode.False)
+        {
+            attrs["aria-modal"] = "true";
+        }
+
+        if (!string.IsNullOrEmpty(Context.TitleId))
+        {
+            attrs["aria-labelledby"] = Context.TitleId;
+        }
+
+        if (!string.IsNullOrEmpty(Context.DescriptionId))
+        {
+            attrs["aria-describedby"] = Context.DescriptionId;
+        }
+
+        if (Context.Open)
+        {
+            attrs["data-open"] = string.Empty;
+        }
+        else
+        {
+            attrs["data-closed"] = string.Empty;
+        }
+
+        if (Context.TransitionStatus == TransitionStatus.Starting)
+        {
+            attrs["data-starting-style"] = string.Empty;
+        }
+        else if (Context.TransitionStatus == TransitionStatus.Ending)
+        {
+            attrs["data-ending-style"] = string.Empty;
+        }
+
+        if (Context.Nested)
+        {
+            attrs["data-nested"] = string.Empty;
+        }
+
+        if (Context.NestedDialogCount > 0)
+        {
+            attrs["data-nested-dialog-open"] = string.Empty;
+        }
+
+        var instantValue = Context.InstantType.ToDataAttributeString();
+        if (!string.IsNullOrEmpty(instantValue))
+        {
+            attrs["data-instant"] = instantValue;
+        }
+
+        var keepMounted = PortalContext?.KeepMounted ?? false;
+        var isHidden = keepMounted && !Context.Open && (Context.TransitionStatus == TransitionStatus.Undefined || Context.TransitionStatus == TransitionStatus.Idle);
+        if (isHidden)
+        {
+            attrs["hidden"] = true;
+        }
+
+        componentAttributes = attrs;
+    }
+}

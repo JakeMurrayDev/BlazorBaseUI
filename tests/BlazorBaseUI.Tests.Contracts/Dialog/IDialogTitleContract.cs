@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Dialog;
 public interface IDialogTitleContract
 {
     Task RendersAsH2ByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
