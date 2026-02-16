@@ -1,0 +1,94 @@
+@implements IReferencableComponent
+
+<RenderElement TState="SliderRootState"
+               Tag="div"
+               Enabled="Context is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string BaseStyle = "position: relative;";
+
+    private SliderRootState state;
+    private RenderElement<SliderRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<SliderRootState, string?>? computedStyleValue;
+
+    [CascadingParameter]
+    private SliderRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SliderRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SliderRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SliderRootState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (Context is not null)
+        {
+            state = Context.State;
+        }
+
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            return string.IsNullOrEmpty(userStyle) ? BaseStyle : $"{BaseStyle} {userStyle}";
+        };
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+
+        attrs["data-dragging"] = state.Dragging;
+        attrs["data-orientation"] = orientationStr;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-focused"] = state.Focused;
+
+        componentAttributes = attrs;
+    }
+}

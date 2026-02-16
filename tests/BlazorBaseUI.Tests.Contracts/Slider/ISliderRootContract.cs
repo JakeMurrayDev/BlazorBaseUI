@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Slider;
 public interface ISliderRootContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -12,8 +12,6 @@ public interface ISliderRootContract
     Task HasDataOrientationHorizontalByDefault();
     Task HasDataOrientationVertical();
     Task HasDataDisabledWhenDisabled();
-    Task HasDataReadonlyWhenReadOnly();
-    Task HasDataRequiredWhenRequired();
     Task CascadesContextToChildren();
     Task UncontrolledModeUsesDefaultValue();
     Task UncontrolledModeUsesDefaultValues();

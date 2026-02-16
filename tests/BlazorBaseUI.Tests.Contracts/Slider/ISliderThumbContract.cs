@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Tests.Contracts.Slider;
 public interface ISliderThumbContract
 {
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -40,4 +40,9 @@ public interface ISliderThumbContract
 
     // State in ClassValue
     Task ClassValueReceivesThumbState();
+
+    // Z-index management
+    Task RangeThumb_HasZIndex2WhenActive();
+    Task RangeThumb_HasZIndex1WhenLastUsed();
+    Task SingleThumb_HasNoZIndexByDefault();
 }

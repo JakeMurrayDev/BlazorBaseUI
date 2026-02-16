@@ -15,7 +15,7 @@ public class SliderControlTests : BunitContext, ISliderControlContract
         Func<SliderRootState, string>? classValue = null,
         Func<SliderRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null)
+        RenderFragment<RenderProps<SliderRootState>>? render = null)
     {
         return builder =>
         {
@@ -40,8 +40,8 @@ public class SliderControlTests : BunitContext, ISliderControlContract
                         mergedAttrs[kvp.Key] = kvp.Value;
                 }
                 innerBuilder.AddAttribute(2, "AdditionalAttributes", (IReadOnlyDictionary<string, object>)mergedAttrs);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(3, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(3, "Render", render);
                 innerBuilder.AddAttribute(4, "ChildContent", (RenderFragment)(trackBuilder =>
                 {
                     trackBuilder.OpenComponent<SliderThumb>(0);
@@ -65,9 +65,19 @@ public class SliderControlTests : BunitContext, ISliderControlContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSliderWithControl(asElement: "section"));
+        RenderFragment<RenderProps<SliderRootState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateSliderWithControl(render: render));
 
         var control = cut.Find("[data-testid='slider-control']");
         control.TagName.ShouldBe("SECTION");
@@ -157,17 +167,6 @@ public class SliderControlTests : BunitContext, ISliderControlContract
 
         var control = cut.Find("[data-testid='slider-control']");
         control.HasAttribute("data-disabled").ShouldBeTrue();
-
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task HasDataReadonlyWhenReadOnly()
-    {
-        var cut = Render(CreateSliderWithControl(readOnly: true));
-
-        var control = cut.Find("[data-testid='slider-control']");
-        control.HasAttribute("data-readonly").ShouldBeTrue();
 
         return Task.CompletedTask;
     }
