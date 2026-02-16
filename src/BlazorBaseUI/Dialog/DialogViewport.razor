@@ -1,0 +1,125 @@
+@implements IReferencableComponent
+
+<RenderElement TState="DialogViewportState"
+               Tag="div"
+               Enabled="shouldRender"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private bool shouldRender;
+    private DialogViewportState state;
+    private RenderElement<DialogViewportState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private DialogRootContext? Context { get; set; }
+
+    [CascadingParameter]
+    private DialogPortalContext? PortalContext { get; set; }
+
+    [Parameter]
+    public RenderFragment<RenderProps<DialogViewportState>>? Render { get; set; }
+
+    [Parameter]
+    public Func<DialogViewportState, string>? ClassValue { get; set; }
+
+    [Parameter]
+    public Func<DialogViewportState, string>? StyleValue { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    public ElementReference? Element => renderElementReference?.Element;
+
+    protected override void OnInitialized()
+    {
+        if (Context is null)
+        {
+            throw new InvalidOperationException("DialogViewport must be used within a DialogRoot.");
+        }
+
+        state = new DialogViewportState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
+        UpdateShouldRender();
+        BuildComponentAttributes();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Context is not null)
+        {
+            state = new DialogViewportState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
+        }
+
+        UpdateShouldRender();
+        BuildComponentAttributes();
+    }
+
+    private void UpdateShouldRender()
+    {
+        if (Context is null)
+        {
+            shouldRender = false;
+            return;
+        }
+
+        var keepMounted = PortalContext?.KeepMounted ?? false;
+        shouldRender = keepMounted || Context.Mounted;
+    }
+
+    private void BuildComponentAttributes()
+    {
+        if (Context is null)
+        {
+            return;
+        }
+
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "presentation";
+
+        if (!Context.Mounted)
+        {
+            attrs["hidden"] = true;
+        }
+
+        if (Context.Open)
+        {
+            attrs["data-open"] = string.Empty;
+        }
+        else
+        {
+            attrs["data-closed"] = string.Empty;
+        }
+
+        if (Context.TransitionStatus == TransitionStatus.Starting)
+        {
+            attrs["data-starting-style"] = string.Empty;
+        }
+        else if (Context.TransitionStatus == TransitionStatus.Ending)
+        {
+            attrs["data-ending-style"] = string.Empty;
+        }
+
+        if (Context.Nested)
+        {
+            attrs["data-nested"] = string.Empty;
+        }
+
+        if (Context.NestedDialogCount > 0)
+        {
+            attrs["data-nested-dialog-open"] = string.Empty;
+        }
+
+        componentAttributes = attrs;
+    }
+}
