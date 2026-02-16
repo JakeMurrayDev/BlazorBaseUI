@@ -18,7 +18,7 @@ public class DialogBackdropTests : BunitContext, IDialogBackdropContract
     private RenderFragment CreateDialogWithBackdrop(
         bool open = true,
         BlazorBaseUI.Dialog.ModalMode modal = BlazorBaseUI.Dialog.ModalMode.True,
-        string? backdropAs = null,
+        RenderFragment<RenderProps<DialogBackdropState>>? render = null,
         bool forceRender = false,
         Dictionary<string, object>? backdropAttributes = null,
         Func<DialogBackdropState, string>? classValue = null,
@@ -40,8 +40,8 @@ public class DialogBackdropTests : BunitContext, IDialogBackdropContract
                     portalBuilder.AddAttribute(1, "data-testid", "backdrop");
                     portalBuilder.AddAttribute(2, "ForceRender", forceRender);
 
-                    if (backdropAs is not null)
-                        portalBuilder.AddAttribute(3, "As", backdropAs);
+                    if (render is not null)
+                        portalBuilder.AddAttribute(3, "Render", render);
 
                     if (backdropAttributes is not null)
                     {
@@ -131,12 +131,22 @@ public class DialogBackdropTests : BunitContext, IDialogBackdropContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithBackdrop(backdropAs: "span"));
+        RenderFragment<RenderProps<DialogBackdropState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var backdrop = cut.Find("[data-testid='backdrop']");
-        backdrop.TagName.ShouldBe("SPAN");
+        var cut = Render(CreateDialogWithBackdrop(render: render));
+
+        var backdrop = cut.Find("span");
+        backdrop.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }

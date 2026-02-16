@@ -16,7 +16,7 @@ public class DialogTitleTests : BunitContext, IDialogTitleContract
     }
 
     private RenderFragment CreateDialogWithTitle(
-        string? titleAs = null,
+        RenderFragment<RenderProps<DialogTitleState>>? render = null,
         Dictionary<string, object>? titleAttributes = null,
         Func<DialogTitleState, string>? classValue = null,
         Func<DialogTitleState, string>? styleValue = null)
@@ -38,8 +38,8 @@ public class DialogTitleTests : BunitContext, IDialogTitleContract
                         popupBuilder.OpenComponent<DialogTitle>(0);
                         popupBuilder.AddAttribute(1, "data-testid", "title");
 
-                        if (titleAs is not null)
-                            popupBuilder.AddAttribute(2, "As", titleAs);
+                        if (render is not null)
+                            popupBuilder.AddAttribute(2, "Render", render);
 
                         if (titleAttributes is not null)
                         {
@@ -78,12 +78,22 @@ public class DialogTitleTests : BunitContext, IDialogTitleContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateDialogWithTitle(titleAs: "h1"));
+        RenderFragment<RenderProps<DialogTitleState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "h3");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
 
-        var title = cut.Find("[data-testid='title']");
-        title.TagName.ShouldBe("H1");
+        var cut = Render(CreateDialogWithTitle(render: render));
+
+        var title = cut.Find("h3");
+        title.TextContent.ShouldBe("Title Text");
 
         return Task.CompletedTask;
     }

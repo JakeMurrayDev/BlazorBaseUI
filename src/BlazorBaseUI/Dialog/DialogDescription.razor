@@ -1,0 +1,71 @@
+@implements IReferencableComponent
+
+<RenderElement TState="DialogDescriptionState"
+               Tag="p"
+               Enabled="Context is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private string? defaultId;
+    private DialogDescriptionState state;
+    private RenderElement<DialogDescriptionState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    [CascadingParameter]
+    private DialogRootContext? Context { get; set; }
+
+    [Parameter]
+    public RenderFragment<RenderProps<DialogDescriptionState>>? Render { get; set; }
+
+    [Parameter]
+    public Func<DialogDescriptionState, string>? ClassValue { get; set; }
+
+    [Parameter]
+    public Func<DialogDescriptionState, string>? StyleValue { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    public ElementReference? Element => renderElementReference?.Element;
+
+    protected override void OnInitialized()
+    {
+        if (Context is null)
+        {
+            throw new InvalidOperationException("DialogDescription must be used within a DialogRoot.");
+        }
+
+        state = new DialogDescriptionState();
+        Context.SetDescriptionId(ResolvedId);
+        BuildComponentAttributes();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Context is not null && AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id") != ResolvedId)
+        {
+            Context.SetDescriptionId(ResolvedId);
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        attrs["id"] = ResolvedId;
+        componentAttributes = attrs;
+    }
+}
