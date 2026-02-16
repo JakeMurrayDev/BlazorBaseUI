@@ -12,7 +12,6 @@
         DefaultPressed="@IsDefaultPressed"
         Disabled="@IsDisabled"
         NativeButton="@IsNativeButton"
-        As="@ResolvedAs"
         OnPressedChange="HandlePressedChange"
         PressedChanged="HandlePressedChanged"
         data-testid="toggle-under-test">
@@ -44,13 +43,9 @@
     [SupplyParameterFromQuery(Name = "defaultPressed")]
     public bool? QueryDefaultPressed { get; set; }
 
-    [SupplyParameterFromQuery(Name = "as")]
-    public string? QueryAs { get; set; }
-
     private bool IsDisabled { get; set; }
     private bool IsNativeButton => QueryNativeButton ?? true;
     private bool IsDefaultPressed => QueryDefaultPressed ?? false;
-    private string? ResolvedAs => QueryAs;
 
     private bool? controlledPressed;
     private int changeCount;

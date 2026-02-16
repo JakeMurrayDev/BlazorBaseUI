@@ -15,12 +15,11 @@ public class ToggleGroupTests : BunitContext, IToggleGroupContract
         Orientation orientation = Orientation.Horizontal,
         bool loopFocus = true,
         bool multiple = false,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToggleGroupState, string>? classValue = null,
         Func<ToggleGroupState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Action<ToggleGroupValueChangeEventArgs>? onValueChange = null,
+        RenderFragment<RenderProps<ToggleGroupState>>? render = null,
         RenderFragment? childContent = null)
     {
         return builder =>
@@ -37,10 +36,6 @@ public class ToggleGroupTests : BunitContext, IToggleGroupContract
             builder.AddAttribute(attrIndex++, "LoopFocus", loopFocus);
             builder.AddAttribute(attrIndex++, "Multiple", multiple);
 
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
-            if (renderAs is not null)
-                builder.AddAttribute(attrIndex++, "RenderAs", renderAs);
             if (classValue is not null)
                 builder.AddAttribute(attrIndex++, "ClassValue", classValue);
             if (styleValue is not null)
@@ -49,6 +44,8 @@ public class ToggleGroupTests : BunitContext, IToggleGroupContract
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
             if (onValueChange is not null)
                 builder.AddAttribute(attrIndex++, "OnValueChange", EventCallback.Factory.Create(this, onValueChange));
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (childContent is not null)
                 builder.AddAttribute(attrIndex++, "ChildContent", childContent);
 
@@ -128,11 +125,20 @@ public class ToggleGroupTests : BunitContext, IToggleGroupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateToggleGroup(asElement: "section"));
-        var element = cut.Find("[role='group']");
+        var cut = Render(CreateToggleGroup(
+            render: props => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, props.Attributes);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddContent(3, props.ChildContent);
+                builder.CloseElement();
+            }));
+        var element = cut.Find("section");
         element.TagName.ShouldBe("SECTION");
+        element.GetAttribute("role").ShouldBe("group");
         return Task.CompletedTask;
     }
 
@@ -534,34 +540,7 @@ public class ToggleGroupTests : BunitContext, IToggleGroupContract
         return Task.CompletedTask;
     }
 
-    // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<BlazorBaseUI.ToggleGroup.ToggleGroup>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
     // Helper components
-
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
-    }
 
     private sealed class ContextCapture<TContext> : ComponentBase
     {

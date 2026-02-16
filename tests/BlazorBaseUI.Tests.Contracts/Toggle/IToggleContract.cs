@@ -4,7 +4,7 @@ public interface IToggleContract
 {
     // Rendering
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -55,7 +55,4 @@ public interface IToggleContract
 
     // Element reference
     Task ExposesElementReference();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

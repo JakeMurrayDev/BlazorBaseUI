@@ -4,7 +4,7 @@ public interface IToggleGroupContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -48,7 +48,4 @@ public interface IToggleGroupContract
 
     // TabIndex
     Task PressedToggle_HasTabIndexZero_OthersMinusOne();
-
-    // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

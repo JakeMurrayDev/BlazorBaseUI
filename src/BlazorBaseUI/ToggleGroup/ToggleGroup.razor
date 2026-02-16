@@ -1,0 +1,318 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<CascadingValue Value="@((IToggleGroupContext)groupContext)" IsFixed="true">
+    <RenderElement TState="ToggleGroupState"
+                   Tag="@DefaultTag"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private const string DefaultTag = "div";
+    private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
+
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
+    private List<string> internalValue = [];
+    private bool hasRendered;
+    private Orientation previousOrientation;
+    private bool previousLoopFocus;
+    private RenderElement<ToggleGroupState>? renderElementReference;
+    private ToggleGroupState state = ToggleGroupState.Default;
+    private ToggleGroupContext groupContext = null!;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool IsControlled => Value is not null;
+
+    private IReadOnlyList<string> CurrentValue => IsControlled ? Value! : internalValue;
+
+    /// <summary>
+    /// Gets or sets the open state of the toggle group represented by an array of
+    /// the values of all pressed toggle buttons.
+    /// This is the controlled counterpart of <see cref="DefaultValue"/>.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<string>? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the initial open state of the toggle group represented by an array of
+    /// the values of all pressed toggle buttons.
+    /// This is the uncontrolled counterpart of <see cref="Value"/>.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<string>? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Determines whether the toggle group should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the orientation of the toggle group.
+    /// Defaults to <see cref="Orientation.Horizontal"/>.
+    /// </summary>
+    [Parameter]
+    public Orientation Orientation { get; set; } = Orientation.Horizontal;
+
+    /// <summary>
+    /// Determines whether to loop keyboard focus back to the first item
+    /// when the end of the list is reached while using the arrow keys.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool LoopFocus { get; set; } = true;
+
+    /// <summary>
+    /// Determines whether multiple items can be pressed at the same time.
+    /// When <see langword="false"/>, only one item in the group can be pressed.
+    /// If any item in the group becomes pressed, the others will become unpressed.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Multiple { get; set; }
+
+    /// <summary>
+    /// Gets or sets a callback that is invoked when the group value changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<string>> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets a cancellable callback that is invoked when the group value changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<ToggleGroupValueChangeEventArgs> OnValueChange { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ToggleGroupState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<ToggleGroupState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<ToggleGroupState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    public ToggleGroup()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+    }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (!IsControlled && DefaultValue is not null)
+        {
+            internalValue = [.. DefaultValue];
+        }
+
+        previousOrientation = Orientation;
+        previousLoopFocus = LoopFocus;
+
+        groupContext = new ToggleGroupContext
+        {
+            Disabled = Disabled,
+            Orientation = Orientation,
+            LoopFocus = LoopFocus,
+            GetValueFunc = () => CurrentValue,
+            SetGroupValueFunc = SetGroupValueInternalAsync,
+            GetGroupElementFunc = () => Element
+        };
+
+        state = new ToggleGroupState(Disabled, Multiple, Orientation);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (state.Disabled != Disabled || state.Multiple != Multiple || state.Orientation != Orientation)
+        {
+            state = new ToggleGroupState(Disabled, Multiple, Orientation);
+        }
+
+        if (groupContext is not null)
+        {
+            groupContext.Disabled = Disabled;
+            groupContext.Orientation = Orientation;
+            groupContext.LoopFocus = LoopFocus;
+        }
+
+        if (hasRendered && (Orientation != previousOrientation || LoopFocus != previousLoopFocus))
+        {
+            previousOrientation = Orientation;
+            previousLoopFocus = LoopFocus;
+            _ = UpdateJsStateAsync();
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            await InitializeJsAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated && Element.HasValue)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("disposeGroup", Element.Value);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var orientationString = Orientation.ToDataAttributeString();
+
+        attrs["role"] = "group";
+        attrs["data-disabled"] = Disabled;
+        attrs["data-multiple"] = Multiple;
+
+        if (orientationString is not null)
+        {
+            attrs["data-orientation"] = orientationString;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private async Task InitializeJsAsync()
+    {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
+            await module.InvokeVoidAsync("initializeGroup", Element.Value, orientationString, LoopFocus);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdateJsStateAsync()
+    {
+        if (!hasRendered || !Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
+            await module.InvokeVoidAsync("updateGroup", Element.Value, orientationString, LoopFocus);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task SetGroupValueInternalAsync(string toggleValue, bool nextPressed)
+    {
+        List<string> newGroupValue;
+
+        if (Multiple)
+        {
+            newGroupValue = [.. CurrentValue];
+            if (nextPressed)
+            {
+                if (!newGroupValue.Contains(toggleValue))
+                {
+                    newGroupValue.Add(toggleValue);
+                }
+            }
+            else
+            {
+                newGroupValue.Remove(toggleValue);
+            }
+        }
+        else
+        {
+            newGroupValue = nextPressed ? [toggleValue] : [];
+        }
+
+        var eventArgs = new ToggleGroupValueChangeEventArgs(newGroupValue);
+
+        if (OnValueChange.HasDelegate)
+        {
+            await OnValueChange.InvokeAsync(eventArgs);
+
+            if (eventArgs.IsCanceled)
+            {
+                StateHasChanged();
+                return;
+            }
+        }
+
+        if (!IsControlled)
+        {
+            internalValue = newGroupValue;
+        }
+
+        if (ValueChanged.HasDelegate)
+        {
+            await ValueChanged.InvokeAsync(newGroupValue);
+        }
+
+        StateHasChanged();
+    }
+}
