@@ -80,51 +80,14 @@
         var attrs = new Dictionary<string, object>();
         var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
 
-        if (state.Dragging)
-        {
-            attrs["data-dragging"] = string.Empty;
-        }
-
+        attrs["data-dragging"] = state.Dragging;
         attrs["data-orientation"] = orientationStr;
-
-        if (state.Disabled)
-        {
-            attrs["data-disabled"] = string.Empty;
-        }
-
-        if (state.ReadOnly)
-        {
-            attrs["data-readonly"] = string.Empty;
-        }
-
-        if (state.Required)
-        {
-            attrs["data-required"] = string.Empty;
-        }
-
-        if (state.Valid == true)
-        {
-            attrs["data-valid"] = string.Empty;
-        }
-        else if (state.Valid == false)
-        {
-            attrs["data-invalid"] = string.Empty;
-        }
-
-        if (state.Touched)
-        {
-            attrs["data-touched"] = string.Empty;
-        }
-
-        if (state.Dirty)
-        {
-            attrs["data-dirty"] = string.Empty;
-        }
-
-        if (state.Focused)
-        {
-            attrs["data-focused"] = string.Empty;
-        }
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-focused"] = state.Focused;
 
         componentAttributes = attrs;
     }

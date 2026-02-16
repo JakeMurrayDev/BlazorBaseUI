@@ -249,28 +249,6 @@ public class SliderRootTests : BunitContext, ISliderRootContract
     }
 
     [Fact]
-    public Task HasDataReadonlyWhenReadOnly()
-    {
-        var cut = Render(CreateSliderRoot(readOnly: true));
-
-        var root = cut.Find("[role='group']");
-        root.HasAttribute("data-readonly").ShouldBeTrue();
-
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task HasDataRequiredWhenRequired()
-    {
-        var cut = Render(CreateSliderRoot(required: true));
-
-        var root = cut.Find("[role='group']");
-        root.HasAttribute("data-required").ShouldBeTrue();
-
-        return Task.CompletedTask;
-    }
-
-    [Fact]
     public Task CascadesContextToChildren()
     {
         SliderRootState? capturedState = null;

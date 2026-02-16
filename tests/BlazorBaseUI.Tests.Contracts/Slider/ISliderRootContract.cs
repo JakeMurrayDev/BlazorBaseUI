@@ -12,8 +12,6 @@ public interface ISliderRootContract
     Task HasDataOrientationHorizontalByDefault();
     Task HasDataOrientationVertical();
     Task HasDataDisabledWhenDisabled();
-    Task HasDataReadonlyWhenReadOnly();
-    Task HasDataRequiredWhenRequired();
     Task CascadesContextToChildren();
     Task UncontrolledModeUsesDefaultValue();
     Task UncontrolledModeUsesDefaultValues();

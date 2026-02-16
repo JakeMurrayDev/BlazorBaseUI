@@ -11,5 +11,4 @@ public interface ISliderControlContract
     Task HasTabindexMinusOne();
     Task HasDataOrientation();
     Task HasDataDisabledWhenDisabled();
-    Task HasDataReadonlyWhenReadOnly();
 }

@@ -171,15 +171,4 @@ public class SliderControlTests : BunitContext, ISliderControlContract
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public Task HasDataReadonlyWhenReadOnly()
-    {
-        var cut = Render(CreateSliderWithControl(readOnly: true));
-
-        var control = cut.Find("[data-testid='slider-control']");
-        control.HasAttribute("data-readonly").ShouldBeTrue();
-
-        return Task.CompletedTask;
-    }
-
 }

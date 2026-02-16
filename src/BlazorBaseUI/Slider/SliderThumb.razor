@@ -175,7 +175,7 @@
         innerContent = builder =>
         {
             BuildInput(builder);
-            builder.AddContent(0, ChildContent);
+            builder.AddContent(22, ChildContent);
         };
 
         if (Context is not null && hasRendered)
@@ -228,51 +228,14 @@
         attrs["tabindex"] = -1;
         attrs["data-index"] = state.Index.ToString();
 
-        if (state.Dragging)
-        {
-            attrs["data-dragging"] = string.Empty;
-        }
-
+        attrs["data-dragging"] = state.Dragging;
         attrs["data-orientation"] = orientationStr;
-
-        if (state.Disabled)
-        {
-            attrs["data-disabled"] = string.Empty;
-        }
-
-        if (state.ReadOnly)
-        {
-            attrs["data-readonly"] = string.Empty;
-        }
-
-        if (state.Required)
-        {
-            attrs["data-required"] = string.Empty;
-        }
-
-        if (state.Valid == true)
-        {
-            attrs["data-valid"] = string.Empty;
-        }
-        else if (state.Valid == false)
-        {
-            attrs["data-invalid"] = string.Empty;
-        }
-
-        if (state.Touched)
-        {
-            attrs["data-touched"] = string.Empty;
-        }
-
-        if (state.Dirty)
-        {
-            attrs["data-dirty"] = string.Empty;
-        }
-
-        if (state.Focused)
-        {
-            attrs["data-focused"] = string.Empty;
-        }
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-focused"] = state.Focused;
 
         componentAttributes = attrs;
     }
@@ -291,12 +254,12 @@
         builder.OpenElement(0, "input");
         builder.AddAttribute(1, "type", "range");
         builder.AddAttribute(2, "id", inputId);
-        builder.AddAttribute(3, "min", Context.Min);
-        builder.AddAttribute(4, "max", Context.Max);
-        builder.AddAttribute(5, "step", Context.Step);
-        builder.AddAttribute(6, "value", thumbValue);
+        builder.AddAttribute(3, "min", Context.Min.ToString(CultureInfo.InvariantCulture));
+        builder.AddAttribute(4, "max", Context.Max.ToString(CultureInfo.InvariantCulture));
+        builder.AddAttribute(5, "step", Context.Step.ToString(CultureInfo.InvariantCulture));
+        builder.AddAttribute(6, "value", thumbValue.ToString(CultureInfo.InvariantCulture));
         builder.AddAttribute(7, "disabled", ResolvedDisabled);
-        builder.AddAttribute(8, "aria-valuenow", thumbValue);
+        builder.AddAttribute(8, "aria-valuenow", thumbValue.ToString(CultureInfo.InvariantCulture));
         builder.AddAttribute(9, "aria-orientation", Context.Orientation.ToDataAttributeString());
 
         if (!string.IsNullOrEmpty(ariaLabel))

@@ -22,6 +22,7 @@
 
 @code {
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-slider.js";
+    private const double Epsilon = 1e-10;
 
     private readonly Dictionary<int, ThumbMetadata> thumbRegistry = [];
 
@@ -311,9 +312,8 @@
         };
 
         var initialValue = IsRange ? (object)currentValues : currentValues[0];
-        const double epsilon = 1e-7;
         FieldContext?.Validation.SetInitialValue(initialValue);
-        FieldContext?.SetFilled(currentValues.Any(v => Math.Abs(v - Min) > epsilon));
+        FieldContext?.SetFilled(currentValues.Any(v => Math.Abs(v - Min) > Epsilon));
         FieldContext?.RegisterFocusHandlerFunc(FocusFirstThumbAsync);
         FieldContext?.SubscribeFunc(this);
 
@@ -401,51 +401,14 @@
             attrs["aria-labelledby"] = LabelableContext.LabelId;
         }
 
-        if (state.Dragging)
-        {
-            attrs["data-dragging"] = string.Empty;
-        }
-
+        attrs["data-dragging"] = state.Dragging;
         attrs["data-orientation"] = orientationStr;
-
-        if (state.Disabled)
-        {
-            attrs["data-disabled"] = string.Empty;
-        }
-
-        if (state.ReadOnly)
-        {
-            attrs["data-readonly"] = string.Empty;
-        }
-
-        if (state.Required)
-        {
-            attrs["data-required"] = string.Empty;
-        }
-
-        if (state.Valid == true)
-        {
-            attrs["data-valid"] = string.Empty;
-        }
-        else if (state.Valid == false)
-        {
-            attrs["data-invalid"] = string.Empty;
-        }
-
-        if (state.Touched)
-        {
-            attrs["data-touched"] = string.Empty;
-        }
-
-        if (state.Dirty)
-        {
-            attrs["data-dirty"] = string.Empty;
-        }
-
-        if (state.Focused)
-        {
-            attrs["data-focused"] = string.Empty;
-        }
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-focused"] = state.Focused;
 
         componentAttributes = attrs;
     }
@@ -518,7 +481,7 @@
         if (a.Length != b.Length) return false;
         for (var i = 0; i < a.Length; i++)
         {
-            if (Math.Abs(a[i] - b[i]) > 1e-10) return false;
+            if (Math.Abs(a[i] - b[i]) > Epsilon) return false;
         }
         return true;
     }
@@ -718,12 +681,11 @@
         }
         else
         {
-            const double epsilon = 1e-7;
-            isDirty = initialValue is double initial ? Math.Abs(currentValues[0] - initial) > 1e-10 : Math.Abs(currentValues[0] - Min) > epsilon;
+            isDirty = initialValue is double initial ? Math.Abs(currentValues[0] - initial) > Epsilon : Math.Abs(currentValues[0] - Min) > Epsilon;
         }
 
         FieldContext?.SetDirty(isDirty);
-        FieldContext?.SetFilled(currentValues.Any(v => Math.Abs(v - Min) > 1e-10));
+        FieldContext?.SetFilled(currentValues.Any(v => Math.Abs(v - Min) > Epsilon));
 
         if (FieldContext?.ShouldValidateOnChangeFunc() == true)
         {
