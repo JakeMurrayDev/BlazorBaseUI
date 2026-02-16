@@ -184,9 +184,14 @@
 
     private async Task UnmountAsync(CancellationToken token)
     {
-        await Task.Delay(150, token);
-        if (token.IsCancellationRequested)
+        try
+        {
+            await Task.Delay(150, token);
+        }
+        catch (OperationCanceledException)
+        {
             return;
+        }
 
         isMounted = false;
         transitionStatus = TransitionStatus.Undefined;

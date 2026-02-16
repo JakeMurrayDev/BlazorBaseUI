@@ -183,7 +183,7 @@
     {
         radioId = Guid.NewGuid().ToIdString();
         resolvedControlId = ResolvedControlId;
-        inputId = resolvedControlId;
+        inputId = $"{resolvedControlId}-input";
 
         LabelableContext?.SetControlId(resolvedControlId);
 
@@ -220,7 +220,7 @@
         if (newResolvedId != resolvedControlId)
         {
             resolvedControlId = newResolvedId;
-            inputId = resolvedControlId;
+            inputId = $"{resolvedControlId}-input";
             LabelableContext?.SetControlId(resolvedControlId);
         }
 
@@ -228,7 +228,7 @@
         var currentReadOnly = ResolvedReadOnly;
         var currentChecked = CurrentChecked;
 
-        if (hasRendered)
+        if (hasRendered && Element.HasValue)
         {
             if (currentDisabled != previousDisabled || currentReadOnly != previousReadOnly)
             {
@@ -420,7 +420,7 @@
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element, inputElement, ResolvedDisabled, ResolvedReadOnly);
+            await module.InvokeVoidAsync("initialize", Element.Value, inputElement, ResolvedDisabled, ResolvedReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -435,7 +435,7 @@
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element, inputElement, ResolvedDisabled, ResolvedReadOnly);
+            await module.InvokeVoidAsync("updateState", Element.Value, inputElement, ResolvedDisabled, ResolvedReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
