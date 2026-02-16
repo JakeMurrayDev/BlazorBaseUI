@@ -1,0 +1,55 @@
+@using BlazorBaseUI.Dialog
+
+<DialogBackdrop Render="Render"
+                ClassValue="ClassValue"
+                StyleValue="StyleValue"
+                ForceRender="ForceRender"
+                ChildContent="ChildContent"
+                @attributes="AdditionalAttributes"
+                @ref="innerComponent" />
+
+@code {
+    private DialogBackdrop? innerComponent;
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<DialogBackdropState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<DialogBackdropState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<DialogBackdropState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Determines whether the backdrop is forced to render even when nested.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool ForceRender { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => innerComponent?.Element;
+}

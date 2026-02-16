@@ -47,48 +47,102 @@
     [CascadingParameter]
     private DialogRootContext? ParentContext { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether the dialog is currently open.
+    /// When set, the component operates in controlled mode.
+    /// </summary>
     [Parameter]
     public bool? Open { get; set; }
 
+    /// <summary>
+    /// Determines whether the dialog is initially open.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
     [Parameter]
     public bool DefaultOpen { get; set; }
 
+    /// <summary>
+    /// Gets or sets the modal behavior of the dialog.
+    /// Defaults to <see cref="ModalMode.True"/>.
+    /// </summary>
     [Parameter]
     public ModalMode Modal { get; set; } = ModalMode.True;
 
+    /// <summary>
+    /// Gets or sets the ARIA role of the dialog.
+    /// Defaults to <see cref="DialogRole.Dialog"/>.
+    /// </summary>
     [Parameter]
     public DialogRole Role { get; set; } = DialogRole.Dialog;
 
+    /// <summary>
+    /// Determines whether the dialog should close when the Escape key is pressed.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
     [Parameter]
     public bool DismissOnEscape { get; set; } = true;
 
+    /// <summary>
+    /// Determines whether the dialog should close on outside clicks.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
     [Parameter]
     public bool DismissOnOutsidePress { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets a reference to imperative actions for controlling the dialog programmatically.
+    /// </summary>
     [Parameter]
     public DialogRootActions? ActionsRef { get; set; }
 
+    /// <summary>
+    /// Gets or sets a handle to associate the dialog with external triggers.
+    /// Allows detached trigger components to control the dialog's open state.
+    /// </summary>
     [Parameter]
     public IDialogHandle? Handle { get; set; }
 
+    /// <summary>
+    /// Gets or sets the callback invoked when the open state changes, for two-way binding.
+    /// </summary>
     [Parameter]
     public EventCallback<bool> OpenChanged { get; set; }
 
+    /// <summary>
+    /// Gets or sets the callback invoked when the dialog is opened or closed.
+    /// </summary>
     [Parameter]
     public EventCallback<DialogOpenChangeEventArgs> OnOpenChange { get; set; }
 
+    /// <summary>
+    /// Gets or sets the callback invoked after any animations complete when the dialog is opened or closed.
+    /// </summary>
     [Parameter]
     public EventCallback<bool> OnOpenChangeComplete { get; set; }
 
+    /// <summary>
+    /// Gets or sets the ID of the trigger that the dialog is associated with.
+    /// This is useful in conjunction with the <see cref="Open"/> property to create a controlled dialog.
+    /// </summary>
     [Parameter]
     public string? TriggerId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the ID of the trigger that the dialog is initially associated with.
+    /// This is useful in conjunction with the <see cref="DefaultOpen"/> property to create an initially open dialog.
+    /// </summary>
     [Parameter]
     public string? DefaultTriggerId { get; set; }
 
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the child content render fragment that receives the payload context from the active trigger.
+    /// </summary>
     [Parameter]
     public RenderFragment<DialogRootPayloadContext>? ChildContentWithPayload { get; set; }
 
@@ -98,6 +152,7 @@
 
     private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
 
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
         isOpen = DefaultOpen;
@@ -152,6 +207,7 @@
         SubscribeToHandle();
     }
 
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         var currentOpen = pendingBindingUpdate ? state.Open : CurrentOpen;
@@ -208,6 +264,7 @@
         }
     }
 
+    /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -242,6 +299,9 @@
         }
     }
 
+    /// <summary>
+    /// Handles outside press events from JavaScript interop.
+    /// </summary>
     [JSInvokable]
     public async Task OnOutsidePress()
     {
@@ -251,6 +311,9 @@
         }
     }
 
+    /// <summary>
+    /// Handles Escape key events from JavaScript interop.
+    /// </summary>
     [JSInvokable]
     public async Task OnEscapeKey()
     {
@@ -260,6 +323,9 @@
         }
     }
 
+    /// <summary>
+    /// Handles the starting style applied event from JavaScript interop, transitioning from <see cref="TransitionStatus.Starting"/> to <see cref="TransitionStatus.Idle"/>.
+    /// </summary>
     [JSInvokable]
     public void OnStartingStyleApplied()
     {
@@ -271,6 +337,9 @@
         }
     }
 
+    /// <summary>
+    /// Handles the transition end event from JavaScript interop, completing the open or close animation.
+    /// </summary>
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
@@ -294,6 +363,9 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Handles nested dialog count changes from JavaScript interop.
+    /// </summary>
     [JSInvokable]
     public void OnNestedDialogCountChange(int count)
     {
@@ -308,6 +380,7 @@
         StateHasChanged();
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         UnsubscribeFromHandle();
