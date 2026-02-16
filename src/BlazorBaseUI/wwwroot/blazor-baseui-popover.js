@@ -574,7 +574,15 @@ export function setPopupElement(rootId, element) {
 // Positioning (delegated to shared floating module)
 // ============================================================================
 
-export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking) {
+function buildCollisionAvoidance(collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback) {
+    return {
+        side: collisionAvoidanceSide || 'flip',
+        align: collisionAvoidanceAlign || 'flip',
+        fallbackAxisSide: collisionAvoidanceFallback || 'end'
+    };
+}
+
+export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback) {
     const floating = await ensureFloatingModule();
 
     const positionerId = await floating.initializePositioner({
@@ -590,7 +598,8 @@ export async function initializePositioner(positionerElement, triggerElement, si
         arrowElement,
         sticky: sticky || false,
         positionMethod: positionMethod || 'fixed',
-        disableAnchorTracking: disableAnchorTracking || false
+        disableAnchorTracking: disableAnchorTracking || false,
+        collisionAvoidance: buildCollisionAvoidance(collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback)
     });
 
     if (positionerId) {
@@ -600,7 +609,7 @@ export async function initializePositioner(positionerElement, triggerElement, si
     return positionerId;
 }
 
-export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod) {
+export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback) {
     const floating = await ensureFloatingModule();
 
     await floating.updatePositioner(positionerId, {
@@ -614,7 +623,8 @@ export async function updatePosition(positionerId, triggerElement, side, align, 
         arrowPadding,
         arrowElement,
         sticky: sticky || false,
-        positionMethod: positionMethod || 'fixed'
+        positionMethod: positionMethod || 'fixed',
+        collisionAvoidance: buildCollisionAvoidance(collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback)
     });
 }
 

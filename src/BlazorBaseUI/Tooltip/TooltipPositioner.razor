@@ -116,7 +116,7 @@
 
     /// <summary>
     /// Gets or sets how collisions are handled when positioning the tooltip.
-    /// When <see langword="null"/>, defaults to flipping on the side axis and shifting on the alignment axis.
+    /// When <see langword="null"/>, defaults to flipping on both the side and alignment axes.
     /// </summary>
     [Parameter]
     public CollisionAvoidance? CollisionAvoidance { get; set; }
@@ -298,6 +298,12 @@
         }
     }
 
+    private (string Side, string Align, string Fallback) GetCollisionAvoidanceStrings() => (
+        (CollisionAvoidance?.Side ?? CollisionAvoidanceSideMode.Flip).ToJsString(),
+        (CollisionAvoidance?.Align ?? CollisionAvoidanceAlignMode.Flip).ToJsString(),
+        (CollisionAvoidance?.FallbackAxisSide ?? CollisionAvoidanceFallbackAxisSide.End).ToJsString()
+    );
+
     private async Task InitializePositionerAsync()
     {
         if (!Element.HasValue || RootContext is null)
@@ -314,9 +320,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            var collisionAvoidanceSide = (CollisionAvoidance?.Side ?? CollisionAvoidanceSideMode.Flip).ToJsString();
-            var collisionAvoidanceAlign = (CollisionAvoidance?.Align ?? CollisionAvoidanceAlignMode.Shift).ToJsString();
-            var collisionAvoidanceFallback = (CollisionAvoidance?.FallbackAxisSide ?? CollisionAvoidanceFallbackAxisSide.None).ToJsString();
+            var ca = GetCollisionAvoidanceStrings();
 
             positionerId = await module.InvokeAsync<string>(
                 "initializePositioner",
@@ -333,9 +337,9 @@
                 Sticky,
                 PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
                 DisableAnchorTracking,
-                collisionAvoidanceSide,
-                collisionAvoidanceAlign,
-                collisionAvoidanceFallback);
+                ca.Side,
+                ca.Align,
+                ca.Fallback);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -358,9 +362,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            var collisionAvoidanceSide = (CollisionAvoidance?.Side ?? CollisionAvoidanceSideMode.Flip).ToJsString();
-            var collisionAvoidanceAlign = (CollisionAvoidance?.Align ?? CollisionAvoidanceAlignMode.Shift).ToJsString();
-            var collisionAvoidanceFallback = (CollisionAvoidance?.FallbackAxisSide ?? CollisionAvoidanceFallbackAxisSide.None).ToJsString();
+            var ca = GetCollisionAvoidanceStrings();
 
             await module.InvokeVoidAsync(
                 "updatePosition",
@@ -376,9 +378,9 @@
                 arrowElement,
                 Sticky,
                 PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
-                collisionAvoidanceSide,
-                collisionAvoidanceAlign,
-                collisionAvoidanceFallback);
+                ca.Side,
+                ca.Align,
+                ca.Fallback);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
