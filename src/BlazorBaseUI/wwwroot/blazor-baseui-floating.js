@@ -374,7 +374,8 @@ export async function initializePositioner(options) {
         arrowElement = null,
         sticky = false,
         positionMethod = 'absolute',
-        disableAnchorTracking = false
+        disableAnchorTracking = false,
+        collisionAvoidance = null
     } = options;
 
     if (!positionerElement || !triggerElement) return null;
@@ -397,6 +398,7 @@ export async function initializePositioner(options) {
         sticky,
         positionMethod,
         disableAnchorTracking,
+        collisionAvoidance,
         cleanup: null,
         computedSide: side,
         computedAlign: align
@@ -478,6 +480,30 @@ function cleanupAutoUpdate(positionerState) {
     }
 }
 
+/**
+ * Normalizes collision avoidance settings from either string format (menu)
+ * or object format (popover/tooltip) into a consistent object.
+ */
+function normalizeCollisionAvoidance(collisionAvoidance) {
+    if (!collisionAvoidance) {
+        return { side: 'flip', align: 'flip', fallbackAxisSide: 'end' };
+    }
+    if (typeof collisionAvoidance === 'string') {
+        switch (collisionAvoidance) {
+            case 'none': return { side: 'none', align: 'none', fallbackAxisSide: 'none' };
+            case 'shift': return { side: 'shift', align: 'shift', fallbackAxisSide: 'none' };
+            case 'flip': return { side: 'flip', align: 'none', fallbackAxisSide: 'none' };
+            case 'flip-shift': return { side: 'flip', align: 'shift', fallbackAxisSide: 'none' };
+            default: return { side: 'flip', align: 'flip', fallbackAxisSide: 'end' };
+        }
+    }
+    return {
+        side: collisionAvoidance.side || 'flip',
+        align: collisionAvoidance.align || 'flip',
+        fallbackAxisSide: collisionAvoidance.fallbackAxisSide || 'end'
+    };
+}
+
 async function updatePositionInternal(positionerState) {
     const {
         positionerElement,
@@ -489,7 +515,8 @@ async function updatePositionInternal(positionerState) {
         collisionPadding,
         arrowElement,
         sticky,
-        positionMethod
+        positionMethod,
+        collisionAvoidance
     } = positionerState;
 
     if (!positionerElement || !triggerElement) return;
@@ -498,6 +525,7 @@ async function updatePositionInternal(positionerState) {
         const FloatingUI = await ensureFloatingUI();
 
         const placement = toFloatingPlacement(side, align);
+        const ca = normalizeCollisionAvoidance(collisionAvoidance);
 
         // Build middleware array
         const middleware = [];
@@ -511,16 +539,31 @@ async function updatePositionInternal(positionerState) {
         }
 
         // Flip middleware (handles side collision)
-        middleware.push(FloatingUI.flip({
-            padding: collisionPadding
-        }));
+        const flipMiddleware = ca.side === 'none' ? null : FloatingUI.flip({
+            padding: collisionPadding,
+            mainAxis: ca.side === 'flip',
+            crossAxis: ca.align === 'flip' ? 'alignment' : false,
+            fallbackAxisSideDirection: ca.fallbackAxisSide
+        });
 
         // Shift middleware (handles alignment collision)
-        if (sticky) {
-            middleware.push(FloatingUI.shift({
-                padding: collisionPadding,
-                limiter: FloatingUI.limitShift()
-            }));
+        const shiftDisabled = ca.align === 'none' && ca.side !== 'shift';
+        const crossAxisShiftEnabled = !shiftDisabled && (sticky || ca.side === 'shift');
+
+        const shiftMiddleware = shiftDisabled ? null : FloatingUI.shift({
+            padding: collisionPadding,
+            mainAxis: ca.align !== 'none',
+            crossAxis: crossAxisShiftEnabled,
+            limiter: sticky ? undefined : FloatingUI.limitShift()
+        });
+
+        // Order matters: shift before flip when side/align is 'shift' or align is 'center'
+        if (ca.side === 'shift' || ca.align === 'shift' || align === 'center') {
+            if (shiftMiddleware) middleware.push(shiftMiddleware);
+            if (flipMiddleware) middleware.push(flipMiddleware);
+        } else {
+            if (flipMiddleware) middleware.push(flipMiddleware);
+            if (shiftMiddleware) middleware.push(shiftMiddleware);
         }
 
         // Size middleware for available space

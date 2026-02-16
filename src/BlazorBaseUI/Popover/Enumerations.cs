@@ -283,10 +283,10 @@ public sealed class CollisionAvoidance
     /// When <see cref="CollisionAvoidanceAlignMode.Flip"/>, the alignment flips.
     /// When <see cref="CollisionAvoidanceAlignMode.Shift"/>, the popup shifts along the alignment axis.
     /// </summary>
-    public CollisionAvoidanceAlignMode Align { get; set; } = CollisionAvoidanceAlignMode.Shift;
+    public CollisionAvoidanceAlignMode Align { get; set; } = CollisionAvoidanceAlignMode.Flip;
 
     /// <summary>
     /// Gets or sets the fallback axis side used when collisions cannot be fully avoided.
     /// </summary>
-    public CollisionAvoidanceFallbackAxisSide FallbackAxisSide { get; set; } = CollisionAvoidanceFallbackAxisSide.None;
+    public CollisionAvoidanceFallbackAxisSide FallbackAxisSide { get; set; } = CollisionAvoidanceFallbackAxisSide.End;
 }

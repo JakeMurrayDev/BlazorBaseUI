@@ -574,6 +574,14 @@ export function setPopupElement(rootId, element) {
 // Positioning (delegated to shared floating module)
 // ============================================================================
 
+function buildCollisionAvoidance(collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback) {
+    return {
+        side: collisionAvoidanceSide || 'flip',
+        align: collisionAvoidanceAlign || 'flip',
+        fallbackAxisSide: collisionAvoidanceFallback || 'end'
+    };
+}
+
 export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback) {
     const floating = await ensureFloatingModule();
 
@@ -591,11 +599,7 @@ export async function initializePositioner(positionerElement, triggerElement, si
         sticky: sticky || false,
         positionMethod: positionMethod || 'fixed',
         disableAnchorTracking: disableAnchorTracking || false,
-        collisionAvoidance: {
-            side: collisionAvoidanceSide || 'flip',
-            align: collisionAvoidanceAlign || 'shift',
-            fallbackAxisSide: collisionAvoidanceFallback || 'none'
-        }
+        collisionAvoidance: buildCollisionAvoidance(collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback)
     });
 
     if (positionerId) {
@@ -620,11 +624,7 @@ export async function updatePosition(positionerId, triggerElement, side, align, 
         arrowElement,
         sticky: sticky || false,
         positionMethod: positionMethod || 'fixed',
-        collisionAvoidance: {
-            side: collisionAvoidanceSide || 'flip',
-            align: collisionAvoidanceAlign || 'shift',
-            fallbackAxisSide: collisionAvoidanceFallback || 'none'
-        }
+        collisionAvoidance: buildCollisionAvoidance(collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback)
     });
 }
 
