@@ -37,29 +37,54 @@
     [CascadingParameter]
     private DialogPortalContext? PortalContext { get; set; }
 
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
     [Parameter]
     public RenderFragment<RenderProps<DialogPopupState>>? Render { get; set; }
 
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
     [Parameter]
     public Func<DialogPopupState, string>? ClassValue { get; set; }
 
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
     [Parameter]
     public Func<DialogPopupState, string>? StyleValue { get; set; }
 
+    /// <summary>
+    /// Gets or sets the element to focus when the dialog is opened.
+    /// </summary>
     [Parameter]
     public ElementReference? InitialFocus { get; set; }
 
+    /// <summary>
+    /// Gets or sets the element to focus when the dialog is closed.
+    /// </summary>
     [Parameter]
     public ElementReference? FinalFocus { get; set; }
 
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
     public ElementReference? Element => renderElementReference?.Element;
 
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
         if (Context is null)
@@ -73,6 +98,7 @@
         BuildComponentAttributes();
     }
 
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         if (Context is not null)
@@ -85,6 +111,7 @@
         BuildComponentAttributes();
     }
 
+    /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -135,6 +162,7 @@
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (moduleTask?.IsValueCreated == true && hasRendered && Element.HasValue && Context is not null)

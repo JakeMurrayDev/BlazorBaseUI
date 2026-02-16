@@ -1,0 +1,61 @@
+@using BlazorBaseUI.Dialog
+
+<DialogPopup Render="Render"
+             ClassValue="ClassValue"
+             StyleValue="StyleValue"
+             InitialFocus="InitialFocus"
+             FinalFocus="FinalFocus"
+             ChildContent="ChildContent"
+             @attributes="AdditionalAttributes"
+             @ref="innerComponent" />
+
+@code {
+    private DialogPopup? innerComponent;
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<DialogPopupState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<DialogPopupState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<DialogPopupState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the element to focus when the alert dialog is opened.
+    /// </summary>
+    [Parameter]
+    public ElementReference? InitialFocus { get; set; }
+
+    /// <summary>
+    /// Gets or sets the element to focus when the alert dialog is closed.
+    /// </summary>
+    [Parameter]
+    public ElementReference? FinalFocus { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => innerComponent?.Element;
+}
