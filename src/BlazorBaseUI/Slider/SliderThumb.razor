@@ -1,5 +1,4 @@
 @using System.Globalization
-@using Microsoft.AspNetCore.Components.Rendering
 @using Microsoft.AspNetCore.Components.Web
 @using BlazorBaseUI.DirectionProvider
 @using BlazorBaseUI.Field
@@ -31,6 +30,16 @@
     private Func<SliderThumbState, string?>? computedStyleValue;
     private RenderFragment? innerContent;
     private ElementReference? previousElement;
+    private string inputMin = "0";
+    private string inputMax = "100";
+    private string inputStep = "1";
+    private string inputValue = "0";
+    private string? inputAriaLabel;
+    private string? inputAriaValueText;
+    private string? inputAriaLabelledBy;
+    private string? inputAriaDescribedBy;
+    private string? inputName;
+    private string inputAriaOrientation = "horizontal";
 
     [CascadingParameter]
     private SliderRootContext? Context { get; set; }
@@ -172,11 +181,8 @@
             return string.IsNullOrEmpty(userStyle) ? positionStyle : $"{positionStyle} {userStyle}";
         };
 
-        innerContent = builder =>
-        {
-            BuildInput(builder);
-            builder.AddContent(22, ChildContent);
-        };
+        ComputeInputAttributes();
+        innerContent = BuildInputFragment;
 
         if (Context is not null && hasRendered)
         {
@@ -240,63 +246,56 @@
         componentAttributes = attrs;
     }
 
-    private void BuildInput(RenderTreeBuilder builder)
+    private void ComputeInputAttributes()
     {
         if (Context is null)
             return;
 
         var thumbValue = ThumbValue;
         var formattedValue = SliderUtilities.FormatNumber(thumbValue, Context.Locale, Context.FormatOptions);
-        var ariaLabel = GetAriaLabel?.Invoke(ResolvedIndex);
-        var ariaValueText = GetAriaValueText?.Invoke(formattedValue, thumbValue, ResolvedIndex) ?? GetDefaultAriaValueText(formattedValue);
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
 
-        builder.OpenElement(0, "input");
-        builder.AddAttribute(1, "type", "range");
-        builder.AddAttribute(2, "id", inputId);
-        builder.AddAttribute(3, "min", Context.Min.ToString(CultureInfo.InvariantCulture));
-        builder.AddAttribute(4, "max", Context.Max.ToString(CultureInfo.InvariantCulture));
-        builder.AddAttribute(5, "step", Context.Step.ToString(CultureInfo.InvariantCulture));
-        builder.AddAttribute(6, "value", thumbValue.ToString(CultureInfo.InvariantCulture));
-        builder.AddAttribute(7, "disabled", ResolvedDisabled);
-        builder.AddAttribute(8, "aria-valuenow", thumbValue.ToString(CultureInfo.InvariantCulture));
-        builder.AddAttribute(9, "aria-orientation", Context.Orientation.ToDataAttributeString());
-
-        if (!string.IsNullOrEmpty(ariaLabel))
-        {
-            builder.AddAttribute(10, "aria-label", ariaLabel);
-        }
-
-        if (!string.IsNullOrEmpty(ariaValueText))
-        {
-            builder.AddAttribute(11, "aria-valuetext", ariaValueText);
-        }
-
-        if (!string.IsNullOrEmpty(Context.LabelId) && !IsRange)
-        {
-            builder.AddAttribute(12, "aria-labelledby", Context.LabelId);
-        }
-
-        if (!string.IsNullOrEmpty(describedBy))
-        {
-            builder.AddAttribute(13, "aria-describedby", describedBy);
-        }
-
-        if (!string.IsNullOrEmpty(Context.Name))
-        {
-            var inputName = IsRange ? $"{Context.Name}[{ResolvedIndex}]" : Context.Name;
-            builder.AddAttribute(14, "name", inputName);
-        }
-
-        builder.AddAttribute(15, "style", "clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;");
-        builder.AddAttribute(16, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, HandleChange));
-        builder.AddAttribute(17, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocus));
-        builder.AddAttribute(18, "onblur", EventCallback.Factory.Create<FocusEventArgs>(this, HandleBlur));
-        builder.AddAttribute(19, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDown));
-        builder.AddEventPreventDefaultAttribute(20, "onkeydown", true);
-        builder.AddElementReferenceCapture(21, e => inputElement = e);
-        builder.CloseElement();
+        inputMin = Context.Min.ToString(CultureInfo.InvariantCulture);
+        inputMax = Context.Max.ToString(CultureInfo.InvariantCulture);
+        inputStep = Context.Step.ToString(CultureInfo.InvariantCulture);
+        inputValue = thumbValue.ToString(CultureInfo.InvariantCulture);
+        inputAriaOrientation = Context.Orientation.ToDataAttributeString() ?? "horizontal";
+        inputAriaLabel = GetAriaLabel?.Invoke(ResolvedIndex);
+        inputAriaValueText = GetAriaValueText?.Invoke(formattedValue, thumbValue, ResolvedIndex) ?? GetDefaultAriaValueText(formattedValue);
+        inputAriaLabelledBy = !IsRange && !string.IsNullOrEmpty(Context.LabelId) ? Context.LabelId : null;
+        inputAriaDescribedBy = LabelableContext?.GetAriaDescribedBy();
+        inputName = !string.IsNullOrEmpty(Context.Name)
+            ? (IsRange ? $"{Context.Name}[{ResolvedIndex}]" : Context.Name)
+            : null;
     }
+
+    private RenderFragment BuildInputFragment => __builder =>
+    {
+        if (Context is not null)
+        {
+            <input type="range"
+                   id="@inputId"
+                   min="@inputMin"
+                   max="@inputMax"
+                   step="@inputStep"
+                   value="@inputValue"
+                   disabled="@ResolvedDisabled"
+                   aria-valuenow="@inputValue"
+                   aria-orientation="@inputAriaOrientation"
+                   aria-label="@inputAriaLabel"
+                   aria-valuetext="@inputAriaValueText"
+                   aria-labelledby="@inputAriaLabelledBy"
+                   aria-describedby="@inputAriaDescribedBy"
+                   name="@inputName"
+                   style="clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; position: fixed; top: 0px; left: 0px; border: 0px; padding: 0px; width: 100%; height: 100%; margin: -1px;"
+                   @onchange="HandleChange"
+                   @onfocus="HandleFocus"
+                   @onblur="HandleBlur"
+                   @onkeydown="HandleKeyDown"
+                   @onkeydown:preventDefault="true"
+                   @ref="inputElement" />
+        }
+        @ChildContent
+    };
 
     private string? GetDefaultAriaValueText(string formattedValue)
     {
