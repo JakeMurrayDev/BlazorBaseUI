@@ -23,7 +23,7 @@ public class SliderRootTests : BunitContext, ISliderRootContract
         Func<SliderRootState, string>? classValue = null,
         Func<SliderRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<SliderRootState>>? render = null,
         EventCallback<SliderValueChangeEventArgs<double>>? onValueChange = null,
         EventCallback<SliderValueCommittedEventArgs<double>>? onValueCommitted = null,
         EventCallback<SliderValueChangeEventArgs<double[]>>? onValuesChange = null,
@@ -63,8 +63,8 @@ public class SliderRootTests : BunitContext, ISliderRootContract
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (onValueChange.HasValue)
                 builder.AddAttribute(attrIndex++, "OnValueChange", onValueChange.Value);
             if (onValueCommitted.HasValue)
@@ -126,9 +126,19 @@ public class SliderRootTests : BunitContext, ISliderRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSliderRoot(asElement: "section"));
+        RenderFragment<RenderProps<SliderRootState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "section");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateSliderRoot(render: render));
 
         var section = cut.Find("section[role='group']");
         section.ShouldNotBeNull();

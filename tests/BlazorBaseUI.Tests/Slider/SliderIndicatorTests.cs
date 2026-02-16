@@ -16,7 +16,7 @@ public class SliderIndicatorTests : BunitContext, ISliderIndicatorContract
         Func<SliderRootState, string>? classValue = null,
         Func<SliderRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<SliderRootState>>? render = null,
         int thumbCount = 1)
     {
         return builder =>
@@ -49,8 +49,8 @@ public class SliderIndicatorTests : BunitContext, ISliderIndicatorContract
                                 mergedAttrs[kvp.Key] = kvp.Value;
                         }
                         trackBuilder.AddAttribute(2, "AdditionalAttributes", (IReadOnlyDictionary<string, object>)mergedAttrs);
-                        if (asElement is not null)
-                            trackBuilder.AddAttribute(3, "As", asElement);
+                        if (render is not null)
+                            trackBuilder.AddAttribute(3, "Render", render);
                         trackBuilder.CloseComponent();
 
                         for (var i = 0; i < thumbCount; i++)
@@ -81,9 +81,19 @@ public class SliderIndicatorTests : BunitContext, ISliderIndicatorContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSliderWithIndicator(defaultValue: 50, asElement: "span"));
+        RenderFragment<RenderProps<SliderRootState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateSliderWithIndicator(defaultValue: 50, render: render));
 
         var indicator = cut.Find("[data-testid='slider-indicator']");
         indicator.TagName.ShouldBe("SPAN");

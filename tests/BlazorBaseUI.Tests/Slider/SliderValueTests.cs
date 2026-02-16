@@ -16,7 +16,7 @@ public class SliderValueTests : BunitContext, ISliderValueContract
         Func<SliderRootState, string>? classValue = null,
         Func<SliderRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<SliderRootState>>? render = null,
         int thumbCount = 1,
         RenderFragment<(string[] FormattedValues, double[] Values)>? childContent = null)
     {
@@ -44,8 +44,8 @@ public class SliderValueTests : BunitContext, ISliderValueContract
                         mergedAttrs[kvp.Key] = kvp.Value;
                 }
                 innerBuilder.AddAttribute(2, "AdditionalAttributes", (IReadOnlyDictionary<string, object>)mergedAttrs);
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(3, "As", asElement);
+                if (render is not null)
+                    innerBuilder.AddAttribute(3, "Render", render);
                 if (childContent is not null)
                     innerBuilder.AddAttribute(4, "ChildContent", childContent);
                 innerBuilder.CloseComponent();
@@ -84,9 +84,19 @@ public class SliderValueTests : BunitContext, ISliderValueContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSliderWithValue(defaultValue: 50, asElement: "span"));
+        RenderFragment<RenderProps<SliderRootState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateSliderWithValue(defaultValue: 50, render: render));
 
         var value = cut.Find("[data-testid='slider-value']");
         value.TagName.ShouldBe("SPAN");

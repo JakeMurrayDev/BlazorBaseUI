@@ -19,7 +19,7 @@ public class SliderThumbTests : BunitContext, ISliderThumbContract
         Func<SliderThumbState, string>? classValue = null,
         Func<SliderThumbState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<SliderThumbState>>? render = null,
         int thumbCount = 1,
         EventCallback<FocusEventArgs>? onFocus = null,
         EventCallback<FocusEventArgs>? onBlur = null)
@@ -64,8 +64,8 @@ public class SliderThumbTests : BunitContext, ISliderThumbContract
                                     mergedAttrs[kvp.Key] = kvp.Value;
                             }
                             trackBuilder.AddAttribute(3, "AdditionalAttributes", (IReadOnlyDictionary<string, object>)mergedAttrs);
-                            if (asElement is not null)
-                                trackBuilder.AddAttribute(4, "As", asElement);
+                            if (render is not null)
+                                trackBuilder.AddAttribute(4, "Render", render);
                             if (onFocus.HasValue)
                                 trackBuilder.AddAttribute(5, "OnFocus", onFocus.Value);
                             if (onBlur.HasValue)
@@ -93,9 +93,19 @@ public class SliderThumbTests : BunitContext, ISliderThumbContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateSliderWithThumb(defaultValue: 50, asElement: "span"));
+        RenderFragment<RenderProps<SliderThumbState>> render = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateSliderWithThumb(defaultValue: 50, render: render));
 
         var thumb = cut.Find("[data-testid='slider-thumb-0']");
         thumb.TagName.ShouldBe("SPAN");
@@ -511,6 +521,52 @@ public class SliderThumbTests : BunitContext, ISliderThumbContract
         capturedState.ShouldNotBeNull();
         capturedState!.Index.ShouldBe(0);
         capturedState.Disabled.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RangeThumb_HasZIndex2WhenActive()
+    {
+        var cut = Render(CreateSliderWithThumb(defaultValues: [20, 80], thumbCount: 2));
+
+        // Focus the first thumb's input to make it active
+        var inputs = cut.FindAll("input[type='range']");
+        inputs[0].Focus();
+
+        var thumb0 = cut.Find("[data-testid='slider-thumb-0']");
+        var style0 = thumb0.GetAttribute("style") ?? "";
+        style0.ShouldContain("z-index: 2");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RangeThumb_HasZIndex1WhenLastUsed()
+    {
+        var cut = Render(CreateSliderWithThumb(defaultValues: [20, 80], thumbCount: 2));
+
+        var inputs = cut.FindAll("input[type='range']");
+
+        // Focus thumb 0 then blur it — thumb 0 becomes last-used with no active thumb
+        inputs[0].Focus();
+        inputs[0].Blur();
+
+        var thumb0 = cut.Find("[data-testid='slider-thumb-0']");
+        var style0 = thumb0.GetAttribute("style") ?? "";
+        style0.ShouldContain("z-index: 1");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SingleThumb_HasNoZIndexByDefault()
+    {
+        var cut = Render(CreateSliderWithThumb(defaultValue: 50));
+
+        var thumb = cut.Find("[data-testid='slider-thumb-0']");
+        var style = thumb.GetAttribute("style") ?? "";
+        style.ShouldNotContain("z-index");
 
         return Task.CompletedTask;
     }

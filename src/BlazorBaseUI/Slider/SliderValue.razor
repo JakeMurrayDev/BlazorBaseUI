@@ -1,0 +1,202 @@
+@implements IReferencableComponent
+@implements IDisposable
+
+<RenderElement TState="SliderRootState"
+               Tag="output"
+               Enabled="Context is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="displayContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private bool isRegistered;
+    private SliderRootState state;
+    private RenderElement<SliderRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private RenderFragment? displayContent;
+
+    [CascadingParameter]
+    private SliderRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom child content render fragment that receives formatted and raw slider values for custom display.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<(string[] FormattedValues, double[] Values)>? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SliderRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SliderRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SliderRootState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (Context is not null && !isRegistered)
+        {
+            Context.RegisterRealtimeSubscriber();
+            isRegistered = true;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (Context is not null)
+        {
+            state = Context.State;
+        }
+
+        var formattedValues = GetFormattedValues();
+        displayContent = GetDisplayContent(formattedValues);
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (Context is not null && isRegistered)
+        {
+            Context.UnregisterRealtimeSubscriber();
+            isRegistered = false;
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+
+        var htmlFor = GetHtmlFor();
+        if (!string.IsNullOrEmpty(htmlFor))
+        {
+            attrs["for"] = htmlFor;
+        }
+
+        var ariaLive = AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "aria-live");
+        if (string.IsNullOrEmpty(ariaLive))
+        {
+            attrs["aria-live"] = "off";
+        }
+
+        if (state.Dragging)
+        {
+            attrs["data-dragging"] = string.Empty;
+        }
+
+        attrs["data-orientation"] = orientationStr;
+
+        if (state.Disabled)
+        {
+            attrs["data-disabled"] = string.Empty;
+        }
+
+        if (state.ReadOnly)
+        {
+            attrs["data-readonly"] = string.Empty;
+        }
+
+        if (state.Required)
+        {
+            attrs["data-required"] = string.Empty;
+        }
+
+        if (state.Valid == true)
+        {
+            attrs["data-valid"] = string.Empty;
+        }
+        else if (state.Valid == false)
+        {
+            attrs["data-invalid"] = string.Empty;
+        }
+
+        if (state.Touched)
+        {
+            attrs["data-touched"] = string.Empty;
+        }
+
+        if (state.Dirty)
+        {
+            attrs["data-dirty"] = string.Empty;
+        }
+
+        if (state.Focused)
+        {
+            attrs["data-focused"] = string.Empty;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private string? GetHtmlFor()
+    {
+        if (Context is null)
+            return null;
+
+        var thumbMetadata = Context.GetAllThumbMetadata();
+        if (thumbMetadata.Count == 0)
+            return null;
+
+        var inputIds = thumbMetadata
+            .OrderBy(kvp => kvp.Key)
+            .Select(kvp => kvp.Value.InputId)
+            .Where(id => !string.IsNullOrEmpty(id));
+
+        var result = string.Join(" ", inputIds);
+        return string.IsNullOrEmpty(result) ? null : result;
+    }
+
+    private string[] GetFormattedValues()
+    {
+        if (Context is null)
+            return [];
+
+        return [.. Context.Values.Select(v => SliderUtilities.FormatNumber(v, Context.Locale, Context.FormatOptions))];
+    }
+
+    private RenderFragment GetDisplayContent(string[] formattedValues)
+    {
+        if (Context is null)
+            return _ => { };
+
+        if (ChildContent is not null)
+        {
+            return ChildContent((formattedValues, Context.Values));
+        }
+
+        var displayValue = string.Join(" \u2013 ", formattedValues.Select((f, i) =>
+            !string.IsNullOrEmpty(f) ? f : Context.Values[i].ToString(Context.Locale)));
+
+        return builder => builder.AddContent(0, displayValue);
+    }
+}

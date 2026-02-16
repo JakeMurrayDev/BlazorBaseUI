@@ -1,0 +1,183 @@
+@using System.Globalization
+@implements IReferencableComponent
+
+<RenderElement TState="SliderRootState"
+               Tag="div"
+               Enabled="Context is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private SliderRootState state;
+    private RenderElement<SliderRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<SliderRootState, string?>? computedStyleValue;
+    private ElementReference? previousElement;
+
+    [CascadingParameter]
+    private SliderRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SliderRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SliderRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SliderRootState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    private bool IsVertical => Context?.Orientation == Orientation.Vertical;
+
+    private bool IsRange => Context?.Values.Length > 1;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (Context is not null)
+        {
+            state = Context.State;
+        }
+
+        computedStyleValue = s =>
+        {
+            var indicatorStyle = GetIndicatorStyle();
+            var userStyle = StyleValue?.Invoke(s);
+            return string.IsNullOrEmpty(userStyle) ? indicatorStyle : $"{indicatorStyle} {userStyle}";
+        };
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var currentElement = renderElementReference?.Element;
+        if (currentElement.HasValue && !currentElement.Equals(previousElement))
+        {
+            previousElement = currentElement;
+            Context?.SetIndicatorElement(currentElement.Value);
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var orientationStr = state.Orientation.ToDataAttributeString() ?? "horizontal";
+
+        if (state.Dragging)
+        {
+            attrs["data-dragging"] = string.Empty;
+        }
+
+        attrs["data-orientation"] = orientationStr;
+
+        if (state.Disabled)
+        {
+            attrs["data-disabled"] = string.Empty;
+        }
+
+        if (state.ReadOnly)
+        {
+            attrs["data-readonly"] = string.Empty;
+        }
+
+        if (state.Required)
+        {
+            attrs["data-required"] = string.Empty;
+        }
+
+        if (state.Valid == true)
+        {
+            attrs["data-valid"] = string.Empty;
+        }
+        else if (state.Valid == false)
+        {
+            attrs["data-invalid"] = string.Empty;
+        }
+
+        if (state.Touched)
+        {
+            attrs["data-touched"] = string.Empty;
+        }
+
+        if (state.Dirty)
+        {
+            attrs["data-dirty"] = string.Empty;
+        }
+
+        if (state.Focused)
+        {
+            attrs["data-focused"] = string.Empty;
+        }
+
+        componentAttributes = attrs;
+    }
+
+    private string GetIndicatorStyle()
+    {
+        if (Context is null)
+            return string.Empty;
+
+        var values = Context.Values;
+        var min = Context.Min;
+        var max = Context.Max;
+
+        var startPercent = SliderUtilities.ValueToPercent(values[0], min, max);
+        var endPercent = IsRange
+            ? SliderUtilities.ValueToPercent(values[^1], min, max)
+            : startPercent;
+
+        if (IsVertical)
+        {
+            if (!IsRange)
+            {
+                return $"position: absolute; width: inherit; bottom: 0; height: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%;";
+            }
+
+            var size = endPercent - startPercent;
+            return $"position: absolute; width: inherit; bottom: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%; height: {size.ToString("F4", CultureInfo.InvariantCulture)}%;";
+        }
+        else
+        {
+            if (!IsRange)
+            {
+                return $"position: relative; height: inherit; inset-inline-start: 0; width: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%;";
+            }
+
+            var size = endPercent - startPercent;
+            return $"position: relative; height: inherit; inset-inline-start: {startPercent.ToString("F4", CultureInfo.InvariantCulture)}%; width: {size.ToString("F4", CultureInfo.InvariantCulture)}%;";
+        }
+    }
+}
