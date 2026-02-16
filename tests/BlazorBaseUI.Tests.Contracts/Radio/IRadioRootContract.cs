@@ -4,7 +4,7 @@ public interface IRadioRootContract
 {
     // Rendering
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -55,9 +55,6 @@ public interface IRadioRootContract
 
     // Element reference
     Task ExposesElementReference();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 
     // ClassValue/StyleValue state
     Task ClassValueReceivesCorrectState();

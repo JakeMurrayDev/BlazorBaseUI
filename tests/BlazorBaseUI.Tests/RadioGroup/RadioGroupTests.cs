@@ -21,7 +21,7 @@ public class RadioGroupTests : BunitContext, IRadioGroupContract
         Func<RadioGroupState, string>? classValue = null,
         Func<RadioGroupState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<RadioGroupState>>? render = null,
         RenderFragment? childContent = null)
     {
         return builder =>
@@ -49,8 +49,8 @@ public class RadioGroupTests : BunitContext, IRadioGroupContract
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (childContent is not null)
                 builder.AddAttribute(attrIndex++, "ChildContent", childContent);
 
@@ -167,10 +167,20 @@ public class RadioGroupTests : BunitContext, IRadioGroupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
+        RenderFragment<RenderProps<RadioGroupState>> renderAsFieldset = props => builder =>
+        {
+            builder.OpenElement(0, "fieldset");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
         var cut = Render(CreateRadioGroup(
-            asElement: "fieldset",
+            render: renderAsFieldset,
             additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
         ));
 
@@ -786,33 +796,7 @@ public class RadioGroupTests : BunitContext, IRadioGroupContract
         return Task.CompletedTask;
     }
 
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<BlazorBaseUI.RadioGroup.RadioGroup<string>>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
     // Helper components
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
-    }
-
     private sealed class ContextCapture<TContext> : ComponentBase
     {
         [CascadingParameter]

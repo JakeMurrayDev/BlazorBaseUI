@@ -1,0 +1,214 @@
+@namespace BlazorBaseUI.Radio
+
+@implements IReferencableComponent
+@implements IDisposable
+
+<RenderElement TState="RadioIndicatorState"
+               Tag="span"
+               State="state"
+               Enabled="IsPresent"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private bool isMounted;
+    private bool previousRendered;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
+    private CancellationTokenSource? transitionCts;
+    private RenderElement<RadioIndicatorState>? renderElementReference;
+    private RadioIndicatorState state = new(false, false, false, false, null, false, false, false, false, TransitionStatus.Undefined);
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool Rendered => RadioContext?.Checked == true;
+
+    private bool IsPresent => KeepMounted || isMounted || Rendered;
+
+    [CascadingParameter]
+    private RadioRootContext? RadioContext { get; set; }
+
+    /// <summary>
+    /// Determines whether to keep the HTML element in the DOM when the radio button is inactive.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool KeepMounted { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<RadioIndicatorState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<RadioIndicatorState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<RadioIndicatorState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        UpdateTransitionStatus();
+
+        state = new RadioIndicatorState(
+            RadioContext?.Checked ?? false,
+            RadioContext?.Disabled ?? false,
+            RadioContext?.ReadOnly ?? false,
+            RadioContext?.Required ?? false,
+            RadioContext?.State.Valid,
+            RadioContext?.State.Touched ?? false,
+            RadioContext?.State.Dirty ?? false,
+            RadioContext?.State.Filled ?? false,
+            RadioContext?.State.Focused ?? false,
+            transitionStatus);
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        transitionCts?.Cancel();
+        transitionCts?.Dispose();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-checked"] = state.Checked;
+        attrs["data-unchecked"] = !state.Checked;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-readonly"] = state.ReadOnly;
+        attrs["data-required"] = state.Required;
+        attrs["data-valid"] = state.Valid == true;
+        attrs["data-invalid"] = state.Valid == false;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-filled"] = state.Filled;
+        attrs["data-focused"] = state.Focused;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+
+    private void UpdateTransitionStatus()
+    {
+        var wasRendered = previousRendered;
+        var isRendered = Rendered;
+        previousRendered = isRendered;
+
+        if (isRendered && !wasRendered)
+        {
+            isMounted = true;
+            transitionStatus = TransitionStatus.Starting;
+            ScheduleTransitionEnd();
+        }
+        else if (!isRendered && wasRendered)
+        {
+            transitionStatus = TransitionStatus.Ending;
+            ScheduleUnmount();
+        }
+    }
+
+    private void ScheduleTransitionEnd()
+    {
+        transitionCts?.Cancel();
+        transitionCts = new CancellationTokenSource();
+        var token = transitionCts.Token;
+
+        _ = TransitionEndAsync(token);
+    }
+
+    private async Task TransitionEndAsync(CancellationToken token)
+    {
+        await Task.Yield();
+        if (token.IsCancellationRequested)
+            return;
+
+        transitionStatus = TransitionStatus.Undefined;
+
+        state = new RadioIndicatorState(
+            RadioContext?.Checked ?? false,
+            RadioContext?.Disabled ?? false,
+            RadioContext?.ReadOnly ?? false,
+            RadioContext?.Required ?? false,
+            RadioContext?.State.Valid,
+            RadioContext?.State.Touched ?? false,
+            RadioContext?.State.Dirty ?? false,
+            RadioContext?.State.Filled ?? false,
+            RadioContext?.State.Focused ?? false,
+            transitionStatus);
+
+        BuildComponentAttributes();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ScheduleUnmount()
+    {
+        transitionCts?.Cancel();
+        transitionCts = new CancellationTokenSource();
+        var token = transitionCts.Token;
+
+        _ = UnmountAsync(token);
+    }
+
+    private async Task UnmountAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(150, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        isMounted = false;
+        transitionStatus = TransitionStatus.Undefined;
+
+        state = new RadioIndicatorState(
+            RadioContext?.Checked ?? false,
+            RadioContext?.Disabled ?? false,
+            RadioContext?.ReadOnly ?? false,
+            RadioContext?.Required ?? false,
+            RadioContext?.State.Valid,
+            RadioContext?.State.Touched ?? false,
+            RadioContext?.State.Dirty ?? false,
+            RadioContext?.State.Filled ?? false,
+            RadioContext?.State.Focused ?? false,
+            transitionStatus);
+
+        BuildComponentAttributes();
+        await InvokeAsync(StateHasChanged);
+    }
+}

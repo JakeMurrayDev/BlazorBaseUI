@@ -4,7 +4,7 @@ public interface IRadioGroupContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -62,6 +62,4 @@ public interface IRadioGroupContract
     Task ClassValueReceivesCorrectState();
     Task StyleValueReceivesCorrectState();
 
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

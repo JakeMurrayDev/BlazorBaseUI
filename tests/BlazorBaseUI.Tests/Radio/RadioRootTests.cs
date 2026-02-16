@@ -19,7 +19,7 @@ public class RadioRootTests : BunitContext, IRadioRootContract
         Func<RadioRootState, string>? classValue = null,
         Func<RadioRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
+        RenderFragment<RenderProps<RadioRootState>>? render = null,
         RenderFragment? childContent = null)
     {
         return builder =>
@@ -46,8 +46,8 @@ public class RadioRootTests : BunitContext, IRadioRootContract
                     groupBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                 if (additionalAttributes is not null)
                     groupBuilder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-                if (asElement is not null)
-                    groupBuilder.AddAttribute(attrIndex++, "As", asElement);
+                if (render is not null)
+                    groupBuilder.AddAttribute(attrIndex++, "Render", render);
                 if (childContent is not null)
                     groupBuilder.AddAttribute(attrIndex++, "ChildContent", childContent);
 
@@ -161,9 +161,19 @@ public class RadioRootTests : BunitContext, IRadioRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateRadioRoot(asElement: "div"));
+        RenderFragment<RenderProps<RadioRootState>> renderAsDiv = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateRadioRoot(render: renderAsDiv));
 
         var radio = cut.Find("[role='radio']");
         radio.TagName.ShouldBe("DIV");
@@ -681,29 +691,6 @@ public class RadioRootTests : BunitContext, IRadioRootContract
         return Task.CompletedTask;
     }
 
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<RadioGroup<string>>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(groupBuilder =>
-                {
-                    groupBuilder.OpenComponent<RadioRoot<string>>(0);
-                    groupBuilder.AddAttribute(1, "Value", "a");
-                    groupBuilder.AddAttribute(2, "RenderAs", typeof(NonReferencableComponent));
-                    groupBuilder.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
     // ClassValue/StyleValue state tests
     [Fact]
     public Task ClassValueReceivesCorrectState()
@@ -803,13 +790,4 @@ public class RadioRootTests : BunitContext, IRadioRootContract
         return Task.CompletedTask;
     }
 
-    // Helper class for RenderAs validation test
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
-    }
 }
