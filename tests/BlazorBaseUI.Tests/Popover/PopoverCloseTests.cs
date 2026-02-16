@@ -18,7 +18,9 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
     private RenderFragment CreateCloseInPopover(
         bool defaultOpen = true,
         RenderFragment<RenderProps<PopoverRootState>>? render = null,
-        IReadOnlyDictionary<string, object>? additionalAttributes = null)
+        IReadOnlyDictionary<string, object>? additionalAttributes = null,
+        Func<PopoverRootState, string>? classValue = null,
+        Func<PopoverRootState, string>? styleValue = null)
     {
         return builder =>
         {
@@ -46,6 +48,10 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
 
                             if (render is not null)
                                 popupBuilder.AddAttribute(attrIndex++, "Render", render);
+                            if (classValue is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
+                            if (styleValue is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                             if (additionalAttributes is not null)
                                 popupBuilder.AddMultipleAttributes(attrIndex++, additionalAttributes);
                             popupBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Close")));
@@ -184,6 +190,36 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
 
         // Verify that close was requested (OnOpenChange fired with Open=false)
         closeRequested.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesClassValueWithState()
+    {
+        var cut = Render(CreateCloseInPopover(
+            classValue: state => state.Open ? "open-class" : "closed-class"
+        ));
+
+        var dialog = cut.Find("[role='dialog']");
+        var closeButton = dialog.QuerySelector("button[type='button']");
+        closeButton.ShouldNotBeNull();
+        closeButton!.GetAttribute("class")!.ShouldContain("open-class");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesStyleValueWithState()
+    {
+        var cut = Render(CreateCloseInPopover(
+            styleValue: _ => "color: red"
+        ));
+
+        var dialog = cut.Find("[role='dialog']");
+        var closeButton = dialog.QuerySelector("button[type='button']");
+        closeButton.ShouldNotBeNull();
+        closeButton!.GetAttribute("style")!.ShouldContain("color: red");
 
         return Task.CompletedTask;
     }

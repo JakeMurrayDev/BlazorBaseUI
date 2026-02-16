@@ -18,7 +18,9 @@ public class PopoverDescriptionTests : BunitContext, IPopoverDescriptionContract
     private RenderFragment CreateDescriptionInPopover(
         bool defaultOpen = true,
         RenderFragment<RenderProps<PopoverRootState>>? render = null,
-        IReadOnlyDictionary<string, object>? additionalAttributes = null)
+        IReadOnlyDictionary<string, object>? additionalAttributes = null,
+        Func<PopoverRootState, string>? classValue = null,
+        Func<PopoverRootState, string>? styleValue = null)
     {
         return builder =>
         {
@@ -44,6 +46,10 @@ public class PopoverDescriptionTests : BunitContext, IPopoverDescriptionContract
 
                             if (render is not null)
                                 popupBuilder.AddAttribute(attrIndex++, "Render", render);
+                            if (classValue is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
+                            if (styleValue is not null)
+                                popupBuilder.AddAttribute(attrIndex++, "StyleValue", styleValue);
                             if (additionalAttributes is not null)
                                 popupBuilder.AddMultipleAttributes(attrIndex++, additionalAttributes);
                             popupBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Description text")));
@@ -120,6 +126,32 @@ public class PopoverDescriptionTests : BunitContext, IPopoverDescriptionContract
 
         var popup = cut.Find("[role='dialog']");
         popup.GetAttribute("aria-describedby").ShouldBe(descriptionId);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesClassValueWithState()
+    {
+        var cut = Render(CreateDescriptionInPopover(
+            classValue: state => state.Open ? "open-class" : "closed-class"
+        ));
+
+        var description = cut.Find("p");
+        description.GetAttribute("class")!.ShouldContain("open-class");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesStyleValueWithState()
+    {
+        var cut = Render(CreateDescriptionInPopover(
+            styleValue: _ => "font-style: italic"
+        ));
+
+        var description = cut.Find("p");
+        description.GetAttribute("style")!.ShouldContain("font-style: italic");
 
         return Task.CompletedTask;
     }

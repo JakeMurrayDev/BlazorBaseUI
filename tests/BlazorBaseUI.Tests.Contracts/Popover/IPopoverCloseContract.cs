@@ -7,5 +7,7 @@ public interface IPopoverCloseContract
     Task ForwardsAdditionalAttributes();
     Task HasTypeButtonAttribute();
     Task ClosesPopoverOnClick();
+    Task AppliesClassValueWithState();
+    Task AppliesStyleValueWithState();
     Task RequiresContext();
 }

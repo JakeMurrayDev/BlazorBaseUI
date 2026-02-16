@@ -6,5 +6,7 @@ public interface IPopoverTitleContract
     Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task SetsAriaLabelledByOnPopup();
+    Task AppliesClassValueWithState();
+    Task AppliesStyleValueWithState();
     Task RendersWithDefaultContext();
 }

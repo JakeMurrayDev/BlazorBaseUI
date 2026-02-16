@@ -6,5 +6,7 @@ public interface IPopoverDescriptionContract
     Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task SetsAriaDescribedByOnPopup();
+    Task AppliesClassValueWithState();
+    Task AppliesStyleValueWithState();
     Task RequiresContext();
 }

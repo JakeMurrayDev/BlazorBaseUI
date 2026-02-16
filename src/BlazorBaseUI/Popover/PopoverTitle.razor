@@ -5,6 +5,8 @@
                Tag="h2"
                State="state"
                Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
                ComponentAttributes="componentAttributes"
                ChildContent="ChildContent"
                @attributes="AdditionalAttributes"
@@ -24,6 +26,18 @@
     /// </summary>
     [Parameter]
     public RenderFragment<RenderProps<PopoverRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PopoverRootState, string>? StyleValue { get; set; }
 
     /// <summary>
     /// Defines the child components of this instance.
