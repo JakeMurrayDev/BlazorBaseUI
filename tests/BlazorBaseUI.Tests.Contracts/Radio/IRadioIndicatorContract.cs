@@ -4,7 +4,7 @@ public interface IRadioIndicatorContract
 {
     // Rendering
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -34,6 +34,4 @@ public interface IRadioIndicatorContract
     Task ClassValueReceivesCorrectState();
     Task StyleValueReceivesCorrectState();
 
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

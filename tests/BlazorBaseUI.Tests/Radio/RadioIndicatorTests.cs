@@ -17,7 +17,7 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
         bool readOnly = false,
         bool required = false,
         bool keepMounted = false,
-        string? indicatorAs = null,
+        RenderFragment<RenderProps<RadioIndicatorState>>? indicatorRender = null,
         Func<RadioIndicatorState, string>? indicatorClassValue = null,
         Func<RadioIndicatorState, string>? indicatorStyleValue = null,
         IReadOnlyDictionary<string, object>? indicatorAttributes = null,
@@ -48,8 +48,8 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
 
                     if (keepMounted)
                         innerBuilder.AddAttribute(indAttrIndex++, "KeepMounted", true);
-                    if (indicatorAs is not null)
-                        innerBuilder.AddAttribute(indAttrIndex++, "As", indicatorAs);
+                    if (indicatorRender is not null)
+                        innerBuilder.AddAttribute(indAttrIndex++, "Render", indicatorRender);
                     if (indicatorClassValue is not null)
                         innerBuilder.AddAttribute(indAttrIndex++, "ClassValue", indicatorClassValue);
                     if (indicatorStyleValue is not null)
@@ -78,7 +78,14 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
         IReadOnlyDictionary<string, object>? additionalAttributes = null)
     {
         var state = new RadioRootState(checked_, disabled, readOnly, required, null, false, false, false, false);
-        var context = new RadioRootContext(checked_, disabled, readOnly, required, state);
+        var context = new RadioRootContext
+        {
+            Checked = checked_,
+            Disabled = disabled,
+            ReadOnly = readOnly,
+            Required = required,
+            State = state
+        };
 
         return builder =>
         {
@@ -118,11 +125,21 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
+        RenderFragment<RenderProps<RadioIndicatorState>> renderAsDiv = props => builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
         var cut = Render(CreateRadioWithIndicator(
             defaultValue: "a",
-            indicatorAs: "div",
+            indicatorRender: renderAsDiv,
             indicatorAttributes: new Dictionary<string, object> { { "data-testid", "indicator" } }
         ));
 
@@ -440,30 +457,4 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
         return Task.CompletedTask;
     }
 
-    // RenderAs validation tests
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<RadioIndicator>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
-
-    // Helper class for RenderAs validation test
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
-    }
 }
