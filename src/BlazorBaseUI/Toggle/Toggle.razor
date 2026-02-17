@@ -27,6 +27,7 @@
     private bool previousPressed;
     private bool previousDisabled;
     private Orientation previousOrientation;
+    private string previousResolvedValue = null!;
     private string? defaultId;
     private string resolvedValue = null!;
     private RenderElement<ToggleState>? renderElementReference;
@@ -148,6 +149,7 @@
     protected override void OnInitialized()
     {
         resolvedValue = Value ?? (defaultId ??= Guid.NewGuid().ToIdString());
+        previousResolvedValue = resolvedValue;
 
         if (!IsInGroup && !IsControlled)
         {
@@ -220,8 +222,9 @@
                 await InitializeJsAsync();
             }
         }
-        else if (IsInGroup && Element.HasValue)
+        else if (IsInGroup && Element.HasValue && resolvedValue != previousResolvedValue)
         {
+            previousResolvedValue = resolvedValue;
             await RegisterWithGroupAsync();
         }
     }
