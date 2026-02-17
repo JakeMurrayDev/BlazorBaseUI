@@ -1,5 +1,4 @@
 using System.Globalization;
-using BlazorBaseUI.Slider;
 
 namespace BlazorBaseUI.Tests.NumberField;
 

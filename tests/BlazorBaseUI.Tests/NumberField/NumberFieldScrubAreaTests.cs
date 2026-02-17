@@ -1,5 +1,3 @@
-using BlazorBaseUI.Slider;
-
 namespace BlazorBaseUI.Tests.NumberField;
 
 public class NumberFieldScrubAreaTests : BunitContext, INumberFieldScrubAreaContract

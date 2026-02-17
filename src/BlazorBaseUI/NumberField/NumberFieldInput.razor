@@ -185,14 +185,24 @@
         var parsedValue = ParseNumber(inputValue);
         if (parsedValue.HasValue)
         {
-            var currentValue = RootContext?.Value;
-            if (currentValue != parsedValue.Value)
-            {
-                RootContext?.SetValue(parsedValue.Value, NumberFieldChangeReason.InputBlur, null);
-            }
-            RootContext?.OnValueCommitted(parsedValue.Value, NumberFieldChangeReason.InputBlur);
+            var format = RootContext?.FormatOptions;
+            var hasExplicitPrecision =
+                format?.MaximumFractionDigits is not null ||
+                format?.MinimumFractionDigits is not null;
+            var maxFrac = format?.MaximumFractionDigits;
 
-            var formattedValue = FormatNumber(parsedValue.Value);
+            var committed = hasExplicitPrecision && maxFrac.HasValue
+                ? Math.Round(parsedValue.Value, maxFrac.Value, MidpointRounding.AwayFromZero)
+                : parsedValue.Value;
+
+            var currentValue = RootContext?.Value;
+            if (currentValue != committed)
+            {
+                RootContext?.SetValue(committed, NumberFieldChangeReason.InputBlur, null);
+            }
+            RootContext?.OnValueCommitted(committed, NumberFieldChangeReason.InputBlur);
+
+            var formattedValue = FormatNumber(committed);
             if (inputValue != formattedValue)
             {
                 RootContext?.SetInputValue(formattedValue);
@@ -354,13 +364,19 @@
         if (format is not null)
         {
             var style = format.Style?.ToLowerInvariant();
+            var hasExplicitPrecision =
+                format.MaximumFractionDigits is not null ||
+                format.MinimumFractionDigits is not null;
             var minFrac = format.MinimumFractionDigits ?? 0;
+            var maxFrac = format.MaximumFractionDigits ?? 20;
 
             return style switch
             {
                 "currency" => value.ToString($"C{minFrac}", culture),
                 "percent" => value.ToString($"P{minFrac}", culture),
-                _ => value.ToString("G", culture)
+                _ => hasExplicitPrecision
+                    ? value.ToString($"N{Math.Min(Math.Max(minFrac, 0), maxFrac)}", culture)
+                    : value.ToString("G", culture)
             };
         }
 
