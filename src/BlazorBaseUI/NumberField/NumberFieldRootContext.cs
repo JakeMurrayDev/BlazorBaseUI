@@ -3,166 +3,149 @@ using BlazorBaseUI.Slider;
 
 namespace BlazorBaseUI.NumberField;
 
-public interface INumberFieldRootContext
+/// <summary>
+/// Provides shared state and callbacks for child components of the <see cref="NumberFieldRoot"/>.
+/// Cascaded as a fixed value from the root to all descendants.
+/// </summary>
+public sealed class NumberFieldRootContext
 {
-    string InputValue { get; }
-    double? Value { get; }
-    double MinWithDefault { get; }
-    double MaxWithDefault { get; }
-    double? Min { get; }
-    double? Max { get; }
-    bool Disabled { get; }
-    bool ReadOnly { get; }
-    string? Id { get; }
-    string? Name { get; }
-    bool Required { get; }
-    bool? Invalid { get; }
-    string InputMode { get; }
-    bool IsScrubbing { get; }
-    string? Locale { get; }
-    NumberFormatOptions? FormatOptions { get; }
-    NumberFieldRootState State { get; }
-    ElementReference? InputElement { get; }
+    /// <summary>
+    /// Gets or sets the formatted text value displayed in the input.
+    /// </summary>
+    public string InputValue { get; set; } = string.Empty;
 
-    void SetValue(double? value, NumberFieldChangeReason reason, int? direction = null);
-    void IncrementValue(double amount, int direction, NumberFieldChangeReason reason);
-    double GetStepAmount(bool altKey, bool shiftKey);
-    void StartAutoChange(bool isIncrement);
-    void StopAutoChange();
-    void SetInputValue(string value);
-    void SetIsScrubbing(bool value);
-    void OnValueCommitted(double? value, NumberFieldChangeReason reason);
-    void SetInputElement(ElementReference element);
-    void FocusInput();
-}
+    /// <summary>
+    /// Gets or sets the raw numeric value of the field.
+    /// </summary>
+    public double? Value { get; set; }
 
-public sealed class NumberFieldRootContext : INumberFieldRootContext
-{
-    internal static NumberFieldRootContext Default { get; } = new();
+    /// <summary>
+    /// Gets or sets the resolved minimum value, falling back to <see cref="double.MinValue"/> when unset.
+    /// </summary>
+    public double MinWithDefault { get; set; } = double.MinValue;
 
-    public string InputValue { get; private set; } = string.Empty;
-    public double? Value { get; private set; }
-    public double MinWithDefault { get; private set; } = double.MinValue;
-    public double MaxWithDefault { get; private set; } = double.MaxValue;
-    public double? Min { get; private set; }
-    public double? Max { get; private set; }
-    public bool Disabled { get; private set; }
-    public bool ReadOnly { get; private set; }
-    public string? Id { get; private set; }
-    public string? Name { get; private set; }
-    public bool Required { get; private set; }
-    public bool? Invalid { get; private set; }
-    public string InputMode { get; private set; } = "numeric";
-    public bool IsScrubbing { get; private set; }
-    public string? Locale { get; private set; }
-    public NumberFormatOptions? FormatOptions { get; private set; }
-    public NumberFieldRootState State { get; private set; } = NumberFieldRootState.Default;
-    public ElementReference? InputElement { get; private set; }
+    /// <summary>
+    /// Gets or sets the resolved maximum value, falling back to <see cref="double.MaxValue"/> when unset.
+    /// </summary>
+    public double MaxWithDefault { get; set; } = double.MaxValue;
 
-    private Action<double?, NumberFieldChangeReason, int?>? setValueCallback;
-    private Action<double, int, NumberFieldChangeReason>? incrementValueCallback;
-    private Func<bool, bool, double>? getStepAmountCallback;
-    private Action<bool>? startAutoChangeCallback;
-    private Action? stopAutoChangeCallback;
-    private Action<string>? setInputValueCallback;
-    private Action<bool>? setIsScrubbingCallback;
-    private Action<double?, NumberFieldChangeReason>? onValueCommittedCallback;
-    private Action<ElementReference>? setInputElementCallback;
-    private Action? focusInputCallback;
+    /// <summary>
+    /// Gets or sets the minimum value of the field.
+    /// </summary>
+    public double? Min { get; set; }
 
-    private NumberFieldRootContext() { }
+    /// <summary>
+    /// Gets or sets the maximum value of the field.
+    /// </summary>
+    public double? Max { get; set; }
 
-    public NumberFieldRootContext(
-        Action<double?, NumberFieldChangeReason, int?> setValue,
-        Action<double, int, NumberFieldChangeReason> incrementValue,
-        Func<bool, bool, double> getStepAmount,
-        Action<bool> startAutoChange,
-        Action stopAutoChange,
-        Action<string> setInputValue,
-        Action<bool> setIsScrubbing,
-        Action<double?, NumberFieldChangeReason> onValueCommitted,
-        Action<ElementReference> setInputElement,
-        Action focusInput)
-    {
-        setValueCallback = setValue;
-        incrementValueCallback = incrementValue;
-        getStepAmountCallback = getStepAmount;
-        startAutoChangeCallback = startAutoChange;
-        stopAutoChangeCallback = stopAutoChange;
-        setInputValueCallback = setInputValue;
-        setIsScrubbingCallback = setIsScrubbing;
-        onValueCommittedCallback = onValueCommitted;
-        setInputElementCallback = setInputElement;
-        focusInputCallback = focusInput;
-    }
+    /// <summary>
+    /// Gets or sets whether the field is disabled.
+    /// </summary>
+    public bool Disabled { get; set; }
 
-    internal void Update(
-        string inputValue,
-        double? value,
-        double minWithDefault,
-        double maxWithDefault,
-        double? min,
-        double? max,
-        bool disabled,
-        bool readOnly,
-        string? id,
-        string? name,
-        bool required,
-        bool? invalid,
-        string inputMode,
-        bool isScrubbing,
-        string? locale,
-        NumberFormatOptions? formatOptions,
-        NumberFieldRootState state,
-        ElementReference? inputElement)
-    {
-        InputValue = inputValue;
-        Value = value;
-        MinWithDefault = minWithDefault;
-        MaxWithDefault = maxWithDefault;
-        Min = min;
-        Max = max;
-        Disabled = disabled;
-        ReadOnly = readOnly;
-        Id = id;
-        Name = name;
-        Required = required;
-        Invalid = invalid;
-        InputMode = inputMode;
-        IsScrubbing = isScrubbing;
-        Locale = locale;
-        FormatOptions = formatOptions;
-        State = state;
-        InputElement = inputElement;
-    }
+    /// <summary>
+    /// Gets or sets whether the field is read-only.
+    /// </summary>
+    public bool ReadOnly { get; set; }
 
-    public void SetValue(double? value, NumberFieldChangeReason reason, int? direction = null) =>
-        setValueCallback?.Invoke(value, reason, direction);
+    /// <summary>
+    /// Gets or sets the id of the input element.
+    /// </summary>
+    public string? Id { get; set; }
 
-    public void IncrementValue(double amount, int direction, NumberFieldChangeReason reason) =>
-        incrementValueCallback?.Invoke(amount, direction, reason);
+    /// <summary>
+    /// Gets or sets the name that identifies the field when a form is submitted.
+    /// </summary>
+    public string? Name { get; set; }
 
-    public double GetStepAmount(bool altKey, bool shiftKey) =>
-        getStepAmountCallback?.Invoke(altKey, shiftKey) ?? 1;
+    /// <summary>
+    /// Gets or sets whether the field is required.
+    /// </summary>
+    public bool Required { get; set; }
 
-    public void StartAutoChange(bool isIncrement) =>
-        startAutoChangeCallback?.Invoke(isIncrement);
+    /// <summary>
+    /// Gets or sets whether the field is in an invalid state.
+    /// </summary>
+    public bool? Invalid { get; set; }
 
-    public void StopAutoChange() =>
-        stopAutoChangeCallback?.Invoke();
+    /// <summary>
+    /// Gets or sets the input mode for the input element.
+    /// </summary>
+    public string InputMode { get; set; } = "numeric";
 
-    public void SetInputValue(string value) =>
-        setInputValueCallback?.Invoke(value);
+    /// <summary>
+    /// Gets or sets whether the field is currently being scrubbed.
+    /// </summary>
+    public bool IsScrubbing { get; set; }
 
-    public void SetIsScrubbing(bool value) =>
-        setIsScrubbingCallback?.Invoke(value);
+    /// <summary>
+    /// Gets or sets the locale used for number formatting.
+    /// </summary>
+    public string? Locale { get; set; }
 
-    public void OnValueCommitted(double? value, NumberFieldChangeReason reason) =>
-        onValueCommittedCallback?.Invoke(value, reason);
+    /// <summary>
+    /// Gets or sets the number format options for the input value.
+    /// </summary>
+    public NumberFormatOptions? FormatOptions { get; set; }
 
-    public void SetInputElement(ElementReference element) =>
-        setInputElementCallback?.Invoke(element);
+    /// <summary>
+    /// Gets or sets the current component state exposed to style and render callbacks.
+    /// </summary>
+    public NumberFieldRootState State { get; set; } = NumberFieldRootState.Default;
 
-    public void FocusInput() =>
-        focusInputCallback?.Invoke();
+    /// <summary>
+    /// Gets or sets the <see cref="ElementReference"/> to the input element.
+    /// </summary>
+    public ElementReference? InputElement { get; set; }
+
+    /// <summary>
+    /// Sets the numeric value with a reason and optional direction.
+    /// </summary>
+    public Action<double?, NumberFieldChangeReason, int?> SetValue { get; set; } = null!;
+
+    /// <summary>
+    /// Increments the value by the specified amount in the given direction.
+    /// </summary>
+    public Action<double, int, NumberFieldChangeReason> IncrementValue { get; set; } = null!;
+
+    /// <summary>
+    /// Returns the step amount based on the current modifier keys.
+    /// </summary>
+    public Func<bool, bool, double> GetStepAmount { get; set; } = null!;
+
+    /// <summary>
+    /// Starts automatic value change (press-and-hold) in the specified direction.
+    /// </summary>
+    public Action<bool> StartAutoChange { get; set; } = null!;
+
+    /// <summary>
+    /// Stops automatic value change (press-and-hold).
+    /// </summary>
+    public Action StopAutoChange { get; set; } = null!;
+
+    /// <summary>
+    /// Sets the displayed input text directly without parsing.
+    /// </summary>
+    public Action<string> SetInputValue { get; set; } = null!;
+
+    /// <summary>
+    /// Sets the scrubbing state of the number field.
+    /// </summary>
+    public Action<bool> SetIsScrubbing { get; set; } = null!;
+
+    /// <summary>
+    /// Notifies that a value has been committed.
+    /// </summary>
+    public Action<double?, NumberFieldChangeReason> OnValueCommitted { get; set; } = null!;
+
+    /// <summary>
+    /// Sets the <see cref="ElementReference"/> for the input element.
+    /// </summary>
+    public Action<ElementReference> SetInputElement { get; set; } = null!;
+
+    /// <summary>
+    /// Programmatically focuses the input element.
+    /// </summary>
+    public Action FocusInput { get; set; } = null!;
 }

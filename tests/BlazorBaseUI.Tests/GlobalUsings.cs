@@ -39,4 +39,6 @@ global using BlazorBaseUI.Toolbar;
 global using BlazorBaseUI.Tests.Contracts.Toolbar;
 global using BlazorBaseUI.Tabs;
 global using BlazorBaseUI.Tests.Contracts.Tabs;
+global using BlazorBaseUI.NumberField;
+global using BlazorBaseUI.Tests.Contracts.NumberField;
 global using BlazorBaseUI.Tests.Infrastructure;

@@ -2,7 +2,22 @@ using BlazorBaseUI.Field;
 
 namespace BlazorBaseUI.NumberField;
 
-public readonly record struct NumberFieldRootState(
+/// <summary>
+/// Represents the state of the <see cref="NumberFieldRoot"/> component,
+/// exposed to style and render callbacks.
+/// </summary>
+/// <param name="Value">Gets the raw numeric value of the field.</param>
+/// <param name="InputValue">Gets the formatted text value displayed in the input.</param>
+/// <param name="Required">Gets whether the field is required.</param>
+/// <param name="Disabled">Gets whether the field is disabled.</param>
+/// <param name="ReadOnly">Gets whether the field is read-only.</param>
+/// <param name="Scrubbing">Gets whether the field is currently being scrubbed.</param>
+/// <param name="Valid">Gets whether the field is in a valid state. <see langword="null"/> when validity is unknown.</param>
+/// <param name="Touched">Gets whether the field has been touched.</param>
+/// <param name="Dirty">Gets whether the field value has changed from its initial value.</param>
+/// <param name="Filled">Gets whether the field has a value.</param>
+/// <param name="Focused">Gets whether the field is focused.</param>
+public sealed record NumberFieldRootState(
     double? Value,
     string InputValue,
     bool Required,
@@ -15,7 +30,7 @@ public readonly record struct NumberFieldRootState(
     bool Filled,
     bool Focused)
 {
-    internal static NumberFieldRootState Default => new(
+    internal static NumberFieldRootState Default { get; } = new(
         Value: null,
         InputValue: string.Empty,
         Required: false,

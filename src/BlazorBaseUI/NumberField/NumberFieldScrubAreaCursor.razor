@@ -1,0 +1,116 @@
+@namespace BlazorBaseUI.NumberField
+@implements IReferencableComponent
+
+<RenderElement TState="NumberFieldRootState"
+               Tag="@DefaultTag"
+               State="state"
+               Enabled="ShouldRenderCursor"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string DefaultTag = "span";
+
+    private RenderElement<NumberFieldRootState>? renderElementReference;
+    private NumberFieldRootState state = NumberFieldRootState.Default;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<NumberFieldRootState, string?>? computedStyleValue;
+
+    private bool ShouldRenderCursor =>
+        ScrubAreaContext?.IsScrubbing == true &&
+        !ScrubAreaContext.IsTouchInput &&
+        !ScrubAreaContext.IsPointerLockDenied;
+
+    [CascadingParameter]
+    private NumberFieldRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private NumberFieldScrubAreaContext? ScrubAreaContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<NumberFieldRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<NumberFieldRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<NumberFieldRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            var baseStyle = "position:fixed;top:0;left:0;pointer-events:none";
+            return string.IsNullOrEmpty(userStyle) ? baseStyle : $"{baseStyle};{userStyle}";
+        };
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        state = RootContext?.State ?? NumberFieldRootState.Default;
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (Element.HasValue && ShouldRenderCursor)
+        {
+            ScrubAreaContext?.SetCursorElement(Element);
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        attrs["role"] = "presentation";
+        attrs["data-scrubbing"] = state.Scrubbing;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-readonly"] = state.ReadOnly;
+        attrs["data-required"] = state.Required;
+        if (state.Valid == true)
+            attrs["data-valid"] = true;
+        else if (state.Valid == false)
+            attrs["data-invalid"] = true;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-filled"] = state.Filled;
+        attrs["data-focused"] = state.Focused;
+        componentAttributes = attrs;
+    }
+}

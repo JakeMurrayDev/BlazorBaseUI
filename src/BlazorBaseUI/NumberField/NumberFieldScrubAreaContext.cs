@@ -2,76 +2,59 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.NumberField;
 
-public interface INumberFieldScrubAreaContext
+/// <summary>
+/// Provides shared state and callbacks for child components of the <see cref="NumberFieldScrubArea"/>.
+/// Cascaded as a fixed value from the scrub area to its descendants.
+/// </summary>
+public sealed class NumberFieldScrubAreaContext
 {
-    bool IsScrubbing { get; }
-    bool IsTouchInput { get; }
-    bool IsPointerLockDenied { get; }
-    ScrubDirection Direction { get; }
-    int PixelSensitivity { get; }
-    int? TeleportDistance { get; }
+    /// <summary>
+    /// Gets or sets whether the scrub area is actively being scrubbed.
+    /// </summary>
+    public bool IsScrubbing { get; set; }
 
-    void SetCursorElement(ElementReference? element);
-    ElementReference? GetCursorElement();
-    void SetScrubAreaElement(ElementReference? element);
-    ElementReference? GetScrubAreaElement();
-}
+    /// <summary>
+    /// Gets or sets whether the current scrub interaction is a touch input.
+    /// </summary>
+    public bool IsTouchInput { get; set; }
 
-public sealed class NumberFieldScrubAreaContext : INumberFieldScrubAreaContext
-{
-    internal static NumberFieldScrubAreaContext Default { get; } = new();
+    /// <summary>
+    /// Gets or sets whether pointer lock was denied by the browser.
+    /// </summary>
+    public bool IsPointerLockDenied { get; set; }
 
-    public bool IsScrubbing { get; private set; }
-    public bool IsTouchInput { get; private set; }
-    public bool IsPointerLockDenied { get; private set; }
-    public ScrubDirection Direction { get; private set; } = ScrubDirection.Horizontal;
-    public int PixelSensitivity { get; private set; } = 2;
-    public int? TeleportDistance { get; private set; }
+    /// <summary>
+    /// Gets or sets the cursor movement direction in the scrub area.
+    /// </summary>
+    public ScrubDirection Direction { get; set; } = ScrubDirection.Horizontal;
 
-    private Action<ElementReference?>? setCursorElementCallback;
-    private Func<ElementReference?>? getCursorElementCallback;
-    private Action<ElementReference?>? setScrubAreaElementCallback;
-    private Func<ElementReference?>? getScrubAreaElementCallback;
+    /// <summary>
+    /// Gets or sets how many pixels the cursor must move before the value changes.
+    /// </summary>
+    public int PixelSensitivity { get; set; } = 2;
 
-    private NumberFieldScrubAreaContext() { }
+    /// <summary>
+    /// Gets or sets the distance the cursor may move from the center before looping back.
+    /// </summary>
+    public int? TeleportDistance { get; set; }
 
-    public NumberFieldScrubAreaContext(
-        Action<ElementReference?> setCursorElement,
-        Func<ElementReference?> getCursorElement,
-        Action<ElementReference?> setScrubAreaElement,
-        Func<ElementReference?> getScrubAreaElement)
-    {
-        setCursorElementCallback = setCursorElement;
-        getCursorElementCallback = getCursorElement;
-        setScrubAreaElementCallback = setScrubAreaElement;
-        getScrubAreaElementCallback = getScrubAreaElement;
-    }
+    /// <summary>
+    /// Sets the <see cref="ElementReference"/> for the custom cursor element.
+    /// </summary>
+    public Action<ElementReference?> SetCursorElement { get; set; } = null!;
 
-    internal void Update(
-        bool isScrubbing,
-        bool isTouchInput,
-        bool isPointerLockDenied,
-        ScrubDirection direction,
-        int pixelSensitivity,
-        int? teleportDistance)
-    {
-        IsScrubbing = isScrubbing;
-        IsTouchInput = isTouchInput;
-        IsPointerLockDenied = isPointerLockDenied;
-        Direction = direction;
-        PixelSensitivity = pixelSensitivity;
-        TeleportDistance = teleportDistance;
-    }
+    /// <summary>
+    /// Returns the <see cref="ElementReference"/> for the custom cursor element.
+    /// </summary>
+    public Func<ElementReference?> GetCursorElement { get; set; } = null!;
 
-    public void SetCursorElement(ElementReference? element) =>
-        setCursorElementCallback?.Invoke(element);
+    /// <summary>
+    /// Sets the <see cref="ElementReference"/> for the scrub area element.
+    /// </summary>
+    public Action<ElementReference?> SetScrubAreaElement { get; set; } = null!;
 
-    public ElementReference? GetCursorElement() =>
-        getCursorElementCallback?.Invoke();
-
-    public void SetScrubAreaElement(ElementReference? element) =>
-        setScrubAreaElementCallback?.Invoke(element);
-
-    public ElementReference? GetScrubAreaElement() =>
-        getScrubAreaElementCallback?.Invoke();
+    /// <summary>
+    /// Returns the <see cref="ElementReference"/> for the scrub area element.
+    /// </summary>
+    public Func<ElementReference?> GetScrubAreaElement { get; set; } = null!;
 }

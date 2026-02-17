@@ -272,6 +272,21 @@ public static class JsInteropSetup
         module.Setup<object?>("getFirstEnabledTab", _ => true).SetResult(null);
     }
 
+    private const string NumberFieldModule = "./_content/BlazorBaseUI/blazor-baseui-number-field.js";
+
+    public static void SetupNumberFieldModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(NumberFieldModule);
+        module.SetupVoid("registerWheelListener", _ => true).SetVoidResult();
+        module.SetupVoid("focusInput", _ => true).SetVoidResult();
+        module.SetupVoid("startAutoChange", _ => true).SetVoidResult();
+        module.SetupVoid("stopAutoChange", _ => true).SetVoidResult();
+        module.SetupVoid("dispose", _ => true).SetVoidResult();
+        module.SetupVoid("initializeScrubArea", _ => true).SetVoidResult();
+        module.Setup<object?>("startScrub", _ => true).SetResult(null);
+        module.SetupVoid("disposeScrubArea", _ => true).SetVoidResult();
+    }
+
     private const string ToggleModule = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
 
     public static void SetupToggleModule(BunitJSInterop jsInterop)
