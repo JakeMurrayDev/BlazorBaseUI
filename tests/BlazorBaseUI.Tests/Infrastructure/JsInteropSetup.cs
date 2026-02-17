@@ -277,20 +277,20 @@ public static class JsInteropSetup
     public static void SetupToggleModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(ToggleModule);
-        module.SetupVoid("initialize", _ => true);
-        module.SetupVoid("updateState", _ => true);
-        module.SetupVoid("dispose", _ => true);
-        module.SetupVoid("initializeGroup", _ => true);
-        module.SetupVoid("updateGroup", _ => true);
-        module.SetupVoid("disposeGroup", _ => true);
-        module.SetupVoid("registerToggle", _ => true);
-        module.SetupVoid("unregisterToggle", _ => true);
-        module.SetupVoid("navigateToPrevious", _ => true);
-        module.SetupVoid("navigateToNext", _ => true);
-        module.SetupVoid("navigateToFirst", _ => true);
-        module.SetupVoid("navigateToLast", _ => true);
-        module.SetupVoid("initializeGroupItem", _ => true);
-        module.SetupVoid("updateGroupItemOrientation", _ => true);
-        module.SetupVoid("disposeGroupItem", _ => true);
+        module.SetupVoid("initialize", _ => true).SetVoidResult();
+        module.SetupVoid("updateState", _ => true).SetVoidResult();
+        module.SetupVoid("dispose", _ => true).SetVoidResult();
+        module.SetupVoid("initializeGroup", _ => true).SetVoidResult();
+        module.SetupVoid("updateGroup", _ => true).SetVoidResult();
+        module.SetupVoid("disposeGroup", _ => true).SetVoidResult();
+        module.SetupVoid("registerToggle", _ => true).SetVoidResult();
+        module.SetupVoid("unregisterToggle", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToPrevious", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToNext", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToFirst", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToLast", _ => true).SetVoidResult();
+        module.SetupVoid("initializeGroupItem", _ => true).SetVoidResult();
+        module.SetupVoid("updateGroupItemOrientation", _ => true).SetVoidResult();
+        module.SetupVoid("disposeGroupItem", _ => true).SetVoidResult();
     }
 }

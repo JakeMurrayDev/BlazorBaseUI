@@ -13,12 +13,11 @@ public class ToggleTests : BunitContext, IToggleContract
         bool defaultPressed = false,
         bool disabled = false,
         bool nativeButton = true,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToggleState, string>? classValue = null,
         Func<ToggleState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Action<TogglePressedChangeEventArgs>? onPressedChange = null,
+        RenderFragment<RenderProps<ToggleState>>? render = null,
         RenderFragment? childContent = null)
     {
         return builder =>
@@ -33,10 +32,6 @@ public class ToggleTests : BunitContext, IToggleContract
             builder.AddAttribute(attrIndex++, "Disabled", disabled);
             builder.AddAttribute(attrIndex++, "NativeButton", nativeButton);
 
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
-            if (renderAs is not null)
-                builder.AddAttribute(attrIndex++, "RenderAs", renderAs);
             if (classValue is not null)
                 builder.AddAttribute(attrIndex++, "ClassValue", classValue);
             if (styleValue is not null)
@@ -45,6 +40,8 @@ public class ToggleTests : BunitContext, IToggleContract
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
             if (onPressedChange is not null)
                 builder.AddAttribute(attrIndex++, "OnPressedChange", EventCallback.Factory.Create(this, onPressedChange));
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (childContent is not null)
                 builder.AddAttribute(attrIndex++, "ChildContent", childContent);
 
@@ -64,11 +61,20 @@ public class ToggleTests : BunitContext, IToggleContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateToggle(nativeButton: false, asElement: "span"));
+        var cut = Render(CreateToggle(
+            render: props => builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddMultipleAttributes(1, props.Attributes);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddContent(3, props.ChildContent);
+                builder.CloseElement();
+            }));
         var element = cut.Find("span");
         element.TagName.ShouldBe("SPAN");
+        element.GetAttribute("aria-pressed").ShouldBe("false");
         return Task.CompletedTask;
     }
 
@@ -196,7 +202,7 @@ public class ToggleTests : BunitContext, IToggleContract
     [Fact]
     public Task NonNativeButton_HasRoleButton()
     {
-        var cut = Render(CreateToggle(nativeButton: false, asElement: "span"));
+        var cut = Render(CreateToggle(nativeButton: false));
         var element = cut.Find("[role='button']");
         element.ShouldNotBeNull();
         return Task.CompletedTask;
@@ -205,8 +211,8 @@ public class ToggleTests : BunitContext, IToggleContract
     [Fact]
     public Task NonNativeButton_DoesNotHaveType()
     {
-        var cut = Render(CreateToggle(nativeButton: false, asElement: "span"));
-        var element = cut.Find("span");
+        var cut = Render(CreateToggle(nativeButton: false));
+        var element = cut.Find("button");
         element.HasAttribute("type").ShouldBeFalse();
         return Task.CompletedTask;
     }
@@ -214,8 +220,8 @@ public class ToggleTests : BunitContext, IToggleContract
     [Fact]
     public Task NonNativeButton_HasAriaDisabledWhenDisabled()
     {
-        var cut = Render(CreateToggle(nativeButton: false, asElement: "span", disabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateToggle(nativeButton: false, disabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("aria-disabled").ShouldBe("true");
         return Task.CompletedTask;
     }
@@ -223,8 +229,8 @@ public class ToggleTests : BunitContext, IToggleContract
     [Fact]
     public Task NonNativeButton_HasTabIndexMinusOneWhenDisabled()
     {
-        var cut = Render(CreateToggle(nativeButton: false, asElement: "span", disabled: true));
-        var element = cut.Find("span");
+        var cut = Render(CreateToggle(nativeButton: false, disabled: true));
+        var element = cut.Find("button");
         element.GetAttribute("tabindex").ShouldBe("-1");
         return Task.CompletedTask;
     }
@@ -281,8 +287,8 @@ public class ToggleTests : BunitContext, IToggleContract
     [Fact]
     public Task NonNativeButton_HasDefaultTabIndex()
     {
-        var cut = Render(CreateToggle(nativeButton: false, asElement: "span"));
-        var element = cut.Find("span");
+        var cut = Render(CreateToggle(nativeButton: false));
+        var element = cut.Find("button");
         element.GetAttribute("tabindex").ShouldBe("0");
         return Task.CompletedTask;
     }
@@ -430,31 +436,5 @@ public class ToggleTests : BunitContext, IToggleContract
         cut.WaitForState(() => component!.Element.HasValue);
         component!.Element.HasValue.ShouldBeTrue();
         return Task.CompletedTask;
-    }
-
-    // RenderAs validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<BlazorBaseUI.Toggle.Toggle>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
-        return Task.CompletedTask;
-    }
-
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }
