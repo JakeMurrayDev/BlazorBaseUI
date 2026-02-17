@@ -18,8 +18,6 @@ public class ToolbarInputTests : BunitContext, IToolbarInputContract
         bool inputDisabled = false,
         bool focusableWhenDisabled = true,
         string? defaultValue = null,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToolbarInputState, string>? classValue = null,
         Func<ToolbarInputState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null)
@@ -37,10 +35,6 @@ public class ToolbarInputTests : BunitContext, IToolbarInputContract
                 inner.AddAttribute(seq++, "FocusableWhenDisabled", focusableWhenDisabled);
                 if (defaultValue is not null)
                     inner.AddAttribute(seq++, "DefaultValue", defaultValue);
-                if (asElement is not null)
-                    inner.AddAttribute(seq++, "As", asElement);
-                if (renderAs is not null)
-                    inner.AddAttribute(seq++, "RenderAs", renderAs);
                 if (classValue is not null)
                     inner.AddAttribute(seq++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -90,11 +84,27 @@ public class ToolbarInputTests : BunitContext, IToolbarInputContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRenderFragment()
     {
-        var cut = Render(CreateToolbarInputInRoot(asElement: "textarea"));
-        var element = cut.Find("textarea[data-orientation]");
-        element.TagName.ShouldBe("TEXTAREA");
+        var fragment = (RenderFragment)(builder =>
+        {
+            builder.OpenComponent<ToolbarRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
+            {
+                inner.OpenComponent<ToolbarInput>(0);
+                inner.AddAttribute(1, "Render", (RenderFragment<RenderProps<ToolbarInputState>>)(props => b =>
+                {
+                    b.OpenElement(0, "textarea");
+                    b.AddMultipleAttributes(1, props.Attributes);
+                    b.CloseElement();
+                }));
+                inner.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var cut = Render(fragment);
+        cut.Find("textarea[data-orientation]").ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -281,24 +291,4 @@ public class ToolbarInputTests : BunitContext, IToolbarInputContract
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<ToolbarRoot>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
-                {
-                    inner.OpenComponent<ToolbarInput>(0);
-                    inner.AddAttribute(1, "RenderAs", typeof(string));
-                    inner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 }

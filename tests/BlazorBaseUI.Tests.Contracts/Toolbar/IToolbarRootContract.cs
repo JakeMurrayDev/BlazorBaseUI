@@ -4,7 +4,7 @@ public interface IToolbarRootContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRenderFragment();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -29,9 +29,6 @@ public interface IToolbarRootContract
 
     // Element reference
     Task ExposesElementReference();
-
-    // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 
     // Context cascading
     Task CascadesDisabledToButton();

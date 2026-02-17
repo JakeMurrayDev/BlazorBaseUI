@@ -16,8 +16,6 @@ public class ToolbarRootTests : BunitContext, IToolbarRootContract
         bool disabled = false,
         Orientation orientation = Orientation.Horizontal,
         bool loopFocus = true,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToolbarRootState, string>? classValue = null,
         Func<ToolbarRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -30,10 +28,6 @@ public class ToolbarRootTests : BunitContext, IToolbarRootContract
             builder.AddAttribute(seq++, "Disabled", disabled);
             builder.AddAttribute(seq++, "Orientation", orientation);
             builder.AddAttribute(seq++, "LoopFocus", loopFocus);
-            if (asElement is not null)
-                builder.AddAttribute(seq++, "As", asElement);
-            if (renderAs is not null)
-                builder.AddAttribute(seq++, "RenderAs", renderAs);
             if (classValue is not null)
                 builder.AddAttribute(seq++, "ClassValue", classValue);
             if (styleValue is not null)
@@ -75,11 +69,23 @@ public class ToolbarRootTests : BunitContext, IToolbarRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRenderFragment()
     {
-        var cut = Render(CreateToolbarRoot(asElement: "section"));
-        var element = cut.Find("[role='toolbar']");
-        element.TagName.ShouldBe("SECTION");
+        var fragment = (RenderFragment)(builder =>
+        {
+            builder.OpenComponent<ToolbarRoot>(0);
+            builder.AddAttribute(1, "Render", (RenderFragment<RenderProps<ToolbarRootState>>)(props => b =>
+            {
+                b.OpenElement(0, "section");
+                b.AddMultipleAttributes(1, props.Attributes);
+                b.AddContent(2, props.ChildContent);
+                b.CloseElement();
+            }));
+            builder.CloseComponent();
+        });
+
+        var cut = Render(fragment);
+        cut.Find("section[role='toolbar']").ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -267,24 +273,6 @@ public class ToolbarRootTests : BunitContext, IToolbarRootContract
         var cut = Render(CreateToolbarRoot());
         var component = cut.FindComponent<ToolbarRoot>();
         component.Instance.Element.ShouldNotBeNull();
-        return Task.CompletedTask;
-    }
-
-    // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<ToolbarRoot>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(string));
-                builder.CloseComponent();
-            });
-        });
-
         return Task.CompletedTask;
     }
 

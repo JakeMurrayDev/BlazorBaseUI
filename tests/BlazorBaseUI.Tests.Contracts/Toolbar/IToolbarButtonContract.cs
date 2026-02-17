@@ -4,7 +4,7 @@ public interface IToolbarButtonContract
 {
     // Rendering
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRenderFragment();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -39,5 +39,4 @@ public interface IToolbarButtonContract
 
     // Validation
     Task ThrowsWhenNotInsideToolbarRoot();
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

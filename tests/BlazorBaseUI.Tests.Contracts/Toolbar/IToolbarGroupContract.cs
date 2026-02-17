@@ -4,7 +4,7 @@ public interface IToolbarGroupContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRenderFragment();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -28,5 +28,4 @@ public interface IToolbarGroupContract
 
     // Validation
     Task ThrowsWhenNotInsideToolbarRoot();
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

@@ -1,0 +1,177 @@
+@implements IDisposable
+
+<RenderElement TState="ToolbarInputState"
+               Tag="input"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private RenderElement<ToolbarInputState>? renderElementReference;
+    private ToolbarInputState state = default!;
+    private ElementReference? registeredElement;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private ToolbarRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private ToolbarGroupContext? GroupContext { get; set; }
+
+    /// <summary>
+    /// Determines whether the input should ignore user interaction. Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether the input remains focusable when disabled. Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool FocusableWhenDisabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the default value of the input element.
+    /// </summary>
+    [Parameter]
+    public string? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ToolbarInputState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<ToolbarInputState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<ToolbarInputState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (RootContext is null)
+        {
+            throw new InvalidOperationException("ToolbarInput must be placed within a ToolbarRoot.");
+        }
+
+        var disabled = RootContext.Disabled || (GroupContext?.Disabled ?? false) || Disabled;
+
+        state = new ToolbarInputState(disabled, RootContext.Orientation, FocusableWhenDisabled);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (RootContext is null)
+        {
+            throw new InvalidOperationException("ToolbarInput must be placed within a ToolbarRoot.");
+        }
+
+        var disabled = RootContext.Disabled || (GroupContext?.Disabled ?? false) || Disabled;
+        var orientation = RootContext.Orientation;
+
+        if (state.Disabled != disabled || state.Orientation != orientation || state.Focusable != FocusableWhenDisabled)
+        {
+            state = new ToolbarInputState(disabled, orientation, FocusableWhenDisabled);
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            RegisterWithToolbar();
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (registeredElement.HasValue && RootContext is not null)
+        {
+            RootContext.UnregisterItem(registeredElement.Value);
+        }
+    }
+
+    /// <summary>
+    /// Builds the dictionary of HTML attributes applied to the rendered element.
+    /// </summary>
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var disabled = RootContext!.Disabled || (GroupContext?.Disabled ?? false) || Disabled;
+        var orientationString = RootContext.Orientation.ToDataAttributeString();
+
+        if (disabled)
+        {
+            if (FocusableWhenDisabled)
+            {
+                attrs["aria-disabled"] = "true";
+            }
+            else
+            {
+                attrs["disabled"] = true;
+            }
+        }
+
+        if (DefaultValue is not null)
+        {
+            attrs["value"] = DefaultValue;
+        }
+
+        attrs["data-orientation"] = orientationString;
+        attrs["data-disabled"] = disabled;
+        attrs["data-focusable"] = FocusableWhenDisabled;
+
+        componentAttributes = attrs;
+    }
+
+    /// <summary>
+    /// Registers this item's element reference with the parent toolbar for keyboard navigation.
+    /// </summary>
+    private void RegisterWithToolbar()
+    {
+        if (!Element.HasValue || RootContext is null)
+        {
+            return;
+        }
+
+        if (registeredElement.HasValue && !registeredElement.Value.Equals(Element.Value))
+        {
+            RootContext.UnregisterItem(registeredElement.Value);
+        }
+
+        if (!registeredElement.HasValue || !registeredElement.Value.Equals(Element.Value))
+        {
+            RootContext.RegisterItem(Element.Value);
+            registeredElement = Element;
+        }
+    }
+}

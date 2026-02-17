@@ -1,0 +1,118 @@
+<CascadingValue Value="groupContext" IsFixed="true">
+    <RenderElement TState="ToolbarRootState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private RenderElement<ToolbarRootState>? renderElementReference;
+    private ToolbarRootState state = default!;
+    private ToolbarGroupContext groupContext = default!;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private ToolbarRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Determines whether all toolbar items in the group should ignore user interaction. Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ToolbarRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<ToolbarRootState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<ToolbarRootState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (RootContext is null)
+        {
+            throw new InvalidOperationException("ToolbarGroup must be placed within a ToolbarRoot.");
+        }
+
+        var disabled = RootContext.Disabled || Disabled;
+
+        groupContext = new ToolbarGroupContext
+        {
+            Disabled = disabled
+        };
+
+        state = new ToolbarRootState(disabled, RootContext.Orientation);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (RootContext is null)
+        {
+            throw new InvalidOperationException("ToolbarGroup must be placed within a ToolbarRoot.");
+        }
+
+        var disabled = RootContext.Disabled || Disabled;
+        var orientation = RootContext.Orientation;
+
+        groupContext.Disabled = disabled;
+
+        if (state.Disabled != disabled || state.Orientation != orientation)
+        {
+            state = new ToolbarRootState(disabled, orientation);
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <summary>
+    /// Builds the dictionary of HTML attributes applied to the rendered element.
+    /// </summary>
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var disabled = RootContext!.Disabled || Disabled;
+
+        attrs["role"] = "group";
+        attrs["data-orientation"] = RootContext.Orientation.ToDataAttributeString();
+        attrs["data-disabled"] = disabled;
+
+        componentAttributes = attrs;
+    }
+}

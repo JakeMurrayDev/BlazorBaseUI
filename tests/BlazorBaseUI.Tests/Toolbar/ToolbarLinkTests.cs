@@ -15,8 +15,6 @@ public class ToolbarLinkTests : BunitContext, IToolbarLinkContract
     private RenderFragment CreateToolbarLinkInRoot(
         bool rootDisabled = false,
         Orientation rootOrientation = Orientation.Horizontal,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToolbarLinkState, string>? classValue = null,
         Func<ToolbarLinkState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -31,10 +29,6 @@ public class ToolbarLinkTests : BunitContext, IToolbarLinkContract
             {
                 inner.OpenComponent<ToolbarLink>(0);
                 var seq = 1;
-                if (asElement is not null)
-                    inner.AddAttribute(seq++, "As", asElement);
-                if (renderAs is not null)
-                    inner.AddAttribute(seq++, "RenderAs", renderAs);
                 if (classValue is not null)
                     inner.AddAttribute(seq++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -62,13 +56,29 @@ public class ToolbarLinkTests : BunitContext, IToolbarLinkContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRenderFragment()
     {
-        var cut = Render(CreateToolbarLinkInRoot(
-            asElement: "span",
-            childContent: b => b.AddContent(0, "Link")));
-        var element = cut.Find("span[data-orientation]");
-        element.TagName.ShouldBe("SPAN");
+        var fragment = (RenderFragment)(builder =>
+        {
+            builder.OpenComponent<ToolbarRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
+            {
+                inner.OpenComponent<ToolbarLink>(0);
+                inner.AddAttribute(1, "Render", (RenderFragment<RenderProps<ToolbarLinkState>>)(props => b =>
+                {
+                    b.OpenElement(0, "span");
+                    b.AddMultipleAttributes(1, props.Attributes);
+                    b.AddContent(2, props.ChildContent);
+                    b.CloseElement();
+                }));
+                inner.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Link")));
+                inner.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var cut = Render(fragment);
+        cut.Find("span[data-orientation]").ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -211,24 +221,4 @@ public class ToolbarLinkTests : BunitContext, IToolbarLinkContract
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<ToolbarRoot>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
-                {
-                    inner.OpenComponent<ToolbarLink>(0);
-                    inner.AddAttribute(1, "RenderAs", typeof(string));
-                    inner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 }
