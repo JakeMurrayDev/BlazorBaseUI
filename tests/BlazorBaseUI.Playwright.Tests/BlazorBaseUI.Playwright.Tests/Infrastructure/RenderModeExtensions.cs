@@ -764,6 +764,43 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // NumberField-specific parameters
+    public TestPageUrlBuilder WithNumberFieldDefaultValue(double value)
+    {
+        queryParams["defaultValue"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNumberFieldAllowWheelScrub(bool value)
+    {
+        queryParams["allowWheelScrub"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNumberFieldSnapOnStep(bool value)
+    {
+        queryParams["snapOnStep"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNumberFieldName(string name)
+    {
+        queryParams["name"] = name;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNumberFieldShowForm(bool value)
+    {
+        queryParams["showForm"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNumberFieldShowScrubArea(bool value)
+    {
+        queryParams["showScrubArea"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

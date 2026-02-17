@@ -1,0 +1,220 @@
+@namespace BlazorBaseUI.NumberField
+@using Microsoft.AspNetCore.Components.Web
+@implements IReferencableComponent
+
+<RenderElement TState="NumberFieldRootState"
+               Tag="@DefaultTag"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string DefaultTag = "button";
+
+    private bool isTouchingButton;
+    private bool isPressed;
+    private string pointerType = string.Empty;
+    private RenderElement<NumberFieldRootState>? renderElementReference;
+    private NumberFieldRootState state = NumberFieldRootState.Default;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<NumberFieldRootState, string?>? computedStyleValue;
+
+    private bool IsDisabled => Disabled || (RootContext?.Disabled ?? false);
+
+    private bool IsAtMax => RootContext?.Value.HasValue == true && RootContext.Value.Value >= RootContext.MaxWithDefault;
+
+    private bool ResolvedDisabled => IsDisabled || IsAtMax;
+
+    [CascadingParameter]
+    private NumberFieldRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether the component renders a native <c>&lt;button&gt;</c> element when replacing it
+    /// via the <see cref="Render"/> prop.
+    /// Set to <see langword="false"/> if the rendered element is not a button (e.g. <c>&lt;div&gt;</c>).
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool NativeButton { get; set; } = true;
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<NumberFieldRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<NumberFieldRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<NumberFieldRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            var baseStyle = "user-select:none;-webkit-user-select:none";
+            return string.IsNullOrEmpty(userStyle) ? baseStyle : $"{baseStyle};{userStyle}";
+        };
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        state = RootContext?.State ?? NumberFieldRootState.Default;
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        if (NativeButton)
+            attrs["type"] = "button";
+        attrs["disabled"] = ResolvedDisabled;
+        attrs["tabindex"] = -1;
+        attrs["aria-label"] = "Increase";
+        if (!string.IsNullOrEmpty(RootContext?.Id))
+            attrs["aria-controls"] = RootContext!.Id!;
+        if (RootContext?.ReadOnly == true)
+            attrs["aria-readonly"] = "true";
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+        attrs["onpointerdown"] = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDown);
+        attrs["onpointerup"] = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerUp);
+        attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnter);
+        attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeave);
+        attrs["ontouchstart"] = EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchStart);
+        attrs["ontouchend"] = EventCallback.Factory.Create<TouchEventArgs>(this, HandleTouchEnd);
+        attrs["onmouseup"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseUp);
+        attrs["data-scrubbing"] = state.Scrubbing;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-readonly"] = state.ReadOnly;
+        attrs["data-required"] = state.Required;
+        if (state.Valid == true)
+            attrs["data-valid"] = true;
+        else if (state.Valid == false)
+            attrs["data-invalid"] = true;
+        attrs["data-touched"] = state.Touched;
+        attrs["data-dirty"] = state.Dirty;
+        attrs["data-filled"] = state.Filled;
+        attrs["data-focused"] = state.Focused;
+        componentAttributes = attrs;
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (ResolvedDisabled || RootContext?.ReadOnly == true)
+            return;
+
+        if (pointerType == "touch")
+            return;
+
+        if (e.Detail != 0)
+            return;
+
+        var amount = RootContext?.GetStepAmount(e.AltKey, e.ShiftKey) ?? 1;
+        RootContext?.IncrementValue(amount, 1, NumberFieldChangeReason.IncrementPress);
+        RootContext?.OnValueCommitted(RootContext?.Value, NumberFieldChangeReason.IncrementPress);
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private void HandlePointerDown(PointerEventArgs e)
+    {
+        if (ResolvedDisabled || RootContext?.ReadOnly == true)
+            return;
+
+        if (e.Button != 0)
+            return;
+
+        pointerType = e.PointerType;
+        isPressed = true;
+
+        if (e.PointerType != "touch")
+        {
+            RootContext?.FocusInput();
+            RootContext?.StartAutoChange(true);
+        }
+    }
+
+    private void HandlePointerUp(PointerEventArgs e)
+    {
+        if (e.PointerType == "touch")
+        {
+            isPressed = false;
+        }
+    }
+
+    private Task HandleMouseEnter(MouseEventArgs e)
+    {
+        if (ResolvedDisabled || RootContext?.ReadOnly == true || !isPressed || isTouchingButton || pointerType == "touch")
+            return Task.CompletedTask;
+
+        RootContext?.StartAutoChange(true);
+        return EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
+    }
+
+    private Task HandleMouseLeave(MouseEventArgs e)
+    {
+        if (isTouchingButton)
+            return Task.CompletedTask;
+
+        RootContext?.StopAutoChange();
+        return EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+    }
+
+    private void HandleMouseUp(MouseEventArgs e)
+    {
+        if (isTouchingButton)
+            return;
+
+        isPressed = false;
+        RootContext?.StopAutoChange();
+    }
+
+    private void HandleTouchStart(TouchEventArgs e)
+    {
+        isTouchingButton = true;
+    }
+
+    private void HandleTouchEnd(TouchEventArgs e)
+    {
+        isTouchingButton = false;
+    }
+}
