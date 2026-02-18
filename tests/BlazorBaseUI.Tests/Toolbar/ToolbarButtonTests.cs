@@ -210,6 +210,15 @@ public class ToolbarButtonTests : BunitContext, IToolbarButtonContract
     // Non-native button attributes
 
     [Fact]
+    public Task NonNativeButton_RendersAsDivElement()
+    {
+        var cut = Render(CreateToolbarButtonInRoot(nativeButton: false));
+        var element = cut.Find("[role='button']");
+        element.TagName.ShouldBe("DIV");
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task NonNativeButton_HasRoleButton()
     {
         var cut = Render(CreateToolbarButtonInRoot(nativeButton: false));

@@ -1,4 +1,7 @@
-<BlazorBaseUI.Separator.Separator Orientation="InvertedOrientation"
+@using BlazorBaseUI.Separator
+
+<Separator Orientation="InvertedOrientation"
+                                  Render="Render"
                                   ClassValue="ClassValue"
                                   StyleValue="StyleValue"
                                   ChildContent="ChildContent"
@@ -6,7 +9,7 @@
                                   @ref="separatorReference" />
 
 @code {
-    private BlazorBaseUI.Separator.Separator? separatorReference;
+    private Separator? separatorReference;
 
     /// <summary>
     /// Gets the orientation perpendicular to the parent toolbar's orientation.
@@ -22,16 +25,22 @@
     private ToolbarRootContext? RootContext { get; set; }
 
     /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SeparatorState>>? Render { get; set; }
+
+    /// <summary>
     /// Gets or sets a function that returns a CSS class based on the component's state.
     /// </summary>
     [Parameter]
-    public Func<BlazorBaseUI.Separator.SeparatorState, string>? ClassValue { get; set; }
+    public Func<SeparatorState, string>? ClassValue { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns an inline style based on the component's state.
     /// </summary>
     [Parameter]
-    public Func<BlazorBaseUI.Separator.SeparatorState, string>? StyleValue { get; set; }
+    public Func<SeparatorState, string>? StyleValue { get; set; }
 
     /// <summary>
     /// Defines the child components of this instance.

@@ -1,7 +1,7 @@
 @implements IDisposable
 
 <RenderElement TState="ToolbarButtonState"
-               Tag="button"
+               Tag="@(NativeButton ? "button" : "div")"
                State="state"
                Render="Render"
                ClassValue="ClassValue"
@@ -158,7 +158,7 @@
             }
         }
 
-        attrs["data-orientation"] = orientationString;
+        attrs["data-orientation"] = orientationString!;
         attrs["data-disabled"] = disabled;
         attrs["data-focusable"] = FocusableWhenDisabled;
 

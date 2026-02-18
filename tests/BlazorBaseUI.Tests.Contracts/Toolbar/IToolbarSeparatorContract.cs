@@ -4,6 +4,7 @@ public interface IToolbarSeparatorContract
 {
     // Rendering
     Task RendersAsSeparatorComponent();
+    Task RendersWithCustomRenderFragment();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task RendersChildContent();
