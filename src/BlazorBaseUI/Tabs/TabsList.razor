@@ -190,7 +190,8 @@
 
         if (value is not null)
         {
-            await RootContext.OnValueChangeAsync(value, ActivationDirection.None);
+            var direction = await DetectActivationDirectionAsync(value);
+            await RootContext.OnValueChangeAsync(value, direction);
         }
     }
 
@@ -307,4 +308,61 @@
             return null;
         }
     }
+
+    private async Task<ActivationDirection> DetectActivationDirectionAsync(TValue newValue)
+    {
+        if (!hasRendered || RootContext is null || !Element.HasValue)
+        {
+            return ActivationDirection.None;
+        }
+
+        var currentValue = RootContext.Value;
+        if (currentValue is null || EqualityComparer<TValue>.Default.Equals(currentValue, newValue))
+        {
+            return ActivationDirection.None;
+        }
+
+        var currentTabElement = RootContext.GetTabElementByValue(currentValue);
+        var newTabElement = RootContext.GetTabElementByValue(newValue);
+
+        if (currentTabElement is null || !currentTabElement.HasValue ||
+            newTabElement is null || !newTabElement.HasValue)
+        {
+            return ActivationDirection.None;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var listElement = Element.Value;
+
+            var currentPosition = await module.InvokeAsync<TabPositionResult?>("getTabPosition", listElement, currentTabElement.Value);
+            var newPosition = await module.InvokeAsync<TabPositionResult?>("getTabPosition", listElement, newTabElement.Value);
+
+            if (currentPosition is null || newPosition is null)
+            {
+                return ActivationDirection.None;
+            }
+
+            var orientation = Orientation;
+            var isHorizontal = orientation == Orientation.Horizontal;
+            var currentEdge = isHorizontal ? currentPosition.Left : currentPosition.Top;
+            var newEdge = isHorizontal ? newPosition.Left : newPosition.Top;
+
+            if (isHorizontal)
+            {
+                return newEdge > currentEdge ? ActivationDirection.Right : ActivationDirection.Left;
+            }
+            else
+            {
+                return newEdge > currentEdge ? ActivationDirection.Down : ActivationDirection.Up;
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            return ActivationDirection.None;
+        }
+    }
+
+    private sealed record TabPositionResult(double Left, double Top, double Width, double Height);
 }

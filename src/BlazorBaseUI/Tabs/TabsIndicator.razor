@@ -137,7 +137,7 @@
         await StopObservingAsync();
         dotNetRef?.Dispose();
 
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {

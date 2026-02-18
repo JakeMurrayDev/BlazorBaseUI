@@ -214,14 +214,14 @@
     {
         RootContext?.UnregisterTabInfo(Value);
 
-        if (moduleTask.IsValueCreated)
+        if (moduleTask.IsValueCreated && Element.HasValue)
         {
             try
             {
                 await UnregisterFromListAsync();
                 var module = await moduleTask.Value;
 
-                if (!NativeButton && Element.HasValue)
+                if (!NativeButton)
                 {
                     await module.InvokeVoidAsync("dispose", Element.Value);
                 }
