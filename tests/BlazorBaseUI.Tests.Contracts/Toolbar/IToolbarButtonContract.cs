@@ -4,7 +4,7 @@ public interface IToolbarButtonContract
 {
     // Rendering
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRenderFragment();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -18,6 +18,7 @@ public interface IToolbarButtonContract
     Task NativeButton_DoesNotHaveRoleButton();
 
     // Non-native button attributes
+    Task NonNativeButton_RendersAsDivElement();
     Task NonNativeButton_HasRoleButton();
     Task NonNativeButton_DoesNotHaveTypeButton();
     Task NonNativeButton_HasAriaDisabledWhenDisabled();
@@ -39,5 +40,4 @@ public interface IToolbarButtonContract
 
     // Validation
     Task ThrowsWhenNotInsideToolbarRoot();
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

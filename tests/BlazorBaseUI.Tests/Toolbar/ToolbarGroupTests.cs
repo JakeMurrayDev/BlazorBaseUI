@@ -16,8 +16,6 @@ public class ToolbarGroupTests : BunitContext, IToolbarGroupContract
         bool rootDisabled = false,
         Orientation rootOrientation = Orientation.Horizontal,
         bool groupDisabled = false,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToolbarRootState, string>? classValue = null,
         Func<ToolbarRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -33,10 +31,6 @@ public class ToolbarGroupTests : BunitContext, IToolbarGroupContract
                 inner.OpenComponent<ToolbarGroup>(0);
                 var seq = 1;
                 inner.AddAttribute(seq++, "Disabled", groupDisabled);
-                if (asElement is not null)
-                    inner.AddAttribute(seq++, "As", asElement);
-                if (renderAs is not null)
-                    inner.AddAttribute(seq++, "RenderAs", renderAs);
                 if (classValue is not null)
                     inner.AddAttribute(seq++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -78,11 +72,28 @@ public class ToolbarGroupTests : BunitContext, IToolbarGroupContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRenderFragment()
     {
-        var cut = Render(CreateToolbarGroupInRoot(asElement: "section"));
-        var element = cut.Find("[role='group']");
-        element.TagName.ShouldBe("SECTION");
+        var fragment = (RenderFragment)(builder =>
+        {
+            builder.OpenComponent<ToolbarRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
+            {
+                inner.OpenComponent<ToolbarGroup>(0);
+                inner.AddAttribute(1, "Render", (RenderFragment<RenderProps<ToolbarRootState>>)(props => b =>
+                {
+                    b.OpenElement(0, "section");
+                    b.AddMultipleAttributes(1, props.Attributes);
+                    b.AddContent(2, props.ChildContent);
+                    b.CloseElement();
+                }));
+                inner.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var cut = Render(fragment);
+        cut.Find("section[role='group']").ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -237,24 +248,4 @@ public class ToolbarGroupTests : BunitContext, IToolbarGroupContract
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<ToolbarRoot>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
-                {
-                    inner.OpenComponent<ToolbarGroup>(0);
-                    inner.AddAttribute(1, "RenderAs", typeof(string));
-                    inner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 }

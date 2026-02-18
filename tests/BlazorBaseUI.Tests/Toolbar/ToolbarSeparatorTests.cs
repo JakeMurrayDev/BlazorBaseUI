@@ -54,6 +54,32 @@ public class ToolbarSeparatorTests : BunitContext, IToolbarSeparatorContract
     }
 
     [Fact]
+    public Task RendersWithCustomRenderFragment()
+    {
+        var fragment = (RenderFragment)(builder =>
+        {
+            builder.OpenComponent<ToolbarRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
+            {
+                inner.OpenComponent<ToolbarSeparator>(0);
+                inner.AddAttribute(1, "Render", (RenderFragment<RenderProps<SeparatorState>>)(props => b =>
+                {
+                    b.OpenElement(0, "hr");
+                    b.AddMultipleAttributes(1, props.Attributes);
+                    b.AddContent(2, props.ChildContent);
+                    b.CloseElement();
+                }));
+                inner.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var cut = Render(fragment);
+        cut.Find("hr[role='separator']").ShouldNotBeNull();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task ForwardsAdditionalAttributes()
     {
         var cut = Render(CreateToolbarSeparatorInRoot(

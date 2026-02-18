@@ -4,7 +4,7 @@ public interface IToolbarInputContract
 {
     // Rendering
     Task RendersAsInputByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRenderFragment();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -32,5 +32,4 @@ public interface IToolbarInputContract
 
     // Validation
     Task ThrowsWhenNotInsideToolbarRoot();
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

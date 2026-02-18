@@ -18,8 +18,6 @@ public class ToolbarButtonTests : BunitContext, IToolbarButtonContract
         bool buttonDisabled = false,
         bool focusableWhenDisabled = true,
         bool nativeButton = true,
-        string? asElement = null,
-        Type? renderAs = null,
         Func<ToolbarButtonState, string>? classValue = null,
         Func<ToolbarButtonState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -37,10 +35,6 @@ public class ToolbarButtonTests : BunitContext, IToolbarButtonContract
                 inner.AddAttribute(seq++, "Disabled", buttonDisabled);
                 inner.AddAttribute(seq++, "FocusableWhenDisabled", focusableWhenDisabled);
                 inner.AddAttribute(seq++, "NativeButton", nativeButton);
-                if (asElement is not null)
-                    inner.AddAttribute(seq++, "As", asElement);
-                if (renderAs is not null)
-                    inner.AddAttribute(seq++, "RenderAs", renderAs);
                 if (classValue is not null)
                     inner.AddAttribute(seq++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -93,11 +87,29 @@ public class ToolbarButtonTests : BunitContext, IToolbarButtonContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRenderFragment()
     {
-        var cut = Render(CreateToolbarButtonInRoot(asElement: "span"));
-        var element = cut.Find("span[type='button']");
-        element.TagName.ShouldBe("SPAN");
+        var fragment = (RenderFragment)(builder =>
+        {
+            builder.OpenComponent<ToolbarRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
+            {
+                inner.OpenComponent<ToolbarButton>(0);
+                inner.AddAttribute(1, "Render", (RenderFragment<RenderProps<ToolbarButtonState>>)(props => b =>
+                {
+                    b.OpenElement(0, "span");
+                    b.AddMultipleAttributes(1, props.Attributes);
+                    b.AddContent(2, props.ChildContent);
+                    b.CloseElement();
+                }));
+                inner.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Custom")));
+                inner.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var cut = Render(fragment);
+        cut.Find("span[type='button']").ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -196,6 +208,15 @@ public class ToolbarButtonTests : BunitContext, IToolbarButtonContract
     }
 
     // Non-native button attributes
+
+    [Fact]
+    public Task NonNativeButton_RendersAsDivElement()
+    {
+        var cut = Render(CreateToolbarButtonInRoot(nativeButton: false));
+        var element = cut.Find("[role='button']");
+        element.TagName.ShouldBe("DIV");
+        return Task.CompletedTask;
+    }
 
     [Fact]
     public Task NonNativeButton_HasRoleButton()
@@ -342,24 +363,4 @@ public class ToolbarButtonTests : BunitContext, IToolbarButtonContract
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<ToolbarRoot>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
-                {
-                    inner.OpenComponent<ToolbarButton>(0);
-                    inner.AddAttribute(1, "RenderAs", typeof(string));
-                    inner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 }

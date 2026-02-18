@@ -4,7 +4,7 @@ public interface IToolbarLinkContract
 {
     // Rendering
     Task RendersAsAnchorByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRenderFragment();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -21,5 +21,4 @@ public interface IToolbarLinkContract
 
     // Validation
     Task ThrowsWhenNotInsideToolbarRoot();
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

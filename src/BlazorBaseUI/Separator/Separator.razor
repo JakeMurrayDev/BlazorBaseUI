@@ -1,0 +1,90 @@
+<RenderElement TState="SeparatorState"
+               Tag="div"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private RenderElement<SeparatorState>? renderElementReference;
+    private SeparatorState state = default!;
+    private Dictionary<string, object> componentAttributes = new();
+
+    /// <summary>
+    /// Gets or sets the orientation of the separator. Defaults to <see cref="Orientation.Horizontal"/>.
+    /// </summary>
+    [Parameter]
+    public Orientation Orientation { get; set; } = Orientation.Horizontal;
+
+    /// <summary>
+    /// Gets or sets a custom render fragment that replaces the default element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SeparatorState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a CSS class based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SeparatorState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns an inline style based on the component's state.
+    /// </summary>
+    [Parameter]
+    public Func<SeparatorState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        state = new SeparatorState(Orientation);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (state.Orientation != Orientation)
+        {
+            state = new SeparatorState(Orientation);
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <summary>
+    /// Builds the dictionary of HTML attributes applied to the rendered element.
+    /// </summary>
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var orientationString = Orientation.ToDataAttributeString();
+
+        attrs["role"] = "separator";
+        attrs["aria-orientation"] = orientationString;
+        attrs["data-orientation"] = orientationString;
+
+        componentAttributes = attrs;
+    }
+}
