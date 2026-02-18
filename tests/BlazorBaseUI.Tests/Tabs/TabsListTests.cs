@@ -10,8 +10,7 @@ public class TabsListTests : BunitContext, ITabsListContract
 
     private RenderFragment CreateTabsList(
         Orientation orientation = Orientation.Horizontal,
-        string? asElement = null,
-        Type? renderAs = null,
+        RenderFragment<RenderProps<TabsRootState>>? render = null,
         Func<TabsRootState, string>? classValue = null,
         Func<TabsRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -25,10 +24,8 @@ public class TabsListTests : BunitContext, ITabsListContract
             {
                 innerBuilder.OpenComponent<TabsList<string>>(0);
                 var seq = 1;
-                if (asElement is not null)
-                    innerBuilder.AddAttribute(seq++, "As", asElement);
-                if (renderAs is not null)
-                    innerBuilder.AddAttribute(seq++, "RenderAs", renderAs);
+                if (render is not null)
+                    innerBuilder.AddAttribute(seq++, "Render", render);
                 if (classValue is not null)
                     innerBuilder.AddAttribute(seq++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -55,9 +52,16 @@ public class TabsListTests : BunitContext, ITabsListContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTabsList(asElement: "nav"));
+        var cut = Render(CreateTabsList(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "nav");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }));
         var element = cut.Find("[role='tablist']");
         element.TagName.ShouldBe("NAV");
         return Task.CompletedTask;
@@ -133,11 +137,11 @@ public class TabsListTests : BunitContext, ITabsListContract
     }
 
     [Fact]
-    public Task HasAriaOrientationHorizontalByDefault()
+    public Task DoesNotHaveAriaOrientationWhenHorizontal()
     {
         var cut = Render(CreateTabsList());
         var element = cut.Find("[role='tablist']");
-        element.GetAttribute("aria-orientation").ShouldBe("horizontal");
+        element.HasAttribute("aria-orientation").ShouldBeFalse();
         return Task.CompletedTask;
     }
 
@@ -176,26 +180,6 @@ public class TabsListTests : BunitContext, ITabsListContract
         return Task.CompletedTask;
     }
 
-    // Data attributes
-
-    [Fact]
-    public Task HasDataOrientationHorizontalByDefault()
-    {
-        var cut = Render(CreateTabsList());
-        var element = cut.Find("[role='tablist']");
-        element.GetAttribute("data-orientation").ShouldBe("horizontal");
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task HasDataOrientationVerticalWhenVertical()
-    {
-        var cut = Render(CreateTabsList(orientation: Orientation.Vertical));
-        var element = cut.Find("[role='tablist']");
-        element.GetAttribute("data-orientation").ShouldBe("vertical");
-        return Task.CompletedTask;
-    }
-
     // Element reference
 
     [Fact]
@@ -208,27 +192,6 @@ public class TabsListTests : BunitContext, ITabsListContract
     }
 
     // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<TabsRoot<string>>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(inner =>
-                {
-                    inner.OpenComponent<TabsList<string>>(0);
-                    inner.AddAttribute(1, "RenderAs", typeof(string));
-                    inner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public Task ThrowsWhenNotInTabsRoot()

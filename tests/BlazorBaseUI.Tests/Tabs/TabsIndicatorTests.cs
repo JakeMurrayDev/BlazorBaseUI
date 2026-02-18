@@ -11,8 +11,7 @@ public class TabsIndicatorTests : BunitContext, ITabsIndicatorContract
     private RenderFragment CreateIndicatorInRoot(
         string? defaultValue = "tab1",
         Orientation orientation = Orientation.Horizontal,
-        string? asElement = null,
-        Type? renderAs = null,
+        RenderFragment<RenderProps<TabsIndicatorState>>? render = null,
         Func<TabsIndicatorState, string>? classValue = null,
         Func<TabsIndicatorState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -36,10 +35,8 @@ public class TabsIndicatorTests : BunitContext, ITabsIndicatorContract
 
                     listInner.OpenComponent<TabsIndicator<string>>(10);
                     var seq = 11;
-                    if (asElement is not null)
-                        listInner.AddAttribute(seq++, "As", asElement);
-                    if (renderAs is not null)
-                        listInner.AddAttribute(seq++, "RenderAs", renderAs);
+                    if (render is not null)
+                        listInner.AddAttribute(seq++, "Render", render);
                     if (classValue is not null)
                         listInner.AddAttribute(seq++, "ClassValue", classValue);
                     if (styleValue is not null)
@@ -68,9 +65,16 @@ public class TabsIndicatorTests : BunitContext, ITabsIndicatorContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateIndicatorInRoot(asElement: "div"));
+        var cut = Render(CreateIndicatorInRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }));
         var element = cut.Find("[role='presentation']");
         element.TagName.ShouldBe("DIV");
         return Task.CompletedTask;
@@ -141,15 +145,6 @@ public class TabsIndicatorTests : BunitContext, ITabsIndicatorContract
     // Data attributes
 
     [Fact]
-    public Task HasDataOrientationHorizontal()
-    {
-        var cut = Render(CreateIndicatorInRoot(orientation: Orientation.Horizontal));
-        var element = cut.Find("[role='presentation']");
-        element.GetAttribute("data-orientation").ShouldBe("horizontal");
-        return Task.CompletedTask;
-    }
-
-    [Fact]
     public Task HasDataActivationDirection()
     {
         var cut = Render(CreateIndicatorInRoot());
@@ -166,34 +161,6 @@ public class TabsIndicatorTests : BunitContext, ITabsIndicatorContract
         var cut = Render(CreateIndicatorInRoot());
         var component = cut.FindComponent<TabsIndicator<string>>();
         component.Instance.Element.ShouldNotBeNull();
-        return Task.CompletedTask;
-    }
-
-    // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<TabsRoot<string>>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(rootInner =>
-                {
-                    rootInner.OpenComponent<TabsList<string>>(0);
-                    rootInner.AddAttribute(1, "ChildContent", (RenderFragment)(listInner =>
-                    {
-                        listInner.OpenComponent<TabsIndicator<string>>(0);
-                        listInner.AddAttribute(1, "RenderAs", typeof(string));
-                        listInner.CloseComponent();
-                    }));
-                    rootInner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
         return Task.CompletedTask;
     }
 }

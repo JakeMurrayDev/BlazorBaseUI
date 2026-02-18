@@ -1,0 +1,320 @@
+@namespace BlazorBaseUI.Tabs
+@using Microsoft.JSInterop
+
+@typeparam TValue
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<RenderElement TState="TabsIndicatorState"
+               Tag="span"
+               State="state"
+               Enabled="RootContext is not null && RootContext.Value is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";
+
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
+    private bool hasRendered;
+    private bool isObserving;
+    private DotNetObjectReference<TabsIndicator<TValue>>? dotNetRef;
+    private IndicatorPositionResult? currentPosition;
+    private TabsIndicatorState state = TabsIndicatorState.Default;
+    private RenderElement<TabsIndicatorState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<TabsIndicatorState, string?>? computedStyleValue;
+
+    private Orientation Orientation => RootContext?.Orientation ?? Orientation.Horizontal;
+
+    private ActivationDirection ActivationDirection => RootContext?.ActivationDirection ?? ActivationDirection.None;
+
+    private bool HasValidPosition => currentPosition is not null && currentPosition.Width > 0 && currentPosition.Height > 0;
+
+    private TabPosition? ActiveTabPosition => currentPosition is not null
+        ? new TabPosition(currentPosition.Left, currentPosition.Right, currentPosition.Top, currentPosition.Bottom)
+        : null;
+
+    private TabSize? ActiveTabSize => currentPosition is not null
+        ? new TabSize(currentPosition.Width, currentPosition.Height)
+        : null;
+
+    [CascadingParameter]
+    private ITabsRootContext<TValue>? RootContext { get; set; }
+
+    [CascadingParameter]
+    private ITabsListContext? ListContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<TabsIndicatorState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TabsIndicatorState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TabsIndicatorState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    public TabsIndicator()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+    }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            var positionStyle = BuildPositionStyle();
+            return CombineStyles(userStyle, positionStyle);
+        };
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        state = new TabsIndicatorState(Orientation, ActivationDirection, ActiveTabPosition, ActiveTabSize);
+        BuildComponentAttributes();
+
+        if (hasRendered)
+        {
+            _ = UpdateIndicatorPositionAndRerenderAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+            await UpdateIndicatorPositionAsync();
+            await StartObservingAsync();
+            StateHasChanged();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        await StopObservingAsync();
+        dotNetRef?.Dispose();
+
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles resize events to recalculate the indicator position. Called from JavaScript interop.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnResizeAsync()
+    {
+        await UpdateIndicatorPositionAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "presentation";
+
+        if (!HasValidPosition)
+        {
+            attrs["hidden"] = true;
+        }
+
+        attrs["data-activation-direction"] = ActivationDirection.ToDataAttributeString();
+
+        componentAttributes = attrs;
+    }
+
+    private async Task UpdateIndicatorPositionAndRerenderAsync()
+    {
+        await UpdateIndicatorPositionAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string? BuildPositionStyle()
+    {
+        if (!HasValidPosition || currentPosition is null)
+        {
+            return null;
+        }
+
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"--tabs-indicator-active-tab-left:{currentPosition.Left}px;" +
+            $"--tabs-indicator-active-tab-right:{currentPosition.Right}px;" +
+            $"--tabs-indicator-active-tab-top:{currentPosition.Top}px;" +
+            $"--tabs-indicator-active-tab-bottom:{currentPosition.Bottom}px;" +
+            $"--tabs-indicator-active-tab-width:{currentPosition.Width}px;" +
+            $"--tabs-indicator-active-tab-height:{currentPosition.Height}px;");
+    }
+
+    private static string? CombineStyles(string? style1, string? style2)
+    {
+        if (string.IsNullOrEmpty(style1) && string.IsNullOrEmpty(style2))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(style1))
+        {
+            return style2;
+        }
+
+        if (string.IsNullOrEmpty(style2))
+        {
+            return style1;
+        }
+
+        var s1 = style1.TrimEnd();
+        if (!s1.EndsWith(';'))
+        {
+            s1 += ";";
+        }
+
+        return s1 + style2;
+    }
+
+    private async Task UpdateIndicatorPositionAsync()
+    {
+        if (!hasRendered || RootContext is null || ListContext?.TabsListElement is null)
+        {
+            currentPosition = null;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
+            return;
+        }
+
+        var activeValue = RootContext.Value;
+        if (activeValue is null)
+        {
+            currentPosition = null;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
+            return;
+        }
+
+        var activeTabElement = RootContext.GetTabElementByValue(activeValue);
+        if (activeTabElement is null || !activeTabElement.HasValue)
+        {
+            currentPosition = null;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
+            return;
+        }
+
+        var listElement = ListContext.TabsListElement;
+        if (!listElement.HasValue)
+        {
+            currentPosition = null;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            currentPosition = await module.InvokeAsync<IndicatorPositionResult>(
+                "getIndicatorPosition",
+                listElement.Value,
+                activeTabElement.Value);
+            state = new TabsIndicatorState(Orientation, ActivationDirection, ActiveTabPosition, ActiveTabSize);
+            BuildComponentAttributes();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            currentPosition = null;
+            state = new TabsIndicatorState(Orientation, ActivationDirection, null, null);
+        }
+    }
+
+    private async Task StartObservingAsync()
+    {
+        if (isObserving || ListContext?.TabsListElement is null || !ListContext.TabsListElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("observeResize", ListContext.TabsListElement.Value, dotNetRef);
+            isObserving = true;
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task StopObservingAsync()
+    {
+        if (!isObserving || !moduleTask.IsValueCreated || ListContext?.TabsListElement is null || !ListContext.TabsListElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("unobserveResize", ListContext.TabsListElement.Value);
+            isObserving = false;
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private sealed record IndicatorPositionResult(
+        double Left,
+        double Right,
+        double Top,
+        double Bottom,
+        double Width,
+        double Height);
+}

@@ -1,0 +1,224 @@
+@namespace BlazorBaseUI.Tabs
+
+@typeparam TValue
+
+<CascadingValue Value="rootContext" IsFixed="true">
+    <RenderElement TState="TabsRootState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private TValue? internalValue;
+    private TValue? previousValue;
+    private bool hasExplicitDefaultValue;
+    private ActivationDirection activationDirection = ActivationDirection.None;
+    private TabsRootContext<TValue>? rootContext;
+    private TabsRootState state = TabsRootState.Default;
+    private RenderElement<TabsRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private bool IsControlled => ValueChanged.HasDelegate;
+
+    private TValue? CurrentValue => IsControlled ? Value : internalValue;
+
+    /// <summary>
+    /// Gets or sets the value of the currently active tab.
+    /// Use when the component is controlled.
+    /// When the value is <see langword="null"/>, no tab will be active.
+    /// </summary>
+    [Parameter]
+    public TValue? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default value of the initially active tab.
+    /// Use when the component is not controlled.
+    /// When the value is <see langword="null"/>, no tab will be active.
+    /// </summary>
+    [Parameter]
+    public TValue? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the component orientation (layout flow direction).
+    /// Defaults to <see cref="Tabs.Orientation.Horizontal"/>.
+    /// </summary>
+    [Parameter]
+    public Orientation Orientation { get; set; } = Orientation.Horizontal;
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the <see cref="Value"/> changes via two-way binding.
+    /// </summary>
+    [Parameter]
+    public EventCallback<TValue?> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when a new tab value is being set.
+    /// </summary>
+    [Parameter]
+    public EventCallback<TabsValueChangeEventArgs<TValue>> OnValueChange { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<TabsRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TabsRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TabsRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        hasExplicitDefaultValue = DefaultValue is not null;
+
+        if (!IsControlled)
+        {
+            internalValue = hasExplicitDefaultValue ? DefaultValue : default;
+        }
+
+        previousValue = CurrentValue;
+        rootContext = CreateContext();
+        rootContext.OnTabRegistered = EvaluateAutoSelection;
+        state = new TabsRootState(Orientation, activationDirection);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentValue = CurrentValue;
+        if (!EqualityComparer<TValue>.Default.Equals(currentValue, previousValue))
+        {
+            previousValue = currentValue;
+        }
+
+        if (state.Orientation != Orientation || state.ActivationDirection != activationDirection)
+        {
+            state = new TabsRootState(Orientation, activationDirection);
+        }
+
+        if (rootContext is not null)
+        {
+            rootContext.Orientation = Orientation;
+            rootContext.ActivationDirection = activationDirection;
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["data-activation-direction"] = activationDirection.ToDataAttributeString();
+
+        componentAttributes = attrs;
+    }
+
+    private TabsRootContext<TValue> CreateContext() => new(
+        orientation: Orientation,
+        activationDirection: activationDirection,
+        getValue: () => CurrentValue,
+        onValueChange: SetValueInternalAsync);
+
+    private void EvaluateAutoSelection()
+    {
+        if (IsControlled || rootContext is null || !rootContext.HasTabs)
+            return;
+
+        var currentValue = CurrentValue;
+
+        var selectionIsDisabled = currentValue is not null && rootContext.IsTabDisabled(currentValue);
+        var noValueSet = currentValue is null && !hasExplicitDefaultValue;
+
+        if (hasExplicitDefaultValue && selectionIsDisabled &&
+            EqualityComparer<TValue>.Default.Equals(currentValue, DefaultValue))
+            return;
+
+        if (!selectionIsDisabled && !noValueSet)
+            return;
+
+        var firstEnabled = rootContext.GetFirstEnabledTabValue();
+        if (EqualityComparer<TValue>.Default.Equals(currentValue, firstEnabled))
+            return;
+
+        internalValue = firstEnabled;
+        activationDirection = ActivationDirection.None;
+        state = new TabsRootState(Orientation, activationDirection);
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+
+    private async Task SetValueInternalAsync(TValue? value, ActivationDirection direction)
+    {
+        var eventArgs = new TabsValueChangeEventArgs<TValue>(value, direction);
+
+        if (OnValueChange.HasDelegate)
+        {
+            await OnValueChange.InvokeAsync(eventArgs);
+
+            if (eventArgs.IsCanceled)
+            {
+                StateHasChanged();
+                return;
+            }
+        }
+
+        activationDirection = direction;
+        state = new TabsRootState(Orientation, activationDirection);
+
+        if (!IsControlled)
+        {
+            internalValue = value;
+        }
+
+        if (ValueChanged.HasDelegate)
+        {
+            await ValueChanged.InvokeAsync(value);
+        }
+
+        if (rootContext is not null)
+        {
+            rootContext.Orientation = Orientation;
+            rootContext.ActivationDirection = activationDirection;
+        }
+
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+}

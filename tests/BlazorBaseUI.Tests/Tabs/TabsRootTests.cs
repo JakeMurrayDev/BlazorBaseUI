@@ -14,8 +14,7 @@ public class TabsRootTests : BunitContext, ITabsRootContract
         Orientation orientation = Orientation.Horizontal,
         EventCallback<string?>? valueChanged = null,
         Action<TabsValueChangeEventArgs<string>>? onValueChange = null,
-        string? asElement = null,
-        Type? renderAs = null,
+        RenderFragment<RenderProps<TabsRootState>>? render = null,
         Func<TabsRootState, string>? classValue = null,
         Func<TabsRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -34,10 +33,8 @@ public class TabsRootTests : BunitContext, ITabsRootContract
                 builder.AddAttribute(seq++, "ValueChanged", valueChanged.Value);
             if (onValueChange is not null)
                 builder.AddAttribute(seq++, "OnValueChange", EventCallback.Factory.Create(this, onValueChange));
-            if (asElement is not null)
-                builder.AddAttribute(seq++, "As", asElement);
-            if (renderAs is not null)
-                builder.AddAttribute(seq++, "RenderAs", renderAs);
+            if (render is not null)
+                builder.AddAttribute(seq++, "Render", render);
             if (classValue is not null)
                 builder.AddAttribute(seq++, "ClassValue", classValue);
             if (styleValue is not null)
@@ -126,9 +123,16 @@ public class TabsRootTests : BunitContext, ITabsRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTabsRoot(asElement: "section"));
+        var cut = Render(CreateTabsRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }));
         var element = cut.Find("section");
         element.TagName.ShouldBe("SECTION");
         return Task.CompletedTask;
@@ -195,24 +199,6 @@ public class TabsRootTests : BunitContext, ITabsRootContract
     // Data attributes
 
     [Fact]
-    public Task HasDataOrientationHorizontalByDefault()
-    {
-        var cut = Render(CreateTabsRoot());
-        var element = cut.Find("div");
-        element.GetAttribute("data-orientation").ShouldBe("horizontal");
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task HasDataOrientationVerticalWhenVertical()
-    {
-        var cut = Render(CreateTabsRoot(orientation: Orientation.Vertical));
-        var element = cut.Find("div");
-        element.GetAttribute("data-orientation").ShouldBe("vertical");
-        return Task.CompletedTask;
-    }
-
-    [Fact]
     public Task HasDataActivationDirectionNoneByDefault()
     {
         var cut = Render(CreateTabsRoot());
@@ -267,22 +253,6 @@ public class TabsRootTests : BunitContext, ITabsRootContract
     }
 
     // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<TabsRoot<string>>(0);
-                builder.AddAttribute(1, "RenderAs", typeof(string));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public Task AcceptsNullChildren()

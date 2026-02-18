@@ -4,7 +4,7 @@ public interface ITabsIndicatorContract
 {
     // Rendering
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -17,12 +17,8 @@ public interface ITabsIndicatorContract
     Task DoesNotRenderWhenValueIsNull();
 
     // Data attributes
-    Task HasDataOrientationHorizontal();
     Task HasDataActivationDirection();
 
     // Element reference
     Task ExposesElementReference();
-
-    // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

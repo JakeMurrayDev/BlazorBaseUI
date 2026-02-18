@@ -1,0 +1,204 @@
+@namespace BlazorBaseUI.Tabs
+
+@typeparam TValue
+
+@implements IDisposable
+
+<RenderElement TState="TabsPanelState"
+               Tag="div"
+               State="state"
+               Enabled="!IsHidden || KeepMounted"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private string? defaultId;
+    private string panelId = null!;
+    private bool previousHidden;
+    private Orientation previousOrientation;
+    private ActivationDirection previousActivationDirection;
+    private TabsPanelState state = TabsPanelState.Default;
+    private RenderElement<TabsPanelState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private bool isRegistered;
+
+    private bool IsHidden
+    {
+        get
+        {
+            if (RootContext is null)
+            {
+                return true;
+            }
+
+            return !EqualityComparer<TValue>.Default.Equals(RootContext.Value, Value);
+        }
+    }
+
+    private Orientation Orientation => RootContext?.Orientation ?? Orientation.Horizontal;
+
+    private ActivationDirection ActivationDirection => RootContext?.ActivationDirection ?? ActivationDirection.None;
+
+    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+
+    [CascadingParameter]
+    private ITabsRootContext<TValue>? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets the value of the tab panel.
+    /// It will be shown when the <see cref="TabsTab{TValue}"/> with the corresponding value is active.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public TValue Value { get; set; } = default!;
+
+    /// <summary>
+    /// Determines whether to keep the HTML element in the DOM while the panel is hidden.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool KeepMounted { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<TabsPanelState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TabsPanelState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<TabsPanelState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (RootContext is null)
+        {
+            throw new InvalidOperationException("TabsPanel must be used within a TabsRoot component.");
+        }
+
+        panelId = ResolvedId;
+        previousHidden = IsHidden;
+        previousOrientation = Orientation;
+        previousActivationDirection = ActivationDirection;
+        state = new TabsPanelState(previousHidden, previousOrientation, previousActivationDirection);
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var newId = ResolvedId;
+        if (newId != panelId)
+        {
+            if (isRegistered)
+            {
+                RootContext?.UnregisterPanel(Value, panelId);
+            }
+            panelId = newId;
+            isRegistered = false;
+        }
+
+        var currentHidden = IsHidden;
+        var currentOrientation = Orientation;
+        var currentActivationDirection = ActivationDirection;
+
+        if (currentHidden != previousHidden ||
+            currentOrientation != previousOrientation ||
+            currentActivationDirection != previousActivationDirection)
+        {
+            state = new TabsPanelState(currentHidden, currentOrientation, currentActivationDirection);
+            previousHidden = currentHidden;
+            previousOrientation = currentOrientation;
+            previousActivationDirection = currentActivationDirection;
+        }
+
+        var shouldBeRegistered = !currentHidden || KeepMounted;
+
+        if (shouldBeRegistered && !isRegistered)
+        {
+            RootContext?.RegisterPanel(Value, panelId);
+            isRegistered = true;
+        }
+        else if (!shouldBeRegistered && isRegistered)
+        {
+            RootContext?.UnregisterPanel(Value, panelId);
+            isRegistered = false;
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (isRegistered)
+        {
+            RootContext?.UnregisterPanel(Value, panelId);
+            isRegistered = false;
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var isHidden = IsHidden;
+        var tabId = RootContext?.GetTabIdByPanelValue(Value);
+        var orientationValue = Orientation.ToDataAttributeString();
+
+        attrs["id"] = panelId;
+        attrs["role"] = "tabpanel";
+        attrs["tabindex"] = isHidden ? -1 : 0;
+
+        if (isHidden)
+        {
+            attrs["hidden"] = true;
+        }
+
+        if (tabId is not null)
+        {
+            attrs["aria-labelledby"] = tabId;
+        }
+
+        if (orientationValue is not null)
+        {
+            attrs["data-orientation"] = orientationValue;
+        }
+
+        attrs["data-activation-direction"] = ActivationDirection.ToDataAttributeString();
+        attrs["data-hidden"] = isHidden;
+
+        componentAttributes = attrs;
+    }
+}

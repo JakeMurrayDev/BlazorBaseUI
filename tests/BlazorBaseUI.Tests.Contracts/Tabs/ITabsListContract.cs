@@ -4,7 +4,7 @@ public interface ITabsListContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -13,19 +13,14 @@ public interface ITabsListContract
 
     // ARIA
     Task HasRoleTablist();
-    Task HasAriaOrientationHorizontalByDefault();
+    Task DoesNotHaveAriaOrientationWhenHorizontal();
     Task HasAriaOrientationVerticalWhenVertical();
     Task CanBeNamedViaAriaLabel();
     Task CanBeNamedViaAriaLabelledby();
-
-    // Data attributes
-    Task HasDataOrientationHorizontalByDefault();
-    Task HasDataOrientationVerticalWhenVertical();
 
     // Element reference
     Task ExposesElementReference();
 
     // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
     Task ThrowsWhenNotInTabsRoot();
 }
