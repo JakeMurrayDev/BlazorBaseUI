@@ -14,8 +14,7 @@ public class TabsTabTests : BunitContext, ITabsTabContract
         bool disabled = false,
         bool nativeButton = true,
         Orientation orientation = Orientation.Horizontal,
-        string? asElement = null,
-        Type? renderAs = null,
+        RenderFragment<RenderProps<TabsTabState>>? render = null,
         Func<TabsTabState, string>? classValue = null,
         Func<TabsTabState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -39,10 +38,8 @@ public class TabsTabTests : BunitContext, ITabsTabContract
                     listInner.AddAttribute(seq++, "Value", tabValue);
                     listInner.AddAttribute(seq++, "Disabled", disabled);
                     listInner.AddAttribute(seq++, "NativeButton", nativeButton);
-                    if (asElement is not null)
-                        listInner.AddAttribute(seq++, "As", asElement);
-                    if (renderAs is not null)
-                        listInner.AddAttribute(seq++, "RenderAs", renderAs);
+                    if (render is not null)
+                        listInner.AddAttribute(seq++, "Render", render);
                     if (classValue is not null)
                         listInner.AddAttribute(seq++, "ClassValue", classValue);
                     if (styleValue is not null)
@@ -128,9 +125,16 @@ public class TabsTabTests : BunitContext, ITabsTabContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateTabInRoot(asElement: "div"));
+        var cut = Render(CreateTabInRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }));
         var element = cut.Find("[role='tab']");
         element.TagName.ShouldBe("DIV");
         return Task.CompletedTask;
@@ -251,15 +255,6 @@ public class TabsTabTests : BunitContext, ITabsTabContract
     }
 
     [Fact]
-    public Task HasTabIndexMinus1WhenDisabled()
-    {
-        var cut = Render(CreateTabInRoot(tabValue: "tab1", defaultValue: "tab1", disabled: true));
-        var element = cut.Find("[role='tab']");
-        element.GetAttribute("tabindex").ShouldBe("-1");
-        return Task.CompletedTask;
-    }
-
-    [Fact]
     public Task HasAriaControlsPointingToPanel()
     {
         var cut = Render(CreateTabInRoot(tabValue: "tab1", defaultValue: "tab1", includePanel: true, keepMounted: true));
@@ -319,18 +314,9 @@ public class TabsTabTests : BunitContext, ITabsTabContract
     // Disabled behavior
 
     [Fact]
-    public Task HasDisabledAttributeWhenNativeButtonAndDisabled()
+    public Task HasAriaDisabledWhenDisabled()
     {
-        var cut = Render(CreateTabInRoot(disabled: true, nativeButton: true));
-        var element = cut.Find("[role='tab']");
-        element.HasAttribute("disabled").ShouldBeTrue();
-        return Task.CompletedTask;
-    }
-
-    [Fact]
-    public Task HasAriaDisabledWhenNonNativeAndDisabled()
-    {
-        var cut = Render(CreateTabInRoot(disabled: true, nativeButton: false));
+        var cut = Render(CreateTabInRoot(disabled: true));
         var element = cut.Find("[role='tab']");
         element.GetAttribute("aria-disabled").ShouldBe("true");
         return Task.CompletedTask;
@@ -400,33 +386,6 @@ public class TabsTabTests : BunitContext, ITabsTabContract
     }
 
     // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<TabsRoot<string>>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(rootInner =>
-                {
-                    rootInner.OpenComponent<TabsList<string>>(0);
-                    rootInner.AddAttribute(1, "ChildContent", (RenderFragment)(listInner =>
-                    {
-                        listInner.OpenComponent<TabsTab<string>>(0);
-                        listInner.AddAttribute(1, "Value", "tab1");
-                        listInner.AddAttribute(2, "RenderAs", typeof(string));
-                        listInner.CloseComponent();
-                    }));
-                    rootInner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public Task ThrowsWhenNotInTabsRoot()

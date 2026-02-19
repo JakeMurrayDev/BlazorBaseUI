@@ -13,8 +13,7 @@ public class TabsPanelTests : BunitContext, ITabsPanelContract
         string? defaultValue = "tab1",
         bool keepMounted = false,
         Orientation orientation = Orientation.Horizontal,
-        string? asElement = null,
-        Type? renderAs = null,
+        RenderFragment<RenderProps<TabsPanelState>>? render = null,
         Func<TabsPanelState, string>? classValue = null,
         Func<TabsPanelState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
@@ -46,10 +45,8 @@ public class TabsPanelTests : BunitContext, ITabsPanelContract
                 var seq = 101;
                 rootInner.AddAttribute(seq++, "Value", panelValue);
                 rootInner.AddAttribute(seq++, "KeepMounted", keepMounted);
-                if (asElement is not null)
-                    rootInner.AddAttribute(seq++, "As", asElement);
-                if (renderAs is not null)
-                    rootInner.AddAttribute(seq++, "RenderAs", renderAs);
+                if (render is not null)
+                    rootInner.AddAttribute(seq++, "Render", render);
                 if (classValue is not null)
                     rootInner.AddAttribute(seq++, "ClassValue", classValue);
                 if (styleValue is not null)
@@ -118,9 +115,16 @@ public class TabsPanelTests : BunitContext, ITabsPanelContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreatePanelInRoot(asElement: "section"));
+        var cut = Render(CreatePanelInRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }));
         var element = cut.Find("[role='tabpanel']");
         element.TagName.ShouldBe("SECTION");
         return Task.CompletedTask;
@@ -361,28 +365,6 @@ public class TabsPanelTests : BunitContext, ITabsPanelContract
     }
 
     // Validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<TabsRoot<string>>(0);
-                builder.AddAttribute(1, "ChildContent", (RenderFragment)(rootInner =>
-                {
-                    rootInner.OpenComponent<TabsPanel<string>>(0);
-                    rootInner.AddAttribute(1, "Value", "tab1");
-                    rootInner.AddAttribute(2, "RenderAs", typeof(string));
-                    rootInner.CloseComponent();
-                }));
-                builder.CloseComponent();
-            });
-        });
-
-        return Task.CompletedTask;
-    }
 
     [Fact]
     public Task ThrowsWhenNotInTabsRoot()

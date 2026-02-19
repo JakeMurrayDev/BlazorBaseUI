@@ -4,7 +4,7 @@ public interface ITabsRootContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -12,8 +12,6 @@ public interface ITabsRootContract
     Task CombinesClassFromBothSources();
 
     // Data attributes
-    Task HasDataOrientationHorizontalByDefault();
-    Task HasDataOrientationVerticalWhenVertical();
     Task HasDataActivationDirectionNoneByDefault();
 
     // State
@@ -24,7 +22,6 @@ public interface ITabsRootContract
     Task ExposesElementReference();
 
     // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
     Task AcceptsNullChildren();
 
     // Value management

@@ -4,7 +4,7 @@ public interface ITabsPanelContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -37,6 +37,5 @@ public interface ITabsPanelContract
     Task ExposesElementReference();
 
     // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
     Task ThrowsWhenNotInTabsRoot();
 }

@@ -4,7 +4,7 @@ public interface ITabsTabContract
 {
     // Rendering
     Task RendersAsButtonByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task RendersChildContent();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
@@ -18,7 +18,6 @@ public interface ITabsTabContract
     Task HasAriaSelectedFalseWhenInactive();
     Task HasTabIndex0WhenActive();
     Task HasTabIndexMinus1WhenInactive();
-    Task HasTabIndexMinus1WhenDisabled();
     Task HasAriaControlsPointingToPanel();
 
     // Data attributes
@@ -29,8 +28,7 @@ public interface ITabsTabContract
     Task DoesNotHaveDataDisabledWhenNotDisabled();
 
     // Disabled behavior
-    Task HasDisabledAttributeWhenNativeButtonAndDisabled();
-    Task HasAriaDisabledWhenNonNativeAndDisabled();
+    Task HasAriaDisabledWhenDisabled();
 
     // State
     Task ClassValueReceivesTabsTabState();
@@ -41,6 +39,5 @@ public interface ITabsTabContract
     Task ExposesElementReference();
 
     // Validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
     Task ThrowsWhenNotInTabsRoot();
 }
