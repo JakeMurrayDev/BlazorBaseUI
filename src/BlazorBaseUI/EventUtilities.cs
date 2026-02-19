@@ -8,7 +8,7 @@ namespace BlazorBaseUI;
 /// Components that support being RenderAs targets should use these utilities to invoke
 /// any event handlers passed through AdditionalAttributes.
 /// </summary>
-public static class EventUtilities
+internal static class EventUtilities
 {
     /// <summary>
     /// Invokes an onclick handler from AdditionalAttributes if present.

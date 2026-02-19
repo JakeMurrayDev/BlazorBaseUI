@@ -13,11 +13,10 @@ public class ProgressIndicatorTests : BunitContext, IProgressIndicatorContract
         double? value = 50,
         double min = 0,
         double max = 100,
-        Func<ProgressRootState, string>? indicatorClassValue = null,
-        Func<ProgressRootState, string>? indicatorStyleValue = null,
+        Func<ProgressRootState, string?>? indicatorClassValue = null,
+        Func<ProgressRootState, string?>? indicatorStyleValue = null,
         IReadOnlyDictionary<string, object>? indicatorAttributes = null,
-        string? indicatorAs = null,
-        Type? indicatorRenderAs = null)
+        RenderFragment<RenderProps<ProgressRootState>>? indicatorRender = null)
     {
         return builder =>
         {
@@ -43,10 +42,8 @@ public class ProgressIndicatorTests : BunitContext, IProgressIndicatorContract
                         trackBuilder.AddAttribute(indicatorAttrIndex++, "ClassValue", indicatorClassValue);
                     if (indicatorStyleValue is not null)
                         trackBuilder.AddAttribute(indicatorAttrIndex++, "StyleValue", indicatorStyleValue);
-                    if (indicatorAs is not null)
-                        trackBuilder.AddAttribute(indicatorAttrIndex++, "As", indicatorAs);
-                    if (indicatorRenderAs is not null)
-                        trackBuilder.AddAttribute(indicatorAttrIndex++, "RenderAs", indicatorRenderAs);
+                    if (indicatorRender is not null)
+                        trackBuilder.AddAttribute(indicatorAttrIndex++, "Render", indicatorRender);
 
                     var attrs = new Dictionary<string, object>
                     {
@@ -80,11 +77,19 @@ public class ProgressIndicatorTests : BunitContext, IProgressIndicatorContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateProgressWithIndicator(indicatorAs: "span"));
-        var indicator = cut.Find("[data-testid='indicator']");
-        indicator.TagName.ShouldBe("SPAN");
+        var cut = Render(CreateProgressWithIndicator(
+            indicatorRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+        var element = cut.Find("span[data-testid='indicator']");
+        element.ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -184,27 +189,5 @@ public class ProgressIndicatorTests : BunitContext, IProgressIndicatorContract
         var indicator = cut.Find("[data-testid='indicator']");
         indicator.HasAttribute("data-progressing").ShouldBeTrue();
         return Task.CompletedTask;
-    }
-
-    // RenderAs validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(CreateProgressWithIndicator(
-                indicatorRenderAs: typeof(NonReferencableComponent)));
-        });
-        return Task.CompletedTask;
-    }
-
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }

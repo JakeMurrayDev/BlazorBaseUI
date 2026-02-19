@@ -9,10 +9,10 @@ public class ProgressLabelTests : BunitContext, IProgressLabelContract
 
     private RenderFragment CreateProgressWithLabel(
         double? value = 50,
-        Func<ProgressRootState, string>? labelClassValue = null,
-        Func<ProgressRootState, string>? labelStyleValue = null,
+        Func<ProgressRootState, string?>? labelClassValue = null,
+        Func<ProgressRootState, string?>? labelStyleValue = null,
         IReadOnlyDictionary<string, object>? labelAttributes = null,
-        string? labelAs = null,
+        RenderFragment<RenderProps<ProgressRootState>>? labelRender = null,
         string labelText = "Loading")
     {
         return builder =>
@@ -34,8 +34,8 @@ public class ProgressLabelTests : BunitContext, IProgressLabelContract
                     innerBuilder.AddAttribute(labelAttrIndex++, "ClassValue", labelClassValue);
                 if (labelStyleValue is not null)
                     innerBuilder.AddAttribute(labelAttrIndex++, "StyleValue", labelStyleValue);
-                if (labelAs is not null)
-                    innerBuilder.AddAttribute(labelAttrIndex++, "As", labelAs);
+                if (labelRender is not null)
+                    innerBuilder.AddAttribute(labelAttrIndex++, "Render", labelRender);
 
                 var attrs = new Dictionary<string, object>
                 {
@@ -72,11 +72,19 @@ public class ProgressLabelTests : BunitContext, IProgressLabelContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateProgressWithLabel(labelAs: "label"));
-        var label = cut.Find("[data-testid='label']");
-        label.TagName.ShouldBe("LABEL");
+        var cut = Render(CreateProgressWithLabel(
+            labelRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "label");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+        var element = cut.Find("label[data-testid='label']");
+        element.ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
