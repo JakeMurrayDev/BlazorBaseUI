@@ -1,0 +1,421 @@
+@using Microsoft.Extensions.Logging
+@using Microsoft.JSInterop
+
+@implements IReferencableComponent
+@implements IAsyncDisposable
+
+@inject IJSRuntime JSRuntime
+@inject ILogger<MenuBarRoot> Logger
+
+<CascadingValue Value="context" IsFixed="true">
+    <RenderElement TState="MenuBarRootState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private readonly List<ElementReference> pendingRegistrations = [];
+    private readonly List<ElementReference> pendingUnregistrations = [];
+
+    private bool hasRendered;
+    private Lazy<Task<IJSObjectReference>> moduleTask = null!;
+    private Func<Task> cachedSyncJsCallback = default!;
+    private bool previousDisabled;
+    private Orientation previousOrientation;
+    private bool previousLoopFocus;
+    private bool previousModal;
+    private bool hasSubmenuOpen;
+    private int openSubmenuCount;
+    private MenuBarRootState state;
+    private MenuBarRootContext context = null!;
+    private RenderElement<MenuBarRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    /// <summary>
+    /// Determines whether the whole menubar is disabled.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether to loop keyboard focus back to the first item
+    /// when the end of the list is reached while using the arrow keys.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool LoopFocus { get; set; } = true;
+
+    /// <summary>
+    /// Determines whether the menubar is modal.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool Modal { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the orientation of the menubar.
+    /// Defaults to <see cref="BlazorBaseUI.Orientation.Horizontal"/>.
+    /// </summary>
+    [Parameter]
+    public Orientation Orientation { get; set; } = Orientation.Horizontal;
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuBarRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuBarRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuBarRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/BlazorBaseUI/blazor-baseui-menubar.js").AsTask());
+
+        cachedSyncJsCallback = async () =>
+        {
+            try
+            {
+                await UpdateMenuBarAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error syncing JS state in {Component}", nameof(MenuBarRoot));
+            }
+        };
+
+        state = new MenuBarRootState(Disabled, hasSubmenuOpen, Modal, Orientation);
+
+        context = new MenuBarRootContext
+        {
+            Disabled = Disabled,
+            HasSubmenuOpen = hasSubmenuOpen,
+            Modal = Modal,
+            Orientation = Orientation,
+            RegisterItem = RegisterItem,
+            UnregisterItem = UnregisterItem,
+            SetHasSubmenuOpen = SetHasSubmenuOpen,
+            GetHasSubmenuOpen = GetHasSubmenuOpen,
+            GetElement = GetElement
+        };
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (state.Disabled != Disabled || state.Orientation != Orientation || state.Modal != Modal || state.HasSubmenuOpen != hasSubmenuOpen)
+        {
+            state = new MenuBarRootState(Disabled, hasSubmenuOpen, Modal, Orientation);
+
+            context.Disabled = Disabled;
+            context.HasSubmenuOpen = hasSubmenuOpen;
+            context.Modal = Modal;
+            context.Orientation = Orientation;
+        }
+
+        BuildComponentAttributes();
+
+        if (!hasRendered)
+        {
+            return;
+        }
+
+        var stateChanged = Disabled != previousDisabled ||
+                           Orientation != previousOrientation ||
+                           LoopFocus != previousLoopFocus;
+        var modalChanged = Modal != previousModal;
+
+        previousDisabled = Disabled;
+        previousOrientation = Orientation;
+        previousLoopFocus = LoopFocus;
+        previousModal = Modal;
+
+        if (stateChanged)
+        {
+            _ = InvokeAsync(cachedSyncJsCallback);
+        }
+
+        if (modalChanged)
+        {
+            _ = InvokeAsync(UpdateScrollLockAsync);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            previousDisabled = Disabled;
+            previousOrientation = Orientation;
+            previousLoopFocus = LoopFocus;
+            previousModal = Modal;
+
+            await InitMenuBarAsync();
+            await ProcessPendingRegistrationsAsync();
+        }
+        else
+        {
+            await ProcessPendingRegistrationsAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated && Element.HasValue)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.InvokeVoidAsync("disposeMenuBar", Element.Value);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var orientationString = Orientation.ToDataAttributeString();
+
+        attrs["role"] = "menubar";
+        attrs["aria-orientation"] = orientationString!;
+        attrs["data-orientation"] = orientationString!;
+        attrs["data-has-submenu-open"] = hasSubmenuOpen ? "true" : "false";
+        attrs["data-disabled"] = Disabled;
+
+        componentAttributes = attrs;
+    }
+
+    private ElementReference? GetElement() => Element;
+
+    private void RegisterItem(ElementReference element)
+    {
+        if (!hasRendered)
+        {
+            pendingRegistrations.Add(element);
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await RegisterItemAsync(element);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error registering item in {Component}", nameof(MenuBarRoot));
+            }
+        });
+    }
+
+    private void UnregisterItem(ElementReference element)
+    {
+        if (!hasRendered)
+        {
+            pendingUnregistrations.Add(element);
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await UnregisterItemAsync(element);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error unregistering item in {Component}", nameof(MenuBarRoot));
+            }
+        });
+    }
+
+    private void SetHasSubmenuOpen(bool value)
+    {
+        // Use counter-based tracking to handle multiple menus correctly.
+        // This prevents scroll lock jank when hovering between menu items:
+        // - Menu A opens: count 0 → 1, hasSubmenuOpen becomes true, lock
+        // - Menu B opens: count 1 → 2, hasSubmenuOpen stays true, no change
+        // - Menu A closes: count 2 → 1, hasSubmenuOpen stays true, no change (no unlock!)
+        // - Menu B closes: count 1 → 0, hasSubmenuOpen becomes false, unlock
+        if (value)
+        {
+            openSubmenuCount++;
+        }
+        else
+        {
+            openSubmenuCount = Math.Max(0, openSubmenuCount - 1);
+        }
+
+        var newHasSubmenuOpen = openSubmenuCount > 0;
+        if (hasSubmenuOpen == newHasSubmenuOpen)
+        {
+            return;
+        }
+
+        hasSubmenuOpen = newHasSubmenuOpen;
+        state = new MenuBarRootState(Disabled, hasSubmenuOpen, Modal, Orientation);
+
+        context.HasSubmenuOpen = hasSubmenuOpen;
+
+        BuildComponentAttributes();
+
+        if (hasRendered)
+        {
+            _ = UpdateScrollLockAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private bool GetHasSubmenuOpen() => hasSubmenuOpen;
+
+    private async Task ProcessPendingRegistrationsAsync()
+    {
+        foreach (var element in pendingUnregistrations)
+        {
+            await UnregisterItemAsync(element);
+        }
+        pendingUnregistrations.Clear();
+
+        foreach (var element in pendingRegistrations)
+        {
+            await RegisterItemAsync(element);
+        }
+        pendingRegistrations.Clear();
+    }
+
+    private async Task InitMenuBarAsync()
+    {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("initMenuBar", Element.Value, Orientation.ToDataAttributeString(), LoopFocus);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdateMenuBarAsync()
+    {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("updateMenuBar", Element.Value, Orientation.ToDataAttributeString(), LoopFocus);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdateScrollLockAsync()
+    {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            var shouldLock = Modal && hasSubmenuOpen;
+            await module.InvokeVoidAsync("updateScrollLock", Element.Value, shouldLock);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task RegisterItemAsync(ElementReference element)
+    {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("registerItem", Element.Value, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task UnregisterItemAsync(ElementReference element)
+    {
+        if (!Element.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("unregisterItem", Element.Value, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+}
