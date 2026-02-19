@@ -16,10 +16,10 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         bool loopFocus = true,
         bool modal = true,
         Orientation orientation = Orientation.Horizontal,
+        RenderFragment<RenderProps<MenuBarRootState>>? render = null,
         Func<MenuBarRootState, string>? classValue = null,
         Func<MenuBarRootState, string>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        string? asElement = null,
         bool includeMenus = true)
     {
         return builder =>
@@ -32,14 +32,14 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
             builder.AddAttribute(attrIndex++, "LoopFocus", loopFocus);
             builder.AddAttribute(attrIndex++, "Modal", modal);
             builder.AddAttribute(attrIndex++, "Orientation", orientation);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (classValue is not null)
                 builder.AddAttribute(attrIndex++, "ClassValue", classValue);
             if (styleValue is not null)
                 builder.AddAttribute(attrIndex++, "StyleValue", styleValue);
             if (additionalAttributes is not null)
                 builder.AddAttribute(attrIndex++, "AdditionalAttributes", additionalAttributes);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
 
             if (includeMenus)
             {
@@ -115,9 +115,17 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateMenuBarRoot(asElement: "nav", includeMenus: false));
+        RenderFragment<RenderProps<MenuBarRootState>> renderAsNav = props => builder =>
+        {
+            builder.OpenElement(0, "nav");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            builder.AddContent(2, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateMenuBarRoot(render: renderAsNav, includeMenus: false));
 
         var menubar = cut.Find("nav[role='menubar']");
         menubar.ShouldNotBeNull();
@@ -176,6 +184,42 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
 
         var menubar = cut.Find("[role='menubar']");
         menubar.HasAttribute("data-disabled").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ForwardsAdditionalAttributes()
+    {
+        var attrs = new Dictionary<string, object> { ["data-testid"] = "my-menubar" };
+        var cut = Render(CreateMenuBarRoot(additionalAttributes: attrs, includeMenus: false));
+
+        var menubar = cut.Find("[role='menubar']");
+        menubar.GetAttribute("data-testid").ShouldBe("my-menubar");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesClassValue()
+    {
+        Func<MenuBarRootState, string> classValue = state => "custom-class";
+        var cut = Render(CreateMenuBarRoot(classValue: classValue, includeMenus: false));
+
+        var menubar = cut.Find("[role='menubar']");
+        menubar.GetAttribute("class").ShouldContain("custom-class");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesStyleValue()
+    {
+        Func<MenuBarRootState, string> styleValue = state => "color: red";
+        var cut = Render(CreateMenuBarRoot(styleValue: styleValue, includeMenus: false));
+
+        var menubar = cut.Find("[role='menubar']");
+        menubar.GetAttribute("style").ShouldContain("color: red");
 
         return Task.CompletedTask;
     }
