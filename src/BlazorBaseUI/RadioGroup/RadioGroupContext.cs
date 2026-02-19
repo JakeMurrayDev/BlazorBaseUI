@@ -7,7 +7,7 @@ namespace BlazorBaseUI.RadioGroup;
 /// Defines the cascading contract consumed by child <see cref="Radio.RadioRoot{TValue}"/> components.
 /// </summary>
 /// <typeparam name="TValue">The type of value each radio button represents.</typeparam>
-public interface IRadioGroupContext<TValue>
+internal interface IRadioGroupContext<TValue>
 {
     /// <summary>
     /// Gets whether the radio group is disabled.
@@ -55,7 +55,7 @@ public interface IRadioGroupContext<TValue>
 /// Provides cascading state and callbacks shared between radio group sub-components.
 /// </summary>
 /// <typeparam name="TValue">The type of value each radio button represents.</typeparam>
-public sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
+internal sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
 {
     /// <summary>
     /// Gets or sets whether the radio group is disabled.

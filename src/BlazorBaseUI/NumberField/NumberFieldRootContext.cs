@@ -7,7 +7,7 @@ namespace BlazorBaseUI.NumberField;
 /// Provides shared state and callbacks for child components of the <see cref="NumberFieldRoot"/>.
 /// Cascaded as a fixed value from the root to all descendants.
 /// </summary>
-public sealed class NumberFieldRootContext
+internal sealed class NumberFieldRootContext
 {
     /// <summary>
     /// Gets or sets the formatted text value displayed in the input.

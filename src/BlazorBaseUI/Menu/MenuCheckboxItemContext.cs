@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Menu;
 /// <summary>
 /// Provides shared state for a <see cref="MenuCheckboxItem"/> and its descendant <see cref="MenuCheckboxItemIndicator"/>.
 /// </summary>
-public sealed class MenuCheckboxItemContext
+internal sealed class MenuCheckboxItemContext
 {
     /// <summary>
     /// Gets or sets whether the checkbox item is checked.

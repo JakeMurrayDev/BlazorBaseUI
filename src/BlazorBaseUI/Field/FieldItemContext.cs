@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Field;
 /// <summary>
 /// Provides contextual information for an individual <see cref="FieldItem"/> within a field.
 /// </summary>
-public interface IFieldItemContext
+internal interface IFieldItemContext
 {
     /// <summary>
     /// Gets whether the field item is disabled.
@@ -14,7 +14,7 @@ public interface IFieldItemContext
 /// <summary>
 /// Default implementation of <see cref="IFieldItemContext"/>.
 /// </summary>
-public sealed class FieldItemContext : IFieldItemContext
+internal sealed class FieldItemContext : IFieldItemContext
 {
     /// <summary>
     /// Gets or sets whether the field item is disabled.

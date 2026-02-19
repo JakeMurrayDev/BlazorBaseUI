@@ -6,7 +6,7 @@ namespace BlazorBaseUI.Tabs;
 /// Provides non-generic context for the tabs root, enabling cross-component
 /// communication between tabs and panels.
 /// </summary>
-public interface ITabsRootContext
+internal interface ITabsRootContext
 {
     /// <summary>
     /// Gets the orientation of the tabs.
@@ -59,7 +59,7 @@ public interface ITabsRootContext
 /// with value-based tab registration and activation.
 /// </summary>
 /// <typeparam name="TValue">The type of value used to identify tabs.</typeparam>
-public interface ITabsRootContext<TValue> : ITabsRootContext
+internal interface ITabsRootContext<TValue> : ITabsRootContext
 {
     /// <summary>
     /// Gets the currently active tab value.
@@ -93,7 +93,7 @@ public interface ITabsRootContext<TValue> : ITabsRootContext
 /// Stores registration information for a single tab.
 /// </summary>
 /// <typeparam name="TValue">The type of value used to identify tabs.</typeparam>
-public sealed class TabInfo<TValue>(TValue? value, ElementReference element, string? id, bool disabled, int order)
+internal sealed class TabInfo<TValue>(TValue? value, ElementReference element, string? id, bool disabled, int order)
 {
     /// <summary>
     /// Gets the tab's identifying value.
@@ -125,7 +125,7 @@ public sealed class TabInfo<TValue>(TValue? value, ElementReference element, str
 /// Default implementation of <see cref="ITabsRootContext{TValue}"/> that manages tab and panel registrations.
 /// </summary>
 /// <typeparam name="TValue">The type of value used to identify tabs.</typeparam>
-public sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
+internal sealed class TabsRootContext<TValue> : ITabsRootContext<TValue>
 {
     private readonly Dictionary<object, TabInfo<TValue>> tabsByValue = [];
     private readonly Dictionary<object, string> panelIdsByValue = [];

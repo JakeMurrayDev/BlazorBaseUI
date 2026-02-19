@@ -5,7 +5,7 @@ namespace BlazorBaseUI.Field;
 /// <summary>
 /// Notifies a subscriber when the field state changes.
 /// </summary>
-public interface IFieldStateSubscriber
+internal interface IFieldStateSubscriber
 {
     /// <summary>
     /// Called when the field state has changed.
@@ -16,7 +16,7 @@ public interface IFieldStateSubscriber
 /// <summary>
 /// Defines the context contract for the <see cref="FieldRoot"/> component.
 /// </summary>
-public interface IFieldRootContext
+internal interface IFieldRootContext
 {
     /// <summary>Gets whether the field is marked as invalid by an external source.</summary>
     bool? Invalid { get; }
@@ -85,7 +85,7 @@ public interface IFieldRootContext
 /// <summary>
 /// Provides the cascading context for the <see cref="FieldRoot"/> component.
 /// </summary>
-public sealed class FieldRootContext : IFieldRootContext
+internal sealed class FieldRootContext : IFieldRootContext
 {
     private Action<FieldValidityData>? setValidityDataCallback;
     private Action<bool>? setTouchedCallback;

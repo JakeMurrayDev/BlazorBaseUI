@@ -6,7 +6,7 @@ namespace BlazorBaseUI.ToggleGroup;
 /// Defines the contract for cascading state shared between a <see cref="ToggleGroup"/>
 /// and its child <see cref="Toggle.Toggle"/> components.
 /// </summary>
-public interface IToggleGroupContext
+internal interface IToggleGroupContext
 {
     /// <summary>
     /// Gets the values of all currently pressed toggle buttons in the group.
@@ -45,7 +45,7 @@ public interface IToggleGroupContext
 /// Provides cascading state shared between a <see cref="ToggleGroup"/>
 /// and its child <see cref="Toggle.Toggle"/> components.
 /// </summary>
-public sealed class ToggleGroupContext : IToggleGroupContext
+internal sealed class ToggleGroupContext : IToggleGroupContext
 {
     /// <summary>
     /// Gets or sets whether the toggle group should ignore user interaction.

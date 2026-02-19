@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Accordion;
 /// <summary>
 /// Defines the context contract for the <see cref="AccordionRoot{TValue}"/> component.
 /// </summary>
-public interface IAccordionRootContext
+internal interface IAccordionRootContext
 {
     /// <summary>
     /// Determines whether the component should ignore user interaction.
@@ -60,7 +60,7 @@ public interface IAccordionRootContext
 /// Provides the cascading context for the <see cref="AccordionRoot{TValue}"/> component.
 /// </summary>
 /// <typeparam name="TValue">The type of the value used to identify accordion items.</typeparam>
-public sealed class AccordionRootContext<TValue> : IAccordionRootContext
+internal sealed class AccordionRootContext<TValue> : IAccordionRootContext
 {
     private int nextIndex;
 

@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Menu;
 /// <summary>
 /// Defines the contract for a group context that manages the association between a group and its label.
 /// </summary>
-public interface IMenuGroupContext
+internal interface IMenuGroupContext
 {
     /// <summary>
     /// Sets the id of the label element associated with the group.

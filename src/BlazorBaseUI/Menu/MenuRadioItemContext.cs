@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Menu;
 /// <summary>
 /// Provides shared state for a <see cref="MenuRadioItem"/> and its descendant <see cref="MenuRadioItemIndicator"/>.
 /// </summary>
-public sealed class MenuRadioItemContext
+internal sealed class MenuRadioItemContext
 {
     /// <summary>
     /// Gets or sets whether the radio item is selected.

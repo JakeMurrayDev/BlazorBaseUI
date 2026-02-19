@@ -6,7 +6,7 @@ namespace BlazorBaseUI.NumberField;
 /// Provides shared state and callbacks for child components of the <see cref="NumberFieldScrubArea"/>.
 /// Cascaded as a fixed value from the scrub area to its descendants.
 /// </summary>
-public sealed class NumberFieldScrubAreaContext
+internal sealed class NumberFieldScrubAreaContext
 {
     /// <summary>
     /// Gets or sets whether the scrub area is actively being scrubbed.

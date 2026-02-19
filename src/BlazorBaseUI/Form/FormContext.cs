@@ -6,7 +6,7 @@ namespace BlazorBaseUI.Form;
 /// <summary>
 /// Defines the contract for a field registered with a form.
 /// </summary>
-public interface IFieldRegistration
+internal interface IFieldRegistration
 {
     /// <summary>Gets the name that identifies the field.</summary>
     string? Name { get; }
@@ -27,7 +27,7 @@ public interface IFieldRegistration
 /// <summary>
 /// Manages field registrations for a <see cref="FormRoot"/> component.
 /// </summary>
-public sealed class FieldRegistry
+internal sealed class FieldRegistry
 {
     private readonly Dictionary<string, IFieldRegistration> fields = new(8);
 
@@ -59,7 +59,7 @@ public sealed class FieldRegistry
 /// <summary>
 /// Defines the context contract for the <see cref="FormRoot"/> component.
 /// </summary>
-public interface IFormContext
+internal interface IFormContext
 {
     /// <summary>Gets the associated <see cref="Microsoft.AspNetCore.Components.Forms.EditContext"/>.</summary>
     EditContext? EditContext { get; }
@@ -86,7 +86,7 @@ public interface IFormContext
 /// <summary>
 /// Provides the cascading context for the <see cref="FormRoot"/> component.
 /// </summary>
-public sealed class FormContext : IFormContext
+internal sealed class FormContext : IFormContext
 {
     private Dictionary<string, string[]> errors = new(4);
     private Action<string?>? clearErrorsCallback;

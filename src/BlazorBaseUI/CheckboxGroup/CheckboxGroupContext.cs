@@ -6,7 +6,7 @@ namespace BlazorBaseUI.CheckboxGroup;
 /// <summary>
 /// Provides cascading state from <see cref="CheckboxGroup"/> to its child checkboxes.
 /// </summary>
-public sealed class CheckboxGroupContext
+internal sealed class CheckboxGroupContext
 {
     /// <summary>
     /// Gets or sets the names of the checkboxes in the group that are currently ticked.
@@ -64,7 +64,7 @@ public sealed class CheckboxGroupContext
 /// <summary>
 /// Manages the state and behavior of a parent checkbox that controls a group of child checkboxes.
 /// </summary>
-public sealed class CheckboxGroupParent
+internal sealed class CheckboxGroupParent
 {
     /// <summary>
     /// Gets or sets the identifier used to generate <c>aria-controls</c> references.

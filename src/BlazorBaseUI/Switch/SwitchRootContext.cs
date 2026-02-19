@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Switch;
 /// <summary>
 /// Provides cascading state from <see cref="SwitchRoot"/> to its child components.
 /// </summary>
-public sealed class SwitchRootContext
+internal sealed class SwitchRootContext
 {
     /// <summary>
     /// Gets or sets whether the switch is checked.

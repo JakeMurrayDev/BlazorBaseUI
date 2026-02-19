@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Radio;
 /// <summary>
 /// Provides cascading state shared between radio sub-components.
 /// </summary>
-public sealed class RadioRootContext
+internal sealed class RadioRootContext
 {
     /// <summary>
     /// Gets or sets whether the radio button is currently selected.
