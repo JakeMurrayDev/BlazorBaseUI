@@ -348,5 +348,5 @@
     }
 
     private RenderFragment<RenderProps<FieldRootState>> RenderLabelAsSpan =>
-        ctx => @<span @attributes="ctx.Attributes">@ctx.ChildContent</span>;
+        ctx => RenderUtilities.CreateElement("span", ctx);
 }
