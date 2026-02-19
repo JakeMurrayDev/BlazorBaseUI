@@ -2,6 +2,10 @@
 
 namespace BlazorBaseUI;
 
+/// <summary>
+/// Provides helper methods for reading, combining, and resolving HTML attributes
+/// from <see cref="IReadOnlyDictionary{TKey, TValue}"/> parameter collections.
+/// </summary>
 internal static class AttributeUtilities
 {
     public static T? GetAttributeValue<T>(

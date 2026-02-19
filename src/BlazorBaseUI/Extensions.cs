@@ -4,6 +4,9 @@ using System.Globalization;
 
 namespace BlazorBaseUI;
 
+/// <summary>
+/// Provides extension methods for converting common enumerations and types to their string representations.
+/// </summary>
 internal static class Extensions
 {
     extension (Guid value)

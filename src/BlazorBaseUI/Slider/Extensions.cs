@@ -2,6 +2,9 @@ using System.ComponentModel;
 
 namespace BlazorBaseUI.Slider;
 
+/// <summary>
+/// Extension methods for converting slider enumerations to data attribute strings.
+/// </summary>
 internal static class Extensions
 {
     extension(ThumbCollisionBehavior behavior)

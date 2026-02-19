@@ -2,6 +2,10 @@ using System.Globalization;
 
 namespace BlazorBaseUI.Slider;
 
+/// <summary>
+/// Provides utility methods for slider value calculations, including clamping,
+/// percentage conversion, step rounding, thumb collision resolution, and number formatting.
+/// </summary>
 internal static class SliderUtilities
 {
     public static double Clamp(double value, double min, double max) =>
@@ -308,4 +312,10 @@ internal static class SliderUtilities
     }
 }
 
+/// <summary>
+/// Contains the result of resolving a thumb collision during slider interaction.
+/// </summary>
+/// <param name="Values">The adjusted thumb values after collision resolution.</param>
+/// <param name="ThumbIndex">The index of the active thumb.</param>
+/// <param name="DidSwap">Whether the active thumb swapped position with a neighbor.</param>
 public sealed record ResolveThumbCollisionResult(double[] Values, int ThumbIndex, bool DidSwap);

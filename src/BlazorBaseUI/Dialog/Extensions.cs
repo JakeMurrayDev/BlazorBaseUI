@@ -1,5 +1,8 @@
 namespace BlazorBaseUI.Dialog;
 
+/// <summary>
+/// Extension methods for converting dialog enumerations to data attribute strings.
+/// </summary>
 internal static class Extensions
 {
     public static string? ToDataAttributeString(this InstantType instant) => instant switch
