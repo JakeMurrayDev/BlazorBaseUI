@@ -10,7 +10,7 @@ namespace BlazorBaseUI.DirectionProvider;
 public sealed class DirectionProvider : ComponentBase
 {
     private DirectionProviderContext context = new(Direction.Undefined);
-    private Direction previousDirection;
+    private Direction resolvedDirection;
 
     /// <summary>
     /// Gets or sets the reading direction of the text. Defaults to <see cref="BlazorBaseUI.Direction.Undefined"/>,
@@ -26,21 +26,16 @@ public sealed class DirectionProvider : ComponentBase
     public RenderFragment? ChildContent { get; set; }
 
     /// <inheritdoc />
-    protected override void OnInitialized()
-    {
-        if (Direction == Direction.Undefined)
-        {
-            Direction = CultureInfo.CurrentCulture.TextInfo.IsRightToLeft ? Direction.Rtl : Direction.Ltr;
-        }
-    }
-
-    /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        if (previousDirection != Direction)
+        var effective = Direction != Direction.Undefined
+            ? Direction
+            : (CultureInfo.CurrentCulture.TextInfo.IsRightToLeft ? Direction.Rtl : Direction.Ltr);
+
+        if (resolvedDirection != effective)
         {
-            context = new DirectionProviderContext(Direction);
-            previousDirection = Direction;
+            resolvedDirection = effective;
+            context = new DirectionProviderContext(resolvedDirection);
         }
     }
 

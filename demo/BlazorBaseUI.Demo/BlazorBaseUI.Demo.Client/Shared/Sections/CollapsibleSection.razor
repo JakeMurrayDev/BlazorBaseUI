@@ -354,6 +354,6 @@
 
 @code {
     private RenderFragment<RenderProps<CollapsibleRootState>> RenderRootAsNav =>
-        ctx => @<nav @attributes=""ctx.Attributes"">@ctx.ChildContent</nav>;
+        ctx => RenderUtilities.CreateElement(""nav"", ctx);
 }";
 }

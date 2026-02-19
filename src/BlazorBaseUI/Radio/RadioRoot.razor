@@ -416,10 +416,13 @@
 
     private async Task InitializeJsAsync()
     {
+        if (!Element.HasValue)
+            return;
+
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element!.Value, inputElement, ResolvedDisabled, ResolvedReadOnly);
+            await module.InvokeVoidAsync("initialize", Element.Value, inputElement, ResolvedDisabled, ResolvedReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -428,13 +431,13 @@
 
     private async Task UpdateJsStateAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
             return;
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element!.Value, inputElement, ResolvedDisabled, ResolvedReadOnly);
+            await module.InvokeVoidAsync("updateState", Element.Value, inputElement, ResolvedDisabled, ResolvedReadOnly);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

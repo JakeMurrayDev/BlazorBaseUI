@@ -18,6 +18,7 @@ public sealed class FieldValidation : IDisposable
 
     private Timer? debounceTimer;
     private object? pendingValue;
+    private bool initialValueSet;
     private readonly Lock timerLock = new();
 
     public FieldValidation(
@@ -63,7 +64,7 @@ public sealed class FieldValidation : IDisposable
 
         if (revalidateOnly && currentData.State.Valid != false)
         {
-            if (!ReferenceEquals(currentData.Value, value))
+            if (!Equals(currentData.Value, value))
             {
                 setValidityData(currentData with { Value = value });
             }
@@ -176,11 +177,12 @@ public sealed class FieldValidation : IDisposable
     /// <param name="value">The initial value to store.</param>
     public void SetInitialValue(object? value)
     {
+        if (initialValueSet)
+            return;
+
+        initialValueSet = true;
         var currentData = getValidityData();
-        if (currentData.InitialValue is null)
-        {
-            setValidityData(currentData with { InitialValue = value });
-        }
+        setValidityData(currentData with { InitialValue = value });
     }
 
     /// <inheritdoc />

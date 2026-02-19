@@ -60,10 +60,7 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        if (Context is not null)
-        {
-            state = Context.State;
-        }
+        state = Context?.State ?? SliderRootState.Default;
 
         computedStyleValue = s =>
         {

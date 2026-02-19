@@ -96,8 +96,6 @@ internal sealed class FormContext : IFormContext
     public ValidationMode ValidationMode { get; private set; } = ValidationMode.OnSubmit;
     public FieldRegistry FieldRegistry { get; private set; } = new();
 
-    private FormContext() { }
-
     public FormContext(
         EditContext? editContext,
         FieldRegistry fieldRegistry,

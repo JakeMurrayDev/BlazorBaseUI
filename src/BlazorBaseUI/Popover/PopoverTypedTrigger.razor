@@ -22,6 +22,7 @@
     private bool hoverInitialized;
     private string? hoverRootId;
     private string triggerId = null!;
+    private OpenChangeReason lastOpenReason;
     private PopoverTriggerState state;
     private PopoverHandle<TPayload>? registeredHandle;
     private RenderElement<PopoverTriggerState>? renderElementReference;
@@ -225,7 +226,7 @@
         attrs["id"] = triggerId;
 
         attrs["data-popup-open"] = open;
-        var openReason = RootContext?.OpenChangeReason ?? OpenChangeReason.TriggerPress;
+        var openReason = HasHandle ? lastOpenReason : (RootContext?.OpenChangeReason ?? OpenChangeReason.TriggerPress);
         attrs["data-pressed"] = open && openReason == OpenChangeReason.TriggerPress;
 
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
@@ -370,6 +371,7 @@
     {
         if (HasHandle)
         {
+            lastOpenReason = reason;
             if (open)
             {
                 Handle!.RequestOpen(triggerId, reason);

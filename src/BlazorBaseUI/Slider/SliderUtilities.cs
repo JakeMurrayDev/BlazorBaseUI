@@ -318,4 +318,4 @@ internal static class SliderUtilities
 /// <param name="Values">The adjusted thumb values after collision resolution.</param>
 /// <param name="ThumbIndex">The index of the active thumb.</param>
 /// <param name="DidSwap">Whether the active thumb swapped position with a neighbor.</param>
-public sealed record ResolveThumbCollisionResult(double[] Values, int ThumbIndex, bool DidSwap);
+internal sealed record ResolveThumbCollisionResult(double[] Values, int ThumbIndex, bool DidSwap);

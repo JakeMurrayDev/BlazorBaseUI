@@ -168,20 +168,25 @@
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask.IsValueCreated && scrubAreaElement.HasValue)
+        try
         {
-            try
+            if (moduleTask.IsValueCreated && scrubAreaElement.HasValue)
             {
-                var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("disposeScrubArea", scrubAreaElement.Value);
-                await module.DisposeAsync();
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
+                try
+                {
+                    var module = await moduleTask.Value;
+                    await module.InvokeVoidAsync("disposeScrubArea", scrubAreaElement.Value);
+                    await module.DisposeAsync();
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
             }
         }
-
-        dotNetRef?.Dispose();
+        finally
+        {
+            dotNetRef?.Dispose();
+        }
     }
 
     /// <summary>
