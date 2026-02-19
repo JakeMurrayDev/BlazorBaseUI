@@ -13,10 +13,10 @@ public class ProgressValueTests : BunitContext, IProgressValueContract
         double? value = 50,
         string? format = null,
         IFormatProvider? formatProvider = null,
-        Func<ProgressRootState, string>? valueClassValue = null,
-        Func<ProgressRootState, string>? valueStyleValue = null,
+        Func<ProgressRootState, string?>? valueClassValue = null,
+        Func<ProgressRootState, string?>? valueStyleValue = null,
         IReadOnlyDictionary<string, object>? valueAttributes = null,
-        string? valueAs = null,
+        RenderFragment<RenderProps<ProgressRootState>>? valueRender = null,
         Func<string, double?, RenderFragment>? childContent = null)
     {
         return builder =>
@@ -43,8 +43,8 @@ public class ProgressValueTests : BunitContext, IProgressValueContract
                     innerBuilder.AddAttribute(valueAttrIndex++, "ClassValue", valueClassValue);
                 if (valueStyleValue is not null)
                     innerBuilder.AddAttribute(valueAttrIndex++, "StyleValue", valueStyleValue);
-                if (valueAs is not null)
-                    innerBuilder.AddAttribute(valueAttrIndex++, "As", valueAs);
+                if (valueRender is not null)
+                    innerBuilder.AddAttribute(valueAttrIndex++, "Render", valueRender);
                 if (childContent is not null)
                     innerBuilder.AddAttribute(valueAttrIndex++, "ChildContent", childContent);
 
@@ -78,11 +78,19 @@ public class ProgressValueTests : BunitContext, IProgressValueContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateProgressWithValue(valueAs: "div"));
-        var valueEl = cut.Find("[data-testid='value']");
-        valueEl.TagName.ShouldBe("DIV");
+        var cut = Render(CreateProgressWithValue(
+            valueRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "div");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+        var element = cut.Find("div[data-testid='value']");
+        element.ShouldNotBeNull();
         return Task.CompletedTask;
     }
 

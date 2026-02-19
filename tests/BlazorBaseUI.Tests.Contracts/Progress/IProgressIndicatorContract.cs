@@ -4,7 +4,7 @@ public interface IProgressIndicatorContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -17,7 +17,4 @@ public interface IProgressIndicatorContract
 
     // Data attributes
     Task HasDataStatusAttribute();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

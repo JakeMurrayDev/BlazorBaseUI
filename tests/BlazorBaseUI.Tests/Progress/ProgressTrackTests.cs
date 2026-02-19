@@ -9,11 +9,10 @@ public class ProgressTrackTests : BunitContext, IProgressTrackContract
 
     private RenderFragment CreateProgressWithTrack(
         double? value = 50,
-        Func<ProgressRootState, string>? trackClassValue = null,
-        Func<ProgressRootState, string>? trackStyleValue = null,
+        Func<ProgressRootState, string?>? trackClassValue = null,
+        Func<ProgressRootState, string?>? trackStyleValue = null,
         IReadOnlyDictionary<string, object>? trackAttributes = null,
-        string? trackAs = null,
-        Type? trackRenderAs = null)
+        RenderFragment<RenderProps<ProgressRootState>>? trackRender = null)
     {
         return builder =>
         {
@@ -34,10 +33,8 @@ public class ProgressTrackTests : BunitContext, IProgressTrackContract
                     innerBuilder.AddAttribute(trackAttrIndex++, "ClassValue", trackClassValue);
                 if (trackStyleValue is not null)
                     innerBuilder.AddAttribute(trackAttrIndex++, "StyleValue", trackStyleValue);
-                if (trackAs is not null)
-                    innerBuilder.AddAttribute(trackAttrIndex++, "As", trackAs);
-                if (trackRenderAs is not null)
-                    innerBuilder.AddAttribute(trackAttrIndex++, "RenderAs", trackRenderAs);
+                if (trackRender is not null)
+                    innerBuilder.AddAttribute(trackAttrIndex++, "Render", trackRender);
 
                 var attrs = new Dictionary<string, object>
                 {
@@ -69,11 +66,19 @@ public class ProgressTrackTests : BunitContext, IProgressTrackContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateProgressWithTrack(trackAs: "section"));
-        var track = cut.Find("[data-testid='track']");
-        track.TagName.ShouldBe("SECTION");
+        var cut = Render(CreateProgressWithTrack(
+            trackRender: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+        var element = cut.Find("section[data-testid='track']");
+        element.ShouldNotBeNull();
         return Task.CompletedTask;
     }
 
@@ -122,27 +127,5 @@ public class ProgressTrackTests : BunitContext, IProgressTrackContract
         var track = cut.Find("[data-testid='track']");
         track.HasAttribute("data-progressing").ShouldBeTrue();
         return Task.CompletedTask;
-    }
-
-    // RenderAs validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(CreateProgressWithTrack(
-                trackRenderAs: typeof(NonReferencableComponent)));
-        });
-        return Task.CompletedTask;
-    }
-
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }

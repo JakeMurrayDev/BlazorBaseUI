@@ -16,10 +16,9 @@ public class ProgressRootTests : BunitContext, IProgressRootContract
         string? format = null,
         IFormatProvider? formatProvider = null,
         Func<string?, double?, string>? getAriaValueText = null,
-        string? asElement = null,
-        Type? renderAs = null,
-        Func<ProgressRootState, string>? classValue = null,
-        Func<ProgressRootState, string>? styleValue = null,
+        RenderFragment<RenderProps<ProgressRootState>>? render = null,
+        Func<ProgressRootState, string?>? classValue = null,
+        Func<ProgressRootState, string?>? styleValue = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         RenderFragment? childContent = null)
     {
@@ -42,10 +41,8 @@ public class ProgressRootTests : BunitContext, IProgressRootContract
                 builder.AddAttribute(attrIndex++, "FormatProvider", formatProvider);
             if (getAriaValueText is not null)
                 builder.AddAttribute(attrIndex++, "GetAriaValueText", getAriaValueText);
-            if (asElement is not null)
-                builder.AddAttribute(attrIndex++, "As", asElement);
-            if (renderAs is not null)
-                builder.AddAttribute(attrIndex++, "RenderAs", renderAs);
+            if (render is not null)
+                builder.AddAttribute(attrIndex++, "Render", render);
             if (classValue is not null)
                 builder.AddAttribute(attrIndex++, "ClassValue", classValue);
             if (styleValue is not null)
@@ -126,11 +123,20 @@ public class ProgressRootTests : BunitContext, IProgressRootContract
     }
 
     [Fact]
-    public Task RendersWithCustomAs()
+    public Task RendersWithCustomRender()
     {
-        var cut = Render(CreateProgressRoot(asElement: "section"));
-        var progressbar = cut.Find("[role='progressbar']");
-        progressbar.TagName.ShouldBe("SECTION");
+        var cut = Render(CreateProgressRoot(
+            render: ctx => builder =>
+            {
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }
+        ));
+        var element = cut.Find("section");
+        element.ShouldNotBeNull();
+        element.GetAttribute("role").ShouldBe("progressbar");
         return Task.CompletedTask;
     }
 
@@ -362,7 +368,7 @@ public class ProgressRootTests : BunitContext, IProgressRootContract
             builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
             {
                 innerBuilder.OpenComponent<ProgressTrack>(0);
-                innerBuilder.AddAttribute(1, "ClassValue", (Func<ProgressRootState, string>)(state =>
+                innerBuilder.AddAttribute(1, "ClassValue", (Func<ProgressRootState, string?>)(state =>
                 {
                     capturedState = state;
                     return "track-class";
@@ -393,32 +399,5 @@ public class ProgressRootTests : BunitContext, IProgressRootContract
         cut.WaitForState(() => component!.Element.HasValue);
         component!.Element.HasValue.ShouldBeTrue();
         return Task.CompletedTask;
-    }
-
-    // RenderAs validation
-
-    [Fact]
-    public Task ThrowsWhenRenderAsDoesNotImplementInterface()
-    {
-        Should.Throw<InvalidOperationException>(() =>
-        {
-            Render(builder =>
-            {
-                builder.OpenComponent<ProgressRoot>(0);
-                builder.AddAttribute(1, "Value", 50.0);
-                builder.AddAttribute(2, "RenderAs", typeof(NonReferencableComponent));
-                builder.CloseComponent();
-            });
-        });
-        return Task.CompletedTask;
-    }
-
-    private sealed class NonReferencableComponent : ComponentBase
-    {
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenElement(0, "div");
-            builder.CloseElement();
-        }
     }
 }

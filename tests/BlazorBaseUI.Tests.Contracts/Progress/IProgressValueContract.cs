@@ -4,7 +4,7 @@ public interface IProgressValueContract
 {
     // Rendering
     Task RendersAsSpanByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();

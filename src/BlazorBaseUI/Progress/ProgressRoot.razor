@@ -1,0 +1,231 @@
+@namespace BlazorBaseUI.Progress
+@using System.Globalization
+
+<CascadingValue Value="context" IsFixed="true">
+    <RenderElement TState="ProgressRootState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private string? labelId;
+    private string ariaValueText = string.Empty;
+    private ProgressStatus previousStatus;
+    private ProgressRootContext? context;
+    private ProgressRootState state = new(ProgressStatus.Indeterminate);
+    private RenderElement<ProgressRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    /// <summary>
+    /// Gets or sets the current value. The component is indeterminate when value is <see langword="null"/>.
+    /// Defaults to <see langword="null"/>.
+    /// </summary>
+    [Parameter]
+    public double? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the minimum value.
+    /// Defaults to <c>0</c>.
+    /// </summary>
+    [Parameter]
+    public double Min { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the maximum value.
+    /// Defaults to <c>100</c>.
+    /// </summary>
+    [Parameter]
+    public double Max { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets the format string used to display the value.
+    /// </summary>
+    [Parameter]
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// Gets or sets the format provider used to format the value.
+    /// </summary>
+    [Parameter]
+    public IFormatProvider? FormatProvider { get; set; }
+
+    /// <summary>
+    /// Accepts a function which returns a string value that provides a human-readable text
+    /// alternative for the current value of the progress bar.
+    /// </summary>
+    [Parameter]
+    public Func<string?, double?, string>? GetAriaValueText { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ProgressRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ProgressRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ProgressRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var status = ComputeStatus();
+        previousStatus = status;
+        state = new ProgressRootState(status);
+
+        var formattedValue = FormatValue(Value);
+        ariaValueText = GetAriaValueText is not null
+            ? GetAriaValueText(formattedValue, Value)
+            : GetDefaultAriaValueText(formattedValue, Value);
+
+        context = new ProgressRootContext
+        {
+            FormattedValue = formattedValue,
+            Max = Max,
+            Min = Min,
+            Value = Value,
+            State = state,
+            Status = state.Status,
+            SetLabelIdAction = SetLabelId
+        };
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var status = ComputeStatus();
+        if (status != previousStatus)
+        {
+            previousStatus = status;
+            state = new ProgressRootState(status);
+        }
+
+        var formattedValue = FormatValue(Value);
+        ariaValueText = GetAriaValueText is not null
+            ? GetAriaValueText(formattedValue, Value)
+            : GetDefaultAriaValueText(formattedValue, Value);
+
+        if (context is not null)
+        {
+            context.FormattedValue = formattedValue;
+            context.Max = Max;
+            context.Min = Min;
+            context.Value = Value;
+            context.State = state;
+            context.Status = state.Status;
+        }
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "progressbar";
+        attrs["aria-valuemin"] = Min;
+        attrs["aria-valuemax"] = Max;
+
+        if (Value.HasValue)
+        {
+            attrs["aria-valuenow"] = Value.Value;
+        }
+
+        attrs["aria-valuetext"] = ariaValueText;
+
+        if (!string.IsNullOrEmpty(labelId))
+        {
+            attrs["aria-labelledby"] = labelId;
+        }
+
+        attrs[$"data-{state.Status.ToDataAttributeString()}"] = (object)true;
+
+        componentAttributes = attrs;
+    }
+
+    private ProgressStatus ComputeStatus()
+    {
+        if (!Value.HasValue || !double.IsFinite(Value.Value))
+        {
+            return ProgressStatus.Indeterminate;
+        }
+
+        return Value.Value == Max ? ProgressStatus.Complete : ProgressStatus.Progressing;
+    }
+
+    private string FormatValue(double? value)
+    {
+        if (!value.HasValue)
+        {
+            return string.Empty;
+        }
+
+        var provider = FormatProvider ?? CultureInfo.CurrentCulture;
+
+        if (!string.IsNullOrEmpty(Format))
+        {
+            return value.Value.ToString(Format, provider);
+        }
+
+        var percentage = value.Value / 100.0;
+        return percentage.ToString("P0", provider);
+    }
+
+    private static string GetDefaultAriaValueText(string? formattedValue, double? value)
+    {
+        if (!value.HasValue)
+        {
+            return "indeterminate progress";
+        }
+
+        return !string.IsNullOrEmpty(formattedValue) ? formattedValue : $"{value}%";
+    }
+
+    private void SetLabelId(string? id)
+    {
+        if (labelId == id)
+        {
+            return;
+        }
+
+        labelId = id;
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,92 @@
+@namespace BlazorBaseUI.Progress
+
+<RenderElement TState="ProgressRootState"
+               Tag="span"
+               State="Context?.State"
+               Enabled="Context is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="resolvedContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private RenderFragment? resolvedContent;
+    private RenderElement<ProgressRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private ProgressRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// Accepts a function that returns the element to render.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ProgressRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ProgressRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ProgressRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the child content render function that receives the formatted value and raw value,
+    /// allowing custom rendering of the progress value.
+    /// </summary>
+    [Parameter]
+    public Func<string, double?, RenderFragment>? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (Context is null)
+        {
+            return;
+        }
+
+        BuildComponentAttributes();
+        BuildResolvedContent();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["aria-hidden"] = "true";
+        attrs[$"data-{Context!.State.Status.ToDataAttributeString()}"] = (object)true;
+
+        componentAttributes = attrs;
+    }
+
+    private void BuildResolvedContent()
+    {
+        var formattedValueArg = !Context!.Value.HasValue ? "indeterminate" : Context.FormattedValue;
+        var formattedValueDisplay = !Context.Value.HasValue ? null : Context.FormattedValue;
+
+        resolvedContent = ChildContent is not null
+            ? ChildContent(formattedValueArg, Context.Value)
+            : (RenderFragment)(b => b.AddContent(0, formattedValueDisplay));
+    }
+}

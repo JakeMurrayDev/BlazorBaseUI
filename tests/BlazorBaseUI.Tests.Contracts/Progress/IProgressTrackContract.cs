@@ -4,14 +4,11 @@ public interface IProgressTrackContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
 
     // Data attributes
     Task HasDataStatusAttribute();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }

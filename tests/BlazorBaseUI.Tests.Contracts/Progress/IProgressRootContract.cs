@@ -4,7 +4,7 @@ public interface IProgressRootContract
 {
     // Rendering
     Task RendersAsDivByDefault();
-    Task RendersWithCustomAs();
+    Task RendersWithCustomRender();
     Task ForwardsAdditionalAttributes();
     Task AppliesClassValue();
     Task AppliesStyleValue();
@@ -36,7 +36,4 @@ public interface IProgressRootContract
 
     // Element reference
     Task ExposesElementReference();
-
-    // RenderAs validation
-    Task ThrowsWhenRenderAsDoesNotImplementInterface();
 }
