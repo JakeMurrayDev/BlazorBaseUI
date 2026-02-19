@@ -252,22 +252,13 @@
             attrs["hidden"] = true;
         }
 
-        attrs["data-side"] = Side.ToDataAttributeString();
-        attrs["data-align"] = Align.ToDataAttributeString();
+        attrs["data-side"] = Side.ToDataAttributeString()!;
+        attrs["data-align"] = Align.ToDataAttributeString()!;
 
-        if (RootContext?.GetOpen() ?? false)
-        {
-            attrs["data-open"] = string.Empty;
-        }
-        else
-        {
-            attrs["data-closed"] = string.Empty;
-        }
-
-        if (state.AnchorHidden)
-        {
-            attrs["data-anchor-hidden"] = string.Empty;
-        }
+        var isOpen = RootContext?.GetOpen() ?? false;
+        attrs["data-open"] = isOpen;
+        attrs["data-closed"] = !isOpen;
+        attrs["data-anchor-hidden"] = state.AnchorHidden;
 
         var trackCursorAxis = RootContext?.TrackCursorAxis ?? TrackCursorAxis.None;
         var instantType = trackCursorAxis != TrackCursorAxis.None

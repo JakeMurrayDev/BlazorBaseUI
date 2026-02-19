@@ -19,7 +19,6 @@
 
 @code {
     private Lazy<Task<IJSObjectReference>>? moduleTask;
-    private bool hasRendered;
     private bool hoverInitialized;
     private string triggerId = null!;
     private TooltipTriggerState state;
@@ -201,8 +200,6 @@
     {
         if (firstRender)
         {
-            hasRendered = true;
-
             if (HasHandle)
             {
                 Handle!.RegisterTrigger(triggerId, Element, Payload);
@@ -250,10 +247,7 @@
 
         attrs["id"] = triggerId;
 
-        if (open)
-        {
-            attrs["data-popup-open"] = string.Empty;
-        }
+        attrs["data-popup-open"] = open;
 
         attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
         attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);

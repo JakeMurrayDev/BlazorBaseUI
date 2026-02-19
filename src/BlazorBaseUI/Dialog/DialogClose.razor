@@ -111,10 +111,7 @@
             }
         }
 
-        if (Disabled)
-        {
-            attrs["data-disabled"] = string.Empty;
-        }
+        attrs["data-disabled"] = Disabled;
 
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 

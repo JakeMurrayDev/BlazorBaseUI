@@ -197,7 +197,7 @@
     private void BuildComponentAttributes()
     {
         var attrs = new Dictionary<string, object>();
-        var orientationString = Orientation.ToDataAttributeString();
+        var orientationString = Orientation.ToDataAttributeString()!;
 
         attrs["role"] = "toolbar";
         attrs["aria-orientation"] = orientationString;

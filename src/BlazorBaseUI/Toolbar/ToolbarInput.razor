@@ -127,7 +127,7 @@
     {
         var attrs = new Dictionary<string, object>();
         var disabled = RootContext!.Disabled || (GroupContext?.Disabled ?? false) || Disabled;
-        var orientationString = RootContext.Orientation.ToDataAttributeString();
+        var orientationString = RootContext.Orientation.ToDataAttributeString()!;
 
         if (disabled)
         {

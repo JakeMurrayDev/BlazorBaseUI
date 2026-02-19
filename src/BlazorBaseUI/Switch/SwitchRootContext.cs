@@ -28,5 +28,5 @@ public sealed class SwitchRootContext
     /// <summary>
     /// Gets or sets the current state of the switch.
     /// </summary>
-    public SwitchRootState State { get; set; }
+    public SwitchRootState State { get; set; } = null!;
 }

@@ -224,16 +224,9 @@
         attrs["aria-expanded"] = open ? "true" : "false";
         attrs["id"] = triggerId;
 
-        if (open)
-        {
-            attrs["data-popup-open"] = string.Empty;
-
-            var openReason = RootContext?.OpenChangeReason ?? OpenChangeReason.TriggerPress;
-            if (openReason == OpenChangeReason.TriggerPress)
-            {
-                attrs["data-pressed"] = string.Empty;
-            }
-        }
+        attrs["data-popup-open"] = open;
+        var openReason = RootContext?.OpenChangeReason ?? OpenChangeReason.TriggerPress;
+        attrs["data-pressed"] = open && openReason == OpenChangeReason.TriggerPress;
 
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 

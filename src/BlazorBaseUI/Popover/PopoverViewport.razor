@@ -67,24 +67,12 @@
     {
         var attrs = new Dictionary<string, object>();
 
-        if (RootContext?.GetOpen() ?? false)
-        {
-            attrs["data-open"] = string.Empty;
-        }
-        else
-        {
-            attrs["data-closed"] = string.Empty;
-        }
-
+        var isOpen = RootContext?.GetOpen() ?? false;
+        attrs["data-open"] = isOpen;
+        attrs["data-closed"] = !isOpen;
         var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
-        if (transitionStatus == TransitionStatus.Starting)
-        {
-            attrs["data-starting-style"] = string.Empty;
-        }
-        else if (transitionStatus == TransitionStatus.Ending)
-        {
-            attrs["data-ending-style"] = string.Empty;
-        }
+        attrs["data-starting-style"] = transitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = transitionStatus == TransitionStatus.Ending;
 
         componentAttributes = attrs;
     }
