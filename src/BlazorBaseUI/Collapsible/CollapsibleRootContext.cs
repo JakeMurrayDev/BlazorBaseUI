@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Collapsible;
 /// <summary>
 /// Provides cascading state from <see cref="CollapsibleRoot"/> to child components.
 /// </summary>
-public sealed class CollapsibleRootContext
+internal sealed class CollapsibleRootContext
 {
     /// <summary>Whether the collapsible is currently open.</summary>
     public bool Open { get; set; }

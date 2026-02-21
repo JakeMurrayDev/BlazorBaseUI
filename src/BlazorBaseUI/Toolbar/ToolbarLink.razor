@@ -109,7 +109,7 @@
     private void BuildComponentAttributes()
     {
         var attrs = new Dictionary<string, object>();
-        attrs["data-orientation"] = RootContext!.Orientation.ToDataAttributeString();
+        attrs["data-orientation"] = RootContext!.Orientation.ToDataAttributeString()!;
         componentAttributes = attrs;
     }
 

@@ -8,7 +8,6 @@
 @using BlazorBaseUI.Form
 
 @typeparam TValue
-@implements IReferencableComponent
 @implements IFieldStateSubscriber
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
@@ -417,6 +416,9 @@
 
     private async Task InitializeJsAsync()
     {
+        if (!Element.HasValue)
+            return;
+
         try
         {
             var module = await moduleTask.Value;
@@ -429,7 +431,7 @@
 
     private async Task UpdateJsStateAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
             return;
 
         try

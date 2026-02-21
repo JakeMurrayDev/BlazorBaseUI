@@ -2,38 +2,90 @@ using BlazorBaseUI.Form;
 
 namespace BlazorBaseUI.Field;
 
-public interface IFieldStateSubscriber
+/// <summary>
+/// Notifies a subscriber when the field state changes.
+/// </summary>
+internal interface IFieldStateSubscriber
 {
+    /// <summary>
+    /// Called when the field state has changed.
+    /// </summary>
     void NotifyStateChanged();
 }
 
-public interface IFieldRootContext
+/// <summary>
+/// Defines the context contract for the <see cref="FieldRoot"/> component.
+/// </summary>
+internal interface IFieldRootContext
 {
+    /// <summary>Gets whether the field is marked as invalid by an external source.</summary>
     bool? Invalid { get; }
+
+    /// <summary>Gets the name that identifies the field when a form is submitted.</summary>
     string? Name { get; }
+
+    /// <summary>Gets the current validity data for the field.</summary>
     FieldValidityData ValidityData { get; }
+
+    /// <summary>Gets whether the field is disabled.</summary>
     bool Disabled { get; }
+
+    /// <summary>Gets whether the field has been touched.</summary>
     bool Touched { get; }
+
+    /// <summary>Gets whether the field value has changed from its initial value.</summary>
     bool Dirty { get; }
+
+    /// <summary>Gets whether the field has a value.</summary>
     bool Filled { get; }
+
+    /// <summary>Gets whether the field control is focused.</summary>
     bool Focused { get; }
+
+    /// <summary>Gets when the field should be validated.</summary>
     ValidationMode ValidationMode { get; }
+
+    /// <summary>Gets the debounce time in milliseconds for onChange validation.</summary>
     int ValidationDebounceTime { get; }
+
+    /// <summary>Gets the current state of the field.</summary>
     FieldRootState State { get; }
+
+    /// <summary>Gets the validation logic for the field.</summary>
     FieldValidation Validation { get; }
 
+    /// <summary>Sets the validity data for the field.</summary>
     void SetValidityData(FieldValidityData data);
+
+    /// <summary>Sets the touched state of the field.</summary>
     void SetTouched(bool value);
+
+    /// <summary>Sets the dirty state of the field.</summary>
     void SetDirty(bool value);
+
+    /// <summary>Sets the filled state of the field.</summary>
     void SetFilled(bool value);
+
+    /// <summary>Sets the focused state of the field.</summary>
     void SetFocused(bool value);
+
+    /// <summary>Returns whether the field should validate on value changes.</summary>
     bool ShouldValidateOnChange();
+
+    /// <summary>Registers a handler to focus the field control.</summary>
     void RegisterFocusHandler(Func<ValueTask> handler);
+
+    /// <summary>Subscribes to field state change notifications.</summary>
     void Subscribe(IFieldStateSubscriber subscriber);
+
+    /// <summary>Unsubscribes from field state change notifications.</summary>
     void Unsubscribe(IFieldStateSubscriber subscriber);
 }
 
-public sealed class FieldRootContext : IFieldRootContext
+/// <summary>
+/// Provides the cascading context for the <see cref="FieldRoot"/> component.
+/// </summary>
+internal sealed class FieldRootContext : IFieldRootContext
 {
     private Action<FieldValidityData>? setValidityDataCallback;
     private Action<bool>? setTouchedCallback;

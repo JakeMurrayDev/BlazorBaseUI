@@ -23,6 +23,7 @@
     private bool hasRendered;
     private bool isMounted;
     private bool jsInitialized;
+    private bool pendingJsInit;
     private DotNetObjectReference<CollapsiblePanel>? dotNetRef;
     private CollapsiblePanelState state = new(false, false, TransitionStatus.Undefined);
     private bool? animationTarget;
@@ -124,7 +125,7 @@
         computedStyleValue = s =>
         {
             var userStyle = StyleValue?.Invoke(s);
-            if (!jsInitialized && (KeepMounted || HiddenUntilFound) && !CurrentOpen)
+            if (!jsInitialized && (pendingJsInit || ((KeepMounted || HiddenUntilFound) && !CurrentOpen)))
             {
                 var cssVars = "--collapsible-panel-height: 0px; --collapsible-panel-width: 0px";
                 return string.IsNullOrEmpty(userStyle) ? cssVars : $"{cssVars}; {userStyle}";
@@ -147,6 +148,7 @@
             {
                 isMounted = true;
                 animationTarget = true;
+                pendingJsInit = !jsInitialized;
             }
             else
             {
@@ -158,6 +160,7 @@
             // Race condition recovery: close animation completed after state was already set to open
             isMounted = true;
             animationTarget = true;
+            pendingJsInit = !jsInitialized;
         }
 
         if (state.Open != currentOpen || state.Disabled != currentDisabled)
@@ -312,6 +315,8 @@
                 await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, false);
                 jsInitialized = true;
             }
+
+            pendingJsInit = false;
 
             await module.InvokeVoidAsync("open", Element.Value, false);
         }

@@ -1,4 +1,3 @@
-@implements IReferencableComponent
 
 <RenderElement TState="SliderRootState"
                Tag="div"
@@ -15,7 +14,7 @@
 @code {
     private const string BaseStyle = "position: relative;";
 
-    private SliderRootState state;
+    private SliderRootState state = null!;
     private RenderElement<SliderRootState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private Func<SliderRootState, string?>? computedStyleValue;
@@ -61,10 +60,7 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        if (Context is not null)
-        {
-            state = Context.State;
-        }
+        state = Context?.State ?? SliderRootState.Default;
 
         computedStyleValue = s =>
         {

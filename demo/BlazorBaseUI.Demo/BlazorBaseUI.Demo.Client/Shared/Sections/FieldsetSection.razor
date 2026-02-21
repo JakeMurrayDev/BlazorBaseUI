@@ -474,8 +474,8 @@
     }
 
     private RenderFragment<RenderProps<FieldsetRootState>> RenderAsDiv =>
-        ctx => @<div @attributes="ctx.Attributes">@ctx.ChildContent</div>;
+        ctx => RenderUtilities.CreateElement("div", ctx);
 
     private RenderFragment<RenderProps<FieldsetLegendState>> RenderLegendAsH3 =>
-        ctx => @<h3 @attributes="ctx.Attributes">@ctx.ChildContent</h3>;
+        ctx => RenderUtilities.CreateElement("h3", ctx);
 }

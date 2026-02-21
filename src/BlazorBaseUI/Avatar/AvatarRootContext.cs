@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Avatar;
 /// <summary>
 /// Provides context for the Avatar component tree.
 /// </summary>
-public sealed class AvatarRootContext
+internal sealed class AvatarRootContext
 {
     /// <summary>The current image loading status.</summary>
     public ImageLoadingStatus ImageLoadingStatus { get; set; }

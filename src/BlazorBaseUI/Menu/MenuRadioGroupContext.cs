@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Menu;
 /// <summary>
 /// Defines the contract for a radio group context that manages single-selection state.
 /// </summary>
-public interface IMenuRadioGroupContext
+internal interface IMenuRadioGroupContext
 {
     /// <summary>
     /// Gets the currently selected value.
@@ -24,7 +24,7 @@ public interface IMenuRadioGroupContext
 /// <summary>
 /// Provides shared state for a <see cref="MenuRadioGroup"/> and its descendant <see cref="MenuRadioItem"/> components.
 /// </summary>
-public sealed class MenuRadioGroupContext : IMenuRadioGroupContext
+internal sealed class MenuRadioGroupContext : IMenuRadioGroupContext
 {
     private Func<object?> getValue = null!;
     private Func<object?, MenuRadioGroupChangeEventArgs, Task> setValue = null!;

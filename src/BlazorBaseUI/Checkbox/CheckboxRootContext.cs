@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Checkbox;
 /// <summary>
 /// Provides cascading state from <see cref="CheckboxRoot"/> to its child components.
 /// </summary>
-public sealed class CheckboxRootContext
+internal sealed class CheckboxRootContext
 {
     /// <summary>
     /// Gets or sets whether the checkbox is checked.

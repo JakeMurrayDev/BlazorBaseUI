@@ -6,7 +6,7 @@ namespace BlazorBaseUI.Tabs;
 /// Provides context for the tabs list, enabling child tab components
 /// to access list-level settings and trigger tab activation.
 /// </summary>
-public interface ITabsListContext
+internal interface ITabsListContext
 {
     /// <summary>
     /// Gets a value indicating whether tabs are activated automatically on focus.
@@ -37,7 +37,7 @@ public interface ITabsListContext
 /// tab activation to the root context.
 /// </summary>
 /// <typeparam name="TValue">The type of value used to identify tabs.</typeparam>
-public sealed class TabsListContext<TValue> : ITabsListContext
+internal sealed class TabsListContext<TValue> : ITabsListContext
 {
     private readonly ITabsRootContext<TValue> rootContext;
 

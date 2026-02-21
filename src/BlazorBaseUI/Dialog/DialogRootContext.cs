@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBaseUI.Dialog;
 
+/// <summary>
+/// Provides the cascading context for dialog and alert dialog root components.
+/// </summary>
 internal sealed class DialogRootContext
 {
     public string RootId { get; set; } = string.Empty;

@@ -1,5 +1,4 @@
 @using Microsoft.JSInterop
-@implements IReferencableComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 
@@ -251,33 +250,12 @@
             attrs["aria-describedby"] = Context.DescriptionId;
         }
 
-        if (Context.Open)
-        {
-            attrs["data-open"] = string.Empty;
-        }
-        else
-        {
-            attrs["data-closed"] = string.Empty;
-        }
-
-        if (Context.TransitionStatus == TransitionStatus.Starting)
-        {
-            attrs["data-starting-style"] = string.Empty;
-        }
-        else if (Context.TransitionStatus == TransitionStatus.Ending)
-        {
-            attrs["data-ending-style"] = string.Empty;
-        }
-
-        if (Context.Nested)
-        {
-            attrs["data-nested"] = string.Empty;
-        }
-
-        if (Context.NestedDialogCount > 0)
-        {
-            attrs["data-nested-dialog-open"] = string.Empty;
-        }
+        attrs["data-open"] = Context.Open;
+        attrs["data-closed"] = !Context.Open;
+        attrs["data-starting-style"] = Context.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = Context.TransitionStatus == TransitionStatus.Ending;
+        attrs["data-nested"] = Context.Nested;
+        attrs["data-nested-dialog-open"] = Context.NestedDialogCount > 0;
 
         var instantValue = Context.InstantType.ToDataAttributeString();
         if (!string.IsNullOrEmpty(instantValue))

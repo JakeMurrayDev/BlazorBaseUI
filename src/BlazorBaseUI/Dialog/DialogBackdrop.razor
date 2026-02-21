@@ -1,5 +1,4 @@
 @using Microsoft.AspNetCore.Components.Web
-@implements IReferencableComponent
 
 <RenderElement TState="DialogBackdropState"
                Tag="div"
@@ -149,23 +148,10 @@
             attrs["hidden"] = true;
         }
 
-        if (Context.Open)
-        {
-            attrs["data-open"] = string.Empty;
-        }
-        else
-        {
-            attrs["data-closed"] = string.Empty;
-        }
-
-        if (Context.TransitionStatus == TransitionStatus.Starting)
-        {
-            attrs["data-starting-style"] = string.Empty;
-        }
-        else if (Context.TransitionStatus == TransitionStatus.Ending)
-        {
-            attrs["data-ending-style"] = string.Empty;
-        }
+        attrs["data-open"] = Context.Open;
+        attrs["data-closed"] = !Context.Open;
+        attrs["data-starting-style"] = Context.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = Context.TransitionStatus == TransitionStatus.Ending;
 
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 

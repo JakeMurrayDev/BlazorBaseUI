@@ -110,7 +110,7 @@
         var disabled = RootContext!.Disabled || Disabled;
 
         attrs["role"] = "group";
-        attrs["data-orientation"] = RootContext.Orientation.ToDataAttributeString();
+        attrs["data-orientation"] = RootContext.Orientation.ToDataAttributeString()!;
         attrs["data-disabled"] = disabled;
 
         componentAttributes = attrs;

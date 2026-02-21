@@ -1,6 +1,5 @@
 @using Microsoft.AspNetCore.Components.Web
 @typeparam TPayload
-@implements IReferencableComponent
 @implements IDisposable
 
 <RenderElement TState="DialogTriggerState"
@@ -197,15 +196,8 @@
         attrs["aria-expanded"] = open ? "true" : "false";
         attrs["id"] = triggerId;
 
-        if (open)
-        {
-            attrs["data-popup-open"] = string.Empty;
-        }
-
-        if (Disabled)
-        {
-            attrs["data-disabled"] = string.Empty;
-        }
+        attrs["data-popup-open"] = open;
+        attrs["data-disabled"] = Disabled;
 
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 

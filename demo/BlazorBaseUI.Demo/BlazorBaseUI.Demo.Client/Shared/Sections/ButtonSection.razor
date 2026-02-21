@@ -1,5 +1,4 @@
 @using BlazorBaseUI.Button
-@using Microsoft.AspNetCore.Components.Rendering
 
 <ComponentShowcase ComponentName="Button"
                    Description="A versatile button component supporting custom tags, ARIA-compliant disabled states, and focus management."
@@ -185,51 +184,26 @@
     private int anchorClicks;
 
     private RenderFragment<RenderProps<ButtonState>> RenderAsSpan => props =>
-        (RenderTreeBuilder builder) =>
-        {
-            builder.OpenElement(0, "span");
-            builder.AddMultipleAttributes(1, props.Attributes);
-            if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
-            builder.AddContent(3, props.ChildContent);
-            builder.CloseElement();
-        };
+        RenderUtilities.CreateElement("span", props);
 
     private RenderFragment<RenderProps<ButtonState>> RenderAsDiv => props =>
-        (RenderTreeBuilder builder) =>
-        {
-            builder.OpenElement(0, "div");
-            builder.AddMultipleAttributes(1, props.Attributes);
-            if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
-            builder.AddContent(3, props.ChildContent);
-            builder.CloseElement();
-        };
+        RenderUtilities.CreateElement("div", props);
 
     private RenderFragment<RenderProps<ButtonState>> RenderAsAnchor => props =>
-        (RenderTreeBuilder builder) =>
-        {
-            builder.OpenElement(0, "a");
-            builder.AddMultipleAttributes(1, props.Attributes);
-            if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
-            builder.AddContent(3, props.ChildContent);
-            builder.CloseElement();
-        };
+        RenderUtilities.CreateElement("a", props);
 
     private RenderFragment<RenderProps<ButtonState>> RenderAsCustomWrapper => props =>
-        (RenderTreeBuilder builder) =>
-        {
-            builder.OpenElement(0, "button");
-            builder.AddMultipleAttributes(1, props.Attributes);
-            if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
-            builder.OpenElement(3, "span");
-            builder.AddAttribute(4, "style", "font-weight: bold;");
-            builder.AddContent(5, props.ChildContent);
-            builder.CloseElement();
-            builder.CloseElement();
-        };
+        RenderUtilities.CreateElement(
+            "button",
+            props.Attributes,
+            props.ElementReferenceCallback,
+            builder =>
+            {
+                builder.OpenElement(0, "span");
+                builder.AddAttribute(1, "style", "font-weight: bold;");
+                builder.AddContent(2, props.ChildContent);
+                builder.CloseElement();
+            });
 
     private async Task HandleLoadingClick()
     {

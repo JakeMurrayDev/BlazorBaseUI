@@ -1,5 +1,9 @@
 namespace BlazorBaseUI.Field;
 
+/// <summary>
+/// Manages validation logic for a <see cref="FieldRoot"/> component, including
+/// custom validation callbacks, debounced change validation, and initial value tracking.
+/// </summary>
 public sealed class FieldValidation : IDisposable
 {
     private readonly Func<FieldValidityData> getValidityData;
@@ -14,6 +18,8 @@ public sealed class FieldValidation : IDisposable
 
     private Timer? debounceTimer;
     private object? pendingValue;
+    private bool initialValueSet;
+    private bool isDisposed;
     private readonly Lock timerLock = new();
 
     public FieldValidation(
@@ -48,13 +54,18 @@ public sealed class FieldValidation : IDisposable
         };
     }
 
+    /// <summary>
+    /// Validates the specified value and updates the field's validity data.
+    /// </summary>
+    /// <param name="value">The value to validate.</param>
+    /// <param name="revalidateOnly">When <see langword="true"/>, skips validation if the field is not already invalid.</param>
     public async Task CommitAsync(object? value, bool revalidateOnly = false)
     {
         var currentData = getValidityData();
 
         if (revalidateOnly && currentData.State.Valid != false)
         {
-            if (!ReferenceEquals(currentData.Value, value))
+            if (!Equals(currentData.Value, value))
             {
                 setValidityData(currentData with { Value = value });
             }
@@ -129,6 +140,10 @@ public sealed class FieldValidation : IDisposable
                !state.TypeMismatch;
     }
 
+    /// <summary>
+    /// Schedules a debounced validation for the specified value.
+    /// </summary>
+    /// <param name="value">The value to validate after the debounce period.</param>
     public void CommitDebounced(object? value)
     {
         lock (timerLock)
@@ -151,25 +166,35 @@ public sealed class FieldValidation : IDisposable
         object? valueToCommit;
         lock (timerLock)
         {
+            if (isDisposed)
+                return;
+
             valueToCommit = pendingValue;
         }
 
         _ = cachedCommitCallback(valueToCommit);
     }
 
+    /// <summary>
+    /// Records the initial value of the field if not already set.
+    /// </summary>
+    /// <param name="value">The initial value to store.</param>
     public void SetInitialValue(object? value)
     {
+        if (initialValueSet)
+            return;
+
+        initialValueSet = true;
         var currentData = getValidityData();
-        if (currentData.InitialValue is null)
-        {
-            setValidityData(currentData with { InitialValue = value });
-        }
+        setValidityData(currentData with { InitialValue = value });
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         lock (timerLock)
         {
+            isDisposed = true;
             debounceTimer?.Dispose();
             debounceTimer = null;
         }

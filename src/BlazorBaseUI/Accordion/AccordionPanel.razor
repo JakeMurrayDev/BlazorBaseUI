@@ -1,4 +1,3 @@
-@namespace BlazorBaseUI.Accordion
 @using Microsoft.JSInterop
 
 @implements IAsyncDisposable
@@ -25,6 +24,7 @@
     private bool hasRendered;
     private bool isMounted;
     private bool jsInitialized;
+    private bool pendingJsInit;
     private DotNetObjectReference<AccordionPanel>? dotNetRef;
     private AccordionPanelState state = null!;
     private bool? animationTarget;
@@ -136,7 +136,7 @@
         computedStyleValue = s =>
         {
             var userStyle = StyleValue?.Invoke(s);
-            if (!jsInitialized && (ResolvedKeepMounted || ResolvedHiddenUntilFound) && !CurrentOpen)
+            if (!jsInitialized && (pendingJsInit || ((ResolvedKeepMounted || ResolvedHiddenUntilFound) && !CurrentOpen)))
             {
                 var cssVars = $"--{CssVarPrefix}-height: 0px; --{CssVarPrefix}-width: 0px";
                 return string.IsNullOrEmpty(userStyle) ? cssVars : $"{cssVars}; {userStyle}";
@@ -161,6 +161,7 @@
             {
                 isMounted = true;
                 animationTarget = true;
+                pendingJsInit = !jsInitialized;
             }
             else
             {
@@ -171,6 +172,7 @@
         {
             isMounted = true;
             animationTarget = true;
+            pendingJsInit = !jsInitialized;
         }
 
         if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != currentIndex || state.Orientation != currentOrientation)
@@ -314,6 +316,8 @@
                 await module.InvokeVoidAsync("initialize", Element.Value, dotNetRef, false, CssVarPrefix);
                 jsInitialized = true;
             }
+
+            pendingJsInit = false;
 
             await module.InvokeVoidAsync("open", Element.Value, false);
         }

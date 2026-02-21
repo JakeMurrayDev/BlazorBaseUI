@@ -4,7 +4,7 @@ namespace BlazorBaseUI.Progress;
 /// The context shared by all progress child components, providing access to the
 /// root component's state and formatted values.
 /// </summary>
-public sealed class ProgressRootContext
+internal sealed class ProgressRootContext
 {
     /// <summary>
     /// Gets or sets the formatted value of the component.

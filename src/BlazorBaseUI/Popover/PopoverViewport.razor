@@ -1,4 +1,3 @@
-@implements IReferencableComponent
 
 <RenderElement TState="PopoverViewportState"
                Tag="div"
@@ -68,24 +67,10 @@
     {
         var attrs = new Dictionary<string, object>();
 
-        if (RootContext?.GetOpen() ?? false)
-        {
-            attrs["data-open"] = string.Empty;
-        }
-        else
-        {
-            attrs["data-closed"] = string.Empty;
-        }
-
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
-        if (transitionStatus == TransitionStatus.Starting)
-        {
-            attrs["data-starting-style"] = string.Empty;
-        }
-        else if (transitionStatus == TransitionStatus.Ending)
-        {
-            attrs["data-ending-style"] = string.Empty;
-        }
+        attrs["data-open"] = state.Open;
+        attrs["data-closed"] = !state.Open;
+        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
+        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
 
         componentAttributes = attrs;
     }

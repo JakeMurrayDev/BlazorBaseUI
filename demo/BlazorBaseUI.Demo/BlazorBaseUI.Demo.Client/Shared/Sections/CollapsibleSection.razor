@@ -235,10 +235,10 @@
     // ── Render function helpers ─────────────────────────────
 
     private RenderFragment<RenderProps<CollapsibleRootState>> RenderRootAsNav =>
-        ctx => @<nav @attributes="ctx.Attributes">@ctx.ChildContent</nav>;
+        ctx => RenderUtilities.CreateElement("nav", ctx);
 
     private RenderFragment<RenderProps<CollapsibleRootState>> RenderTriggerAsDiv =>
-        ctx => @<div @attributes="ctx.Attributes">@ctx.ChildContent</div>;
+        ctx => RenderUtilities.CreateElement("div", ctx);
 
     private RenderFragment<RenderProps<CollapsibleRootState>> RenderTriggerWithState =>
         ctx => @<button @attributes="ctx.Attributes" title="@($"Open: {ctx.State.Open}")">@ctx.ChildContent</button>;
@@ -354,6 +354,6 @@
 
 @code {
     private RenderFragment<RenderProps<CollapsibleRootState>> RenderRootAsNav =>
-        ctx => @<nav @attributes=""ctx.Attributes"">@ctx.ChildContent</nav>;
+        ctx => RenderUtilities.CreateElement(""nav"", ctx);
 }";
 }

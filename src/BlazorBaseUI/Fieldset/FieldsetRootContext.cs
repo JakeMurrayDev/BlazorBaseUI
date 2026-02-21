@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Fieldset;
 /// <summary>
 /// Provides contextual information for components within a <see cref="FieldsetRoot"/>.
 /// </summary>
-public interface IFieldsetRootContext
+internal interface IFieldsetRootContext
 {
     /// <summary>
     /// Gets the ID of the associated <see cref="FieldsetLegend"/>.
@@ -25,7 +25,7 @@ public interface IFieldsetRootContext
 /// <summary>
 /// Default implementation of <see cref="IFieldsetRootContext"/>.
 /// </summary>
-public sealed class FieldsetRootContext : IFieldsetRootContext
+internal sealed class FieldsetRootContext : IFieldsetRootContext
 {
     /// <inheritdoc />
     public string? LegendId { get; set; }

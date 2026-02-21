@@ -4,7 +4,6 @@
 @using BlazorBaseUI.Field
 @using BlazorBaseUI.Utilities.LabelableProvider
 @using BlazorBaseUI.Form
-@implements IReferencableComponent
 @implements IDisposable
 
 <RenderElement TState="SliderThumbState"
@@ -24,7 +23,7 @@
     private string inputId = null!;
     private ElementReference thumbElement;
     private ElementReference inputElement;
-    private SliderThumbState state;
+    private SliderThumbState state = null!;
     private RenderElement<SliderThumbState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private Func<SliderThumbState, string?>? computedStyleValue;

@@ -1,7 +1,6 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using BlazorBaseUI.DirectionProvider
-@implements IReferencableComponent
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 
@@ -25,7 +24,7 @@
     private bool isProcessingPointerDown;
     private DotNetObjectReference<SliderControl>? dotNetRef;
     private ElementReference element;
-    private SliderRootState state;
+    private SliderRootState state = null!;
     private RenderElement<SliderRootState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private Func<SliderRootState, string?>? computedStyleValue;

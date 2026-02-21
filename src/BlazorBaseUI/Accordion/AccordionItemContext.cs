@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Accordion;
 /// <summary>
 /// Defines the context contract for the <see cref="AccordionItem{TValue}"/> component.
 /// </summary>
-public interface IAccordionItemContext
+internal interface IAccordionItemContext
 {
     /// <summary>
     /// Determines whether the accordion item is open.
@@ -62,7 +62,7 @@ public interface IAccordionItemContext
 /// Provides the cascading context for the <see cref="AccordionItem{TValue}"/> component.
 /// </summary>
 /// <typeparam name="TValue">The type of the value used to identify accordion items.</typeparam>
-public sealed class AccordionItemContext<TValue> : IAccordionItemContext
+internal sealed class AccordionItemContext<TValue> : IAccordionItemContext
 {
     /// <summary>The parent root context.</summary>
     public AccordionRootContext<TValue> RootContext { get; set; } = null!;

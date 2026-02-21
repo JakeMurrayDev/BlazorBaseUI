@@ -8,7 +8,7 @@ namespace BlazorBaseUI.Slider;
 /// <param name="InputId">Gets the ID of the hidden range input element.</param>
 /// <param name="ThumbElement">Gets the <see cref="ElementReference"/> for the thumb container element.</param>
 /// <param name="InputElement">Gets the <see cref="ElementReference"/> for the hidden range input element.</param>
-public sealed record ThumbMetadata(
+internal sealed record ThumbMetadata(
     string InputId,
     ElementReference ThumbElement,
     ElementReference InputElement);

@@ -1,4 +1,3 @@
-@implements IReferencableComponent
 
 <RenderElement TState="PopoverArrowState"
                Tag="div"
@@ -86,22 +85,13 @@
         var attrs = new Dictionary<string, object>();
 
         attrs["aria-hidden"] = "true";
-        attrs["data-side"] = (PositionerContext?.Side ?? Side.Bottom).ToDataAttributeString();
-        attrs["data-align"] = (PositionerContext?.Align ?? Align.Center).ToDataAttributeString();
+        attrs["data-side"] = (PositionerContext?.Side ?? Side.Bottom).ToDataAttributeString()!;
+        attrs["data-align"] = (PositionerContext?.Align ?? Align.Center).ToDataAttributeString()!;
 
-        if (RootContext?.GetOpen() ?? false)
-        {
-            attrs["data-open"] = string.Empty;
-        }
-        else
-        {
-            attrs["data-closed"] = string.Empty;
-        }
-
-        if (state.Uncentered)
-        {
-            attrs["data-uncentered"] = string.Empty;
-        }
+        var isOpen = RootContext?.GetOpen() ?? false;
+        attrs["data-open"] = isOpen;
+        attrs["data-closed"] = !isOpen;
+        attrs["data-uncentered"] = state.Uncentered;
 
         componentAttributes = attrs;
     }
