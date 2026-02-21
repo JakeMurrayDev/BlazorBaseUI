@@ -371,9 +371,9 @@
     {
         if (HasHandle)
         {
-            lastOpenReason = reason;
             if (open)
             {
+                lastOpenReason = reason;
                 Handle!.RequestOpen(triggerId, reason);
             }
             else

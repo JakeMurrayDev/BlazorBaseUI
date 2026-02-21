@@ -19,6 +19,7 @@ public sealed class FieldValidation : IDisposable
     private Timer? debounceTimer;
     private object? pendingValue;
     private bool initialValueSet;
+    private bool isDisposed;
     private readonly Lock timerLock = new();
 
     public FieldValidation(
@@ -165,6 +166,9 @@ public sealed class FieldValidation : IDisposable
         object? valueToCommit;
         lock (timerLock)
         {
+            if (isDisposed)
+                return;
+
             valueToCommit = pendingValue;
         }
 
@@ -190,6 +194,7 @@ public sealed class FieldValidation : IDisposable
     {
         lock (timerLock)
         {
+            isDisposed = true;
             debounceTimer?.Dispose();
             debounceTimer = null;
         }
