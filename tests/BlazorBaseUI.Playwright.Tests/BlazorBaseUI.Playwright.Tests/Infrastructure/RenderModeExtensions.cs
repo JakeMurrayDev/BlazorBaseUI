@@ -764,6 +764,31 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Meter-specific parameters
+    public TestPageUrlBuilder WithMeterValue(double value)
+    {
+        queryParams["value"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
+    public TestPageUrlBuilder WithMeterFormat(string format)
+    {
+        queryParams["format"] = format;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowMeterLabel(bool value)
+    {
+        queryParams["showLabel"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowMeterValue(bool value)
+    {
+        queryParams["showValue"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     // NumberField-specific parameters
     public TestPageUrlBuilder WithNumberFieldDefaultValue(double value)
     {

@@ -1,0 +1,125 @@
+@using System.Globalization
+
+<RenderElement TState="MeterRootState"
+               Tag="div"
+               State="Context?.State"
+               Enabled="Context is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private Func<MeterRootState, string?>? computedStyleValue;
+    private RenderElement<MeterRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private MeterRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets a render template that replaces the component's default element
+    /// with a different tag, or composes it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MeterRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MeterRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MeterRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (Context is null)
+        {
+            return;
+        }
+
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            var indicatorStyle = GetIndicatorStyle();
+            return CombineWithIndicatorStyle(userStyle, indicatorStyle);
+        };
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        componentAttributes = new Dictionary<string, object>();
+    }
+
+    private string? GetIndicatorStyle()
+    {
+        if (Context is null)
+        {
+            return null;
+        }
+
+        var percentageValue = ValueToPercent(Context.Value, Context.Min, Context.Max);
+
+        return string.Create(CultureInfo.InvariantCulture,
+            $"inset-inline-start:0;height:inherit;width:{percentageValue}%");
+    }
+
+    private static double ValueToPercent(double value, double min, double max)
+    {
+        if (max - min == 0)
+        {
+            return 0;
+        }
+
+        return ((value - min) / (max - min)) * 100;
+    }
+
+    private static string? CombineWithIndicatorStyle(string? baseStyle, string? indicatorStyle)
+    {
+        if (string.IsNullOrEmpty(indicatorStyle))
+        {
+            return baseStyle;
+        }
+
+        if (string.IsNullOrEmpty(baseStyle))
+        {
+            return indicatorStyle;
+        }
+
+        var trimmed = baseStyle.TrimEnd();
+        if (!trimmed.EndsWith(';'))
+        {
+            trimmed += ";";
+        }
+
+        return trimmed + indicatorStyle;
+    }
+}
