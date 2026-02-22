@@ -195,7 +195,7 @@
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask?.IsValueCreated == true && Element.HasValue && hasRendered && !string.IsNullOrEmpty(positionerId))
+        if (moduleTask?.IsValueCreated == true && hasRendered && !string.IsNullOrEmpty(positionerId))
         {
             try
             {

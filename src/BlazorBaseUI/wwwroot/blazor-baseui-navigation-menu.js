@@ -90,8 +90,8 @@ export function initializeRoot(rootId, dotNetRef, orientation, delay, closeDelay
         rootId,
         dotNetRef,
         orientation,
-        delay: delay || 200,
-        closeDelay: closeDelay || 300,
+        delay: delay ?? 200,
+        closeDelay: closeDelay ?? 300,
         isOpen: false,
         triggerElements: new Map(),
         popupElement: null,
@@ -123,6 +123,16 @@ export function disposeRoot(rootId) {
                     removeContentHoverListeners(contentEl);
                 }
             }
+        }
+
+        // Remove hover listeners from popup element
+        if (rootState.popupElement) {
+            removePopupHoverListeners(rootState.popupElement);
+        }
+
+        // Remove hover listeners from viewport element
+        if (rootState.viewportElement) {
+            removeViewportHoverListeners(rootState.viewportElement);
         }
 
         state.roots.delete(rootId);
@@ -260,6 +270,11 @@ export function setPopupElement(rootId, element) {
     const rootState = state.roots.get(rootId);
     if (!rootState) return;
 
+    // Clean up old popup listeners
+    if (rootState.popupElement) {
+        removePopupHoverListeners(rootState.popupElement);
+    }
+
     rootState.popupElement = element;
 
     // Cancel close timer when entering popup area
@@ -281,9 +296,25 @@ export function setPopupElement(rootId, element) {
     }
 }
 
+function removePopupHoverListeners(element) {
+    if (element._navMenuPopupEnter) {
+        element.removeEventListener('mouseenter', element._navMenuPopupEnter);
+        delete element._navMenuPopupEnter;
+    }
+    if (element._navMenuPopupLeave) {
+        element.removeEventListener('mouseleave', element._navMenuPopupLeave);
+        delete element._navMenuPopupLeave;
+    }
+}
+
 export function setViewportElement(rootId, element) {
     const rootState = state.roots.get(rootId);
     if (!rootState) return;
+
+    // Clean up old viewport listeners
+    if (rootState.viewportElement) {
+        removeViewportHoverListeners(rootState.viewportElement);
+    }
 
     rootState.viewportElement = element;
 
@@ -299,8 +330,21 @@ export function setViewportElement(rootId, element) {
             }, rootState.closeDelay);
         };
 
+        element._navMenuViewportEnter = onEnter;
+        element._navMenuViewportLeave = onLeave;
         element.addEventListener('mouseenter', onEnter);
         element.addEventListener('mouseleave', onLeave);
+    }
+}
+
+function removeViewportHoverListeners(element) {
+    if (element._navMenuViewportEnter) {
+        element.removeEventListener('mouseenter', element._navMenuViewportEnter);
+        delete element._navMenuViewportEnter;
+    }
+    if (element._navMenuViewportLeave) {
+        element.removeEventListener('mouseleave', element._navMenuViewportLeave);
+        delete element._navMenuViewportLeave;
     }
 }
 
@@ -332,7 +376,8 @@ export async function initializePositioner(
         positionerElement,
         anchorElement,
         cleanup: null,
-        arrowElement
+        arrowElement,
+        options: { side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidance }
     };
 
     state.positioners.set(id, positionerState);
@@ -340,19 +385,7 @@ export async function initializePositioner(
     await floating.computeAndApplyPosition(
         positionerElement,
         anchorElement,
-        {
-            side,
-            align,
-            sideOffset,
-            alignOffset,
-            collisionPadding,
-            collisionBoundary,
-            arrowPadding,
-            arrowElement,
-            sticky,
-            positionMethod,
-            collisionAvoidance
-        }
+        positionerState.options
     );
 
     if (!disableAnchorTracking) {
@@ -361,21 +394,9 @@ export async function initializePositioner(
             positionerElement,
             () => {
                 floating.computeAndApplyPosition(
-                    positionerElement,
-                    anchorElement,
-                    {
-                        side,
-                        align,
-                        sideOffset,
-                        alignOffset,
-                        collisionPadding,
-                        collisionBoundary,
-                        arrowPadding,
-                        arrowElement: positionerState.arrowElement,
-                        sticky,
-                        positionMethod,
-                        collisionAvoidance
-                    }
+                    positionerState.positionerElement,
+                    positionerState.anchorElement,
+                    { ...positionerState.options, arrowElement: positionerState.arrowElement }
                 );
             }
         );
@@ -404,24 +425,13 @@ export async function updatePosition(
 
     positionerState.arrowElement = arrowElement;
     positionerState.anchorElement = anchorElement;
+    positionerState.options = { side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidance };
 
     const floating = await ensureFloatingModule();
     await floating.computeAndApplyPosition(
         positionerState.positionerElement,
         anchorElement,
-        {
-            side,
-            align,
-            sideOffset,
-            alignOffset,
-            collisionPadding,
-            collisionBoundary,
-            arrowPadding,
-            arrowElement,
-            sticky,
-            positionMethod,
-            collisionAvoidance
-        }
+        positionerState.options
     );
 }
 

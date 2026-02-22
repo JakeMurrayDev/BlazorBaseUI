@@ -19,7 +19,7 @@ public abstract class NavigationMenuTestsBase : TestBase
 
     #region Helper Methods
 
-    protected async Task ClickTriggerAndWaitAsync(string triggerTestId, string contentTestId)
+    protected async Task ClickTriggerAndWaitAsync(string triggerTestId)
     {
         var trigger = GetByTestId(triggerTestId);
         await trigger.ClickAsync();
@@ -187,7 +187,10 @@ public abstract class NavigationMenuTestsBase : TestBase
         });
 
         var lastChanged = GetByTestId("last-changed-value");
-        await Assertions.Expect(lastChanged).ToHaveTextAsync("item1");
+        await Assertions.Expect(lastChanged).ToHaveTextAsync("item1", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 5000 * TimeoutMultiplier
+        });
     }
 
     #endregion
