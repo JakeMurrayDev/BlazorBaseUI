@@ -1,0 +1,12 @@
+namespace BlazorBaseUI.Tests.Contracts.NavigationMenu;
+
+public interface INavigationMenuLinkContract
+{
+    Task RendersAnchorByDefault();
+    Task ForwardsAdditionalAttributes();
+    Task HasAriaCurrentPageWhenActive();
+    Task NoAriaCurrentWhenInactive();
+    Task HasHref();
+    Task AppliesClassValue();
+    Task RequiresContext();
+}

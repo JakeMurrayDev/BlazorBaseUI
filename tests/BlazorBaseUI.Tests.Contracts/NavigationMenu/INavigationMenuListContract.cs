@@ -1,0 +1,9 @@
+namespace BlazorBaseUI.Tests.Contracts.NavigationMenu;
+
+public interface INavigationMenuListContract
+{
+    Task RendersUlByDefault();
+    Task ForwardsAdditionalAttributes();
+    Task AppliesClassValue();
+    Task RequiresContext();
+}

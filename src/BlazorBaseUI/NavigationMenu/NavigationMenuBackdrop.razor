@@ -1,0 +1,92 @@
+<RenderElement TState="NavigationMenuBackdropState"
+               Tag="div"
+               State="state"
+               Enabled="RootContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes" />
+
+@code {
+    private NavigationMenuBackdropState state;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private NavigationMenuRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<NavigationMenuBackdropState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<NavigationMenuBackdropState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<NavigationMenuBackdropState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.Value is not null;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        state = new NavigationMenuBackdropState(open, transitionStatus);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "presentation";
+        attrs["style"] = "user-select: none; -webkit-user-select: none";
+
+        var mounted = RootContext?.Mounted ?? false;
+        if (!mounted)
+        {
+            attrs["hidden"] = true;
+        }
+
+        if (state.Open)
+        {
+            attrs["data-open"] = true;
+        }
+        else
+        {
+            attrs["data-closed"] = true;
+        }
+
+        if (state.TransitionStatus == TransitionStatus.Starting)
+        {
+            attrs["data-starting-style"] = true;
+        }
+        else if (state.TransitionStatus == TransitionStatus.Ending)
+        {
+            attrs["data-ending-style"] = true;
+        }
+
+        componentAttributes = attrs;
+    }
+}

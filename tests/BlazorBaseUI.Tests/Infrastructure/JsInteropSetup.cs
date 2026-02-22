@@ -287,6 +287,23 @@ public static class JsInteropSetup
         module.SetupVoid("disposeScrubArea", _ => true).SetVoidResult();
     }
 
+    private const string NavigationMenuModule = "./_content/BlazorBaseUI/blazor-baseui-navigation-menu.js";
+
+    public static void SetupNavigationMenuModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(NavigationMenuModule);
+        module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("setRootValue", _ => true).SetVoidResult();
+        module.SetupVoid("setTriggerElement", _ => true).SetVoidResult();
+        module.SetupVoid("disposeTriggerElement", _ => true).SetVoidResult();
+        module.SetupVoid("setPopupElement", _ => true).SetVoidResult();
+        module.SetupVoid("setViewportElement", _ => true).SetVoidResult();
+        module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
+        module.SetupVoid("updatePosition", _ => true).SetVoidResult();
+        module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
+    }
+
     private const string ToggleModule = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";
 
     public static void SetupToggleModule(BunitJSInterop jsInterop)

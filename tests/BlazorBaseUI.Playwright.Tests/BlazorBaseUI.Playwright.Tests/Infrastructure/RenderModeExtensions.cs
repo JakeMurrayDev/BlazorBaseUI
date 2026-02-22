@@ -826,6 +826,38 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Navigation Menu
+
+    public TestPageUrlBuilder WithNavDefaultValue(string value)
+    {
+        queryParams["defaultValue"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNavDelay(int value)
+    {
+        queryParams["delay"] = value.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNavCloseDelay(int value)
+    {
+        queryParams["closeDelay"] = value.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithNavOrientation(string value)
+    {
+        queryParams["orientation"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowNestedNav(bool value)
+    {
+        queryParams["showNestedNav"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

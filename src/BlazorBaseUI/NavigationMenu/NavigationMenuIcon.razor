@@ -1,0 +1,86 @@
+<RenderElement TState="NavigationMenuIconState"
+               Tag="span"
+               State="state"
+               Enabled="RootContext is not null && ItemContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="@(ChildContent ?? DefaultContent)"
+               @attributes="AdditionalAttributes" />
+
+@code {
+    private NavigationMenuIconState state;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private static readonly RenderFragment DefaultContent = builder => builder.AddContent(0, "\u25bc");
+
+    [CascadingParameter]
+    private NavigationMenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private NavigationMenuItemContext? ItemContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<NavigationMenuIconState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<NavigationMenuIconState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<NavigationMenuIconState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = IsItemActive();
+        state = new NavigationMenuIconState(open);
+        BuildComponentAttributes();
+    }
+
+    private bool IsItemActive()
+    {
+        if (RootContext is null || ItemContext is null)
+        {
+            return false;
+        }
+
+        return RootContext.GetValue() == ItemContext.Value;
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["aria-hidden"] = "true";
+
+        if (state.Open)
+        {
+            attrs["data-popup-open"] = true;
+        }
+
+        componentAttributes = attrs;
+    }
+}
