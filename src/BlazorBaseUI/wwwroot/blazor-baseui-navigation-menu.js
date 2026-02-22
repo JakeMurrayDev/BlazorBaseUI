@@ -75,6 +75,15 @@ function handleGlobalMouseDown(e) {
             isInside = true;
         }
 
+        if (!isInside && rootState.contentElements) {
+            for (const [, contentEl] of rootState.contentElements) {
+                if (contentEl && contentEl.contains(e.target)) {
+                    isInside = true;
+                    break;
+                }
+            }
+        }
+
         if (!isInside) {
             rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
         }
@@ -350,7 +359,9 @@ function removeViewportHoverListeners(element) {
 
 // --- Positioning ---
 
-let positionerIdCounter = 0;
+if (state.positionerIdCounter == null) {
+    state.positionerIdCounter = 0;
+}
 
 export async function initializePositioner(
     positionerElement,
@@ -369,7 +380,7 @@ export async function initializePositioner(
     collisionAvoidance
 ) {
     const floating = await ensureFloatingModule();
-    const id = `nav-pos-${++positionerIdCounter}`;
+    const id = `nav-pos-${++state.positionerIdCounter}`;
 
     const positionerState = {
         id,

@@ -23,7 +23,7 @@ public abstract class NavigationMenuTestsBase : TestBase
     {
         var trigger = GetByTestId(triggerTestId);
         await trigger.ClickAsync();
-        await WaitForDelayAsync(200);
+        await WaitForDelayAsync((int)(200 * TimeoutMultiplier));
     }
 
     protected async Task WaitForActiveValueAsync(string expectedValue)
