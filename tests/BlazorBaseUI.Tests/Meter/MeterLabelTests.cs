@@ -163,13 +163,14 @@ public class MeterLabelTests : BunitContext, IMeterLabelContract
     [Fact]
     public Task CleansUpLabelIdOnDispose()
     {
-        // Render with label present
-        var cutWithLabel = Render(builder =>
+        var showLabel = true;
+        var cut = Render(builder =>
         {
             builder.OpenComponent<MeterRoot>(0);
             builder.AddAttribute(1, "Value", 50.0);
             builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
             {
+                if (!showLabel) return;
                 innerBuilder.OpenComponent<MeterLabel>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b =>
                 {
@@ -180,23 +181,15 @@ public class MeterLabelTests : BunitContext, IMeterLabelContract
             builder.CloseComponent();
         });
 
-        var meter = cutWithLabel.Find("[role='meter']");
+        var meter = cut.Find("[role='meter']");
         meter.HasAttribute("aria-labelledby").ShouldBeTrue();
 
-        // Render without label - verifies that a meter root without label has no aria-labelledby
-        var cutWithoutLabel = Render(builder =>
-        {
-            builder.OpenComponent<MeterRoot>(0);
-            builder.AddAttribute(1, "Value", 50.0);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
-            {
-                // No label rendered
-            }));
-            builder.CloseComponent();
-        });
+        // Remove label from the same tree to trigger MeterLabel.Dispose()
+        showLabel = false;
+        cut.Render();
+        cut.FindComponent<MeterRoot>().Render();
 
-        var meterNoLabel = cutWithoutLabel.Find("[role='meter']");
-        meterNoLabel.HasAttribute("aria-labelledby").ShouldBeFalse();
+        meter.HasAttribute("aria-labelledby").ShouldBeFalse();
         return Task.CompletedTask;
     }
 }
