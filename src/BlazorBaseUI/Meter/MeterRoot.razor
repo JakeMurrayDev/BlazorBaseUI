@@ -97,25 +97,6 @@
     public ElementReference? Element => renderElementReference?.Element;
 
     /// <inheritdoc />
-    protected override void OnInitialized()
-    {
-        var formattedValue = FormatValue(Value);
-        ariaValueText = ComputeAriaValueText(formattedValue, Value);
-
-        context = new MeterRootContext
-        {
-            FormattedValue = formattedValue,
-            Max = Max,
-            Min = Min,
-            Value = Value,
-            State = state,
-            SetLabelIdAction = SetLabelId
-        };
-
-        BuildComponentAttributes();
-    }
-
-    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         var formattedValue = FormatValue(Value);
@@ -138,16 +119,16 @@
     {
         var attrs = new Dictionary<string, object>();
 
-        attrs["role"] = "meter";
-        attrs["aria-valuemin"] = Min;
-        attrs["aria-valuemax"] = Max;
-        attrs["aria-valuenow"] = Value;
-        attrs["aria-valuetext"] = ariaValueText;
-
         if (!string.IsNullOrEmpty(labelId))
         {
             attrs["aria-labelledby"] = labelId;
         }
+
+        attrs["aria-valuemax"] = Max;
+        attrs["aria-valuemin"] = Min;
+        attrs["aria-valuenow"] = Value;
+        attrs["aria-valuetext"] = ariaValueText;
+        attrs["role"] = "meter";
 
         componentAttributes = attrs;
     }

@@ -78,8 +78,16 @@
 
     private void BuildResolvedContent()
     {
-        resolvedContent = ChildContent is not null
-            ? ChildContent(Context!.FormattedValue, Context.Value)
-            : (RenderFragment)(b => b.AddContent(0, Context!.FormattedValue));
+        if (ChildContent is not null)
+        {
+            resolvedContent = ChildContent(Context!.FormattedValue, Context.Value);
+            return;
+        }
+
+        var displayText = !string.IsNullOrEmpty(Context!.FormattedValue)
+            ? Context.FormattedValue
+            : Context.Value.ToString();
+
+        resolvedContent = b => b.AddContent(0, displayText);
     }
 }
