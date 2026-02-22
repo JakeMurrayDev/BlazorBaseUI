@@ -1,0 +1,175 @@
+@using System.Globalization
+
+<CascadingValue Value="context">
+    <RenderElement TState="MeterRootState"
+                   Tag="div"
+                   State="state"
+                   Render="Render"
+                   ClassValue="ClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private string? labelId;
+    private string ariaValueText = string.Empty;
+    private MeterRootContext? context;
+    private MeterRootState state = new();
+    private RenderElement<MeterRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    /// <summary>
+    /// Gets or sets the current value.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public double Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the minimum value.
+    /// Defaults to <c>0</c>.
+    /// </summary>
+    [Parameter]
+    public double Min { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the maximum value.
+    /// Defaults to <c>100</c>.
+    /// </summary>
+    [Parameter]
+    public double Max { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets the format string used to display the value.
+    /// </summary>
+    [Parameter]
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// Gets or sets the format provider used to format the value.
+    /// </summary>
+    [Parameter]
+    public IFormatProvider? FormatProvider { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns a string value that provides a human-readable text
+    /// alternative for the current value of the meter.
+    /// </summary>
+    [Parameter]
+    public Func<string, double, string>? GetAriaValueText { get; set; }
+
+    /// <summary>
+    /// Gets or sets a render template that replaces the component's default element
+    /// with a different tag, or composes it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MeterRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MeterRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MeterRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var formattedValue = FormatValue(Value);
+        ariaValueText = ComputeAriaValueText(formattedValue, Value);
+
+        context = new MeterRootContext
+        {
+            FormattedValue = formattedValue,
+            Max = Max,
+            Min = Min,
+            Value = Value,
+            State = state,
+            SetLabelIdAction = SetLabelId
+        };
+
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        if (!string.IsNullOrEmpty(labelId))
+        {
+            attrs["aria-labelledby"] = labelId;
+        }
+
+        attrs["aria-valuemax"] = Max;
+        attrs["aria-valuemin"] = Min;
+        attrs["aria-valuenow"] = Value;
+        attrs["aria-valuetext"] = ariaValueText;
+        attrs["role"] = "meter";
+
+        componentAttributes = attrs;
+    }
+
+    private string ComputeAriaValueText(string formattedValue, double value)
+    {
+        if (GetAriaValueText is not null)
+        {
+            return GetAriaValueText(formattedValue, value);
+        }
+
+        if (!string.IsNullOrEmpty(Format))
+        {
+            return formattedValue;
+        }
+
+        return $"{value}%";
+    }
+
+    private string FormatValue(double value)
+    {
+        var provider = FormatProvider ?? CultureInfo.CurrentCulture;
+
+        if (!string.IsNullOrEmpty(Format))
+        {
+            return value.ToString(Format, provider);
+        }
+
+        var percentage = value / 100.0;
+        return percentage.ToString("P0", provider);
+    }
+
+    private void SetLabelId(string? id)
+    {
+        if (labelId == id)
+        {
+            return;
+        }
+
+        labelId = id;
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+}

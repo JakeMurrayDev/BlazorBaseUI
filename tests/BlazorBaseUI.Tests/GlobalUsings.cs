@@ -43,4 +43,6 @@ global using BlazorBaseUI.NumberField;
 global using BlazorBaseUI.Tests.Contracts.NumberField;
 global using BlazorBaseUI.Input;
 global using BlazorBaseUI.Tests.Contracts.Input;
+global using BlazorBaseUI.Meter;
+global using BlazorBaseUI.Tests.Contracts.Meter;
 global using BlazorBaseUI.Tests.Infrastructure;

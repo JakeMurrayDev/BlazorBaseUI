@@ -1,0 +1,11 @@
+namespace BlazorBaseUI.Tests.Contracts.Meter;
+
+public interface IMeterTrackContract
+{
+    // Rendering
+    Task RendersAsDivByDefault();
+    Task RendersWithCustomRender();
+    Task ForwardsAdditionalAttributes();
+    Task AppliesClassValue();
+    Task AppliesStyleValue();
+}
