@@ -387,7 +387,6 @@ export async function initializePositioner(
         positionerElement,
         anchorElement,
         cleanup: null,
-        arrowElement,
         options: { side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidance }
     };
 
@@ -407,7 +406,7 @@ export async function initializePositioner(
                 floating.computeAndApplyPosition(
                     positionerState.positionerElement,
                     positionerState.anchorElement,
-                    { ...positionerState.options, arrowElement: positionerState.arrowElement }
+                    positionerState.options
                 );
             }
         );
@@ -434,7 +433,7 @@ export async function updatePosition(
     const positionerState = state.positioners.get(positionerId);
     if (!positionerState) return;
 
-    positionerState.arrowElement = arrowElement;
+    const anchorChanged = anchorElement !== positionerState.anchorElement;
     positionerState.anchorElement = anchorElement;
     positionerState.options = { side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidance };
 
@@ -444,6 +443,21 @@ export async function updatePosition(
         anchorElement,
         positionerState.options
     );
+
+    if (anchorChanged && positionerState.cleanup) {
+        positionerState.cleanup();
+        positionerState.cleanup = floating.autoUpdate(
+            anchorElement,
+            positionerState.positionerElement,
+            () => {
+                floating.computeAndApplyPosition(
+                    positionerState.positionerElement,
+                    positionerState.anchorElement,
+                    positionerState.options
+                );
+            }
+        );
+    }
 }
 
 export function disposePositioner(positionerId) {
