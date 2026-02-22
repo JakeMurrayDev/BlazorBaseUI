@@ -1,0 +1,122 @@
+<RenderElement TState="NavigationMenuContentState"
+               Tag="div"
+               State="state"
+               Enabled="RootContext is not null && ItemContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private NavigationMenuContentState state;
+    private RenderElement<NavigationMenuContentState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private NavigationMenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private NavigationMenuItemContext? ItemContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<NavigationMenuContentState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<NavigationMenuContentState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<NavigationMenuContentState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && ItemContext is not null)
+        {
+            RootContext?.SetContentElement(ItemContext.Value, renderElementReference?.Element);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = IsItemActive();
+        var activationDirection = RootContext?.ActivationDirection ?? ActivationDirection.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        state = new NavigationMenuContentState(open, activationDirection, transitionStatus);
+        BuildComponentAttributes();
+    }
+
+    private bool IsItemActive()
+    {
+        if (RootContext is null || ItemContext is null)
+        {
+            return false;
+        }
+
+        return RootContext.GetValue() == ItemContext.Value;
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+        var mounted = RootContext?.GetMounted() ?? false;
+
+        if (state.Open)
+        {
+            attrs["data-open"] = true;
+        }
+        else
+        {
+            attrs["data-closed"] = true;
+            attrs["hidden"] = true;
+
+            if (mounted)
+            {
+                attrs["style"] = "position: absolute; top: 0; left: 0";
+                attrs["inert"] = true;
+            }
+        }
+
+        var dirAttr = state.ActivationDirection.ToDataAttributeString();
+        if (!string.IsNullOrEmpty(dirAttr))
+        {
+            attrs["data-activation-direction"] = dirAttr;
+        }
+
+        if (state.TransitionStatus == TransitionStatus.Starting)
+        {
+            attrs["data-starting-style"] = true;
+        }
+        else if (state.TransitionStatus == TransitionStatus.Ending)
+        {
+            attrs["data-ending-style"] = true;
+        }
+
+        componentAttributes = attrs;
+    }
+}
