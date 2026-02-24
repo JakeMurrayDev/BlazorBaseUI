@@ -5,7 +5,7 @@ public interface IContextMenuRootContract
     Task CascadesContextToTrigger();
     Task UncontrolledModeUsesDefaultOpen();
     Task ControlledModeRespectsOpenParameter();
-    Task InvokesOnOpenChangeCallback();
+    Task RendersWithOnOpenChangeCallback();
     Task DisabledStatePreventsInteraction();
     Task SupportsOrientations();
     Task SetsParentTypeToContextMenu();

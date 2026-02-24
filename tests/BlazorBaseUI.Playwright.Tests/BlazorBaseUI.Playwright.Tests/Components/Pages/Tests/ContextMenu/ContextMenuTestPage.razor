@@ -13,7 +13,7 @@
         LoopFocus="@LoopFocus"
         OnOpenChange="HandleOpenChange"
         OnOpenChangeComplete="HandleOpenChangeComplete">
-        <ContextMenuTrigger data-testid="context-menu-trigger" ClassValue="@(_ => "display:block;width:300px;height:200px;border:2px dashed #ccc;padding:20px;")">
+        <ContextMenuTrigger data-testid="context-menu-trigger" StyleValue="@(_ => "display:block;width:300px;height:200px;border:2px dashed #ccc;padding:20px;")">
             Right-click here
         </ContextMenuTrigger>
         <MenuPositioner data-testid="context-menu-positioner">
@@ -64,7 +64,7 @@
             <ContextMenuRoot
                 @bind-Open="nestedIsOpen"
                 OnOpenChange="HandleNestedOpenChange">
-                <ContextMenuTrigger data-testid="nested-context-menu-trigger" ClassValue="@(_ => "display:block;width:300px;height:100px;border:2px dashed #69c;padding:20px;")">
+                <ContextMenuTrigger data-testid="nested-context-menu-trigger" StyleValue="@(_ => "display:block;width:300px;height:100px;border:2px dashed #69c;padding:20px;")">
                     Nested context menu - right-click here
                 </ContextMenuTrigger>
                 <MenuPositioner data-testid="nested-context-menu-positioner">

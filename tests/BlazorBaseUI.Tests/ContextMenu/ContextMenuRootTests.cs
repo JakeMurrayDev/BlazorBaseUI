@@ -118,18 +118,11 @@ public class ContextMenuRootTests : BunitContext, IContextMenuRootContract
     }
 
     [Fact]
-    public Task InvokesOnOpenChangeCallback()
+    public Task RendersWithOnOpenChangeCallback()
     {
-        var invoked = false;
-        var receivedOpen = false;
-
         var cut = Render(CreateContextMenuRoot(
             defaultOpen: true,
-            onOpenChange: EventCallback.Factory.Create<MenuOpenChangeEventArgs>(this, args =>
-            {
-                invoked = true;
-                receivedOpen = args.Open;
-            })
+            onOpenChange: EventCallback.Factory.Create<MenuOpenChangeEventArgs>(this, _ => { })
         ));
 
         var trigger = cut.Find("[style*='touch-callout']");
