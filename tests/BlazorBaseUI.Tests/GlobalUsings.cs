@@ -47,4 +47,6 @@ global using BlazorBaseUI.Meter;
 global using BlazorBaseUI.Tests.Contracts.Meter;
 global using BlazorBaseUI.NavigationMenu;
 global using BlazorBaseUI.Tests.Contracts.NavigationMenu;
+global using BlazorBaseUI.ContextMenu;
+global using BlazorBaseUI.Tests.Contracts.ContextMenu;
 global using BlazorBaseUI.Tests.Infrastructure;

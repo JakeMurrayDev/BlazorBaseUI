@@ -325,4 +325,13 @@ public static class JsInteropSetup
         module.SetupVoid("updateGroupItemOrientation", _ => true).SetVoidResult();
         module.SetupVoid("disposeGroupItem", _ => true).SetVoidResult();
     }
+
+    private const string ContextMenuModule = "./_content/BlazorBaseUI/blazor-baseui-context-menu.js";
+
+    public static void SetupContextMenuModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(ContextMenuModule);
+        module.SetupVoid("initializeContextMenu", _ => true).SetVoidResult();
+        module.SetupVoid("disposeContextMenu", _ => true).SetVoidResult();
+    }
 }

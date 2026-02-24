@@ -826,6 +826,19 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // ContextMenu-specific parameters
+    public TestPageUrlBuilder WithContextMenuShowSubmenu(bool value)
+    {
+        queryParams["showSubmenu"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithContextMenuShowNestedContextMenu(bool value)
+    {
+        queryParams["showNestedContextMenu"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     // Navigation Menu
 
     public TestPageUrlBuilder WithNavDefaultValue(string value)
