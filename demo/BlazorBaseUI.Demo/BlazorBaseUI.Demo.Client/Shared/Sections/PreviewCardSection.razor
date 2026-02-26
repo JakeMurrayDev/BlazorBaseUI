@@ -1,0 +1,562 @@
+@using BlazorBaseUI.PreviewCard
+@using BlazorBaseUI.Popover
+
+<ComponentShowcase ComponentName="Preview Card"
+                   Description="A popup that appears when a link is hovered, showing a rich preview of the linked content for sighted users."
+                   BaseRoute="/preview-card"
+                   IsWasmMode="IsWasmMode">
+
+    <DemoSection Title="Hero: Link Preview"
+                 Description="Hover over the link to see a preview card with rich content.">
+        <PreviewCardRoot>
+            <PreviewCardTrigger href="https://example.com" ClassValue="@(state => LinkClass(state))">
+                Example Website
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <PreviewCardArrow ClassValue="@(state => ArrowClass(state))">
+                            @ArrowSvg
+                        </PreviewCardArrow>
+                        <div class="p-3">
+                            <p class="text-sm font-semibold text-gray-900">Example Website</p>
+                            <p class="mt-1 text-xs text-gray-500">A sample website for demonstration purposes.</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Basic Hover Preview"
+                 Description="Hover over the link to show the preview card after a 600ms delay. It closes after 300ms.">
+        <PreviewCardRoot>
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Hover me
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <PreviewCardArrow ClassValue="@(state => ArrowClass(state))">
+                            @ArrowSvg
+                        </PreviewCardArrow>
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">This is a preview card</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Custom Delay"
+                 Description="Preview cards with different open/close delays.">
+        <div class="flex gap-4">
+            <PreviewCardRoot>
+                <PreviewCardTrigger href="#" Delay="0" CloseDelay="0" ClassValue="@(state => LinkClass(state))">
+                    No delay
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">Opens and closes instantly</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+
+            <PreviewCardRoot>
+                <PreviewCardTrigger href="#" Delay="200" CloseDelay="100" ClassValue="@(state => LinkClass(state))">
+                    200ms / 100ms
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">200ms open, 100ms close</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+
+            <PreviewCardRoot>
+                <PreviewCardTrigger href="#" Delay="1000" CloseDelay="500" ClassValue="@(state => LinkClass(state))">
+                    1s / 500ms
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">1s open, 500ms close</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Focus Trigger"
+                 Description="Tab to the link to show the preview card instantly on keyboard focus.">
+        <PreviewCardRoot>
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Tab to focus me
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">Preview shown on focus</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Controlled Open State"
+                 Description="Control the open state externally with a toggle button.">
+        <div class="flex items-center gap-4">
+            <button class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700" @onclick="@(() => controlledOpen = !controlledOpen)">
+                Toggle: @(controlledOpen ? "Open" : "Closed")
+            </button>
+            <PreviewCardRoot Open="controlledOpen" OpenChanged="@(value => controlledOpen = value)">
+                <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                    Controlled link
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">Controlled preview card</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="DefaultOpen"
+                 Description="The preview card starts open by default.">
+        <PreviewCardRoot DefaultOpen="true">
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Initially open
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">I started open!</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="With Arrow"
+                 Description="A preview card with an arrow pointing to its trigger.">
+        <PreviewCardRoot>
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Hover for arrow preview
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <PreviewCardArrow ClassValue="@(state => ArrowClass(state))">
+                            @ArrowSvg
+                        </PreviewCardArrow>
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">Preview with arrow</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="With Backdrop"
+                 Description="A preview card with a backdrop overlay. The backdrop has pointer-events: none so it doesn't interfere with interaction.">
+        <PreviewCardRoot>
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Hover for backdrop preview
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardBackdrop ClassValue="@(_ => "fixed inset-0 bg-black/10")" />
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">Preview with backdrop</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Positioning (Side &amp; Align)"
+                 Description="Preview cards positioned on different sides of the trigger.">
+        <div class="flex flex-wrap gap-4">
+            @foreach (var side in new[] { Side.Top, Side.Right, Side.Bottom, Side.Left })
+            {
+                <PreviewCardRoot>
+                    <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                        @side
+                    </PreviewCardTrigger>
+                    <PreviewCardPortal>
+                        <PreviewCardPositioner Side="@side" SideOffset="10">
+                            <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                                <div class="p-3">
+                                    <p class="text-sm text-gray-700">Side: @side</p>
+                                </div>
+                            </PreviewCardPopup>
+                        </PreviewCardPositioner>
+                    </PreviewCardPortal>
+                </PreviewCardRoot>
+            }
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Side Offset &amp; Align Offset"
+                 Description="Preview cards with custom side and alignment offsets.">
+        <div class="flex flex-wrap gap-4">
+            <PreviewCardRoot>
+                <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                    SideOffset=20
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="20">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">20px from side</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+
+            <PreviewCardRoot>
+                <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                    AlignOffset=20
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10" AlignOffset="20">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">20px align offset</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Multiple Triggers (Contained)"
+                 Description="Multiple triggers within the same root, where the preview switches between them.">
+        <PreviewCardRoot>
+            <div class="flex gap-4">
+                <PreviewCardTrigger href="#" Id="link-1" ClassValue="@(state => LinkClass(state))">
+                    Link 1
+                </PreviewCardTrigger>
+                <PreviewCardTrigger href="#" Id="link-2" ClassValue="@(state => LinkClass(state))">
+                    Link 2
+                </PreviewCardTrigger>
+                <PreviewCardTrigger href="#" Id="link-3" ClassValue="@(state => LinkClass(state))">
+                    Link 3
+                </PreviewCardTrigger>
+            </div>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">Preview for one of the links</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Detached Triggers"
+                 Description="Triggers that are detached from the root, connected via a handle.">
+        <PreviewCardTrigger Handle="@detachedHandle" href="#" Id="detached-1" ClassValue="@(state => LinkClass(state))">
+            Detached Link 1
+        </PreviewCardTrigger>
+        <span class="mx-2 text-gray-400">|</span>
+        <PreviewCardTrigger Handle="@detachedHandle" href="#" Id="detached-2" ClassValue="@(state => LinkClass(state))">
+            Detached Link 2
+        </PreviewCardTrigger>
+        <PreviewCardRoot Handle="@detachedHandle">
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">Detached preview</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Multiple Detached Triggers with Payload"
+                 Description="Detached triggers passing payload data to the preview card content.">
+        @{
+            var items = new[] { "Blazor", "React", "Vue" };
+        }
+        @foreach (var item in items)
+        {
+            <PreviewCardTypedTrigger TPayload="string" Handle="@payloadHandle" href="#" Id="@($"payload-{item.ToLower()}")"
+                                      Payload="@item" ClassValue="@(state => LinkClass(state))">
+                @item
+            </PreviewCardTypedTrigger>
+            @if (item != items[^1])
+            {
+                <span class="mx-2 text-gray-400">|</span>
+            }
+        }
+        <PreviewCardRoot Handle="@payloadHandle">
+            <ChildContentWithPayload>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm font-semibold text-gray-900">@context.Payload</p>
+                                <p class="mt-1 text-xs text-gray-500">Preview for @context.Payload framework</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </ChildContentWithPayload>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Controlled Mode with Multiple Triggers"
+                 Description="Programmatically open the preview card for a specific trigger.">
+        <div class="flex items-center gap-4">
+            <button class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+                    @onclick="@(() => { controlledMultiOpen = true; controlledTriggerId = "ctrl-link-1"; })">
+                Open Link 1
+            </button>
+            <button class="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+                    @onclick="@(() => { controlledMultiOpen = true; controlledTriggerId = "ctrl-link-2"; })">
+                Open Link 2
+            </button>
+            <button class="rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
+                    @onclick="@(() => controlledMultiOpen = false)">
+                Close
+            </button>
+        </div>
+        <div class="mt-4">
+            <PreviewCardRoot Open="@controlledMultiOpen" OpenChanged="@(value => controlledMultiOpen = value)" TriggerId="@controlledTriggerId">
+                <div class="flex gap-4">
+                    <PreviewCardTrigger href="#" Id="ctrl-link-1" ClassValue="@(state => LinkClass(state))">
+                        Link 1
+                    </PreviewCardTrigger>
+                    <PreviewCardTrigger href="#" Id="ctrl-link-2" ClassValue="@(state => LinkClass(state))">
+                        Link 2
+                    </PreviewCardTrigger>
+                </div>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">Controlled multi-trigger preview</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Viewport Content Transitions"
+                 Description="Using the Viewport component to wrap content for smooth transitions between triggers.">
+        <PreviewCardRoot>
+            <div class="flex gap-4">
+                <PreviewCardTrigger href="#" Id="vp-link-1" ClassValue="@(state => LinkClass(state))">
+                    Article 1
+                </PreviewCardTrigger>
+                <PreviewCardTrigger href="#" Id="vp-link-2" ClassValue="@(state => LinkClass(state))">
+                    Article 2
+                </PreviewCardTrigger>
+                <PreviewCardTrigger href="#" Id="vp-link-3" ClassValue="@(state => LinkClass(state))">
+                    Article 3
+                </PreviewCardTrigger>
+            </div>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <PreviewCardViewport>
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">Preview content for articles</p>
+                            </div>
+                        </PreviewCardViewport>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Keep Mounted"
+                 Description="The preview card stays in the DOM when closed, useful for CSS transitions.">
+        <PreviewCardRoot>
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Hover (keep mounted)
+            </PreviewCardTrigger>
+            <PreviewCardPortal KeepMounted="true">
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">I stay in the DOM</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+    </DemoSection>
+
+    <DemoSection Title="Imperative Actions (Open/Close)"
+                 Description="Use ActionsRef to imperatively open and close the preview card.">
+        <div class="flex items-center gap-4">
+            <button class="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700"
+                    @onclick="@(() => previewCardActions?.Open?.Invoke())">
+                Open
+            </button>
+            <button class="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
+                    @onclick="@(() => previewCardActions?.Close?.Invoke())">
+                Close
+            </button>
+            <button class="rounded bg-gray-600 px-3 py-1 text-sm text-white hover:bg-gray-700"
+                    @onclick="@(() => previewCardActions?.Unmount?.Invoke())">
+                Unmount
+            </button>
+        </div>
+        <div class="mt-4">
+            <PreviewCardRoot ActionsRef="@previewCardActions">
+                <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                    Actions target
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">Controlled by actions</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="OnOpenChange Callback"
+                 Description="Logs the reason for each open/close state change.">
+        <PreviewCardRoot OnOpenChange="@HandleOpenChange">
+            <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                Hover to see events
+            </PreviewCardTrigger>
+            <PreviewCardPortal>
+                <PreviewCardPositioner SideOffset="10">
+                    <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                        <div class="p-3">
+                            <p class="text-sm text-gray-700">Check the log below</p>
+                        </div>
+                    </PreviewCardPopup>
+                </PreviewCardPositioner>
+            </PreviewCardPortal>
+        </PreviewCardRoot>
+        <div class="mt-4 rounded bg-gray-100 p-3 text-xs font-mono text-gray-700">
+            @if (eventLog.Count == 0)
+            {
+                <p>No events yet. Hover or focus the link.</p>
+            }
+            else
+            {
+                @foreach (var entry in eventLog.TakeLast(5))
+                {
+                    <p>@entry</p>
+                }
+            }
+        </div>
+    </DemoSection>
+
+    <DemoSection Title="Cancel Opening"
+                 Description="Use the OnOpenChange callback to cancel the preview card from opening.">
+        <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" @bind="preventOpen" />
+                Prevent opening
+            </label>
+        </div>
+        <div class="mt-4">
+            <PreviewCardRoot OnOpenChange="@HandleCancelableOpenChange">
+                <PreviewCardTrigger href="#" ClassValue="@(state => LinkClass(state))">
+                    Try to hover me
+                </PreviewCardTrigger>
+                <PreviewCardPortal>
+                    <PreviewCardPositioner SideOffset="10">
+                        <PreviewCardPopup ClassValue="@(state => PopupClass(state))">
+                            <div class="p-3">
+                                <p class="text-sm text-gray-700">You managed to open me!</p>
+                            </div>
+                        </PreviewCardPopup>
+                    </PreviewCardPositioner>
+                </PreviewCardPortal>
+            </PreviewCardRoot>
+        </div>
+    </DemoSection>
+
+</ComponentShowcase>
+
+@code {
+    [Parameter]
+    public bool IsWasmMode { get; set; }
+
+    private bool controlledOpen;
+    private bool controlledMultiOpen;
+    private string? controlledTriggerId;
+    private bool preventOpen;
+    private PreviewCardRootActions previewCardActions = new();
+    private PreviewCardHandle detachedHandle = PreviewCardHandleFactory.CreateHandle();
+    private PreviewCardHandle<string> payloadHandle = PreviewCardHandleFactory.CreateHandle<string>();
+    private List<string> eventLog = new();
+
+    private void HandleOpenChange(PreviewCardOpenChangeEventArgs args)
+    {
+        eventLog.Add($"Open={args.Open}, Reason={args.Reason}");
+    }
+
+    private void HandleCancelableOpenChange(PreviewCardOpenChangeEventArgs args)
+    {
+        if (preventOpen && args.Open)
+        {
+            args.Cancel();
+            eventLog.Add("Canceled opening");
+        }
+    }
+
+    private static string LinkClass(PreviewCardTriggerState state) =>
+        $"text-blue-600 underline decoration-dotted hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded {(state.Open ? "text-blue-800" : "")}";
+
+    private static string PopupClass(PreviewCardPopupState state) =>
+        "rounded-lg border border-gray-200 bg-white shadow-lg";
+
+    private static string ArrowClass(PreviewCardArrowState state) =>
+        "fill-white [&>svg]:stroke-gray-200";
+
+    private static RenderFragment ArrowSvg => __builder =>
+    {
+        <svg width="20" height="10" viewBox="0 0 20 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9.66437 2.60207L4.80758 6.97318C4.07308 7.63423 3.11989 8 2.13172 8H0V10H20V8H18.5349C17.5468 8 16.5936 7.63423 15.8591 6.97318L11.0023 2.60207C10.622 2.2598 10.0447 2.25979 9.66437 2.60207Z"
+                  class="fill-inherit" />
+            <path d="M8.99542 1.85876C9.75604 1.17425 10.9106 1.17422 11.6713 1.85878L16.5281 6.22989C17.0789 6.72568 17.7938 7.00001 18.5349 7.00001L15.89 7L11.0023 2.60207C10.622 2.2598 10.0447 2.2598 9.66436 2.60207L4.77734 7L2.13171 7.00001C2.87284 7.00001 3.58774 6.72568 4.13861 6.22989L8.99542 1.85876Z"
+                  class="fill-inherit stroke-inherit" />
+        </svg>
+    };
+}

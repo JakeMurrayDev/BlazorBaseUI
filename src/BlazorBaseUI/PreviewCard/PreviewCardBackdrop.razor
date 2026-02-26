@@ -1,0 +1,93 @@
+<RenderElement TState="PreviewCardBackdropState"
+               Tag="div"
+               Enabled="RootContext is not null"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="computedStyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string ForcedStyle = "pointer-events: none;";
+
+    private PreviewCardBackdropState state;
+    private RenderElement<PreviewCardBackdropState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private Func<PreviewCardBackdropState, string>? computedStyleValue;
+
+    [CascadingParameter]
+    private PreviewCardRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom render template for the backdrop element.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<PreviewCardBackdropState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns CSS class names based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PreviewCardBackdropState, string>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that returns inline styles based on the current state.
+    /// </summary>
+    [Parameter]
+    public Func<PreviewCardBackdropState, string>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var open = RootContext?.GetOpen() ?? false;
+        var transitionStatus = RootContext?.TransitionStatus ?? Popover.TransitionStatus.None;
+        state = new PreviewCardBackdropState(open, transitionStatus);
+        computedStyleValue = s =>
+        {
+            var userStyle = StyleValue?.Invoke(s);
+            return string.IsNullOrEmpty(userStyle) ? ForcedStyle : $"{ForcedStyle} {userStyle}";
+        };
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "presentation";
+
+        if (!(RootContext?.GetMounted() ?? false))
+        {
+            attrs["hidden"] = true;
+        }
+
+        var isOpen = RootContext?.GetOpen() ?? false;
+        attrs["data-open"] = isOpen;
+        attrs["data-closed"] = !isOpen;
+        var transitionStatus = RootContext?.TransitionStatus ?? Popover.TransitionStatus.None;
+        attrs["data-starting-style"] = transitionStatus == Popover.TransitionStatus.Starting;
+        attrs["data-ending-style"] = transitionStatus == Popover.TransitionStatus.Ending;
+
+        componentAttributes = attrs;
+    }
+}
