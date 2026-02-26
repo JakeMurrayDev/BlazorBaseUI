@@ -197,13 +197,8 @@ public class PreviewCardRootTests : BunitContext, IPreviewCardRootContract
     [Fact]
     public Task ClosesOnTriggerBlur()
     {
-        var cut = Render(CreatePreviewCard(defaultOpen: true));
-
-        var trigger = cut.Find("a");
-        trigger.Blur();
-
         var closeRequested = false;
-        var cut2 = Render(CreatePreviewCard(
+        var cut = Render(CreatePreviewCard(
             defaultOpen: true,
             onOpenChange: EventCallback.Factory.Create<PreviewCardOpenChangeEventArgs>(this, args =>
             {
@@ -211,7 +206,7 @@ public class PreviewCardRootTests : BunitContext, IPreviewCardRootContract
             })
         ));
 
-        cut2.Find("a").Blur();
+        cut.Find("a").Blur();
         closeRequested.ShouldBeTrue();
 
         return Task.CompletedTask;
