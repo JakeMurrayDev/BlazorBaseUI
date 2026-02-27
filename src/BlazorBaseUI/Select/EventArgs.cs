@@ -53,4 +53,14 @@ public sealed class SelectValueChangeEventArgs<TValue> : EventArgs
     /// Gets the newly selected value.
     /// </summary>
     public TValue? Value { get; }
+
+    /// <summary>
+    /// Gets whether the value change has been canceled.
+    /// </summary>
+    public bool IsCanceled { get; private set; }
+
+    /// <summary>
+    /// Cancels the value change, preventing the selected value from updating.
+    /// </summary>
+    public void Cancel() => IsCanceled = true;
 }

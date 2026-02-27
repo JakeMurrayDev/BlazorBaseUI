@@ -222,7 +222,7 @@ public class SelectValueTests : BunitContext, ISelectValueContract
     // --- Dynamic update ---
 
     [Fact]
-    public Task Value_ChangesTextWhenValueChanges()
+    public Task Value_DisplaysCorrectTextForDifferentValues()
     {
         var cut = Render(CreateSelectWithValueAndItems(
             value: "apple",
@@ -231,7 +231,7 @@ public class SelectValueTests : BunitContext, ISelectValueContract
         var span = cut.Find("button span");
         span.TextContent.ShouldBe("apple");
 
-        // Re-render with different value
+        // Render a separate instance with a different value to verify correct text
         var cut2 = Render(CreateSelectWithValueAndItems(
             value: "banana",
             valueChanged: EventCallback.Factory.Create<string?>(this, _ => { })));

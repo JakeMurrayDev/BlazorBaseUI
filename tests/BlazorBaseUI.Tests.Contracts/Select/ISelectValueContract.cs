@@ -13,7 +13,7 @@ public interface ISelectValueContract
     Task Multiple_DisplaysSingleValueWhenOneSelected();
 
     // Dynamic update
-    Task Value_ChangesTextWhenValueChanges();
+    Task Value_DisplaysCorrectTextForDifferentValues();
 
     // Placeholder precedence
     Task Placeholder_ChildContentTakesPrecedenceOverPlaceholder();

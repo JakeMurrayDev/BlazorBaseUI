@@ -11,11 +11,11 @@ public interface ISelectItemContract
     Task DisabledItem_HasAriaDisabled();
 
     // Focus + Disabled
-    Task DisabledItem_ShouldStillHighlightOnMouseEnter();
+    Task DisabledItem_ShouldNotHighlightOnMouseEnter();
 
     // Focus on open
     Task ShouldFocusSelectedItemUponOpeningPopup();
 
-    // Quick click guard
-    Task QuickSelection_NoSelectOnQuickMouseUpWithPlaceholder();
+    // Disabled item click guard
+    Task DisabledItem_ShouldNotSelectOnClickAndKeepOpen();
 }

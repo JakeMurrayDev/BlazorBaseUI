@@ -147,14 +147,12 @@ public class SelectItemTests : BunitContext, ISelectItemContract
         return Task.CompletedTask;
     }
 
-    // --- Focus + Disabled: disabled items should still highlight on mouseenter ---
-    // Note: In base-ui, disabled items can still be "focused" (highlighted) for
-    // keyboard navigation, but cannot be selected. In our implementation, the
-    // mouseenter handler checks !Disabled, so disabled items do NOT highlight.
-    // This test verifies the current Blazor behavior.
+    // --- Focus + Disabled: disabled items do not highlight on mouseenter ---
+    // In our implementation, the mouseenter handler checks !Disabled, so disabled
+    // items do NOT highlight. This test verifies that behavior.
 
     [Fact]
-    public async Task DisabledItem_ShouldStillHighlightOnMouseEnter()
+    public async Task DisabledItem_ShouldNotHighlightOnMouseEnter()
     {
         var cut = Render(CreateSelectWithItems(defaultOpen: true, disabledItem: true));
 
@@ -183,12 +181,10 @@ public class SelectItemTests : BunitContext, ISelectItemContract
         return Task.CompletedTask;
     }
 
-    // --- Quick click guard: clicking an item immediately should not select with placeholder ---
-    // In base-ui, a quick mouseup right after mousedown should not select an item if
-    // there's a placeholder. This test verifies clicking a disabled item doesn't select it.
+    // --- Disabled item click guard: clicking a disabled item should not select it or close the popup ---
 
     [Fact]
-    public Task QuickSelection_NoSelectOnQuickMouseUpWithPlaceholder()
+    public Task DisabledItem_ShouldNotSelectOnClickAndKeepOpen()
     {
         var cut = Render(CreateSelectWithItems(defaultOpen: true, disabledItem: true));
 

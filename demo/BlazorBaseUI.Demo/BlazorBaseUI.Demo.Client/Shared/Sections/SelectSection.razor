@@ -178,7 +178,7 @@
 
     <DemoSection Title="Custom Label Function"
                  Description="Uses ItemToStringLabel to display custom labels for values.">
-        <SelectRoot TValue="string" @bind-Value="labelValue">
+        <SelectRoot TValue="string" @bind-Value="labelValue" ItemToStringLabel="@FormatCountryLabel">
             <SelectTrigger ClassValue="@(state => TriggerClass(state))">
                 <SelectValue TValue="string" Placeholder="Select a country..." />
                 <SelectIcon>@ArrowIcon</SelectIcon>
@@ -273,6 +273,15 @@
     private string? basicValue;
     private string? groupValue;
     private string? labelValue;
+
+    private static string? FormatCountryLabel(string? value) => value switch
+    {
+        "us" => "🇺🇸 United States",
+        "uk" => "🇬🇧 United Kingdom",
+        "de" => "🇩🇪 Germany",
+        "fr" => "🇫🇷 France",
+        _ => value
+    };
 
     private static readonly IReadOnlyList<SelectOption<string>> FruitItems = new[]
     {

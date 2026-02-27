@@ -634,10 +634,10 @@ public class SelectRootTests : BunitContext, ISelectRootContract
         var cut = Render(CreateSelectWithDisabledReadOnly(readOnly: true));
 
         var trigger = cut.Find("button");
-        await trigger.TriggerEventAsync("onclick", new MouseEventArgs());
+        await trigger.TriggerEventAsync("onkeydown", new KeyboardEventArgs { Key = "Enter" });
         cut.FindComponent<SelectTrigger>().Render();
 
-        // Verify that even if opened, selecting an item via click doesn't change value
+        // Verify that even if opened, selecting an item via keyboard doesn't change value
         var items = cut.FindAll("[role='option']");
         if (items.Count > 0)
         {

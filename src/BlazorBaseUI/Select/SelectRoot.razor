@@ -270,7 +270,7 @@
         }
 
         var isFilled = !IsPlaceholderState();
-        FieldContext?.Validation.SetInitialValue(CurrentValue);
+        FieldContext?.Validation.SetInitialValue(GetValidationValue());
         FieldContext?.SetFilled(isFilled);
         FieldContext?.RegisterFocusHandler(FocusTriggerAsync);
         FieldContext?.Subscribe(this);
@@ -329,7 +329,6 @@
             context.Mounted = isMounted;
         }
 
-        if (Id is not null) rootId = Id;
         context.Disabled = ResolvedDisabled;
         context.ReadOnly = ReadOnly;
         context.Required = Required;
@@ -499,7 +498,7 @@
 
                 if (FieldContext?.ValidationMode == ValidationMode.OnBlur)
                 {
-                    await (FieldContext?.Validation.CommitAsync(CurrentValue) ?? Task.CompletedTask);
+                    await (FieldContext?.Validation.CommitAsync(GetValidationValue()) ?? Task.CompletedTask);
                 }
             }
         }
@@ -549,6 +548,14 @@
             return;
         }
 
+        var eventArgs = new SelectValueChangeEventArgs<TValue>(value);
+        await OnValueChange.InvokeAsync(eventArgs);
+
+        if (eventArgs.IsCanceled)
+        {
+            return;
+        }
+
         if (Multiple)
         {
             var values = new List<TValue>(GetCurrentValues());
@@ -567,9 +574,6 @@
                 internalValues = values;
             }
 
-            var eventArgs = new SelectValueChangeEventArgs<TValue>(value);
-            await OnValueChange.InvokeAsync(eventArgs);
-
             if (ValuesChanged.HasDelegate)
             {
                 await ValuesChanged.InvokeAsync(values);
@@ -587,9 +591,6 @@
         }
         else
         {
-            var eventArgs = new SelectValueChangeEventArgs<TValue>(value);
-            await OnValueChange.InvokeAsync(eventArgs);
-
             if (!IsValueControlled)
             {
                 internalValue = value;
@@ -606,23 +607,34 @@
         }
     }
 
+    private object? GetValidationValue()
+    {
+        if (Multiple)
+        {
+            return GetCurrentValues();
+        }
+
+        return CurrentValue;
+    }
+
     private void HandleValueChanged()
     {
         FormContext?.ClearErrors(ResolvedName);
 
+        var validationValue = GetValidationValue();
         var initialValue = FieldContext?.ValidityData.InitialValue;
-        var isDirty = !EqualityComparer<object>.Default.Equals(CurrentValue, initialValue);
+        var isDirty = !EqualityComparer<object>.Default.Equals(validationValue, initialValue);
 
         FieldContext?.SetDirty(isDirty);
         FieldContext?.SetFilled(!IsPlaceholderState());
 
         if (FieldContext?.ShouldValidateOnChange() == true)
         {
-            _ = FieldContext.Validation.CommitAsync(CurrentValue);
+            _ = FieldContext.Validation.CommitAsync(validationValue);
         }
         else
         {
-            _ = FieldContext?.Validation.CommitAsync(CurrentValue, revalidateOnly: true);
+            _ = FieldContext?.Validation.CommitAsync(validationValue, revalidateOnly: true);
         }
     }
 
@@ -653,7 +665,7 @@
 
         if (FieldContext?.ValidationMode == ValidationMode.OnBlur)
         {
-            _ = FieldContext.Validation.CommitAsync(CurrentValue);
+            _ = FieldContext.Validation.CommitAsync(GetValidationValue());
         }
     }
 
