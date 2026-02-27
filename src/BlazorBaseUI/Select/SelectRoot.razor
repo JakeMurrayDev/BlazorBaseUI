@@ -31,7 +31,7 @@
     }
     else
     {
-        <input type="hidden" name="@ResolvedName" value="@(typedContext?.GetFormValue(CurrentValue) ?? CurrentValue?.ToString())" />
+        <input type="hidden" name="@ResolvedName" value="@(typedContext?.GetFormValue(CurrentValue) ?? CurrentValue?.ToString())" disabled="@ResolvedDisabled" />
     }
 }
 
