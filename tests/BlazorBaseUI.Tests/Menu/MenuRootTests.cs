@@ -12,7 +12,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         bool? open = null,
         bool defaultOpen = false,
         bool disabled = false,
-        ModalMode modal = ModalMode.True,
+        BlazorBaseUI.Menu.ModalMode modal = BlazorBaseUI.Menu.ModalMode.True,
         MenuOrientation orientation = MenuOrientation.Vertical,
         MenuRootActions? actionsRef = null,
         EventCallback<MenuOpenChangeEventArgs>? onOpenChange = null,
@@ -182,8 +182,8 @@ public class MenuRootTests : BunitContext, IMenuRootContract
     [Fact]
     public Task SupportsModalModes()
     {
-        var cutModal = Render(CreateMenuRoot(modal: ModalMode.True));
-        var cutNonModal = Render(CreateMenuRoot(modal: ModalMode.False));
+        var cutModal = Render(CreateMenuRoot(modal: BlazorBaseUI.Menu.ModalMode.True));
+        var cutNonModal = Render(CreateMenuRoot(modal: BlazorBaseUI.Menu.ModalMode.False));
 
         // Both should render the trigger
         cutModal.Find("button").ShouldNotBeNull();

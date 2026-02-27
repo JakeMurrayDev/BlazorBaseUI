@@ -355,4 +355,25 @@ public static class JsInteropSetup
         module.SetupVoid("initializeContextMenu", _ => true).SetVoidResult();
         module.SetupVoid("disposeContextMenu", _ => true).SetVoidResult();
     }
+
+    private const string SelectModule = "./_content/BlazorBaseUI/blazor-baseui-select.js";
+
+    public static void SetupSelectModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(SelectModule);
+        module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
+        module.SetupVoid("setRootOpen", _ => true).SetVoidResult();
+        module.SetupVoid("setTriggerElement", _ => true).SetVoidResult();
+        module.SetupVoid("setPopupElement", _ => true).SetVoidResult();
+        module.SetupVoid("setListElement", _ => true).SetVoidResult();
+        module.SetupVoid("setActiveIndex", _ => true).SetVoidResult();
+        module.SetupVoid("clearHighlights", _ => true).SetVoidResult();
+        module.SetupVoid("focusTrigger", _ => true).SetVoidResult();
+        module.SetupVoid("startContinuousScroll", _ => true).SetVoidResult();
+        module.SetupVoid("stopContinuousScroll", _ => true).SetVoidResult();
+        module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
+        module.SetupVoid("updatePosition", _ => true).SetVoidResult();
+        module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
+    }
 }

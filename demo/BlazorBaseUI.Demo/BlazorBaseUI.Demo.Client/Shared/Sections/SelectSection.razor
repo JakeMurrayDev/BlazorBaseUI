@@ -1,0 +1,351 @@
+@using BlazorBaseUI.Select
+
+<ComponentShowcase ComponentName="Select"
+                   Description="A dropdown selection component that allows users to choose one or more items from a list. Provides keyboard navigation, typeahead, and full ARIA support."
+                   BaseRoute="/select"
+                   IsWasmMode="IsWasmMode">
+
+    <DemoSection Title="Basic Select"
+                 Description="A simple select with string values. Click the trigger to open, then select an item.">
+        <SelectRoot TValue="string" @bind-Value="basicValue">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Select a fruit..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Apple</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("banana")" Label="Banana" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Banana</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("cherry")" Label="Cherry" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Cherry</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("date")" Label="Date" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Date</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+        <p class="mt-2 text-sm text-gray-500">Selected: @(basicValue ?? "none")</p>
+    </DemoSection>
+
+    <DemoSection Title="Default Value"
+                 Description="A select with a pre-selected default value.">
+        <SelectRoot TValue="string" DefaultValue="@("banana")" Items="@FruitItems">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Select a fruit..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Apple</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("banana")" Label="Banana" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Banana</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("cherry")" Label="Cherry" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Cherry</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+    </DemoSection>
+
+    <DemoSection Title="Placeholder"
+                 Description="Shows placeholder text when no value is selected.">
+        <SelectRoot TValue="string">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Choose your favorite fruit..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Apple</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("banana")" Label="Banana" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Banana</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+    </DemoSection>
+
+    <DemoSection Title="Groups with Labels"
+                 Description="Items organized into groups with descriptive labels.">
+        <SelectRoot TValue="string" @bind-Value="groupValue">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Select a food..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectGroup>
+                            <SelectGroupLabel ClassValue="@(_ => "px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase")">Fruits</SelectGroupLabel>
+                            <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Apple</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                            <SelectItem TValue="string" Value="@("banana")" Label="Banana" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Banana</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                        </SelectGroup>
+                        <SelectGroup>
+                            <SelectGroupLabel ClassValue="@(_ => "px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase")">Vegetables</SelectGroupLabel>
+                            <SelectItem TValue="string" Value="@("carrot")" Label="Carrot" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Carrot</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                            <SelectItem TValue="string" Value="@("broccoli")" Label="Broccoli" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Broccoli</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                        </SelectGroup>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+        <p class="mt-2 text-sm text-gray-500">Selected: @(groupValue ?? "none")</p>
+    </DemoSection>
+
+    <DemoSection Title="Disabled Items"
+                 Description="Individual items can be disabled to prevent selection.">
+        <SelectRoot TValue="string">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Select a fruit..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Apple</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("banana")" Label="Banana" Disabled="true" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Banana (unavailable)</SelectItemText>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("cherry")" Label="Cherry" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Cherry</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+    </DemoSection>
+
+    <DemoSection Title="Disabled Select"
+                 Description="The entire select can be disabled.">
+        <SelectRoot TValue="string" Disabled="true" DefaultValue="@("apple")" Items="@FruitItems">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Select a fruit..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Apple</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+    </DemoSection>
+
+    <DemoSection Title="Custom Label Function"
+                 Description="Uses ItemToStringLabel to display custom labels for values.">
+        <SelectRoot TValue="string" @bind-Value="labelValue">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Select a country..." />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("us")" Label="United States" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>United States</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("uk")" Label="United Kingdom" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>United Kingdom</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("de")" Label="Germany" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Germany</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("fr")" Label="France" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>France</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+        <p class="mt-2 text-sm text-gray-500">Value: @(labelValue ?? "none")</p>
+    </DemoSection>
+
+    <DemoSection Title="Form Integration"
+                 Description="The select renders a hidden input for form submission when a Name is provided.">
+        <form>
+            <SelectRoot TValue="string" Name="fruit" DefaultValue="@("cherry")" Items="@FruitItems">
+                <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                    <SelectValue TValue="string" Placeholder="Select a fruit..." />
+                    <SelectIcon>@ArrowIcon</SelectIcon>
+                </SelectTrigger>
+                <SelectPortal>
+                    <SelectPositioner SideOffset="4">
+                        <SelectPopup ClassValue="@(state => PopupClass(state))">
+                            <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Apple</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                            <SelectItem TValue="string" Value="@("banana")" Label="Banana" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Banana</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                            <SelectItem TValue="string" Value="@("cherry")" Label="Cherry" ClassValue="@(state => ItemClass(state))">
+                                <SelectItemText>Cherry</SelectItemText>
+                                <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                            </SelectItem>
+                        </SelectPopup>
+                    </SelectPositioner>
+                </SelectPortal>
+            </SelectRoot>
+            <p class="mt-2 text-sm text-gray-500">Hidden input name="fruit" is rendered with the selected value.</p>
+        </form>
+    </DemoSection>
+
+    <DemoSection Title="Required Select"
+                 Description="The trigger sets aria-required when the select is marked as required.">
+        <SelectRoot TValue="string" Required="true">
+            <SelectTrigger ClassValue="@(state => TriggerClass(state))">
+                <SelectValue TValue="string" Placeholder="Required field *" />
+                <SelectIcon>@ArrowIcon</SelectIcon>
+            </SelectTrigger>
+            <SelectPortal>
+                <SelectPositioner SideOffset="4">
+                    <SelectPopup ClassValue="@(state => PopupClass(state))">
+                        <SelectItem TValue="string" Value="@("apple")" Label="Apple" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Apple</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                        <SelectItem TValue="string" Value="@("banana")" Label="Banana" ClassValue="@(state => ItemClass(state))">
+                            <SelectItemText>Banana</SelectItemText>
+                            <SelectItemIndicator>@CheckIcon</SelectItemIndicator>
+                        </SelectItem>
+                    </SelectPopup>
+                </SelectPositioner>
+            </SelectPortal>
+        </SelectRoot>
+    </DemoSection>
+
+</ComponentShowcase>
+
+@code {
+    [Parameter]
+    public bool IsWasmMode { get; set; }
+
+    private string? basicValue;
+    private string? groupValue;
+    private string? labelValue;
+
+    private static readonly IReadOnlyList<SelectOption<string>> FruitItems = new[]
+    {
+        new SelectOption<string>("apple", "Apple"),
+        new SelectOption<string>("banana", "Banana"),
+        new SelectOption<string>("cherry", "Cherry"),
+        new SelectOption<string>("date", "Date"),
+    };
+
+    private static string TriggerClass(SelectTriggerState state)
+    {
+        var baseClass = "inline-flex items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm min-w-[200px]";
+        if (state.Disabled)
+            return $"{baseClass} opacity-50 cursor-not-allowed";
+        if (state.Open)
+            return $"{baseClass} ring-2 ring-blue-500 border-blue-500";
+        return $"{baseClass} hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+    }
+
+    private static string PopupClass(SelectPopupState state)
+    {
+        return "min-w-[var(--anchor-width)] origin-[var(--transform-origin)] rounded-md bg-[canvas] bg-clip-padding py-1 max-h-60 overflow-auto text-gray-900 outline outline-1 outline-gray-200 shadow-lg shadow-gray-200 transition-[transform,scale,opacity] duration-150 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 dark:shadow-none dark:outline-gray-300";
+    }
+
+    private static string ItemClass(SelectItemState state)
+    {
+        var baseClass = "flex items-center justify-between px-3 py-2 text-sm cursor-pointer";
+        if (state.Disabled)
+            return $"{baseClass} text-gray-400 cursor-not-allowed";
+        if (state.Selected && state.Highlighted)
+            return $"{baseClass} bg-blue-100 text-blue-900 font-medium";
+        if (state.Selected)
+            return $"{baseClass} text-blue-900 font-medium";
+        if (state.Highlighted)
+            return $"{baseClass} bg-gray-100";
+        return $"{baseClass} text-gray-900";
+    }
+
+    private static RenderFragment ArrowIcon => builder =>
+    {
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "width", "10");
+        builder.AddAttribute(2, "height", "6");
+        builder.AddAttribute(3, "viewBox", "0 0 10 6");
+        builder.AddAttribute(4, "fill", "none");
+        builder.AddAttribute(5, "xmlns", "http://www.w3.org/2000/svg");
+        builder.AddAttribute(6, "class", "text-gray-400");
+        builder.OpenElement(7, "path");
+        builder.AddAttribute(8, "d", "M1 1L5 5L9 1");
+        builder.AddAttribute(9, "stroke", "currentColor");
+        builder.AddAttribute(10, "stroke-width", "1.5");
+        builder.AddAttribute(11, "stroke-linecap", "round");
+        builder.AddAttribute(12, "stroke-linejoin", "round");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private static RenderFragment CheckIcon => builder =>
+    {
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "width", "12");
+        builder.AddAttribute(2, "height", "12");
+        builder.AddAttribute(3, "viewBox", "0 0 12 12");
+        builder.AddAttribute(4, "fill", "none");
+        builder.AddAttribute(5, "xmlns", "http://www.w3.org/2000/svg");
+        builder.AddAttribute(6, "class", "text-blue-600");
+        builder.OpenElement(7, "path");
+        builder.AddAttribute(8, "d", "M2 6L5 9L10 3");
+        builder.AddAttribute(9, "stroke", "currentColor");
+        builder.AddAttribute(10, "stroke-width", "2");
+        builder.AddAttribute(11, "stroke-linecap", "round");
+        builder.AddAttribute(12, "stroke-linejoin", "round");
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+}

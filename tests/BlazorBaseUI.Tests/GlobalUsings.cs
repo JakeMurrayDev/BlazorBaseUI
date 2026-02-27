@@ -51,4 +51,6 @@ global using BlazorBaseUI.ContextMenu;
 global using BlazorBaseUI.Tests.Contracts.ContextMenu;
 global using BlazorBaseUI.PreviewCard;
 global using BlazorBaseUI.Tests.Contracts.PreviewCard;
+global using BlazorBaseUI.Select;
+global using BlazorBaseUI.Tests.Contracts.Select;
 global using BlazorBaseUI.Tests.Infrastructure;

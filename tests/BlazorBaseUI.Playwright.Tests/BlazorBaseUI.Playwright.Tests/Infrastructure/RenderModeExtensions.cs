@@ -871,6 +871,31 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    // Select-specific parameters
+    public TestPageUrlBuilder WithSelectDefaultValue(string value)
+    {
+        queryParams["defaultValue"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSelectValue(string value)
+    {
+        queryParams["value"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSelectMultiple(bool value)
+    {
+        queryParams["multiple"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSelectName(string name)
+    {
+        queryParams["selectName"] = name;
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

@@ -1,0 +1,859 @@
+@typeparam TValue
+@using BlazorBaseUI.Field
+@using BlazorBaseUI.Form
+@using BlazorBaseUI.Utilities
+@using BlazorBaseUI.Utilities.LabelableProvider
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@implements IFieldStateSubscriber
+@inject IJSRuntime JSRuntime
+
+<CascadingValue TValue="ISelectRootContext" Value="context" IsFixed="true">
+    <CascadingValue TValue="SelectRootContext<TValue>" Value="typedContext" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</CascadingValue>
+
+@if (!string.IsNullOrEmpty(ResolvedName))
+{
+    @if (Multiple)
+    {
+        var values = GetCurrentValues();
+        @foreach (var v in values)
+        {
+            <input type="hidden" name="@ResolvedName" value="@(typedContext?.GetFormValue(v) ?? v?.ToString())" />
+        }
+        @if (values.Count == 0)
+        {
+            <input type="hidden" name="@ResolvedName" value="" />
+        }
+    }
+    else
+    {
+        <input type="hidden" name="@ResolvedName" value="@(typedContext?.GetFormValue(CurrentValue) ?? CurrentValue?.ToString())" />
+    }
+}
+
+@code {
+    private string rootId = null!;
+
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private bool isOpen;
+    private bool isMounted;
+    private int activeIndex = -1;
+    private TValue? internalValue;
+    private List<TValue> internalValues = new();
+    private ElementReference? triggerElement;
+    private ElementReference? popupElement;
+    private ElementReference? listElement;
+    private SelectOpenChangeReason openChangeReason = SelectOpenChangeReason.None;
+    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private InstantType instantType = InstantType.None;
+    private SelectRootState state;
+    private SelectRootContext<TValue> typedContext = null!;
+    private ISelectRootContext context = null!;
+    private DotNetObjectReference<SelectRoot<TValue>>? dotNetRef;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-select.js").AsTask());
+
+    private bool IsControlled => Open.HasValue;
+
+    private bool CurrentOpen => IsControlled ? Open!.Value : isOpen;
+
+    private TValue? CurrentValue => ValueChanged.HasDelegate ? Value : internalValue;
+
+    private bool IsValueControlled => ValueChanged.HasDelegate;
+
+    private bool ResolvedDisabled => Disabled || (FieldContext?.Disabled ?? false);
+
+    private string? ResolvedName => Name ?? FieldContext?.Name;
+
+    private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
+
+    /// <summary>
+    /// Gets or sets whether the select popup is currently open.
+    /// </summary>
+    [Parameter]
+    public bool? Open { get; set; }
+
+    /// <summary>
+    /// Determines whether the select popup is initially open.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DefaultOpen { get; set; }
+
+    /// <summary>
+    /// Gets or sets the currently selected value.
+    /// </summary>
+    [Parameter]
+    public TValue? Value { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default selected value.
+    /// </summary>
+    [Parameter]
+    public TValue? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default selected values for multiple selection.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<TValue>? DefaultValues { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether multiple items can be selected.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Multiple { get; set; }
+
+    /// <summary>
+    /// Determines whether items are highlighted when the pointer moves over them.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool HighlightItemOnHover { get; set; } = true;
+
+    /// <summary>
+    /// Determines whether the component should ignore user interaction.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Determines whether the component is read-only.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    /// <summary>
+    /// Determines whether a value is required.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool Required { get; set; }
+
+    /// <summary>
+    /// Gets or sets the modal behavior of the select when open.
+    /// </summary>
+    [Parameter]
+    public ModalMode Modal { get; set; } = ModalMode.True;
+
+    /// <summary>
+    /// Gets or sets the text direction of the select.
+    /// </summary>
+    [Parameter]
+    public TextDirection Direction { get; set; } = TextDirection.Ltr;
+
+    /// <summary>
+    /// Gets or sets the identifier of the select root.
+    /// When provided, this ID is used as the root identifier and as the default trigger ID.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the hidden form input.
+    /// </summary>
+    [Parameter]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function to convert a value to its string label for display.
+    /// </summary>
+    [Parameter]
+    public Func<TValue?, string?>? ItemToStringLabel { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function to convert a value to its string representation for form submission.
+    /// </summary>
+    [Parameter]
+    public Func<TValue?, string?>? ItemToStringValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom equality comparer for item values.
+    /// When provided, this function is used instead of the default equality comparer
+    /// to determine if two values are equal (e.g., for case-insensitive string comparison).
+    /// </summary>
+    [Parameter]
+    public Func<TValue, TValue, bool>? IsItemEqualToValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the static list of options for pre-mount label resolution.
+    /// Provides label lookup before <see cref="SelectItem{TValue}"/> components mount,
+    /// mirroring React Base UI's <c>items</c> prop used for <c>resolveSelectedLabel</c>.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<SelectOption<TValue>>? Items { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback for two-way binding of the open state.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the select is opened or closed.
+    /// </summary>
+    [Parameter]
+    public EventCallback<SelectOpenChangeEventArgs> OnOpenChange { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked after any open/close transition animations complete.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OnOpenChangeComplete { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback for two-way binding of the selected value.
+    /// </summary>
+    [Parameter]
+    public EventCallback<TValue?> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the currently selected values for multiple selection.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<TValue>? Values { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback for two-way binding of the selected values in multi-select mode.
+    /// </summary>
+    [Parameter]
+    public EventCallback<IReadOnlyList<TValue>> ValuesChanged { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the selected value changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<SelectValueChangeEventArgs<TValue>> OnValueChange { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [CascadingParameter]
+    private FieldRootContext? FieldContext { get; set; }
+
+    [CascadingParameter]
+    private FormContext? FormContext { get; set; }
+
+    [CascadingParameter]
+    private LabelableContext? LabelableContext { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        rootId = Id ?? Guid.NewGuid().ToIdString();
+        isOpen = DefaultOpen;
+        isMounted = CurrentOpen;
+
+        if (!IsValueControlled)
+        {
+            if (Multiple && DefaultValues is not null)
+            {
+                internalValues = new List<TValue>(DefaultValues);
+            }
+            else if (DefaultValue is not null)
+            {
+                internalValue = DefaultValue;
+            }
+        }
+
+        var isFilled = !IsPlaceholderState();
+        FieldContext?.Validation.SetInitialValue(CurrentValue);
+        FieldContext?.SetFilled(isFilled);
+        FieldContext?.RegisterFocusHandler(FocusTriggerAsync);
+        FieldContext?.Subscribe(this);
+
+        state = SelectRootState.FromFieldState(FieldState, CurrentOpen);
+
+        typedContext = new SelectRootContext<TValue>
+        {
+            RootId = rootId,
+            Open = CurrentOpen,
+            Mounted = isMounted,
+            Disabled = ResolvedDisabled,
+            ReadOnly = ReadOnly,
+            Required = Required,
+            Multiple = Multiple,
+            HighlightItemOnHover = HighlightItemOnHover,
+            OpenChangeReason = openChangeReason,
+            TransitionStatus = transitionStatus,
+            InstantType = instantType,
+            ActiveIndex = activeIndex,
+            FieldState = FieldState,
+            Items = Items,
+            ItemToStringLabel = ItemToStringLabel,
+            ItemToStringValue = ItemToStringValue,
+            IsItemEqualToValue = IsItemEqualToValue,
+            GetOpen = () => CurrentOpen,
+            GetMounted = () => isMounted,
+            GetTriggerElement = () => triggerElement,
+            SetTriggerElement = SetTriggerElement,
+            SetPopupElement = SetPopupElement,
+            SetListElement = SetListElement,
+            ClearHighlightsAsync = ClearHighlightsInternalAsync,
+            SetActiveIndex = SetActiveIndex,
+            SetOpenAsync = SetOpenAsyncFromContext,
+            GetValue = () => CurrentValue,
+            GetValues = GetCurrentValues,
+            SelectValueAsync = SelectValueInternalAsync,
+            OnTriggerFocusAction = HandleTriggerFocus,
+            OnTriggerBlurAction = HandleTriggerBlur
+        };
+
+        context = typedContext;
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var currentOpen = CurrentOpen;
+        if (state.Open != currentOpen)
+        {
+            if (currentOpen)
+            {
+                isMounted = true;
+            }
+            context.Open = currentOpen;
+            context.Mounted = isMounted;
+        }
+
+        if (Id is not null) rootId = Id;
+        context.Disabled = ResolvedDisabled;
+        context.ReadOnly = ReadOnly;
+        context.Required = Required;
+        context.Multiple = Multiple;
+        context.HighlightItemOnHover = HighlightItemOnHover;
+        typedContext.Items = Items;
+        typedContext.ItemToStringLabel = ItemToStringLabel;
+        typedContext.ItemToStringValue = ItemToStringValue;
+        typedContext.IsItemEqualToValue = IsItemEqualToValue;
+        typedContext.FieldState = FieldState;
+
+        state = SelectRootState.FromFieldState(FieldState, currentOpen);
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+            _ = InitializeJsAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        FieldContext?.Unsubscribe(this);
+
+        if (moduleTask?.IsValueCreated == true && hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeRoot", rootId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    /// <inheritdoc />
+    public void NotifyStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when a click occurs outside the select.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnOutsidePress()
+    {
+        await SetOpenAsync(false, SelectOpenChangeReason.OutsidePress);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when the Escape key is pressed.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnEscapeKey()
+    {
+        await SetOpenAsync(false, SelectOpenChangeReason.EscapeKey);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when a transition animation completes.
+    /// </summary>
+    [JSInvokable]
+    public void OnTransitionEnd(bool open)
+    {
+        transitionStatus = TransitionStatus.None;
+        context.TransitionStatus = transitionStatus;
+
+        if (!open)
+        {
+            isMounted = false;
+            context.Mounted = false;
+            activeIndex = -1;
+            context.ActiveIndex = activeIndex;
+        }
+
+        instantType = InstantType.None;
+        context.InstantType = instantType;
+
+        _ = InvokeOpenChangeCompleteAsync(open);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when scroll arrow visibility changes.
+    /// </summary>
+    [JSInvokable]
+    public void OnScrollArrowVisibilityChange(bool up, bool down)
+    {
+        if (context.ScrollUpArrowVisible != up || context.ScrollDownArrowVisible != down)
+        {
+            context.ScrollUpArrowVisible = up;
+            context.ScrollDownArrowVisible = down;
+            typedContext.NotifyStateChanged();
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when the active item index changes.
+    /// </summary>
+    [JSInvokable]
+    public void OnActiveIndexChange(int index)
+    {
+        if (activeIndex != index)
+        {
+            activeIndex = index;
+            context.ActiveIndex = index;
+            typedContext.NotifyHighlightCleared();
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Sets the open state of the select with the specified reason.
+    /// </summary>
+    private async Task SetOpenAsync(bool nextOpen, SelectOpenChangeReason reason)
+    {
+        if (CurrentOpen == nextOpen)
+        {
+            return;
+        }
+
+        var args = new SelectOpenChangeEventArgs(nextOpen, reason);
+        await OnOpenChange.InvokeAsync(args);
+
+        if (args.IsCanceled)
+        {
+            return;
+        }
+
+        openChangeReason = reason;
+        context.OpenChangeReason = reason;
+
+        if (nextOpen)
+        {
+            instantType = reason == SelectOpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
+            transitionStatus = TransitionStatus.Starting;
+            isMounted = true;
+            activeIndex = 0;
+        }
+        else
+        {
+            instantType = reason switch
+            {
+                SelectOpenChangeReason.EscapeKey or SelectOpenChangeReason.OutsidePress => InstantType.Dismiss,
+                SelectOpenChangeReason.TriggerPress or SelectOpenChangeReason.ItemPress => InstantType.Click,
+                _ => InstantType.None
+            };
+            transitionStatus = TransitionStatus.Ending;
+
+            if (reason is SelectOpenChangeReason.OutsidePress or SelectOpenChangeReason.EscapeKey)
+            {
+                FieldContext?.SetTouched(true);
+                FieldContext?.SetFocused(false);
+
+                if (FieldContext?.ValidationMode == ValidationMode.OnBlur)
+                {
+                    await (FieldContext?.Validation.CommitAsync(CurrentValue) ?? Task.CompletedTask);
+                }
+            }
+        }
+
+        context.InstantType = instantType;
+        context.TransitionStatus = transitionStatus;
+        context.Mounted = isMounted;
+        context.ActiveIndex = activeIndex;
+
+        if (!IsControlled)
+        {
+            isOpen = nextOpen;
+        }
+
+        state = SelectRootState.FromFieldState(FieldState, nextOpen);
+        context.Open = nextOpen;
+
+        if (hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                var reasonString = reason switch
+                {
+                    SelectOpenChangeReason.EscapeKey => "escape-key",
+                    SelectOpenChangeReason.ItemPress => "item-press",
+                    SelectOpenChangeReason.OutsidePress => "outside-press",
+                    _ => null
+                };
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        await OpenChanged.InvokeAsync(nextOpen);
+
+        typedContext.NotifyStateChanged();
+        StateHasChanged();
+    }
+
+    private async Task SelectValueInternalAsync(TValue? value)
+    {
+        if (ReadOnly)
+        {
+            return;
+        }
+
+        if (Multiple)
+        {
+            var values = new List<TValue>(GetCurrentValues());
+            var index = values.FindIndex(v => typedContext.AreEqual(v, value));
+            if (index >= 0)
+            {
+                values.RemoveAt(index);
+            }
+            else if (value is not null)
+            {
+                values.Add(value);
+            }
+
+            if (!IsValuesControlled)
+            {
+                internalValues = values;
+            }
+
+            var eventArgs = new SelectValueChangeEventArgs<TValue>(value);
+            await OnValueChange.InvokeAsync(eventArgs);
+
+            if (ValuesChanged.HasDelegate)
+            {
+                await ValuesChanged.InvokeAsync(values);
+            }
+
+            if (ValueChanged.HasDelegate)
+            {
+                await ValueChanged.InvokeAsync(value);
+            }
+
+            HandleValueChanged();
+
+            typedContext.NotifyStateChanged();
+            StateHasChanged();
+        }
+        else
+        {
+            var eventArgs = new SelectValueChangeEventArgs<TValue>(value);
+            await OnValueChange.InvokeAsync(eventArgs);
+
+            if (!IsValueControlled)
+            {
+                internalValue = value;
+            }
+
+            if (ValueChanged.HasDelegate)
+            {
+                await ValueChanged.InvokeAsync(value);
+            }
+
+            HandleValueChanged();
+
+            await SetOpenAsync(false, SelectOpenChangeReason.ItemPress);
+        }
+    }
+
+    private void HandleValueChanged()
+    {
+        FormContext?.ClearErrors(ResolvedName);
+
+        var initialValue = FieldContext?.ValidityData.InitialValue;
+        var isDirty = !EqualityComparer<object>.Default.Equals(CurrentValue, initialValue);
+
+        FieldContext?.SetDirty(isDirty);
+        FieldContext?.SetFilled(!IsPlaceholderState());
+
+        if (FieldContext?.ShouldValidateOnChange() == true)
+        {
+            _ = FieldContext.Validation.CommitAsync(CurrentValue);
+        }
+        else
+        {
+            _ = FieldContext?.Validation.CommitAsync(CurrentValue, revalidateOnly: true);
+        }
+    }
+
+    private void HandleTriggerFocus()
+    {
+        if (ResolvedDisabled)
+        {
+            return;
+        }
+
+        FieldContext?.SetFocused(true);
+    }
+
+    private void HandleTriggerBlur()
+    {
+        if (ResolvedDisabled)
+        {
+            return;
+        }
+
+        if (CurrentOpen)
+        {
+            return;
+        }
+
+        FieldContext?.SetTouched(true);
+        FieldContext?.SetFocused(false);
+
+        if (FieldContext?.ValidationMode == ValidationMode.OnBlur)
+        {
+            _ = FieldContext.Validation.CommitAsync(CurrentValue);
+        }
+    }
+
+    private async ValueTask FocusTriggerAsync()
+    {
+        if (!hasRendered || !triggerElement.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("focusTrigger", triggerElement.Value);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private bool IsPlaceholderState()
+    {
+        if (Multiple)
+        {
+            return GetCurrentValues().Count == 0;
+        }
+
+        return CurrentValue is null;
+    }
+
+    private bool IsValuesControlled => ValuesChanged.HasDelegate;
+
+    private IReadOnlyList<TValue> GetCurrentValues()
+    {
+        if (IsValuesControlled && Values is not null)
+        {
+            return Values;
+        }
+
+        return internalValues;
+    }
+
+    private async Task InitializeJsAsync()
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            var modal = Modal == ModalMode.True;
+            var directionStr = Direction == TextDirection.Rtl ? "rtl" : "ltr";
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, true, modal, directionStr);
+
+            if (triggerElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setTriggerElement", rootId, triggerElement.Value);
+            }
+
+            if (popupElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setPopupElement", rootId, popupElement.Value);
+            }
+
+            if (listElement.HasValue)
+            {
+                await module.InvokeVoidAsync("setListElement", rootId, listElement.Value);
+            }
+
+            if (CurrentOpen)
+            {
+                await module.InvokeVoidAsync("setRootOpen", rootId, true, (string?)null);
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetTriggerElement(ElementReference? element)
+    {
+        triggerElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetTriggerElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetTriggerElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setTriggerElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetListElement(ElementReference? element)
+    {
+        listElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetListElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetListElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setListElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task ClearHighlightsInternalAsync()
+    {
+        if (!hasRendered)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("clearHighlights", rootId);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetPopupElement(ElementReference? element)
+    {
+        popupElement = element;
+
+        if (hasRendered && element.HasValue)
+        {
+            _ = SetPopupElementAsync(element.Value);
+        }
+    }
+
+    private async Task SetPopupElementAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setPopupElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetActiveIndex(int index)
+    {
+        if (activeIndex == index)
+        {
+            return;
+        }
+
+        activeIndex = index;
+        context.ActiveIndex = index;
+
+        if (hasRendered)
+        {
+            _ = SetActiveIndexAsync(index);
+        }
+    }
+
+    private async Task SetActiveIndexAsync(int index)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setActiveIndex", rootId, index);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private Task SetOpenAsyncFromContext(bool nextOpen, SelectOpenChangeReason reason)
+    {
+        return SetOpenAsync(nextOpen, reason);
+    }
+
+    private async Task InvokeOpenChangeCompleteAsync(bool open)
+    {
+        try
+        {
+            await OnOpenChangeComplete.InvokeAsync(open);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+}

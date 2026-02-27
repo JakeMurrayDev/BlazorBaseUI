@@ -1,0 +1,32 @@
+@using BlazorBaseUI.Portal
+
+@if (RootContext is not null && (RootContext.GetMounted() || KeepMounted))
+{
+    <Portal Target="@Container">
+        @ChildContent
+    </Portal>
+}
+
+@code {
+    [CascadingParameter]
+    private ISelectRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Determines whether the portal contents should remain mounted in the DOM when the select is closed.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool KeepMounted { get; set; }
+
+    /// <summary>
+    /// Gets or sets a CSS selector for the container to render the portal into.
+    /// </summary>
+    [Parameter]
+    public string Container { get; set; } = "body";
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

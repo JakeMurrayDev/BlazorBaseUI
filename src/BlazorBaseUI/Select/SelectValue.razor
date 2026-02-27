@@ -1,0 +1,251 @@
+@typeparam TValue
+@implements IDisposable
+
+<RenderElement TState="SelectValueState"
+               Tag="span"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="resolvedContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private SelectValueState state;
+    private RenderElement<SelectValueState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+    private RenderFragment? resolvedContent;
+    private string? _cachedLabel;
+    private bool _cachedIsPlaceholder;
+
+    [CascadingParameter]
+    private ISelectRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private SelectRootContext<TValue>? TypedRootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets the placeholder text displayed when no value is selected.
+    /// </summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    /// <summary>
+    /// Gets or sets a child content function that receives the current value.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<TValue?>? ValueContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a child content function that receives the current values in multi-select mode.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<IReadOnlyList<TValue>>? ValuesContent { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<SelectValueState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<SelectValueState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<SelectValueState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        if (RootContext is not null)
+        {
+            RootContext.StateChanged += OnRootStateChanged;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var isPlaceholder = RootContext?.IsPlaceholder ?? true;
+        state = new SelectValueState(isPlaceholder);
+        BuildComponentAttributes();
+        ResolveContent();
+        _cachedIsPlaceholder = isPlaceholder;
+        _cachedLabel = ResolveTextLabel(isPlaceholder);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (RootContext is not null)
+        {
+            RootContext.StateChanged -= OnRootStateChanged;
+        }
+    }
+
+    private void OnRootStateChanged()
+    {
+        var isPlaceholder = RootContext?.IsPlaceholder ?? true;
+
+        if (ValueContent is null && ValuesContent is null && ChildContent is null)
+        {
+            var newLabel = ResolveTextLabel(isPlaceholder);
+            if (isPlaceholder == _cachedIsPlaceholder && newLabel == _cachedLabel)
+            {
+                return;
+            }
+            _cachedIsPlaceholder = isPlaceholder;
+            _cachedLabel = newLabel;
+        }
+
+        state = new SelectValueState(isPlaceholder);
+        BuildComponentAttributes();
+        ResolveContent();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void BuildComponentAttributes()
+    {
+        componentAttributes = new Dictionary<string, object>();
+    }
+
+    private void ResolveContent()
+    {
+        if (TypedRootContext is null)
+        {
+            resolvedContent = ChildContent;
+            return;
+        }
+
+        var isMultiple = RootContext?.Multiple ?? false;
+
+        if (isMultiple)
+        {
+            var values = TypedRootContext.GetValues();
+
+            if (ValuesContent is not null)
+            {
+                resolvedContent = ValuesContent(values);
+                return;
+            }
+
+            if (values.Count == 0)
+            {
+                resolvedContent = CreateTextFragment(Placeholder);
+                return;
+            }
+
+            if (ChildContent is not null)
+            {
+                resolvedContent = ChildContent;
+                return;
+            }
+
+            var labels = new List<string>();
+            foreach (var v in values)
+            {
+                var label = TypedRootContext.GetLabel(v);
+                labels.Add(label ?? v?.ToString() ?? "");
+            }
+            resolvedContent = CreateTextFragment(string.Join(", ", labels));
+        }
+        else
+        {
+            var value = TypedRootContext.GetValue();
+
+            if (ValueContent is not null)
+            {
+                resolvedContent = ValueContent(value);
+                return;
+            }
+
+            if (ChildContent is not null)
+            {
+                resolvedContent = ChildContent;
+                return;
+            }
+
+            if (value is null)
+            {
+                resolvedContent = CreateTextFragment(Placeholder);
+                return;
+            }
+
+            var label = TypedRootContext.GetLabel(value);
+            resolvedContent = CreateTextFragment(label ?? value?.ToString());
+        }
+    }
+
+    private string? ResolveTextLabel(bool isPlaceholder)
+    {
+        if (TypedRootContext is null)
+        {
+            return null;
+        }
+
+        var isMultiple = RootContext?.Multiple ?? false;
+
+        if (isMultiple)
+        {
+            var values = TypedRootContext.GetValues();
+            if (values.Count == 0)
+            {
+                return Placeholder;
+            }
+
+            var labels = new List<string>();
+            foreach (var v in values)
+            {
+                var label = TypedRootContext.GetLabel(v);
+                labels.Add(label ?? v?.ToString() ?? "");
+            }
+            return string.Join(", ", labels);
+        }
+        else
+        {
+            var value = TypedRootContext.GetValue();
+            if (value is null)
+            {
+                return Placeholder;
+            }
+
+            return TypedRootContext.GetLabel(value) ?? value?.ToString();
+        }
+    }
+
+    private static RenderFragment? CreateTextFragment(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        return builder => builder.AddContent(0, text);
+    }
+}
