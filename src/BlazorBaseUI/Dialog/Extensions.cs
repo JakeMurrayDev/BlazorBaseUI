@@ -5,13 +5,6 @@ namespace BlazorBaseUI.Dialog;
 /// </summary>
 internal static class Extensions
 {
-    public static string? ToDataAttributeString(this InstantType instant) => instant switch
-    {
-        InstantType.Click => "click",
-        InstantType.Dismiss => "dismiss",
-        _ => null
-    };
-
     public static string? ToDataAttributeString(this ModalMode mode) => mode switch
     {
         ModalMode.False => "false",

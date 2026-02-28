@@ -5,4 +5,4 @@ namespace BlazorBaseUI.PreviewCard;
 /// </summary>
 /// <param name="Open">Indicates whether the preview card is currently open.</param>
 /// <param name="TransitionStatus">The current transition status of the backdrop.</param>
-public readonly record struct PreviewCardBackdropState(bool Open, Popover.TransitionStatus TransitionStatus);
+public readonly record struct PreviewCardBackdropState(bool Open, TransitionStatus TransitionStatus);

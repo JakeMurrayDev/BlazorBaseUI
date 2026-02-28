@@ -66,7 +66,7 @@
         var side = PositionerContext?.Side ?? Side.Bottom;
         var align = PositionerContext?.Align ?? Align.Center;
         var anchorHidden = PositionerContext?.AnchorHidden ?? false;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
 
         state = new NavigationMenuPopupState(open, side, align, anchorHidden, transitionStatus);
         BuildComponentAttributes();

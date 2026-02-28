@@ -29,7 +29,7 @@
     private ElementReference? positionerElement;
     private ElementReference? popupElement;
     private PreviewCardOpenChangeReason openChangeReason = PreviewCardOpenChangeReason.None;
-    private Popover.TransitionStatus transitionStatus = Popover.TransitionStatus.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private PreviewCardInstantType instantType = PreviewCardInstantType.None;
     private PreviewCardRootState state;
     private PreviewCardRootContext context = null!;
@@ -244,9 +244,9 @@
     [JSInvokable]
     public void OnStartingStyleApplied()
     {
-        if (transitionStatus == Popover.TransitionStatus.Starting)
+        if (transitionStatus == TransitionStatus.Starting)
         {
-            transitionStatus = Popover.TransitionStatus.None;
+            transitionStatus = TransitionStatus.Undefined;
             context.TransitionStatus = transitionStatus;
             StateHasChanged();
         }
@@ -259,7 +259,7 @@
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = Popover.TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
 
         if (!open)
@@ -393,7 +393,7 @@
             instantType = reason == PreviewCardOpenChangeReason.TriggerFocus
                 ? PreviewCardInstantType.Focus
                 : PreviewCardInstantType.None;
-            transitionStatus = Popover.TransitionStatus.Starting;
+            transitionStatus = TransitionStatus.Starting;
             isMounted = true;
         }
         else
@@ -403,7 +403,7 @@
                 PreviewCardOpenChangeReason.EscapeKey or PreviewCardOpenChangeReason.OutsidePress => PreviewCardInstantType.Dismiss,
                 _ => PreviewCardInstantType.None
             };
-            transitionStatus = Popover.TransitionStatus.Ending;
+            transitionStatus = TransitionStatus.Ending;
         }
 
         context.InstantType = instantType;
@@ -600,7 +600,7 @@
     {
         isMounted = false;
         context.Mounted = false;
-        transitionStatus = Popover.TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
         activeTriggerId = null;
         context.ActiveTriggerId = null;

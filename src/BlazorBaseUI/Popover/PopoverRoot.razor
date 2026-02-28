@@ -29,7 +29,7 @@
     private ElementReference? positionerElement;
     private ElementReference? popupElement;
     private OpenChangeReason openChangeReason = OpenChangeReason.None;
-    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private InstantType instantType = InstantType.None;
     private object? payload;
     private PopoverRootState state;
@@ -312,7 +312,7 @@
     {
         isMounted = false;
         context.Mounted = false;
-        transitionStatus = TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
         activeTriggerId = null;
         context.ActiveTriggerId = null;
@@ -348,7 +348,7 @@
     {
         if (transitionStatus == TransitionStatus.Starting)
         {
-            transitionStatus = TransitionStatus.None;
+            transitionStatus = TransitionStatus.Undefined;
             context.TransitionStatus = transitionStatus;
             StateHasChanged();
         }
@@ -389,7 +389,7 @@
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
 
         if (!open)

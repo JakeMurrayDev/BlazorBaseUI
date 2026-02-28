@@ -29,8 +29,6 @@ internal sealed class DialogRootContext
 
     public TransitionStatus TransitionStatus { get; set; }
 
-    public InstantType InstantType { get; set; }
-
     public string? TitleId { get; set; }
 
     public string? DescriptionId { get; set; }

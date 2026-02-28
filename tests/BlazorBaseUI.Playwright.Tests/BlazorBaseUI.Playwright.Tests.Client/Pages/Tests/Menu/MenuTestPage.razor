@@ -11,7 +11,7 @@
         Disabled="@Disabled"
         Modal="@(Modal ? ModalMode.True : ModalMode.False)"
         Orientation="@((Orientation ?? "vertical") == "horizontal" ? MenuOrientation.Horizontal : MenuOrientation.Vertical)"
-        Direction="@(Direction == "rtl" ? TextDirection.Rtl : TextDirection.Ltr)"
+        Direction="@(Direction == "rtl" ? BlazorBaseUI.Direction.Rtl : BlazorBaseUI.Direction.Ltr)"
         LoopFocus="@LoopFocus"
         HighlightItemOnHover="@HighlightItemOnHover"
         OnOpenChange="HandleOpenChange"
@@ -94,7 +94,7 @@
                         <MenuSubmenuRoot
                             @bind-Open="submenuOpen"
                             CloseParentOnEsc="@CloseParentOnEsc"
-                            Direction="@(Direction == "rtl" ? TextDirection.Rtl : TextDirection.Ltr)"
+                            Direction="@(Direction == "rtl" ? BlazorBaseUI.Direction.Rtl : BlazorBaseUI.Direction.Ltr)"
                             OnOpenChange="HandleSubmenuOpenChange"
                             >
                             <MenuSubmenuTrigger data-testid="submenu-trigger">
@@ -111,7 +111,7 @@
                                         </MenuItem>
                                         @if (ShowNestedSubmenu)
                                         {
-                                            <MenuSubmenuRoot @bind-Open="nestedSubmenuOpen" Direction="@(Direction == "rtl" ? TextDirection.Rtl : TextDirection.Ltr)" OnOpenChange="HandleNestedSubmenuOpenChange">
+                                            <MenuSubmenuRoot @bind-Open="nestedSubmenuOpen" Direction="@(Direction == "rtl" ? BlazorBaseUI.Direction.Rtl : BlazorBaseUI.Direction.Ltr)" OnOpenChange="HandleNestedSubmenuOpenChange">
                                                 <MenuSubmenuTrigger data-testid="nested-submenu-trigger">
                                                     Nested Submenu
                                                 </MenuSubmenuTrigger>

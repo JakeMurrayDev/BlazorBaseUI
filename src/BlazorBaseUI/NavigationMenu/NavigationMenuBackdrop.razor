@@ -51,7 +51,7 @@
     protected override void OnParametersSet()
     {
         var open = RootContext?.Value is not null;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         state = new NavigationMenuBackdropState(open, transitionStatus);
         BuildComponentAttributes();
     }

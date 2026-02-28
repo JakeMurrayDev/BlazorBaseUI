@@ -257,12 +257,6 @@
         attrs["data-nested"] = Context.Nested;
         attrs["data-nested-dialog-open"] = Context.NestedDialogCount > 0;
 
-        var instantValue = Context.InstantType.ToDataAttributeString();
-        if (!string.IsNullOrEmpty(instantValue))
-        {
-            attrs["data-instant"] = instantValue;
-        }
-
         var keepMounted = PortalContext?.KeepMounted ?? false;
         var isHidden = keepMounted && !Context.Open && (Context.TransitionStatus == TransitionStatus.Undefined || Context.TransitionStatus == TransitionStatus.Idle);
         if (isHidden)

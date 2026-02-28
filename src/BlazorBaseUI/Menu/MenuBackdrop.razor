@@ -61,7 +61,7 @@
     protected override void OnParametersSet()
     {
         var open = RootContext?.Open ?? false;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         state = new MenuBackdropState(open, transitionStatus);
         BuildComponentAttributes();
         BuildComputedStyleValue();

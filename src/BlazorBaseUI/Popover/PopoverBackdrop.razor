@@ -62,7 +62,7 @@
     protected override void OnParametersSet()
     {
         var open = RootContext?.GetOpen() ?? false;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         state = new PopoverBackdropState(open, transitionStatus);
         computedStyleValue = s =>
         {
@@ -89,7 +89,7 @@
         var isOpen = RootContext?.GetOpen() ?? false;
         attrs["data-open"] = isOpen;
         attrs["data-closed"] = !isOpen;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         attrs["data-starting-style"] = transitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = transitionStatus == TransitionStatus.Ending;
 

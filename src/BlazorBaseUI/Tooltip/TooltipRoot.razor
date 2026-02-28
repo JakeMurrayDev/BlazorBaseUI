@@ -29,7 +29,7 @@
     private ElementReference? positionerElement;
     private ElementReference? popupElement;
     private TooltipOpenChangeReason openChangeReason = TooltipOpenChangeReason.None;
-    private Popover.TransitionStatus transitionStatus = Popover.TransitionStatus.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private TooltipInstantType instantType = TooltipInstantType.None;
     private TooltipRootState state;
     private TooltipRootContext context = null!;
@@ -272,9 +272,9 @@
     [JSInvokable]
     public void OnStartingStyleApplied()
     {
-        if (transitionStatus == Popover.TransitionStatus.Starting)
+        if (transitionStatus == TransitionStatus.Starting)
         {
-            transitionStatus = Popover.TransitionStatus.None;
+            transitionStatus = TransitionStatus.Undefined;
             context.TransitionStatus = transitionStatus;
             StateHasChanged();
         }
@@ -287,7 +287,7 @@
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = Popover.TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
 
         if (!open)
@@ -426,7 +426,7 @@
             instantType = reason == TooltipOpenChangeReason.TriggerFocus
                 ? TooltipInstantType.Focus
                 : (ProviderContext?.IsInInstantPhase() == true ? TooltipInstantType.Delay : TooltipInstantType.None);
-            transitionStatus = Popover.TransitionStatus.Starting;
+            transitionStatus = TransitionStatus.Starting;
             isMounted = true;
         }
         else
@@ -436,7 +436,7 @@
                 TooltipOpenChangeReason.EscapeKey or TooltipOpenChangeReason.OutsidePress => TooltipInstantType.Dismiss,
                 _ => TooltipInstantType.None
             };
-            transitionStatus = Popover.TransitionStatus.Ending;
+            transitionStatus = TransitionStatus.Ending;
 
             ProviderContext?.SetLastClosedTime();
         }
@@ -625,7 +625,7 @@
     {
         isMounted = false;
         context.Mounted = false;
-        transitionStatus = Popover.TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
         activeTriggerId = null;
         context.ActiveTriggerId = null;

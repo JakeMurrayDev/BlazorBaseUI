@@ -33,7 +33,6 @@
     private ElementReference? popupElement;
     private OpenChangeReason openChangeReason = OpenChangeReason.None;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
-    private InstantType instantType = InstantType.None;
     private object? payload;
     private DialogRootState state;
     private DialogRootContext context = null!;
@@ -173,7 +172,6 @@
             NestedDialogCount = nestedDialogCount,
             OpenChangeReason = openChangeReason,
             TransitionStatus = transitionStatus,
-            InstantType = instantType,
             TitleId = titleId,
             DescriptionId = descriptionId,
             ActiveTriggerId = activeTriggerId,
@@ -217,17 +215,14 @@
             if (currentOpen)
             {
                 isMounted = true;
-                instantType = InstantType.None;
                 transitionStatus = TransitionStatus.Starting;
             }
             else
             {
-                instantType = InstantType.None;
                 transitionStatus = TransitionStatus.Ending;
             }
             context.Open = currentOpen;
             context.Mounted = isMounted;
-            context.InstantType = instantType;
             context.TransitionStatus = transitionStatus;
             openChangeReason = OpenChangeReason.None;
             context.OpenChangeReason = openChangeReason;
@@ -355,9 +350,6 @@
             payload = null;
             context.Payload = null;
         }
-
-        instantType = InstantType.None;
-        context.InstantType = instantType;
 
         _ = InvokeOpenChangeCompleteAsync(open);
         StateHasChanged();
@@ -579,24 +571,16 @@
 
         if (nextOpen)
         {
-            instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
             transitionStatus = TransitionStatus.Starting;
             isMounted = true;
         }
         else
         {
-            instantType = reason switch
-            {
-                OpenChangeReason.EscapeKey or OpenChangeReason.OutsidePress => InstantType.Dismiss,
-                OpenChangeReason.TriggerPress or OpenChangeReason.ClosePress => InstantType.Click,
-                _ => InstantType.None
-            };
             transitionStatus = TransitionStatus.Ending;
             payload = null;
             context.Payload = null;
         }
 
-        context.InstantType = instantType;
         context.TransitionStatus = transitionStatus;
         context.Mounted = isMounted;
 

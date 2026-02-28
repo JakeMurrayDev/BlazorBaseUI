@@ -25,21 +25,6 @@ public enum OpenChangeReason
 }
 
 /// <summary>
-/// Specifies the type of instant transition for the dialog.
-/// </summary>
-public enum InstantType
-{
-    /// <summary>No instant transition.</summary>
-    None,
-
-    /// <summary>A click-based instant transition.</summary>
-    Click,
-
-    /// <summary>A dismiss-based instant transition.</summary>
-    Dismiss
-}
-
-/// <summary>
 /// Specifies the modal behavior of the dialog.
 /// </summary>
 public enum ModalMode

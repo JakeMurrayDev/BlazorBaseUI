@@ -72,10 +72,9 @@
         var open = RootContext?.GetOpen() ?? false;
         var side = PositionerContext?.Side ?? Side.Bottom;
         var align = PositionerContext?.Align ?? Align.Center;
-        var instant = RootContext?.InstantType ?? InstantType.None;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
 
-        state = new SelectPopupState(open, side, align, instant, transitionStatus);
+        state = new SelectPopupState(open, side, align, transitionStatus);
         BuildComponentAttributes();
     }
 
@@ -112,12 +111,6 @@
         attrs["data-closed"] = !state.Open;
         attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
-
-        var instantAttr = state.Instant.ToDataAttributeString();
-        if (!string.IsNullOrEmpty(instantAttr))
-        {
-            attrs["data-instant"] = instantAttr;
-        }
 
         componentAttributes = attrs;
     }

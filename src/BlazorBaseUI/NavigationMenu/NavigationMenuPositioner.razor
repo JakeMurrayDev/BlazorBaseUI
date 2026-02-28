@@ -162,8 +162,7 @@
     protected override void OnParametersSet()
     {
         var open = RootContext?.GetValue() is not null;
-        var instant = RootContext?.InstantType != InstantType.None;
-        state = new NavigationMenuPositionerState(open, Side, Align, false, instant);
+        state = new NavigationMenuPositionerState(open, Side, Align, false, false);
 
         positionerContext.Side = Side;
         positionerContext.Align = Align;
