@@ -785,12 +785,12 @@
     {
         var baseClass = "origin-[var(--transform-origin)] rounded-md bg-[canvas] px-3 py-1.5 text-sm text-gray-900 shadow-lg shadow-gray-200 outline outline-1 outline-gray-200";
 
-        if (state.TransitionStatus == Popover.TransitionStatus.Starting)
+        if (state.TransitionStatus == TransitionStatus.Starting)
         {
             return $"{baseClass} opacity-0 scale-90";
         }
 
-        if (state.TransitionStatus == Popover.TransitionStatus.Ending)
+        if (state.TransitionStatus == TransitionStatus.Ending)
         {
             return $"{baseClass} opacity-0 scale-90";
         }

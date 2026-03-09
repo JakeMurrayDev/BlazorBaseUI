@@ -43,11 +43,6 @@ internal sealed class NavigationMenuRootContext
     public TransitionStatus TransitionStatus { get; set; }
 
     /// <summary>
-    /// Gets or sets the type of instant transition to apply.
-    /// </summary>
-    public InstantType InstantType { get; set; }
-
-    /// <summary>
     /// Gets the auto-generated ID of the popup element.
     /// Used by the trigger for <c>aria-controls</c> and by the popup for its <c>id</c>.
     /// </summary>

@@ -224,8 +224,6 @@
         var attrs = new Dictionary<string, object>();
         var open = RootContext?.GetOpen() ?? false;
         var mounted = RootContext?.GetMounted() ?? false;
-        var instantType = RootContext?.InstantType ?? InstantType.None;
-
         attrs["role"] = "presentation";
 
         if (!mounted)
@@ -241,12 +239,6 @@
         if (state.AnchorHidden)
         {
             attrs["data-anchor-hidden"] = true;
-        }
-
-        var instantAttr = instantType.ToDataAttributeString();
-        if (!string.IsNullOrEmpty(instantAttr))
-        {
-            attrs["data-instant"] = instantAttr;
         }
 
         componentAttributes = attrs;

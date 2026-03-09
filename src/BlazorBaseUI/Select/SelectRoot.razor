@@ -49,8 +49,7 @@
     private ElementReference? popupElement;
     private ElementReference? listElement;
     private SelectOpenChangeReason openChangeReason = SelectOpenChangeReason.None;
-    private TransitionStatus transitionStatus = TransitionStatus.None;
-    private InstantType instantType = InstantType.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private SelectRootState state;
     private SelectRootContext<TValue> typedContext = null!;
     private ISelectRootContext context = null!;
@@ -150,7 +149,7 @@
     /// Gets or sets the text direction of the select.
     /// </summary>
     [Parameter]
-    public TextDirection Direction { get; set; } = TextDirection.Ltr;
+    public Direction Direction { get; set; } = Direction.Ltr;
 
     /// <summary>
     /// Gets or sets the identifier of the select root.
@@ -289,7 +288,6 @@
             HighlightItemOnHover = HighlightItemOnHover,
             OpenChangeReason = openChangeReason,
             TransitionStatus = transitionStatus,
-            InstantType = instantType,
             ActiveIndex = activeIndex,
             FieldState = FieldState,
             Items = Items,
@@ -405,7 +403,7 @@
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
 
         if (!open)
@@ -415,9 +413,6 @@
             activeIndex = -1;
             context.ActiveIndex = activeIndex;
         }
-
-        instantType = InstantType.None;
-        context.InstantType = instantType;
 
         _ = InvokeOpenChangeCompleteAsync(open);
         StateHasChanged();
@@ -476,19 +471,12 @@
 
         if (nextOpen)
         {
-            instantType = reason == SelectOpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
             transitionStatus = TransitionStatus.Starting;
             isMounted = true;
             activeIndex = 0;
         }
         else
         {
-            instantType = reason switch
-            {
-                SelectOpenChangeReason.EscapeKey or SelectOpenChangeReason.OutsidePress => InstantType.Dismiss,
-                SelectOpenChangeReason.TriggerPress or SelectOpenChangeReason.ItemPress => InstantType.Click,
-                _ => InstantType.None
-            };
             transitionStatus = TransitionStatus.Ending;
 
             if (reason is SelectOpenChangeReason.OutsidePress or SelectOpenChangeReason.EscapeKey)
@@ -503,7 +491,6 @@
             }
         }
 
-        context.InstantType = instantType;
         context.TransitionStatus = transitionStatus;
         context.Mounted = isMounted;
         context.ActiveIndex = activeIndex;
@@ -714,7 +701,7 @@
         {
             var module = await ModuleTask.Value;
             var modal = Modal == ModalMode.True;
-            var directionStr = Direction == TextDirection.Rtl ? "rtl" : "ltr";
+            var directionStr = Direction.ToAttributeString() ?? "ltr";
             await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, true, modal, directionStr);
 
             if (triggerElement.HasValue)

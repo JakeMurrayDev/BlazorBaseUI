@@ -20,7 +20,7 @@
     private ElementReference? triggerElement;
     private ElementReference? popupElement;
     private OpenChangeReason openChangeReason = OpenChangeReason.None;
-    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private InstantType instantType = InstantType.None;
     private MenuRootState state;
     private MenuRootContext context = null!;
@@ -104,7 +104,7 @@
     /// Gets or sets the text direction of the menu.
     /// </summary>
     [Parameter]
-    public TextDirection Direction { get; set; } = TextDirection.Ltr;
+    public Direction Direction { get; set; } = Direction.Ltr;
 
     /// <summary>
     /// Gets or sets a reference to imperative actions for controlling the menu programmatically.
@@ -253,7 +253,7 @@
     {
         if (transitionStatus == TransitionStatus.Starting)
         {
-            transitionStatus = TransitionStatus.None;
+            transitionStatus = TransitionStatus.Undefined;
             context.TransitionStatus = transitionStatus;
             StateHasChanged();
         }
@@ -265,7 +265,7 @@
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
 
         if (!open)
@@ -413,7 +413,7 @@
             var modal = !isNested && Modal == ModalMode.True;
             var menubarElement = ParentType == MenuParentType.Menubar ? MenuBarContext?.GetElement() : null;
             var orientationStr = Orientation == MenuOrientation.Horizontal ? "horizontal" : "vertical";
-            var directionStr = Direction == TextDirection.Rtl ? "rtl" : "ltr";
+            var directionStr = Direction.ToAttributeString() ?? "ltr";
             await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, CloseParentOnEsc, LoopFocus, modal, menubarElement, orientationStr, HighlightItemOnHover, directionStr, isNested);
 
             if (triggerElement.HasValue)
@@ -526,7 +526,7 @@
     {
         isMounted = false;
         context.Mounted = false;
-        transitionStatus = TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
         _ = InvokeOpenChangeCompleteAsync(false);
         StateHasChanged();

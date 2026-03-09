@@ -60,11 +60,6 @@ internal interface ISelectRootContext
     TransitionStatus TransitionStatus { get; set; }
 
     /// <summary>
-    /// Gets or sets the type of instant transition to apply.
-    /// </summary>
-    InstantType InstantType { get; set; }
-
-    /// <summary>
     /// Gets or sets the index of the currently highlighted item.
     /// </summary>
     int ActiveIndex { get; set; }

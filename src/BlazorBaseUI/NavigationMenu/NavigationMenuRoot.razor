@@ -26,8 +26,7 @@
     private string? currentValue;
     private bool isMounted;
     private ActivationDirection activationDirection = ActivationDirection.None;
-    private TransitionStatus transitionStatus = TransitionStatus.None;
-    private InstantType instantType = InstantType.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private ElementReference? popupElement;
     private ElementReference? viewportElement;
     private NavigationMenuRootState state;
@@ -148,7 +147,6 @@
             Orientation = Orientation,
             ActivationDirection = activationDirection,
             TransitionStatus = transitionStatus,
-            InstantType = instantType,
             GetValue = () => CurrentValue,
             GetMounted = () => isMounted,
             SetValueAsync = SetValueFromContextAsync,
@@ -257,7 +255,7 @@
     {
         if (transitionStatus == TransitionStatus.Starting)
         {
-            transitionStatus = TransitionStatus.None;
+            transitionStatus = TransitionStatus.Undefined;
             context.TransitionStatus = transitionStatus;
             StateHasChanged();
         }
@@ -269,7 +267,7 @@
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = TransitionStatus.None;
+        transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
 
         if (!open)
@@ -277,9 +275,6 @@
             isMounted = false;
             context.Mounted = false;
         }
-
-        instantType = InstantType.None;
-        context.InstantType = instantType;
 
         _ = InvokeOpenChangeCompleteAsync(open);
         StateHasChanged();

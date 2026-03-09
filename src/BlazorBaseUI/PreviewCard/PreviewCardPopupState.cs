@@ -15,4 +15,4 @@ public readonly record struct PreviewCardPopupState(
     Side Side,
     Align Align,
     PreviewCardInstantType Instant,
-    Popover.TransitionStatus TransitionStatus);
+    TransitionStatus TransitionStatus);

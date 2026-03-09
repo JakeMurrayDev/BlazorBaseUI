@@ -1,63 +1,6 @@
 namespace BlazorBaseUI.Popover;
 
 /// <summary>
-/// Specifies the side of the anchor element to position the popover against.
-/// </summary>
-public enum Side
-{
-    /// <summary>
-    /// Positions the popover above the anchor element.
-    /// </summary>
-    Top,
-
-    /// <summary>
-    /// Positions the popover below the anchor element.
-    /// </summary>
-    Bottom,
-
-    /// <summary>
-    /// Positions the popover to the left of the anchor element.
-    /// </summary>
-    Left,
-
-    /// <summary>
-    /// Positions the popover to the right of the anchor element.
-    /// </summary>
-    Right,
-
-    /// <summary>
-    /// Positions the popover at the inline-end of the anchor element (logical direction).
-    /// </summary>
-    InlineEnd,
-
-    /// <summary>
-    /// Positions the popover at the inline-start of the anchor element (logical direction).
-    /// </summary>
-    InlineStart
-}
-
-/// <summary>
-/// Specifies the alignment of the popover relative to the specified side.
-/// </summary>
-public enum Align
-{
-    /// <summary>
-    /// Aligns the popover to the start edge.
-    /// </summary>
-    Start,
-
-    /// <summary>
-    /// Aligns the popover to the center.
-    /// </summary>
-    Center,
-
-    /// <summary>
-    /// Aligns the popover to the end edge.
-    /// </summary>
-    End
-}
-
-/// <summary>
 /// Specifies the modal behavior of the popover.
 /// </summary>
 public enum ModalMode
@@ -76,27 +19,6 @@ public enum ModalMode
     /// The popover traps focus without rendering a backdrop.
     /// </summary>
     TrapFocus
-}
-
-/// <summary>
-/// Specifies the current transition status of a popover component.
-/// </summary>
-public enum TransitionStatus
-{
-    /// <summary>
-    /// The component is in the starting phase of a transition.
-    /// </summary>
-    Starting,
-
-    /// <summary>
-    /// The component is in the ending phase of a transition.
-    /// </summary>
-    Ending,
-
-    /// <summary>
-    /// No transition is currently active.
-    /// </summary>
-    None
 }
 
 /// <summary>
@@ -172,38 +94,6 @@ public enum OpenChangeReason
 }
 
 /// <summary>
-/// Specifies the CSS positioning method for the popover.
-/// </summary>
-public enum PositionMethod
-{
-    /// <summary>
-    /// Uses CSS <c>position: absolute</c> for positioning.
-    /// </summary>
-    Absolute,
-
-    /// <summary>
-    /// Uses CSS <c>position: fixed</c> for positioning.
-    /// </summary>
-    Fixed
-}
-
-/// <summary>
-/// Specifies the boundary used to detect collisions for repositioning.
-/// </summary>
-public enum CollisionBoundary
-{
-    /// <summary>
-    /// Uses the viewport as the collision boundary.
-    /// </summary>
-    Viewport,
-
-    /// <summary>
-    /// Uses the clipping ancestors of the popover as the collision boundary.
-    /// </summary>
-    ClippingAncestors
-}
-
-/// <summary>
 /// Specifies how side collisions are handled when positioning the popup.
 /// </summary>
 public enum CollisionAvoidanceSideMode
@@ -269,7 +159,7 @@ public enum CollisionAvoidanceFallbackAxisSide
 /// <summary>
 /// Determines how to handle collisions when positioning the popup.
 /// </summary>
-public sealed class CollisionAvoidance
+public sealed class PopoverCollisionAvoidance
 {
     /// <summary>
     /// Gets or sets how side collisions are handled.

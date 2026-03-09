@@ -77,7 +77,7 @@
         var side = PositionerContext?.Side ?? Side.Bottom;
         var align = PositionerContext?.Align ?? Align.Center;
         var instant = RootContext?.InstantType ?? PreviewCardInstantType.None;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         state = new PreviewCardPopupState(open, side, align, instant, transitionStatus);
         BuildComponentAttributes();
     }
@@ -125,7 +125,7 @@
             attrs["data-instant"] = instantAttr;
         }
 
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         attrs["data-starting-style"] = transitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = transitionStatus == TransitionStatus.Ending;
 

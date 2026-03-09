@@ -3,8 +3,8 @@ using BlazorBaseUI.Tests.Infrastructure;
 using BlazorBaseUI.Tooltip;
 using Bunit;
 using Microsoft.AspNetCore.Components;
-using Side = BlazorBaseUI.Popover.Side;
-using Align = BlazorBaseUI.Popover.Align;
+using Side = BlazorBaseUI.Side;
+using Align = BlazorBaseUI.Align;
 
 namespace BlazorBaseUI.Tests.Tooltip;
 

@@ -43,9 +43,6 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     public TransitionStatus TransitionStatus { get; set; }
 
     /// <inheritdoc />
-    public InstantType InstantType { get; set; }
-
-    /// <inheritdoc />
     public int ActiveIndex { get; set; }
 
     /// <inheritdoc />

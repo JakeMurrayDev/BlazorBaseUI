@@ -14,14 +14,14 @@
 
 @code {
     private bool isMounted;
-    private TransitionStatus transitionStatus = TransitionStatus.None;
+    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private CancellationTokenSource? transitionCts;
     private bool hasInitialized;
     private MenuCheckboxItemIndicatorState state;
     private bool previousChecked;
     private bool previousDisabled;
     private bool previousHighlighted;
-    private TransitionStatus previousTransitionStatus = TransitionStatus.None;
+    private TransitionStatus previousTransitionStatus = TransitionStatus.Undefined;
     private RenderElement<MenuCheckboxItemIndicatorState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
@@ -160,7 +160,7 @@
                 await Task.Delay(1, token);
                 if (!token.IsCancellationRequested)
                 {
-                    transitionStatus = TransitionStatus.None;
+                    transitionStatus = TransitionStatus.Undefined;
                     await InvokeAsync(StateHasChanged);
                 }
             }
@@ -186,7 +186,7 @@
                 if (!token.IsCancellationRequested)
                 {
                     isMounted = false;
-                    transitionStatus = TransitionStatus.None;
+                    transitionStatus = TransitionStatus.Undefined;
                     await InvokeAsync(StateHasChanged);
                 }
             }

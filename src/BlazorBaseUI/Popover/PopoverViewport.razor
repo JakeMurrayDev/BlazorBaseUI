@@ -58,7 +58,7 @@
     protected override void OnParametersSet()
     {
         var open = RootContext?.GetOpen() ?? false;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.None;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         state = new PopoverViewportState(open, transitionStatus);
         BuildComponentAttributes();
     }

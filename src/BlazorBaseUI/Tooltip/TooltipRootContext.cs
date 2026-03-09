@@ -41,7 +41,7 @@ internal sealed class TooltipRootContext
     /// <summary>
     /// Gets or sets the current transition status.
     /// </summary>
-    public Popover.TransitionStatus TransitionStatus { get; set; }
+    public TransitionStatus TransitionStatus { get; set; }
 
     /// <summary>
     /// Gets or sets the current instant transition type.

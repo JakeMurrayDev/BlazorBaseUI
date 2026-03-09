@@ -18,8 +18,8 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
     private RenderFragment CreatePositionerInPopover(
         bool defaultOpen = true,
         RenderFragment<RenderProps<PopoverPositionerState>>? render = null,
-        BlazorBaseUI.Popover.Side side = BlazorBaseUI.Popover.Side.Bottom,
-        BlazorBaseUI.Popover.Align align = BlazorBaseUI.Popover.Align.Center,
+        BlazorBaseUI.Side side = BlazorBaseUI.Side.Bottom,
+        BlazorBaseUI.Align align = BlazorBaseUI.Align.Center,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverPositionerState, string>? classValue = null,
         Func<PopoverPositionerState, string>? styleValue = null)
@@ -118,7 +118,7 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
     [Fact]
     public Task HasDataSideAttribute()
     {
-        var cut = Render(CreatePositionerInPopover(side: BlazorBaseUI.Popover.Side.Top));
+        var cut = Render(CreatePositionerInPopover(side: BlazorBaseUI.Side.Top));
 
         var positioner = cut.Find("[role='presentation']");
         positioner.GetAttribute("data-side").ShouldBe("top");
@@ -129,7 +129,7 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
     [Fact]
     public Task HasDataAlignAttribute()
     {
-        var cut = Render(CreatePositionerInPopover(align: BlazorBaseUI.Popover.Align.Start));
+        var cut = Render(CreatePositionerInPopover(align: BlazorBaseUI.Align.Start));
 
         var positioner = cut.Find("[role='presentation']");
         positioner.GetAttribute("data-align").ShouldBe("start");

@@ -15,4 +15,4 @@ public readonly record struct TooltipPopupState(
     Side Side,
     Align Align,
     TooltipInstantType Instant,
-    Popover.TransitionStatus TransitionStatus);
+    TransitionStatus TransitionStatus);

@@ -22,8 +22,8 @@
         </TooltipTrigger>
         <TooltipPortal KeepMounted="@KeepMounted">
             <TooltipPositioner
-                Side="@(Side == "top" ? BlazorBaseUI.Popover.Side.Top : Side == "left" ? BlazorBaseUI.Popover.Side.Left : Side == "right" ? BlazorBaseUI.Popover.Side.Right : BlazorBaseUI.Popover.Side.Bottom)"
-                Align="@(Align == "start" ? BlazorBaseUI.Popover.Align.Start : Align == "end" ? BlazorBaseUI.Popover.Align.End : BlazorBaseUI.Popover.Align.Center)"
+                Side="@(Side == "top" ? BlazorBaseUI.Side.Top : Side == "left" ? BlazorBaseUI.Side.Left : Side == "right" ? BlazorBaseUI.Side.Right : BlazorBaseUI.Side.Bottom)"
+                Align="@(Align == "start" ? BlazorBaseUI.Align.Start : Align == "end" ? BlazorBaseUI.Align.End : BlazorBaseUI.Align.Center)"
                 data-testid="tooltip-positioner">
                 <TooltipPopup data-testid="tooltip-popup">
                     @if (ShowArrow)
