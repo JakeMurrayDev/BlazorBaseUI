@@ -35,4 +35,15 @@ public sealed class DialogOpenChangeEventArgs : EventArgs
     /// Cancels the open state change, preventing the dialog from opening or closing.
     /// </summary>
     public void Cancel() => Canceled = true;
+
+    /// <summary>
+    /// Gets a value indicating whether the dialog popup should be prevented from unmounting after the close transition completes.
+    /// </summary>
+    public bool PreventUnmountingOnClose { get; private set; }
+
+    /// <summary>
+    /// Prevents the dialog popup from automatically unmounting after the close transition ends.
+    /// The consumer is responsible for calling <see cref="DialogRootActions.Unmount"/> to unmount it manually.
+    /// </summary>
+    public void PreventUnmountOnClose() => PreventUnmountingOnClose = true;
 }

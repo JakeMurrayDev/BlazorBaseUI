@@ -75,7 +75,7 @@
     </DemoSection>
 
     <DemoSection Title="Closing Strategies"
-                 Description="Configure how the dialog can be closed: via ESC key, backdrop click, or close button."
+                 Description="Configure how the dialog can be closed: via backdrop click, ESC key, or close button."
                  CodeSnippet="@ClosingCodeSnippet">
         <div class="flex flex-wrap gap-4">
             <DialogRoot>
@@ -100,29 +100,7 @@
                 </DialogPortal>
             </DialogRoot>
 
-            <DialogRoot DismissOnEscape="false">
-                <DialogTrigger ClassValue="@(s => TriggerClass(s))">
-                    No ESC Key
-                </DialogTrigger>
-                <DialogPortal>
-                    <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
-                    <DialogPopup ClassValue="@(s => PopupClass(s))">
-                        <DialogTitle class="text-lg font-semibold text-gray-900">
-                            ESC Disabled
-                        </DialogTitle>
-                        <DialogDescription class="mt-2 text-sm text-gray-600">
-                            The ESC key won't close this dialog. Use backdrop or close button.
-                        </DialogDescription>
-                        <div class="mt-6 flex justify-end">
-                            <DialogClose ClassValue="@(s => CloseButtonClass(s))">
-                                Close
-                            </DialogClose>
-                        </div>
-                    </DialogPopup>
-                </DialogPortal>
-            </DialogRoot>
-
-            <DialogRoot DismissOnOutsidePress="false">
+            <DialogRoot DisablePointerDismissal="true">
                 <DialogTrigger ClassValue="@(s => TriggerClass(s))">
                     No Backdrop Click
                 </DialogTrigger>
@@ -233,7 +211,7 @@
                         This is the first level dialog. Open another dialog from here.
                     </DialogDescription>
                     <div class="mt-4">
-                        <DialogRoot>
+                        <DialogRoot Context="_">
                             <DialogTrigger ClassValue="@(s => SecondaryTriggerClass(s))">
                                 Open Second Dialog
                             </DialogTrigger>
@@ -247,7 +225,7 @@
                                         This is a nested dialog. You can go deeper!
                                     </DialogDescription>
                                     <div class="mt-4">
-                                        <DialogRoot>
+                                        <DialogRoot Context="__">
                                             <DialogTrigger ClassValue="@(s => SecondaryTriggerClass(s))">
                                                 Open Third Dialog
                                             </DialogTrigger>
@@ -416,30 +394,28 @@
             </div>
 
             <DialogRoot Handle="@detachedDialogHandle">
-                <ChildContentWithPayload>
-                    @{
-                        var handlePayloadContext = context;
-                    }
-                    <DialogPortal>
-                        <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
-                        <DialogPopup ClassValue="@(s => PopupClass(s))">
-                            <DialogTitle class="text-lg font-semibold text-gray-900">
-                                Action Details
-                            </DialogTitle>
-                            <DialogDescription class="mt-2 text-sm text-gray-600">
-                                @(handlePayloadContext.Payload?.ToString() ?? "Select an action to see details")
-                            </DialogDescription>
-                            <div class="mt-6 flex justify-end gap-3">
-                                <DialogClose ClassValue="@(s => SecondaryButtonClass(s))">
-                                    Cancel
-                                </DialogClose>
-                                <DialogClose ClassValue="@(s => CloseButtonClass(s))">
-                                    Confirm
-                                </DialogClose>
-                            </div>
-                        </DialogPopup>
-                    </DialogPortal>
-                </ChildContentWithPayload>
+                @{
+                    var handlePayloadContext = context;
+                }
+                <DialogPortal>
+                    <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
+                    <DialogPopup ClassValue="@(s => PopupClass(s))">
+                        <DialogTitle class="text-lg font-semibold text-gray-900">
+                            Action Details
+                        </DialogTitle>
+                        <DialogDescription class="mt-2 text-sm text-gray-600">
+                            @(handlePayloadContext.Payload?.ToString() ?? "Select an action to see details")
+                        </DialogDescription>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <DialogClose ClassValue="@(s => SecondaryButtonClass(s))">
+                                Cancel
+                            </DialogClose>
+                            <DialogClose ClassValue="@(s => CloseButtonClass(s))">
+                                Confirm
+                            </DialogClose>
+                        </div>
+                    </DialogPopup>
+                </DialogPortal>
             </DialogRoot>
 
             <div class="flex gap-2">
@@ -476,58 +452,56 @@
             </div>
 
             <DialogRoot Handle="@typedDialogHandle">
-                <ChildContentWithPayload>
-                    @{
-                        var typedPayloadContext = context;
-                        var taskInfo = typedPayloadContext.Payload as TaskInfo;
-                    }
-                    <DialogPortal>
-                        <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
-                        <DialogPopup ClassValue="@(s => PopupClass(s))" StyleValue="@(_ => "max-width: 400px;")">
-                            @if (taskInfo is not null)
-                            {
-                                <DialogTitle class="text-lg font-semibold text-gray-900">
-                                    @taskInfo.Title
-                                </DialogTitle>
-                                <div class="mt-4 space-y-3">
-                                    <DialogDescription class="text-sm text-gray-600">
-                                        @taskInfo.Description
-                                    </DialogDescription>
-                                    <div class="flex items-center gap-2 text-sm">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium @(GetPriorityClass(taskInfo.Priority))">
-                                            @taskInfo.Priority Priority
-                                        </span>
-                                        <span class="text-gray-400">|</span>
-                                        <span class="text-gray-600">Due: @taskInfo.DueDate.ToString("MMM dd, yyyy")</span>
-                                    </div>
-                                    <div class="text-sm">
-                                        <span class="font-medium text-gray-700">Status:</span>
-                                        <span class="ml-1 @(taskInfo.IsComplete ? "text-green-600" : "text-yellow-600")">
-                                            @(taskInfo.IsComplete ? "Completed" : "In Progress")
-                                        </span>
-                                    </div>
-                                </div>
-                            }
-                            else
-                            {
-                                <DialogTitle class="text-lg font-semibold text-gray-900">
-                                    Task Details
-                                </DialogTitle>
-                                <DialogDescription class="mt-2 text-sm text-gray-600">
-                                    Click a task to see its details.
+                @{
+                    var typedPayloadContext = context;
+                    var taskInfo = typedPayloadContext.Payload as TaskInfo;
+                }
+                <DialogPortal>
+                    <DialogBackdrop ClassValue="@(s => BackdropClass(s))" />
+                    <DialogPopup ClassValue="@(s => PopupClass(s))" StyleValue="@(_ => "max-width: 400px;")">
+                        @if (taskInfo is not null)
+                        {
+                            <DialogTitle class="text-lg font-semibold text-gray-900">
+                                @taskInfo.Title
+                            </DialogTitle>
+                            <div class="mt-4 space-y-3">
+                                <DialogDescription class="text-sm text-gray-600">
+                                    @taskInfo.Description
                                 </DialogDescription>
-                            }
-                            <div class="mt-6 flex justify-end gap-3">
-                                <DialogClose ClassValue="@(s => SecondaryButtonClass(s))">
-                                    Cancel
-                                </DialogClose>
-                                <DialogClose ClassValue="@(s => CloseButtonClass(s))">
-                                    @(taskInfo?.IsComplete == true ? "Reopen" : "Mark Complete")
-                                </DialogClose>
+                                <div class="flex items-center gap-2 text-sm">
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium @(GetPriorityClass(taskInfo.Priority))">
+                                        @taskInfo.Priority Priority
+                                    </span>
+                                    <span class="text-gray-400">|</span>
+                                    <span class="text-gray-600">Due: @taskInfo.DueDate.ToString("MMM dd, yyyy")</span>
+                                </div>
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-700">Status:</span>
+                                    <span class="ml-1 @(taskInfo.IsComplete ? "text-green-600" : "text-yellow-600")">
+                                        @(taskInfo.IsComplete ? "Completed" : "In Progress")
+                                    </span>
+                                </div>
                             </div>
-                        </DialogPopup>
-                    </DialogPortal>
-                </ChildContentWithPayload>
+                        }
+                        else
+                        {
+                            <DialogTitle class="text-lg font-semibold text-gray-900">
+                                Task Details
+                            </DialogTitle>
+                            <DialogDescription class="mt-2 text-sm text-gray-600">
+                                Click a task to see its details.
+                            </DialogDescription>
+                        }
+                        <div class="mt-6 flex justify-end gap-3">
+                            <DialogClose ClassValue="@(s => SecondaryButtonClass(s))">
+                                Cancel
+                            </DialogClose>
+                            <DialogClose ClassValue="@(s => CloseButtonClass(s))">
+                                @(taskInfo?.IsComplete == true ? "Reopen" : "Mark Complete")
+                            </DialogClose>
+                        </div>
+                    </DialogPopup>
+                </DialogPortal>
             </DialogRoot>
         </div>
         <div class="mt-3 rounded bg-gray-100 p-3 text-sm text-gray-700">
@@ -668,13 +642,8 @@
     </DialogPortal>
 </DialogRoot>";
 
-    private const string ClosingCodeSnippet = @"// Disable ESC key
-<DialogRoot DismissOnEscape=""false"">
-    ...
-</DialogRoot>
-
-// Disable backdrop click
-<DialogRoot DismissOnOutsidePress=""false"">
+    private const string ClosingCodeSnippet = @"// Disable pointer dismissal (backdrop click)
+<DialogRoot DisablePointerDismissal=""true"">
     ...
 </DialogRoot>";
 

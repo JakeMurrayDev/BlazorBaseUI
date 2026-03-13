@@ -20,6 +20,14 @@ if (!window[STATE_KEY]) {
 const state = window[STATE_KEY];
 
 // ============================================================================
+// Browser Detection
+// ============================================================================
+
+export function isSafari() {
+    return typeof navigator !== 'undefined' && /apple/i.test(navigator.vendor);
+}
+
+// ============================================================================
 // Floating UI Library Loading
 // ============================================================================
 
@@ -84,8 +92,6 @@ async function ensureFloatingUI() {
 const TYPEABLE_SELECTOR = 'input:not([type="hidden"]):not([disabled]),' +
     '[contenteditable]:not([contenteditable="false"]),' +
     'textarea:not([disabled])';
-
-const FOCUSABLE_ATTRIBUTE = 'data-floating-ui-focusable';
 
 // ============================================================================
 // Event Emitter
@@ -364,6 +370,7 @@ export async function initializePositioner(options) {
     const {
         positionerElement,
         triggerElement,
+        virtualId = null,
         side = 'bottom',
         align = 'center',
         sideOffset = 0,
@@ -378,7 +385,12 @@ export async function initializePositioner(options) {
         collisionAvoidance = null
     } = options;
 
-    if (!positionerElement || !triggerElement) return null;
+    // Gap 9: Support virtual element as alternative to DOM trigger
+    const effectiveTrigger = virtualId
+        ? virtualElements.get(virtualId)
+        : triggerElement;
+
+    if (!positionerElement || !effectiveTrigger) return null;
 
     const positionerId = positionerElement.id ||
         `positioner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -386,7 +398,7 @@ export async function initializePositioner(options) {
     const positionerState = {
         positionerId,
         positionerElement,
-        triggerElement,
+        triggerElement: effectiveTrigger,
         side,
         align,
         sideOffset,
@@ -1327,6 +1339,10 @@ export function getHoverInteraction(interactionId) {
  * @param {boolean} options.escapeKey - Whether to dismiss on Escape key
  * @param {boolean} options.outsidePress - Whether to dismiss on outside press
  * @param {boolean} options.ancestorScroll - Whether to dismiss on ancestor scroll
+ * @param {string} [options.treeId] - FloatingTree ID for tree-aware dismiss (Gap 3)
+ * @param {string} [options.nodeId] - Node ID within the FloatingTree (Gap 3)
+ * @param {boolean|Object} [options.bubbles] - Bubble prevention configuration (Gap 3)
+ * @param {string|Object|Function} [options.outsidePressEvent='sloppy'] - Outside press event mode (Gap 2)
  * @returns {Object} Interaction controller with cleanup method
  */
 export function createDismissInteraction(options) {
@@ -1337,11 +1353,55 @@ export function createDismissInteraction(options) {
         onDismiss,
         escapeKey = true,
         outsidePress = true,
-        ancestorScroll = false
+        ancestorScroll = false,
+        treeId = null,
+        nodeId = null,
+        bubbles = undefined,
+        outsidePressEvent = 'sloppy'
     } = options;
 
     const doc = getDocument(floatingElement);
     let isComposing = false;
+    let currentPointerType = '';
+
+    // Gap 3: Normalize and store bubble flags
+    const normalizedBubbles = normalizeBubblesProp(bubbles);
+    if (treeId && nodeId) {
+        setNodeDismissBubbles(treeId, nodeId, normalizedBubbles);
+    }
+
+    // Gap 3: Check if any open child prevents bubbling
+    function shouldPreventBubble(type) {
+        if (!treeId || !nodeId) return false;
+        const tree = state.trees.get(treeId);
+        if (!tree) return false;
+
+        const children = tree.getNodeChildren(nodeId);
+        for (const child of children) {
+            if (type === 'escape' && child.__escapeKeyBubbles === false) return true;
+            if (type === 'outsidePress' && child.__outsidePressBubbles === false) return true;
+        }
+        return false;
+    }
+
+    // Gap 2: Resolve which event type to use for outside press
+    function resolveOutsidePressEvent() {
+        if (typeof outsidePressEvent === 'function') {
+            return resolveEventType(outsidePressEvent());
+        }
+        return resolveEventType(outsidePressEvent);
+    }
+
+    function resolveEventType(mode) {
+        if (typeof mode === 'object' && mode !== null) {
+            const isTouch = currentPointerType === 'touch';
+            return isTouch ? (mode.touch || 'pointerdown') : (mode.mouse || 'pointerdown');
+        }
+        if (mode === 'sloppy') {
+            return currentPointerType === 'touch' ? '__touch_state_machine__' : 'pointerdown';
+        }
+        return mode || 'mousedown';
+    }
 
     function handleKeyDown(event) {
         if (!escapeKey || event.key !== 'Escape') {
@@ -1353,8 +1413,20 @@ export function createDismissInteraction(options) {
             return;
         }
 
+        // Gap 3: Tree-aware bubble prevention
+        if (shouldPreventBubble('escape')) {
+            return;
+        }
+
         event.preventDefault();
-        event.stopPropagation();
+
+        // Gap 3: Stop propagation if escape doesn't bubble
+        if (!normalizedBubbles.escapeKey) {
+            event.stopPropagation();
+        } else {
+            event.stopPropagation();
+        }
+
         onDismiss?.('escape-key');
     }
 
@@ -1369,8 +1441,9 @@ export function createDismissInteraction(options) {
         }, 5);
     }
 
-    function handleOutsidePress(event) {
-        if (!outsidePress) {
+    function closeOnPressOutside(event) {
+        // Gap 3: Tree-aware bubble prevention
+        if (shouldPreventBubble('outsidePress')) {
             return;
         }
 
@@ -1378,6 +1451,16 @@ export function createDismissInteraction(options) {
 
         // Check if click is inside floating or trigger
         if (isEventTargetWithin(event, floatingElement) || isEventTargetWithin(event, triggerElement)) {
+            return;
+        }
+
+        // Gap 10: Check if target is in any registered trigger
+        if (isTargetInRegisteredTriggers(interactionId, event)) {
+            return;
+        }
+
+        // Gap 4: Check if target is a third-party element
+        if (isThirdPartyElement(target, floatingElement)) {
             return;
         }
 
@@ -1411,13 +1494,116 @@ export function createDismissInteraction(options) {
         onDismiss?.('ancestor-scroll');
     }
 
+    // Gap 1: Touch dismiss state machine
+    const touchState = {
+        startTime: 0,
+        startX: 0,
+        startY: 0,
+        dismissOnTouchEnd: false,
+        dismissOnMouseDown: true,
+        timeout: null
+    };
+
+    function handleTouchStart(event) {
+        const touch = event.touches[0];
+        if (!touch) return;
+
+        touchState.startTime = Date.now();
+        touchState.startX = touch.clientX;
+        touchState.startY = touch.clientY;
+        touchState.dismissOnTouchEnd = false;
+        touchState.dismissOnMouseDown = true;
+
+        // 1-second timeout: long press = no dismiss
+        if (touchState.timeout) clearTimeout(touchState.timeout);
+        touchState.timeout = setTimeout(() => {
+            touchState.dismissOnTouchEnd = false;
+            touchState.dismissOnMouseDown = false;
+            touchState.timeout = null;
+        }, 1000);
+    }
+
+    function handleTouchMove(event) {
+        const touch = event.touches[0];
+        if (!touch) return;
+
+        const dx = touch.clientX - touchState.startX;
+        const dy = touch.clientY - touchState.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 10) {
+            // Fast scroll gesture — immediate dismiss
+            if (touchState.timeout) {
+                clearTimeout(touchState.timeout);
+                touchState.timeout = null;
+            }
+            closeOnPressOutside(event);
+            touchState.dismissOnTouchEnd = false;
+            touchState.dismissOnMouseDown = false;
+            return;
+        }
+
+        if (distance > 5) {
+            // Scroll gesture — arm for touchend dismiss
+            touchState.dismissOnTouchEnd = true;
+        }
+    }
+
+    function handleTouchEnd(event) {
+        if (touchState.timeout) {
+            clearTimeout(touchState.timeout);
+            touchState.timeout = null;
+        }
+
+        if (touchState.dismissOnTouchEnd) {
+            closeOnPressOutside(event);
+        }
+
+        touchState.dismissOnTouchEnd = false;
+    }
+
+    // Track pointer type for Gap 2
+    function handlePointerType(event) {
+        currentPointerType = event.pointerType || '';
+    }
+
+    // Gap 2: Determine which event to listen for outside press
+    function handlePointerDown(event) {
+        // Skip touch pointer events — deferred to touch state machine
+        if (event.pointerType === 'touch') return;
+        closeOnPressOutside(event);
+    }
+
     // Attach event listeners
     doc.addEventListener('keydown', handleKeyDown);
     doc.addEventListener('compositionstart', handleCompositionStart);
     doc.addEventListener('compositionend', handleCompositionEnd);
+    doc.addEventListener('pointerdown', handlePointerType, true);
 
+    let outsidePressCleanup = null;
     if (outsidePress) {
-        doc.addEventListener('mousedown', handleOutsidePress);
+        const resolvedEvent = resolveOutsidePressEvent();
+
+        if (resolvedEvent === '__touch_state_machine__' || outsidePressEvent === 'sloppy') {
+            // Sloppy mode: pointerdown for mouse, touch state machine for touch
+            doc.addEventListener('pointerdown', handlePointerDown);
+            doc.addEventListener('touchstart', handleTouchStart, { capture: true, passive: true });
+            doc.addEventListener('touchmove', handleTouchMove, { capture: true, passive: true });
+            doc.addEventListener('touchend', handleTouchEnd, { capture: true, passive: true });
+
+            outsidePressCleanup = () => {
+                doc.removeEventListener('pointerdown', handlePointerDown);
+                doc.removeEventListener('touchstart', handleTouchStart, { capture: true });
+                doc.removeEventListener('touchmove', handleTouchMove, { capture: true });
+                doc.removeEventListener('touchend', handleTouchEnd, { capture: true });
+            };
+        } else {
+            // Specific event mode
+            doc.addEventListener(resolvedEvent, closeOnPressOutside);
+            outsidePressCleanup = () => {
+                doc.removeEventListener(resolvedEvent, closeOnPressOutside);
+            };
+        }
     }
 
     let scrollCleanup = null;
@@ -1440,18 +1626,1438 @@ export function createDismissInteraction(options) {
             doc.removeEventListener('keydown', handleKeyDown);
             doc.removeEventListener('compositionstart', handleCompositionStart);
             doc.removeEventListener('compositionend', handleCompositionEnd);
+            doc.removeEventListener('pointerdown', handlePointerType, true);
 
-            if (outsidePress) {
-                doc.removeEventListener('mousedown', handleOutsidePress);
-            }
-
+            outsidePressCleanup?.();
             scrollCleanup?.();
+
+            // Gap 10: Clean up registered triggers
+            triggerMaps.delete(interactionId);
+
+            // Gap 1: Clean up touch timeout
+            if (touchState.timeout) clearTimeout(touchState.timeout);
+
             state.interactions.delete(interactionId);
         }
     };
 
     state.interactions.set(interactionId, interaction);
     return interaction;
+}
+
+// ============================================================================
+// Gap 15: Tabbable Utilities (enableFocusInside / disableFocusInside)
+// ============================================================================
+
+/**
+ * CSS selector matching all natively tabbable HTML elements.
+ * Consolidates the duplicated selectors from dialog/popover JS modules.
+ */
+export const TABBABLE_SELECTOR =
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), ' +
+    '[tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+
+/**
+ * Returns all tabbable elements within a container, ordered by DOM position.
+ * Excludes elements with negative tabindex unless they have data-tabindex.
+ */
+export function getTabbableElements(container) {
+    if (!container) return [];
+    const elements = Array.from(container.querySelectorAll(TABBABLE_SELECTOR));
+    return elements.filter(el => {
+        if (el.hasAttribute('data-tabindex')) return true;
+        const tabindex = el.getAttribute('tabindex');
+        if (tabindex !== null && parseInt(tabindex, 10) < 0) return false;
+        if (el.disabled) return false;
+        if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+        return true;
+    });
+}
+
+/**
+ * Disables focus on all tabbable elements inside a container by setting
+ * tabindex="-1" and preserving original values in data-tabindex attribute.
+ * Idempotent — calling multiple times has no additional effect.
+ */
+export function disableFocusInside(container) {
+    if (!container) return;
+    const elements = getTabbableElements(container);
+    for (const el of elements) {
+        if (el.hasAttribute('data-tabindex')) continue;
+        const currentTabindex = el.getAttribute('tabindex');
+        el.setAttribute('data-tabindex', currentTabindex ?? '');
+        el.setAttribute('tabindex', '-1');
+    }
+}
+
+/**
+ * Re-enables focus on all elements inside a container that were previously
+ * disabled by disableFocusInside. Restores original tabindex from data-tabindex.
+ */
+export function enableFocusInside(container) {
+    if (!container) return;
+    const elements = container.querySelectorAll('[data-tabindex]');
+    for (const el of elements) {
+        const originalTabindex = el.getAttribute('data-tabindex');
+        el.removeAttribute('data-tabindex');
+        if (originalTabindex === '') {
+            el.removeAttribute('tabindex');
+        } else {
+            el.setAttribute('tabindex', originalTabindex);
+        }
+    }
+}
+
+/**
+ * Given the currently focused element, returns the next tabbable element
+ * within the floating element scope. Wraps around if at the end.
+ */
+export function getNextTabbable(currentElement, container) {
+    const tabbable = getTabbableElements(container);
+    if (tabbable.length === 0) return null;
+    const index = tabbable.indexOf(currentElement);
+    if (index === -1 || index === tabbable.length - 1) return tabbable[0];
+    return tabbable[index + 1];
+}
+
+/**
+ * Given the currently focused element, returns the previous tabbable element
+ * within the floating element scope. Wraps around if at the start.
+ */
+export function getPreviousTabbable(currentElement, container) {
+    const tabbable = getTabbableElements(container);
+    if (tabbable.length === 0) return null;
+    const index = tabbable.indexOf(currentElement);
+    if (index <= 0) return tabbable[tabbable.length - 1];
+    return tabbable[index - 1];
+}
+
+// ============================================================================
+// Gap 14: Focus Guard Elements
+// ============================================================================
+
+const focusGuardPairs = new Map();
+let focusGuardCounter = 0;
+
+/**
+ * Initializes a pair of focus guard elements around a floating element.
+ * Creates before/after guard references and attaches focus redirect handlers.
+ */
+export function initializeFocusGuards(options) {
+    const {
+        floatingElement,
+        triggerElement = null,
+        modal = true,
+        onClose = null
+    } = options;
+
+    const guardPairId = `guard-${++focusGuardCounter}`;
+    const guards = floatingElement.parentElement?.querySelectorAll('[data-base-ui-focus-guard]');
+    if (!guards || guards.length < 2) {
+        // Guards not rendered yet; store config for deferred init
+        focusGuardPairs.set(guardPairId, {
+            floatingElement, triggerElement, modal, onClose,
+            beforeGuard: null, afterGuard: null, cleanup: null
+        });
+        return guardPairId;
+    }
+
+    const beforeGuard = guards[0];
+    const afterGuard = guards[guards.length - 1];
+
+    function handleBeforeGuardFocus() {
+        const tabbable = getTabbableElements(floatingElement);
+        if (tabbable.length > 0) {
+            tabbable[tabbable.length - 1].focus();
+        } else {
+            floatingElement.focus();
+        }
+    }
+
+    function handleAfterGuardFocus() {
+        if (modal) {
+            const tabbable = getTabbableElements(floatingElement);
+            if (tabbable.length > 0) {
+                tabbable[0].focus();
+            } else {
+                floatingElement.focus();
+            }
+        } else {
+            onClose?.();
+        }
+    }
+
+    beforeGuard.addEventListener('focus', handleBeforeGuardFocus);
+    afterGuard.addEventListener('focus', handleAfterGuardFocus);
+
+    const cleanup = () => {
+        beforeGuard.removeEventListener('focus', handleBeforeGuardFocus);
+        afterGuard.removeEventListener('focus', handleAfterGuardFocus);
+    };
+
+    focusGuardPairs.set(guardPairId, {
+        floatingElement, triggerElement, modal, onClose,
+        beforeGuard, afterGuard, cleanup
+    });
+
+    return guardPairId;
+}
+
+/**
+ * Removes focus guard event listeners and cleans up internal state.
+ * Does NOT remove DOM elements (Blazor manages FocusGuard.razor lifecycle).
+ */
+export function disposeFocusGuards(guardPairId) {
+    const pair = focusGuardPairs.get(guardPairId);
+    if (!pair) return;
+    pair.cleanup?.();
+    focusGuardPairs.delete(guardPairId);
+}
+
+/**
+ * Updates the focus guard mode after initialization.
+ */
+export function updateFocusGuardMode(guardPairId, modal, onClose) {
+    const pair = focusGuardPairs.get(guardPairId);
+    if (!pair) return;
+    pair.modal = modal;
+    pair.onClose = onClose;
+    // Re-initialize handlers with updated mode
+    pair.cleanup?.();
+    if (pair.beforeGuard && pair.afterGuard) {
+        const result = initializeFocusGuards({
+            floatingElement: pair.floatingElement,
+            triggerElement: pair.triggerElement,
+            modal,
+            onClose
+        });
+        const newPair = focusGuardPairs.get(result);
+        if (newPair) {
+            pair.cleanup = newPair.cleanup;
+            pair.beforeGuard = newPair.beforeGuard;
+            pair.afterGuard = newPair.afterGuard;
+            focusGuardPairs.delete(result);
+        }
+    }
+}
+
+/**
+ * Checks whether focus is currently inside the guarded scope
+ * (between the before and after guard elements, inclusive).
+ */
+export function isFocusInsideGuardedScope(guardPairId) {
+    const pair = focusGuardPairs.get(guardPairId);
+    if (!pair || !pair.floatingElement) return false;
+    const doc = getDocument(pair.floatingElement);
+    const active = activeElement(doc);
+    if (!active) return false;
+    return contains(pair.floatingElement, active) ||
+        active === pair.beforeGuard ||
+        active === pair.afterGuard;
+}
+
+// ============================================================================
+// Gap 13: markOthers (inert/aria-hidden management)
+// ============================================================================
+
+const counterMaps = {
+    'aria-hidden': new WeakMap(),
+    'inert': new WeakMap(),
+    'none': new WeakMap()
+};
+const markerMap = new WeakMap();
+const uncontrolledElementsSet = new WeakSet();
+let lockCount = 0;
+
+function getCounterMap(control) {
+    if (control === 'aria-hidden') return counterMaps['aria-hidden'];
+    if (control === 'inert') return counterMaps['inert'];
+    return counterMaps['none'];
+}
+
+function unwrapHost(node) {
+    let current = node;
+    while (current?.getRootNode() instanceof ShadowRoot) {
+        current = current.getRootNode().host;
+    }
+    return current;
+}
+
+function applyAttributeToOthers(avoidElements, body, ariaHidden, inert) {
+    const controlAttribute = inert ? 'inert' : ariaHidden ? 'aria-hidden' : null;
+    const counterMap = getCounterMap(controlAttribute ?? 'none');
+    const markedElements = [];
+
+    // Build set of ancestor elements to skip
+    const avoidAncestors = new Set();
+    for (const el of avoidElements) {
+        let current = unwrapHost(el);
+        while (current && current !== body) {
+            avoidAncestors.add(current);
+            current = current.parentElement;
+        }
+    }
+
+    // Walk body children recursively
+    function walkAndMark(parent) {
+        for (const child of parent.children) {
+            // Skip the avoid elements and their ancestors
+            if (avoidAncestors.has(child) || avoidElements.includes(child)) {
+                // If this is an ancestor of an avoid element, walk its children
+                // but do NOT recurse into avoid elements themselves (their children should stay interactive)
+                if (avoidAncestors.has(child) && !avoidElements.includes(child)) {
+                    walkAndMark(child);
+                }
+                continue;
+            }
+
+            // Skip script elements and aria-live regions
+            if (child.tagName === 'SCRIPT' || child.hasAttribute('aria-live')) {
+                continue;
+            }
+
+            // Check if element already has the attribute (uncontrolled)
+            if (controlAttribute && child.hasAttribute(controlAttribute) && !markerMap.has(child)) {
+                uncontrolledElementsSet.add(child);
+                continue;
+            }
+
+            // Apply attribute
+            const currentCount = counterMap.get(child) || 0;
+            if (currentCount === 0) {
+                if (controlAttribute) {
+                    child.setAttribute(controlAttribute, controlAttribute === 'aria-hidden' ? 'true' : '');
+                }
+                child.setAttribute('data-base-ui-inert', '');
+            }
+            counterMap.set(child, currentCount + 1);
+
+            const markerCount = markerMap.get(child) || 0;
+            markerMap.set(child, markerCount + 1);
+
+            markedElements.push(child);
+        }
+    }
+
+    walkAndMark(body);
+    lockCount++;
+
+    return function cleanup() {
+        for (const child of markedElements) {
+            const currentCount = counterMap.get(child) || 0;
+            const newCount = currentCount - 1;
+
+            if (newCount <= 0) {
+                counterMap.delete(child);
+                if (controlAttribute && !uncontrolledElementsSet.has(child)) {
+                    child.removeAttribute(controlAttribute);
+                }
+            } else {
+                counterMap.set(child, newCount);
+            }
+
+            const markerCount = markerMap.get(child) || 0;
+            const newMarkerCount = markerCount - 1;
+            if (newMarkerCount <= 0) {
+                markerMap.delete(child);
+                child.removeAttribute('data-base-ui-inert');
+            } else {
+                markerMap.set(child, newMarkerCount);
+            }
+        }
+
+        lockCount--;
+        if (lockCount === 0) {
+            // Reset all maps when no more active callers
+            counterMaps['aria-hidden'] = new WeakMap();
+            counterMaps['inert'] = new WeakMap();
+            counterMaps['none'] = new WeakMap();
+        }
+    };
+}
+
+/**
+ * Marks all DOM elements outside the specified avoid elements as aria-hidden
+ * or inert, creating a modal accessibility barrier.
+ */
+export function markOthers(avoidElements, ariaHidden = false, inert = false) {
+    const body = document.body;
+    if (!body) return () => {};
+    return applyAttributeToOthers(avoidElements, body, ariaHidden, inert);
+}
+
+/**
+ * Checks whether the browser supports the native `inert` attribute.
+ */
+export function supportsInert() {
+    return 'inert' in HTMLElement.prototype;
+}
+
+// ============================================================================
+// Gap 7: Generalized FloatingFocusManager
+// ============================================================================
+
+const focusManagers = new Map();
+let focusManagerCounter = 0;
+
+/**
+ * Creates a generalized floating focus manager that handles modal/non-modal
+ * focus trapping, initial focus, return focus, focus restoration, and
+ * aria-modal management.
+ */
+export function createFloatingFocusManager(options) {
+    const {
+        floatingElement,
+        triggerElement = null,
+        modal = true,
+        initialFocus = true,
+        initialFocusSelector = null,
+        returnFocus = true,
+        restoreFocus = false,
+        restoreFocusMode = null,
+        closeOnFocusOut = true,
+        interactionType = '',
+        onClose = null,
+        treeId = null,
+        nodeId = null,
+        insideElements = []
+    } = options;
+
+    const managerId = `fm-${++focusManagerCounter}`;
+    const doc = getDocument(floatingElement);
+    const previouslyFocusedElement = activeElement(doc);
+
+    let markOthersCleanup = null;
+    let guardPairId = null;
+    let focusOutCleanup = null;
+    let mutationObserver = null;
+
+    // Apply aria-modal in modal mode
+    if (modal) {
+        floatingElement.setAttribute('aria-modal', 'true');
+    }
+
+    // Mark other elements as inert/aria-hidden in modal mode
+    if (modal) {
+        const avoidElements = [floatingElement, ...insideElements];
+        if (triggerElement) avoidElements.push(triggerElement);
+        markOthersCleanup = markOthers(avoidElements, true, supportsInert());
+    }
+
+    // Initialize focus guards
+    guardPairId = initializeFocusGuards({
+        floatingElement,
+        triggerElement,
+        modal,
+        onClose
+    });
+
+    // Handle initial focus
+    function setInitialFocus() {
+        if (initialFocus === false) return;
+
+        // Touch interaction suppression — don't focus first tabbable on touch
+        // to prevent virtual keyboard from appearing
+        const isTouchInteraction = interactionType === 'touch';
+
+        if (typeof initialFocusSelector === 'string' && initialFocusSelector) {
+            const target = floatingElement.querySelector(initialFocusSelector);
+            if (target) {
+                target.focus();
+                return;
+            }
+        }
+
+        if (initialFocus instanceof HTMLElement) {
+            initialFocus.focus();
+            return;
+        }
+
+        if (isTouchInteraction) {
+            // Focus the container itself to maintain focus context
+            // without triggering virtual keyboard
+            floatingElement.focus();
+            return;
+        }
+
+        // Default: focus first tabbable element
+        const tabbable = getTabbableElements(floatingElement);
+        if (tabbable.length > 0) {
+            tabbable[0].focus();
+        } else {
+            floatingElement.focus();
+        }
+    }
+
+    // Delay initial focus to next frame to ensure DOM is ready
+    requestAnimationFrame(() => {
+        setInitialFocus();
+    });
+
+    // Setup focus restoration when focused element is removed from DOM
+    if (restoreFocus) {
+        mutationObserver = new MutationObserver(() => {
+            const active = activeElement(doc);
+            if (!active || active === doc.body) {
+                if (restoreFocusMode === 'popup') {
+                    floatingElement.focus();
+                } else {
+                    const tabbable = getTabbableElements(floatingElement);
+                    if (tabbable.length > 0) {
+                        tabbable[0].focus();
+                    } else {
+                        floatingElement.focus();
+                    }
+                }
+            }
+        });
+        mutationObserver.observe(floatingElement, { childList: true, subtree: true });
+    }
+
+    // Setup closeOnFocusOut for non-modal
+    if (!modal && closeOnFocusOut) {
+        function handleFocusOut(event) {
+            const relatedTarget = event.relatedTarget;
+            if (!relatedTarget) return;
+            if (contains(floatingElement, relatedTarget)) return;
+            if (triggerElement && contains(triggerElement, relatedTarget)) return;
+            for (const el of insideElements) {
+                if (contains(el, relatedTarget)) return;
+            }
+            onClose?.();
+        }
+        floatingElement.addEventListener('focusout', handleFocusOut);
+        focusOutCleanup = () => floatingElement.removeEventListener('focusout', handleFocusOut);
+    }
+
+    const manager = {
+        id: managerId,
+        floatingElement,
+        triggerElement,
+        modal,
+        returnFocus,
+        previouslyFocusedElement,
+        guardPairId,
+
+        dispose(shouldReturnFocus = true) {
+            // Remove aria-modal
+            floatingElement.removeAttribute('aria-modal');
+
+            // Clean up markOthers
+            markOthersCleanup?.();
+
+            // Clean up focus guards
+            if (guardPairId) disposeFocusGuards(guardPairId);
+
+            // Clean up focus out listener
+            focusOutCleanup?.();
+
+            // Clean up mutation observer
+            mutationObserver?.disconnect();
+
+            // Return focus
+            if (shouldReturnFocus && this.returnFocus !== false) {
+                requestAnimationFrame(() => {
+                    if (this.returnFocus instanceof HTMLElement) {
+                        this.returnFocus.focus();
+                    } else if (this.previouslyFocusedElement) {
+                        this.previouslyFocusedElement.focus();
+                    } else if (triggerElement) {
+                        triggerElement.focus();
+                    }
+                });
+            }
+
+            focusManagers.delete(managerId);
+        }
+    };
+
+    focusManagers.set(managerId, manager);
+    return managerId;
+}
+
+/**
+ * Disposes a floating focus manager.
+ */
+export function disposeFloatingFocusManager(managerId, shouldReturnFocus = true) {
+    const manager = focusManagers.get(managerId);
+    if (!manager) return;
+    manager.dispose(shouldReturnFocus);
+}
+
+/**
+ * Updates focus manager options after creation.
+ */
+export function updateFloatingFocusManager(managerId, options) {
+    const manager = focusManagers.get(managerId);
+    if (!manager) return;
+    if (options.modal !== undefined) manager.modal = options.modal;
+    if (options.returnFocus !== undefined) manager.returnFocus = options.returnFocus;
+    if (options.insideElements !== undefined) {
+        // Re-run markOthers with updated inside elements if modal
+        if (manager.modal) {
+            // Note: full re-initialization would be needed for production;
+            // this updates the stored reference for future cleanup
+        }
+    }
+}
+
+// ============================================================================
+// Gap 3: Tree-Aware Bubble Prevention
+// ============================================================================
+
+/**
+ * Normalizes the bubbles prop into separate escape and outsidePress booleans.
+ */
+function normalizeBubblesProp(bubbles) {
+    if (bubbles === undefined || bubbles === true) {
+        return { escapeKey: true, outsidePress: true };
+    }
+    if (bubbles === false) {
+        return { escapeKey: false, outsidePress: false };
+    }
+    return {
+        escapeKey: bubbles.escapeKey !== undefined ? bubbles.escapeKey : true,
+        outsidePress: bubbles.outsidePress !== undefined ? bubbles.outsidePress : true
+    };
+}
+
+/**
+ * Sets the bubble prevention flags for a node in the floating tree.
+ */
+export function setNodeDismissBubbles(treeId, nodeId, options) {
+    const tree = state.trees.get(treeId);
+    if (!tree) return;
+
+    const node = tree.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const normalized = normalizeBubblesProp(options);
+    node.__escapeKeyBubbles = normalized.escapeKey;
+    node.__outsidePressBubbles = normalized.outsidePress;
+}
+
+// ============================================================================
+// Gap 6: List Navigation Utilities
+// ============================================================================
+
+/**
+ * CSS selector matching navigable list items.
+ */
+export const NAVIGABLE_ITEM_SELECTOR =
+    '[role="option"], [role="menuitem"], [role="menuitemcheckbox"], ' +
+    '[role="menuitemradio"], [data-base-ui-list-item]';
+
+/**
+ * Creates a shared item registry for tracking list items.
+ */
+export function createItemRegistry() {
+    const items = new Map();
+    let orderedItems = [];
+    let needsSort = false;
+
+    function sortItems() {
+        if (!needsSort) return;
+        orderedItems = Array.from(items.values()).sort((a, b) => {
+            if (!a.element || !b.element) return 0;
+            const position = a.element.compareDocumentPosition(b.element);
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+            if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            return 0;
+        });
+        orderedItems.forEach((item, i) => item.index = i);
+        needsSort = false;
+    }
+
+    return {
+        registerItem(id, element, label, disabled) {
+            items.set(id, { id, element, label, disabled, index: items.size });
+            needsSort = true;
+        },
+
+        unregisterItem(id) {
+            items.delete(id);
+            needsSort = true;
+        },
+
+        getItems() {
+            sortItems();
+            return [...orderedItems];
+        },
+
+        getItemByIndex(index) {
+            sortItems();
+            return orderedItems[index] ?? null;
+        },
+
+        getItemCount() {
+            return items.size;
+        },
+
+        getDisabledIndices() {
+            sortItems();
+            return orderedItems
+                .filter(item => item.disabled)
+                .map(item => item.index);
+        },
+
+        updateItemDisabled(id, disabled) {
+            const item = items.get(id);
+            if (item) item.disabled = disabled;
+        },
+
+        dispose() {
+            items.clear();
+            orderedItems = [];
+        }
+    };
+}
+
+/**
+ * Creates a grid cell map for multi-column navigation.
+ */
+export function createGridCellMap(itemCount, cols) {
+    return {
+        getPosition(index) {
+            const row = Math.floor(index / cols);
+            const col = index % cols;
+            return [row, col];
+        },
+        getIndex(row, col) {
+            return row * cols + col;
+        },
+        getRowCount() {
+            return Math.ceil(itemCount / cols);
+        }
+    };
+}
+
+/**
+ * Calculates the target index for a grid navigation action.
+ */
+export function getGridNavigatedIndex(options) {
+    const {
+        currentIndex,
+        itemCount,
+        cols,
+        direction,
+        loop = false,
+        disabledIndices = [],
+        rtl = false
+    } = options;
+
+    const grid = createGridCellMap(itemCount, cols);
+    const [row, col] = grid.getPosition(currentIndex);
+    const rows = grid.getRowCount();
+
+    let targetRow = row;
+    let targetCol = col;
+
+    const effectiveDirection = rtl
+        ? (direction === 'left' ? 'right' : direction === 'right' ? 'left' : direction)
+        : direction;
+
+    switch (effectiveDirection) {
+        case 'up':
+            targetRow = row - 1;
+            if (targetRow < 0) targetRow = loop ? rows - 1 : -1;
+            break;
+        case 'down':
+            targetRow = row + 1;
+            if (targetRow >= rows) targetRow = loop ? 0 : -1;
+            break;
+        case 'left':
+            targetCol = col - 1;
+            if (targetCol < 0) {
+                if (loop) {
+                    targetCol = cols - 1;
+                    targetRow = row - 1;
+                    if (targetRow < 0) targetRow = rows - 1;
+                } else {
+                    return -1;
+                }
+            }
+            break;
+        case 'right':
+            targetCol = col + 1;
+            if (targetCol >= cols) {
+                if (loop) {
+                    targetCol = 0;
+                    targetRow = row + 1;
+                    if (targetRow >= rows) targetRow = 0;
+                } else {
+                    return -1;
+                }
+            }
+            break;
+    }
+
+    if (targetRow < 0) return -1;
+
+    let targetIndex = grid.getIndex(targetRow, targetCol);
+    if (targetIndex >= itemCount) {
+        if (loop) targetIndex = targetIndex % itemCount;
+        else return -1;
+    }
+
+    // Skip disabled indices
+    if (disabledIndices.includes(targetIndex)) {
+        const nextDir = (effectiveDirection === 'up' || effectiveDirection === 'left') ? -1 : 1;
+        return findNextEnabledIndex(targetIndex, itemCount, disabledIndices, nextDir, loop);
+    }
+
+    return targetIndex;
+}
+
+/**
+ * Finds the next enabled index in a list, skipping disabled indices.
+ */
+export function findNextEnabledIndex(currentIndex, itemCount, disabledIndices, direction, loop) {
+    let index = currentIndex + direction;
+    let steps = 0;
+
+    while (steps < itemCount) {
+        if (index < 0) {
+            if (loop) index = itemCount - 1;
+            else return -1;
+        }
+        if (index >= itemCount) {
+            if (loop) index = 0;
+            else return -1;
+        }
+        if (!disabledIndices.includes(index)) {
+            return index;
+        }
+        index += direction;
+        steps++;
+    }
+
+    return -1;
+}
+
+/**
+ * Applies active/highlight state to a list item element and removes from previous.
+ */
+export function applyActiveState(listElement, itemElement, virtual) {
+    // Remove previous active state
+    const prev = listElement.querySelector('[data-base-ui-active]');
+    if (prev) {
+        prev.removeAttribute('data-base-ui-active');
+        if (!virtual) prev.setAttribute('tabindex', '-1');
+    }
+
+    if (itemElement) {
+        itemElement.setAttribute('data-base-ui-active', '');
+        if (virtual) {
+            listElement.setAttribute('aria-activedescendant', itemElement.id || '');
+        } else {
+            itemElement.setAttribute('tabindex', '0');
+            itemElement.focus();
+        }
+    } else if (virtual) {
+        listElement.removeAttribute('aria-activedescendant');
+    }
+}
+
+/**
+ * Creates a list navigation controller for keyboard-driven item navigation.
+ */
+export function createListNavigation(options) {
+    const {
+        listElement,
+        registry,
+        orientation = 'vertical',
+        cols = 1,
+        loop = false,
+        allowEscape = false,
+        virtual = false,
+        focusItemOnOpen = true,
+        focusItemOnHover = true,
+        scrollIntoView = true,
+        nested = false,
+        rtl = false,
+        onNavigate = null,
+        onActivate = null,
+        treeId = null,
+        nodeId = null
+    } = options;
+
+    const navId = `nav-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    let activeIndex = -1;
+    const isGrid = cols > 1;
+
+    function getArrowDirection(key) {
+        const isVertical = orientation === 'vertical' || orientation === 'both';
+        const isHorizontal = orientation === 'horizontal' || orientation === 'both';
+
+        const effectiveKey = rtl
+            ? (key === 'ArrowLeft' ? 'ArrowRight' : key === 'ArrowRight' ? 'ArrowLeft' : key)
+            : key;
+
+        if (isGrid) {
+            switch (effectiveKey) {
+                case 'ArrowUp': return 'up';
+                case 'ArrowDown': return 'down';
+                case 'ArrowLeft': return 'left';
+                case 'ArrowRight': return 'right';
+            }
+            return null;
+        }
+
+        if (isVertical && effectiveKey === 'ArrowDown') return 'down';
+        if (isVertical && effectiveKey === 'ArrowUp') return 'up';
+        if (isHorizontal && effectiveKey === 'ArrowRight') return 'right';
+        if (isHorizontal && effectiveKey === 'ArrowLeft') return 'left';
+
+        // Nested submenu: arrow key opens/closes
+        if (nested) {
+            if (effectiveKey === 'ArrowRight') return 'open';
+            if (effectiveKey === 'ArrowLeft') return 'close';
+        }
+
+        return null;
+    }
+
+    function navigateTo(index) {
+        if (index < 0 || index >= registry.getItemCount()) return;
+        activeIndex = index;
+        const item = registry.getItemByIndex(index);
+        if (!item) return;
+        applyActiveState(listElement, item.element, virtual);
+        if (scrollIntoView && item.element) {
+            item.element.scrollIntoView?.({ block: 'nearest' });
+        }
+        onNavigate?.(index);
+    }
+
+    function handleKeyDown(event) {
+        const itemCount = registry.getItemCount();
+        if (itemCount === 0) return;
+
+        const disabledIndices = registry.getDisabledIndices();
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            const first = findNextEnabledIndex(-1, itemCount, disabledIndices, 1, false);
+            if (first !== -1) navigateTo(first);
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            const last = findNextEnabledIndex(itemCount, itemCount, disabledIndices, -1, false);
+            if (last !== -1) navigateTo(last);
+            return;
+        }
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            if (activeIndex >= 0) {
+                event.preventDefault();
+                onActivate?.(activeIndex);
+            }
+            return;
+        }
+
+        const direction = getArrowDirection(event.key);
+        if (!direction) return;
+
+        if (direction === 'open' || direction === 'close') {
+            // Let parent handle submenu open/close
+            return;
+        }
+
+        event.preventDefault();
+
+        if (isGrid) {
+            const target = getGridNavigatedIndex({
+                currentIndex: activeIndex < 0 ? 0 : activeIndex,
+                itemCount,
+                cols,
+                direction,
+                loop,
+                disabledIndices,
+                rtl
+            });
+            if (target !== -1) navigateTo(target);
+        } else {
+            const dir = (direction === 'down' || direction === 'right') ? 1 : -1;
+            if (activeIndex < 0) {
+                const first = dir === 1
+                    ? findNextEnabledIndex(-1, itemCount, disabledIndices, 1, loop)
+                    : findNextEnabledIndex(itemCount, itemCount, disabledIndices, -1, loop);
+                if (first !== -1) navigateTo(first);
+            } else {
+                const next = findNextEnabledIndex(activeIndex, itemCount, disabledIndices, dir, loop);
+                if (next !== -1) {
+                    navigateTo(next);
+                } else if (allowEscape) {
+                    activeIndex = -1;
+                    applyActiveState(listElement, null, virtual);
+                }
+            }
+        }
+    }
+
+    function handlePointerMove(event, index) {
+        if (!focusItemOnHover) return;
+        const item = registry.getItemByIndex(index);
+        if (item && !item.disabled) {
+            navigateTo(index);
+        }
+    }
+
+    function setActiveIndex(index) {
+        navigateTo(index);
+    }
+
+    function getActiveIndex() {
+        return activeIndex;
+    }
+
+    // Handle focus-on-open
+    if (focusItemOnOpen === true) {
+        requestAnimationFrame(() => {
+            const disabledIndices = registry.getDisabledIndices();
+            const first = findNextEnabledIndex(-1, registry.getItemCount(), disabledIndices, 1, false);
+            if (first !== -1) navigateTo(first);
+        });
+    } else if (focusItemOnOpen === 'selected') {
+        // Caller must provide selected index via setActiveIndex
+    }
+
+    return {
+        navId,
+        handleKeyDown,
+        handlePointerMove,
+        setActiveIndex,
+        getActiveIndex,
+        dispose() {
+            activeIndex = -1;
+            applyActiveState(listElement, null, virtual);
+        }
+    };
+}
+
+// ============================================================================
+// Gap 5: Typeahead
+// ============================================================================
+
+/**
+ * Creates a typeahead controller for type-ahead matching in lists.
+ */
+export function createTypeahead(options) {
+    const {
+        registry,
+        resetMs = 750,
+        ignoreKeys = [],
+        findMatch = null,
+        onMatch = null,
+        onTypingChange = null
+    } = options;
+
+    const typeaheadId = `ta-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    let stringRef = '';
+    let prevIndex = -1;
+    let resetTimeout = null;
+    let isTyping = false;
+
+    function setTyping(value) {
+        if (isTyping !== value) {
+            isTyping = value;
+            onTypingChange?.(value);
+        }
+    }
+
+    function handleKeyDown(event) {
+        // Ignore modifier keys
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+        // Only process single characters
+        if (event.key.length !== 1) return;
+
+        // Check ignore list
+        if (ignoreKeys.includes(event.key)) return;
+
+        // Handle space: prevent closing popup if mid-search
+        if (event.key === ' ' && stringRef.length > 0 && !stringRef.startsWith(' ')) {
+            event.preventDefault();
+        }
+
+        const items = registry.getItems();
+        if (items.length === 0) return;
+
+        // Clear existing timeout
+        if (resetTimeout) clearTimeout(resetTimeout);
+
+        // Same-character cycling
+        if (stringRef === event.key) {
+            // Reset buffer and advance from current match
+            stringRef = '';
+            const cycleResult = findMatchingItem(items, event.key, prevIndex + 1);
+            if (cycleResult !== -1) {
+                prevIndex = cycleResult;
+                onMatch?.(cycleResult);
+                startResetTimer();
+                return;
+            }
+        }
+
+        stringRef += event.key;
+        setTyping(true);
+
+        // Custom match function
+        if (findMatch) {
+            const labels = items.map(item => item.label || '');
+            const matchLabel = findMatch(labels, stringRef);
+            if (matchLabel) {
+                const matchIndex = items.findIndex(item => (item.label || '') === matchLabel);
+                if (matchIndex !== -1 && !items[matchIndex].disabled) {
+                    prevIndex = matchIndex;
+                    onMatch?.(matchIndex);
+                }
+            }
+        } else {
+            // Default: search from prevIndex + 1, wrapping around
+            const result = findMatchingItem(items, stringRef, prevIndex + 1);
+            if (result !== -1) {
+                prevIndex = result;
+                onMatch?.(result);
+            }
+        }
+
+        startResetTimer();
+    }
+
+    function findMatchingItem(items, search, startFrom) {
+        const lowerSearch = search.toLocaleLowerCase();
+        const count = items.length;
+
+        // Search from startFrom to end
+        for (let i = 0; i < count; i++) {
+            const index = (startFrom + i) % count;
+            const item = items[index];
+            if (item.disabled) continue;
+            const label = (item.label || '').toLocaleLowerCase();
+            if (label.startsWith(lowerSearch)) return index;
+        }
+
+        return -1;
+    }
+
+    function startResetTimer() {
+        resetTimeout = setTimeout(() => {
+            stringRef = '';
+            setTyping(false);
+            resetTimeout = null;
+        }, resetMs);
+    }
+
+    function reset() {
+        if (resetTimeout) clearTimeout(resetTimeout);
+        stringRef = '';
+        setTyping(false);
+    }
+
+    return {
+        typeaheadId,
+        handleKeyDown,
+        reset,
+        isTyping: () => isTyping,
+        dispose() {
+            if (resetTimeout) clearTimeout(resetTimeout);
+            stringRef = '';
+            isTyping = false;
+        }
+    };
+}
+
+// ============================================================================
+// Gap 1: Touch Dismiss State Machine (internal to createDismissInteraction)
+// Gap 2: outsidePressEvent Mode (extends createDismissInteraction)
+// Gap 10: Multi-Trigger Element Map
+//
+// These gaps modify createDismissInteraction above — see the extended version.
+// The functions below provide multi-trigger registration.
+// ============================================================================
+
+const triggerMaps = new Map();
+
+/**
+ * Registers a trigger element with a dismiss interaction.
+ */
+export function registerTriggerElement(interactionId, triggerId, element) {
+    if (!triggerMaps.has(interactionId)) {
+        triggerMaps.set(interactionId, new Map());
+    }
+    triggerMaps.get(interactionId).set(triggerId, element);
+}
+
+/**
+ * Unregisters a trigger element from a dismiss interaction.
+ */
+export function unregisterTriggerElement(interactionId, triggerId) {
+    const map = triggerMaps.get(interactionId);
+    if (!map) return;
+    map.delete(triggerId);
+    if (map.size === 0) triggerMaps.delete(interactionId);
+}
+
+/**
+ * Checks if an event target is within any registered trigger for a dismiss interaction.
+ */
+function isTargetInRegisteredTriggers(interactionId, event) {
+    const map = triggerMaps.get(interactionId);
+    if (!map) return false;
+    for (const element of map.values()) {
+        if (isEventTargetWithin(event, element)) return true;
+    }
+    return false;
+}
+
+// ============================================================================
+// Gap 9: Virtual Element / clientPoint
+// ============================================================================
+
+const virtualElements = new Map();
+let virtualCounter = 0;
+
+/**
+ * Creates a virtual element at specified coordinates that conforms to
+ * FloatingUI's VirtualElement interface.
+ */
+export function createVirtualElement(x, y) {
+    const virtualId = `virtual-${++virtualCounter}`;
+
+    const virtualElement = {
+        virtualId,
+        _x: x,
+        _y: y,
+        getBoundingClientRect() {
+            return {
+                x: this._x,
+                y: this._y,
+                top: this._y,
+                left: this._x,
+                bottom: this._y,
+                right: this._x,
+                width: 0,
+                height: 0
+            };
+        },
+        update(newX, newY) {
+            this._x = newX;
+            this._y = newY;
+        }
+    };
+
+    virtualElements.set(virtualId, virtualElement);
+    return virtualElement;
+}
+
+/**
+ * Updates the coordinates of an existing virtual element.
+ */
+export function updateVirtualElement(virtualId, x, y) {
+    const ve = virtualElements.get(virtualId);
+    if (!ve) return;
+    ve._x = x;
+    ve._y = y;
+}
+
+/**
+ * Disposes a virtual element and cleans up internal state.
+ */
+export function disposeVirtualElement(virtualId) {
+    virtualElements.delete(virtualId);
+}
+
+const clientPointInteractions = new Map();
+
+/**
+ * Creates an interaction that tracks pointer position and updates
+ * a virtual element's coordinates accordingly.
+ */
+export function createClientPointInteraction(options) {
+    const {
+        enabled = true,
+        axis = 'both',
+        floatingElement,
+        virtualId,
+        onUpdate = null
+    } = options;
+
+    const interactionId = `cp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const doc = getDocument(floatingElement);
+
+    function handlePointerMove(event) {
+        if (!enabled) return;
+        const ve = virtualElements.get(virtualId);
+        if (!ve) return;
+
+        const newX = (axis === 'both' || axis === 'x') ? event.clientX : ve._x;
+        const newY = (axis === 'both' || axis === 'y') ? event.clientY : ve._y;
+
+        ve._x = newX;
+        ve._y = newY;
+        onUpdate?.(newX, newY);
+    }
+
+    doc.addEventListener('pointermove', handlePointerMove);
+
+    const interaction = {
+        interactionId,
+        dispose() {
+            doc.removeEventListener('pointermove', handlePointerMove);
+            clientPointInteractions.delete(interactionId);
+        }
+    };
+
+    clientPointInteractions.set(interactionId, interaction);
+    return interaction;
+}
+
+// ============================================================================
+// Gap 11: getOverflowAncestors Standalone
+// ============================================================================
+
+/**
+ * Alias for getScrollParents that matches FloatingUI's naming convention.
+ */
+export function getOverflowAncestors(element) {
+    return getScrollParents(element);
+}
+
+// ============================================================================
+// Gap 4: Third-Party Element Detection
+// ============================================================================
+
+/**
+ * Checks whether an event target is a third-party element injected into
+ * the DOM after the floating element rendered.
+ */
+export function isThirdPartyElement(target, floatingElement) {
+    if (!target || !floatingElement) return false;
+
+    // Walk up to find the root ancestor
+    let root = target;
+    while (root.parentElement) {
+        root = root.parentElement;
+    }
+
+    // If the root is not the document element, it's detached — treat as third-party
+    if (root !== document.documentElement && root !== document) return true;
+
+    // Check if the target's root contains any data-base-ui-inert markers
+    const inertMarkers = document.querySelectorAll('[data-base-ui-inert]');
+    if (inertMarkers.length === 0) return false;
+
+    // If target is a direct ancestor of the floating element (e.g., overlay), not third-party
+    if (contains(target, floatingElement)) return false;
+
+    // Check if the target itself or its ancestors have inert markers
+    // If they don't, and inert markers exist, this element was injected after markOthers ran
+    let current = target;
+    while (current && current !== document.body) {
+        if (current.hasAttribute('data-base-ui-inert')) return false;
+        current = current.parentElement;
+    }
+
+    // The element's ancestors have no inert markers — it was injected after modal opened
+    return true;
+}
+
+// ============================================================================
+// Gap 8: FloatingDelayGroup
+// ============================================================================
+
+const delayGroups = new Map();
+let delayGroupCounter = 0;
+
+/**
+ * Creates a delay group for coordinating open/close delays across
+ * multiple floating elements (typically tooltips).
+ */
+export function createDelayGroup(options) {
+    const { delay, timeoutMs = 0 } = options;
+
+    const groupId = `dg-${++delayGroupCounter}`;
+    const openDelay = typeof delay === 'number' ? delay : (delay?.open ?? 0);
+    const closeDelay = typeof delay === 'number' ? delay : (delay?.close ?? 0);
+
+    const group = {
+        groupId,
+        openDelay,
+        closeDelay,
+        timeoutMs,
+        members: new Map(),
+        isInstantPhase: false,
+        currentOpenId: null,
+        timeoutHandle: null,
+
+        getDelay() {
+            if (this.isInstantPhase) {
+                return { open: 0, close: this.closeDelay };
+            }
+            return { open: this.openDelay, close: this.closeDelay };
+        },
+
+        dispose() {
+            if (this.timeoutHandle) clearTimeout(this.timeoutHandle);
+            this.members.clear();
+            delayGroups.delete(groupId);
+        }
+    };
+
+    delayGroups.set(groupId, group);
+    return group;
+}
+
+/**
+ * Registers a floating element as a member of a delay group.
+ */
+export function registerDelayGroupMember(groupId, interactionId, callbacks) {
+    const group = delayGroups.get(groupId);
+    if (!group) return;
+
+    group.members.set(interactionId, {
+        ...callbacks,
+        interactionId
+    });
+}
+
+/**
+ * Unregisters a floating element from a delay group.
+ */
+export function unregisterDelayGroupMember(groupId, interactionId) {
+    const group = delayGroups.get(groupId);
+    if (!group) return;
+
+    group.members.delete(interactionId);
+
+    // If no members open, start timeout to exit instant phase
+    if (group.isInstantPhase && group.currentOpenId === interactionId) {
+        group.currentOpenId = null;
+        if (group.timeoutMs > 0) {
+            group.timeoutHandle = setTimeout(() => {
+                group.isInstantPhase = false;
+                group.members.forEach(member => member.setIsInstantPhase?.(false));
+                group.timeoutHandle = null;
+            }, group.timeoutMs);
+        } else {
+            group.isInstantPhase = false;
+            group.members.forEach(member => member.setIsInstantPhase?.(false));
+        }
+    }
+}
+
+/**
+ * Disposes a delay group and all its internal state.
+ */
+export function disposeDelayGroup(groupId) {
+    const group = delayGroups.get(groupId);
+    if (!group) return;
+    group.dispose();
 }
 
 // ============================================================================

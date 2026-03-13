@@ -40,7 +40,7 @@ public class DialogRootTests : BunitContext, IDialogRootContract
             if (actionsRef is not null)
                 builder.AddAttribute(5, "ActionsRef", actionsRef);
 
-            builder.AddAttribute(6, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(6, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogTrigger>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Open")));
@@ -252,12 +252,12 @@ public class DialogRootTests : BunitContext, IDialogRootContract
     }
 
     [Fact]
-    public Task DoesNotRenderInternalBackdropWhenModalFalse()
+    public Task RendersInternalBackdropWhenModalFalse()
     {
+        // Fix 02: Source has no modal guard on backdrop — backdrop renders for non-modal dialogs if included in markup
         var cut = Render(CreateDialog(defaultOpen: true, modal: BlazorBaseUI.Dialog.ModalMode.False, includeBackdrop: true));
 
-        // Backdrop should not render when modal is false
-        cut.FindAll("[data-testid='backdrop']").Count.ShouldBe(0);
+        cut.FindAll("[data-testid='backdrop']").Count.ShouldBe(1);
 
         return Task.CompletedTask;
     }
@@ -303,29 +303,68 @@ public class DialogRootTests : BunitContext, IDialogRootContract
     }
 
     [Fact]
-    public Task ActionsRefOpenMethodOpensDialog()
+    public async Task HandleOpenWithPayloadOpensDialogWithPayload()
     {
-        var openRequested = false;
-        var actions = new DialogRootActions();
+        var handle = new DialogHandle<string>();
+        object? capturedPayload = null;
 
-        var cut = Render(CreateDialog(
-            defaultOpen: false,
-            actionsRef: actions,
-            onOpenChange: EventCallback.Factory.Create<DialogOpenChangeEventArgs>(this, args =>
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogRoot>(0);
+            builder.AddAttribute(1, "Handle", (IDialogHandle)handle);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(ctx => b =>
             {
-                if (args.Open)
+                capturedPayload = ctx.Payload;
+
+                b.OpenComponent<DialogPortal>(0);
+                b.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
                 {
-                    openRequested = true;
-                }
-            })
-        ));
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.AddContent(0, $"Payload: {ctx.Payload}");
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                b.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
 
         cut.FindAll("[role='dialog']").Count.ShouldBe(0);
 
-        actions.Open?.Invoke();
+        await cut.InvokeAsync(() => handle.OpenWithPayload("test-payload"));
 
-        openRequested.ShouldBeTrue();
-
-        return Task.CompletedTask;
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[role='dialog']").ShouldNotBeNull();
+            capturedPayload.ShouldBe("test-payload");
+        });
     }
+
+    [Fact]
+    public async Task OnFocusOutClosesNonModalDialog()
+    {
+        BlazorBaseUI.Dialog.OpenChangeReason? capturedReason = null;
+
+        var cut = Render(CreateDialog(
+            defaultOpen: true,
+            modal: BlazorBaseUI.Dialog.ModalMode.False,
+            onOpenChange: EventCallback.Factory.Create<DialogOpenChangeEventArgs>(this, args =>
+            {
+                capturedReason = args.Reason;
+            })
+        ));
+
+        cut.Find("[role='dialog']").ShouldNotBeNull();
+
+        // Simulate the JS calling OnFocusOut via JSInvokable
+        var rootComponent = cut.FindComponent<DialogRoot>();
+        await cut.InvokeAsync(() => rootComponent.Instance.OnFocusOut());
+
+        capturedReason.ShouldBe(BlazorBaseUI.Dialog.OpenChangeReason.FocusOut);
+    }
+
 }

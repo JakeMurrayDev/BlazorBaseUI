@@ -12,8 +12,9 @@ public interface IDialogRootContract
     Task OnOpenChangeReasonClosePress();
     Task OnOpenChangeCancelPreventsOpening();
     Task RendersInternalBackdropWhenModalTrue();
-    Task DoesNotRenderInternalBackdropWhenModalFalse();
+    Task RendersInternalBackdropWhenModalFalse();
     Task ActionsRefCloseMethodClosesDialog();
     Task ActionsRefUnmountMethodUnmountsDialog();
-    Task ActionsRefOpenMethodOpensDialog();
+    Task HandleOpenWithPayloadOpensDialogWithPayload();
+    Task OnFocusOutClosesNonModalDialog();
 }

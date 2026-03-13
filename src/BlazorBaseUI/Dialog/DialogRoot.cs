@@ -5,9 +5,9 @@ namespace BlazorBaseUI.Dialog;
 /// transitions, accessibility, and nested dialog coordination.
 /// Does not render its own element.
 /// </summary>
-public sealed partial class DialogRoot;
+public partial class DialogRoot;
 
 /// <summary>
-/// Provides the payload context for dialog content rendering via <see cref="DialogRoot.ChildContentWithPayload"/>.
+/// Provides the payload context for dialog content rendering via <see cref="DialogRoot.ChildContent"/>.
 /// </summary>
 public readonly record struct DialogRootPayloadContext(object? Payload);

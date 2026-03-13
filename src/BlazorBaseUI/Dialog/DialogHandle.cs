@@ -25,6 +25,12 @@ public interface IDialogHandle
     void Open(string triggerId);
 
     /// <summary>
+    /// Opens the dialog with a payload without associating a trigger.
+    /// </summary>
+    /// <param name="payload">The payload to pass to the dialog.</param>
+    void OpenWithPayload(object? payload);
+
+    /// <summary>
     /// Closes the dialog.
     /// </summary>
     void Close();
@@ -103,6 +109,25 @@ public class DialogHandle<TPayload> : IDialogHandle
         }
 
         SetOpenInternal(true, OpenChangeReason.ImperativeAction, triggerId);
+    }
+
+    /// <summary>
+    /// Opens the dialog with a payload without associating a trigger.
+    /// </summary>
+    /// <param name="payload">The payload to pass to the dialog.</param>
+    public void OpenWithPayload(TPayload? payload)
+    {
+        if (isOpen)
+        {
+            return;
+        }
+
+        this.payload = payload;
+
+        foreach (var subscriber in subscribers.ToArray())
+        {
+            subscriber.OnOpenWithPayloadRequested(payload, OpenChangeReason.ImperativeAction);
+        }
     }
 
     /// <summary>
@@ -199,14 +224,6 @@ public class DialogHandle<TPayload> : IDialogHandle
     }
 
     /// <summary>
-    /// Checks if a trigger is registered with this handle.
-    /// </summary>
-    internal bool HasTrigger(string triggerId)
-    {
-        return registeredTriggers.ContainsKey(triggerId);
-    }
-
-    /// <summary>
     /// Subscribes a component to handle state changes.
     /// </summary>
     internal void Subscribe(IDialogHandleSubscriber subscriber)
@@ -228,9 +245,9 @@ public class DialogHandle<TPayload> : IDialogHandle
     /// <summary>
     /// Called by triggers to request opening the dialog.
     /// </summary>
-    internal void RequestOpen(string triggerId, OpenChangeReason reason)
+    internal void RequestOpen(string triggerId, OpenChangeReason reason, string? interactionType = null)
     {
-        SetOpenInternal(true, reason, triggerId);
+        SetOpenInternal(true, reason, triggerId, interactionType);
     }
 
     /// <summary>
@@ -276,12 +293,18 @@ public class DialogHandle<TPayload> : IDialogHandle
     }
 
     /// <inheritdoc />
+    void IDialogHandle.OpenWithPayload(object? payload)
+    {
+        OpenWithPayload(payload is TPayload typed ? typed : default);
+    }
+
+    /// <inheritdoc />
     void IDialogHandle.SyncState(bool open, string? triggerId, object? payload)
     {
         SyncState(open, triggerId, payload is TPayload typedPayload ? typedPayload : default);
     }
 
-    private void SetOpenInternal(bool nextOpen, OpenChangeReason reason, string? triggerId)
+    private void SetOpenInternal(bool nextOpen, OpenChangeReason reason, string? triggerId, string? interactionType = null)
     {
         if (isOpen == nextOpen && (nextOpen == false || activeTriggerId == triggerId))
         {
@@ -296,7 +319,7 @@ public class DialogHandle<TPayload> : IDialogHandle
 
         foreach (var subscriber in subscribers.ToArray())
         {
-            subscriber.OnOpenChangeRequested(nextOpen, reason, triggerId);
+            subscriber.OnOpenChangeRequested(nextOpen, reason, triggerId, interactionType);
         }
     }
 
@@ -341,7 +364,12 @@ internal interface IDialogHandleSubscriber
     /// <summary>
     /// Called when an open/close state change is requested.
     /// </summary>
-    void OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId);
+    void OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId, string? interactionType = null);
+
+    /// <summary>
+    /// Called when the dialog should open with a payload and no trigger association.
+    /// </summary>
+    void OnOpenWithPayloadRequested(object? payload, OpenChangeReason reason);
 
     /// <summary>
     /// Called when the handle state has changed.

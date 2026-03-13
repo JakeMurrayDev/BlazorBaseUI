@@ -29,7 +29,7 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
             builder.OpenComponent<DialogRoot>(0);
             builder.AddAttribute(1, "Open", open);
             builder.AddAttribute(2, "Modal", BlazorBaseUI.Dialog.ModalMode.False);
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogTrigger>(0);
                 innerBuilder.AddAttribute(1, "data-testid", "trigger");
@@ -157,7 +157,7 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
             {
                 openRequested = args.Open;
             }));
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogTrigger>(0);
                 innerBuilder.AddAttribute(1, "Disabled", true);

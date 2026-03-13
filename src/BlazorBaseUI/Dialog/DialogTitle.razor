@@ -1,3 +1,4 @@
+@implements IDisposable
 
 <RenderElement TState="DialogTitleState"
                Tag="h2"
@@ -17,10 +18,17 @@
     private RenderElement<DialogTitleState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
-    private string ResolvedId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+    private string ResolvedId => Id ?? (defaultId ??= Guid.NewGuid().ToIdString());
 
     [CascadingParameter]
     private DialogRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Gets or sets the element ID. When not specified, an ID is auto-generated.
+    /// The ID is registered with the dialog for <c>aria-labelledby</c>.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
 
     /// <summary>
     /// Gets or sets a custom render fragment that replaces the default element.
@@ -73,12 +81,19 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        if (Context is not null && AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "id") != ResolvedId)
+        var currentId = ResolvedId;
+        if (Context is not null && Context.TitleId != currentId)
         {
-            Context.SetTitleId(ResolvedId);
+            Context.SetTitleId(currentId);
         }
 
         BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Context?.SetTitleId(null);
     }
 
     private void BuildComponentAttributes()

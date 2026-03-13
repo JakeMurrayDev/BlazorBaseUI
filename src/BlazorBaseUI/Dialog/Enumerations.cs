@@ -20,6 +20,9 @@ public enum OpenChangeReason
     /// <summary>The close button was pressed.</summary>
     ClosePress,
 
+    /// <summary>Focus moved outside the dialog.</summary>
+    FocusOut,
+
     /// <summary>An imperative action was invoked.</summary>
     ImperativeAction
 }

@@ -1,5 +1,3 @@
-@using Microsoft.AspNetCore.Components.Web
-
 <RenderElement TState="DialogBackdropState"
                Tag="div"
                Enabled="shouldRender"
@@ -20,6 +18,7 @@
     private RenderElement<DialogBackdropState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private Func<DialogBackdropState, string>? computedStyleValue;
+    private ElementReference? previousElement;
 
     [CascadingParameter]
     private DialogRootContext? Context { get; set; }
@@ -96,15 +95,19 @@
         BuildComponentAttributes();
     }
 
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (Element.HasValue && Element.Value.Id != previousElement?.Id)
+        {
+            previousElement = Element.Value;
+            Context?.SetBackdropElement(Element);
+        }
+    }
+
     private void UpdateShouldRender()
     {
         if (Context is null)
-        {
-            shouldRender = false;
-            return;
-        }
-
-        if (Context.Modal == ModalMode.False)
         {
             shouldRender = false;
             return;
@@ -140,10 +143,7 @@
 
         attrs["role"] = "presentation";
 
-        var keepMounted = PortalContext?.KeepMounted ?? false;
-        var isHidden = keepMounted && !Context.Open && (Context.TransitionStatus == TransitionStatus.Undefined || Context.TransitionStatus == TransitionStatus.Idle);
-
-        if (isHidden)
+        if (!Context.Mounted)
         {
             attrs["hidden"] = true;
         }
@@ -153,18 +153,6 @@
         attrs["data-starting-style"] = Context.TransitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = Context.TransitionStatus == TransitionStatus.Ending;
 
-        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-
         componentAttributes = attrs;
-    }
-
-    private async Task HandleClickAsync(MouseEventArgs e)
-    {
-        if (Context is not null && Context.DismissOnOutsidePress)
-        {
-            await Context.SetOpenAsync(false, OpenChangeReason.OutsidePress);
-        }
-
-        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 }

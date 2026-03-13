@@ -1,5 +1,7 @@
 @using Microsoft.JSInterop
+
 @implements IAsyncDisposable
+
 @inject IJSRuntime JSRuntime
 
 <RenderElement TState="DialogPopupState"
@@ -16,15 +18,16 @@
 
 @code {
     private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private readonly string popupId = Guid.NewGuid().ToIdString();
     private bool hasRendered;
     private bool shouldRender;
-    private bool initialFocusSent;
     private DialogPopupState state;
     private RenderElement<DialogPopupState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private Func<DialogPopupState, string>? computedStyleValue;
     private ElementReference? previousElement;
-    private DotNetObjectReference<DialogPopup>? dotNetRef;
+    private FocusTarget? previousInitialFocus;
+    private FocusTarget? previousFinalFocus;
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
         JSRuntime.InvokeAsync<IJSObjectReference>(
@@ -55,16 +58,22 @@
     public Func<DialogPopupState, string>? StyleValue { get; set; }
 
     /// <summary>
-    /// Gets or sets the element to focus when the dialog is opened.
+    /// Gets or sets the focus target when the dialog is opened.
+    /// Accepts <see cref="FocusTarget.None"/>, <see cref="FocusTarget.Default"/>,
+    /// <see cref="FocusTarget.Element"/>, or <see cref="FocusTarget.Callback"/>.
+    /// An <see cref="ElementReference"/> is implicitly converted to <see cref="FocusTarget.Element"/>.
     /// </summary>
     [Parameter]
-    public ElementReference? InitialFocus { get; set; }
+    public FocusTarget? InitialFocus { get; set; }
 
     /// <summary>
-    /// Gets or sets the element to focus when the dialog is closed.
+    /// Gets or sets the focus target when the dialog is closed.
+    /// Accepts <see cref="FocusTarget.None"/>, <see cref="FocusTarget.Default"/>,
+    /// <see cref="FocusTarget.Element"/>, or <see cref="FocusTarget.Callback"/>.
+    /// An <see cref="ElementReference"/> is implicitly converted to <see cref="FocusTarget.Element"/>.
     /// </summary>
     [Parameter]
-    public ElementReference? FinalFocus { get; set; }
+    public FocusTarget? FinalFocus { get; set; }
 
     /// <summary>
     /// Defines the child components of this instance.
@@ -91,6 +100,12 @@
             throw new InvalidOperationException("DialogPopup must be used within a DialogRoot.");
         }
 
+        if (PortalContext is null)
+        {
+            throw new InvalidOperationException("DialogPopup must be used within a DialogPortal.");
+        }
+
+        Context.PopupId = popupId;
         state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
         UpdateShouldRender();
         UpdateComputedStyleValue();
@@ -108,6 +123,23 @@
         UpdateShouldRender();
         UpdateComputedStyleValue();
         BuildComponentAttributes();
+
+        if (hasRendered && Context is not null)
+        {
+            if (!Equals(InitialFocus, previousInitialFocus))
+            {
+                previousInitialFocus = InitialFocus;
+                var (mode, element) = ResolveFocusTarget(InitialFocus);
+                _ = SetInitialFocusElementAsync(mode, element);
+            }
+
+            if (!Equals(FinalFocus, previousFinalFocus))
+            {
+                previousFinalFocus = FinalFocus;
+                var (mode, element) = ResolveFocusTarget(FinalFocus);
+                _ = SetFinalFocusElementAsync(mode, element);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -116,7 +148,6 @@
         if (firstRender)
         {
             hasRendered = true;
-            dotNetRef = DotNetObjectReference.Create(this);
         }
 
         var currentElement = Element;
@@ -128,7 +159,8 @@
 
         if (firstRender && Element.HasValue && Context is not null)
         {
-            initialFocusSent = InitialFocus.HasValue;
+            var (initialMode, initialElement) = ResolveFocusTarget(InitialFocus);
+            var (finalMode, finalElement) = ResolveFocusTarget(FinalFocus);
 
             try
             {
@@ -137,27 +169,18 @@
                     "initializePopup",
                     Context.RootId,
                     Element.Value,
-                    dotNetRef,
                     Context.Modal.ToDataAttributeString(),
-                    InitialFocus,
-                    FinalFocus);
+                    initialMode,
+                    initialElement,
+                    finalMode,
+                    finalElement);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
             }
-        }
-        else if (hasRendered && !initialFocusSent && InitialFocus.HasValue && Context is not null)
-        {
-            initialFocusSent = true;
 
-            try
-            {
-                var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("setInitialFocusElement", Context.RootId, InitialFocus.Value);
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
-            }
+            previousInitialFocus = InitialFocus;
+            previousFinalFocus = FinalFocus;
         }
     }
 
@@ -177,7 +200,30 @@
             }
         }
 
-        dotNetRef?.Dispose();
+    }
+
+    private async Task SetInitialFocusElementAsync(string? mode, ElementReference? element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setInitialFocusElement", Context!.RootId, mode, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task SetFinalFocusElementAsync(string? mode, ElementReference? element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setFinalFocusElement", Context!.RootId, mode, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
     }
 
     private void UpdateShouldRender()
@@ -201,18 +247,8 @@
 
         computedStyleValue = s =>
         {
-            var nestedDialogsStyle = Context.NestedDialogCount > 0 ? $"--nested-dialogs: {Context.NestedDialogCount};" : null;
+            var nestedDialogsStyle = $"--nested-dialogs: {Context.NestedDialogCount};";
             var userStyle = StyleValue?.Invoke(s);
-
-            if (string.IsNullOrEmpty(nestedDialogsStyle) && string.IsNullOrEmpty(userStyle))
-            {
-                return string.Empty;
-            }
-
-            if (string.IsNullOrEmpty(nestedDialogsStyle))
-            {
-                return userStyle!;
-            }
 
             if (string.IsNullOrEmpty(userStyle))
             {
@@ -232,9 +268,13 @@
 
         var attrs = new Dictionary<string, object>();
 
+        attrs["id"] = popupId;
         attrs["role"] = Context.Role.ToRoleString();
         attrs["tabindex"] = "-1";
+        attrs["data-base-ui-focusable"] = string.Empty;
 
+        // Set aria-modal for accessibility. Also set by FloatingFocusManager (Gap 7)
+        // at runtime, but kept here for SSR/bUnit where JS doesn't execute.
         if (Context.Modal != ModalMode.False)
         {
             attrs["aria-modal"] = "true";
@@ -265,5 +305,27 @@
         }
 
         componentAttributes = attrs;
+    }
+
+    private (string? Mode, ElementReference? Element) ResolveFocusTarget(FocusTarget? target)
+    {
+        return target switch
+        {
+            null => (null, null),
+            FocusTarget.None => ("none", null),
+            FocusTarget.Default => ("default", null),
+            FocusTarget.Element e => ("element", e.Ref),
+            FocusTarget.Callback cb => ResolveFocusCallback(cb),
+            _ => (null, null)
+        };
+    }
+
+    private (string? Mode, ElementReference? Element) ResolveFocusCallback(FocusTarget.Callback cb)
+    {
+        // Resolve the callback in C# (Func is not JS-serializable).
+        // Pass the real interaction type from the context.
+        var interactionType = Context?.InteractionType ?? string.Empty;
+        var result = cb.Fn(interactionType);
+        return result.HasValue ? ("element", result.Value) : ("default", null);
     }
 }

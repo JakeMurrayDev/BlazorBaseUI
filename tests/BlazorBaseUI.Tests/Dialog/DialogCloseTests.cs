@@ -33,7 +33,7 @@ public class DialogCloseTests : BunitContext, IDialogCloseContract
             if (onOpenChange.HasValue)
                 builder.AddAttribute(3, "OnOpenChange", onOpenChange.Value);
 
-            builder.AddAttribute(4, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(4, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogPortal>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
@@ -246,7 +246,7 @@ public class DialogCloseTests : BunitContext, IDialogCloseContract
                     closeRequested = true;
                 }
             }));
-            builder.AddAttribute(4, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(4, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogPortal>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>

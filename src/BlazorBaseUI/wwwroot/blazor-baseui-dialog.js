@@ -1,4 +1,8 @@
 import { acquireScrollLock } from './blazor-baseui-scroll-lock.js';
+import {
+    createFloatingFocusManager,
+    disposeFloatingFocusManager
+} from './blazor-baseui-floating.js';
 
 const STATE_KEY = Symbol.for('BlazorBaseUI.Dialog.State');
 
@@ -37,26 +41,30 @@ export function initializeRoot(rootId, dotNetRef, modal) {
     initGlobalListeners();
 
     state.roots.set(rootId, {
+        rootId,
         dotNetRef,
         isOpen: false,
         modal: modal || 'true',
         triggerElement: null,
         popupElement: null,
-        focusTrapCleanup: null,
+        backdropElement: null,
+        focusManagerId: null,
         transitionCleanup: null,
         fallbackTimeoutId: null,
         pendingOpen: false,
         releaseScrollLock: null,
-        outsideClickCleanup: null
+        outsideClickCleanup: null,
+        backdropClickCleanup: null
     });
 }
 
 export function disposeRoot(rootId) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
-        cleanupFocusTrap(rootState);
+        cleanupFocusManager(rootState);
         cleanupTransition(rootState);
         cleanupOutsideClick(rootState);
+        cleanupBackdropClick(rootState);
         removeFromDialogStack(rootId);
 
         // Release scroll lock if this dialog had it
@@ -68,7 +76,7 @@ export function disposeRoot(rootId) {
     state.roots.delete(rootId);
 }
 
-export function setRootOpen(rootId, isOpen) {
+export function setRootOpen(rootId, isOpen, interactionType) {
     const rootState = state.roots.get(rootId);
     if (!rootState) {
         return;
@@ -81,6 +89,7 @@ export function setRootOpen(rootId, isOpen) {
 
     rootState.isOpen = isOpen;
     rootState.pendingOpen = isOpen;
+    rootState.interactionType = interactionType || null;
 
     if (isOpen) {
         addToDialogStack(rootId);
@@ -101,15 +110,20 @@ export function setRootOpen(rootId, isOpen) {
         }
 
         cleanupOutsideClick(rootState);
-        cleanupFocusTrap(rootState);
+        cleanupBackdropClick(rootState);
+        cleanupFocusManager(rootState);
         startTransition(rootState, isOpen);
     }
 }
 
+// Fix 16: dialogStack is kept solely for escape-key topmost-dialog resolution (isTopmostDialog).
+// Nested dialog counting is now handled by C# parent-child callbacks (OnNestedDialogOpen /
+// OnNestedDialogClose) on DialogRootContext, which are invoked from DialogRoot.razor when
+// SetOpenAsync or ForceUnmount changes the open state. This ensures sibling (non-nested)
+// modals do not incorrectly affect each other's nested count.
 function addToDialogStack(rootId) {
     if (!state.dialogStack.includes(rootId)) {
         state.dialogStack.push(rootId);
-        updateNestedDialogCounts();
     }
 }
 
@@ -117,21 +131,7 @@ function removeFromDialogStack(rootId) {
     const index = state.dialogStack.indexOf(rootId);
     if (index !== -1) {
         state.dialogStack.splice(index, 1);
-        updateNestedDialogCounts();
     }
-}
-
-function updateNestedDialogCounts() {
-    const stackLength = state.dialogStack.length;
-
-    state.dialogStack.forEach((rootId, index) => {
-        const rootState = state.roots.get(rootId);
-        if (rootState && rootState.dotNetRef) {
-            // Number of dialogs above this one in the stack
-            const nestedCount = stackLength - index - 1;
-            rootState.dotNetRef.invokeMethodAsync('OnNestedDialogCountChange', nestedCount).catch(() => { });
-        }
-    });
 }
 
 function waitForPopupAndStartTransition(rootState, isOpen) {
@@ -182,14 +182,14 @@ function startTransition(rootState, isOpen) {
                     return;
                 }
 
-                // Set up focus trap for modal dialogs
-                if (rootState.modal === 'true' || rootState.modal === 'trap-focus') {
-                    setupFocusTrap(rootState);
-                }
-
                 // Set up outside click listener for non-modal dialogs
                 if (rootState.modal === 'false') {
                     setupOutsideClickListener(rootState);
+                }
+
+                // Set up backdrop click listener for modal dialogs (source: useDialogRoot outsidePress guard)
+                if (rootState.modal === 'true' || rootState.modal === 'trap-focus') {
+                    setupBackdropClickListener(rootState);
                 }
 
                 // Focus custom element or default behavior
@@ -213,92 +213,76 @@ function startTransition(rootState, isOpen) {
             }
         }
 
-        // Return focus to custom element or trigger element
-        returnFocus(rootState);
+        // Return focus handled by FloatingFocusManager dispose in setRootOpen close path
     }
 }
 
 function focusPopup(rootState, popupElement) {
     if (!popupElement) return;
 
-    // Use custom initial focus element if provided
-    if (rootState.initialFocusElement) {
-        rootState.initialFocusElement.focus();
-        return;
+    const mode = rootState.initialFocusMode;
+
+    // 'none' mode: don't move focus at all
+    if (mode === 'none') return;
+
+    // Resolve initial focus target for the FocusManager
+    let initialFocus = true;
+
+    if (mode === 'element' && rootState.initialFocusElement) {
+        initialFocus = rootState.initialFocusElement;
     }
 
-    // Find the first focusable element inside the popup
-    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    const firstFocusable = popupElement.querySelector(focusableSelector);
-
-    if (firstFocusable) {
-        firstFocusable.focus();
-    } else {
-        // If no focusable element, focus the popup itself
-        popupElement.focus();
+    // Resolve return focus target
+    const finalMode = rootState.finalFocusMode;
+    let returnFocusTarget = true;
+    if (finalMode === 'none') {
+        returnFocusTarget = false;
+    } else if (finalMode === 'element' && rootState.finalFocusElement) {
+        returnFocusTarget = rootState.finalFocusElement;
     }
-}
 
-function returnFocus(rootState) {
-    // Use custom final focus element if provided
-    const focusTarget = rootState.finalFocusElement || rootState.triggerElement;
+    // iOS Safari hitslop detection
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const effectiveInteractionType = rootState.interactionType ||
+        (isIOS ? 'touch' : null);
 
-    if (focusTarget) {
-        requestAnimationFrame(() => {
-            focusTarget.focus();
-        });
+    // Clean up previous focus manager
+    cleanupFocusManager(rootState);
+
+    // Delegate to shared FloatingFocusManager (Gap 7)
+    const isModal = rootState.modal === 'true' || rootState.modal === 'trap-focus';
+    const insideElements = [];
+    if (rootState.backdropElement) {
+        insideElements.push(rootState.backdropElement);
     }
-}
-
-function setupFocusTrap(rootState) {
-    const popupElement = rootState.popupElement;
-    if (!popupElement) return;
-
-    cleanupFocusTrap(rootState);
-
-    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-    const handleKeyDown = (e) => {
-        if (e.key !== 'Tab') return;
-
-        const focusableElements = popupElement.querySelectorAll(focusableSelector);
-        const focusableArray = Array.from(focusableElements).filter(el =>
-            !el.hasAttribute('disabled') && el.offsetParent !== null
-        );
-
-        if (focusableArray.length === 0) {
-            e.preventDefault();
-            return;
-        }
-
-        const firstFocusable = focusableArray[0];
-        const lastFocusable = focusableArray[focusableArray.length - 1];
-
-        if (e.shiftKey) {
-            if (document.activeElement === firstFocusable || document.activeElement === popupElement) {
-                e.preventDefault();
-                lastFocusable.focus();
+    rootState.focusManagerId = createFloatingFocusManager({
+        floatingElement: popupElement,
+        triggerElement: rootState.triggerElement,
+        modal: isModal,
+        initialFocus,
+        returnFocus: returnFocusTarget,
+        interactionType: effectiveInteractionType || '',
+        closeOnFocusOut: rootState.modal === 'false',
+        insideElements,
+        onClose: rootState.modal === 'false' ? () => {
+            if (rootState.isOpen && rootState.dotNetRef) {
+                rootState.dotNetRef.invokeMethodAsync('OnFocusOut').catch(() => {});
             }
-        } else {
-            if (document.activeElement === lastFocusable) {
-                e.preventDefault();
-                firstFocusable.focus();
-            }
-        }
-    };
-
-    popupElement.addEventListener('keydown', handleKeyDown);
-
-    rootState.focusTrapCleanup = () => {
-        popupElement.removeEventListener('keydown', handleKeyDown);
-    };
+        } : null
+    });
 }
 
-function cleanupFocusTrap(rootState) {
-    if (rootState.focusTrapCleanup) {
-        rootState.focusTrapCleanup();
-        rootState.focusTrapCleanup = null;
+function cleanupFocusManager(rootState) {
+    if (rootState.focusManagerId) {
+        disposeFloatingFocusManager(rootState.focusManagerId, true);
+        rootState.focusManagerId = null;
     }
+}
+
+function isTopmostDialog(rootId) {
+    return state.dialogStack.length === 0 ||
+           state.dialogStack[state.dialogStack.length - 1] === rootId;
 }
 
 function setupOutsideClickListener(rootState) {
@@ -308,6 +292,12 @@ function setupOutsideClickListener(rootState) {
     cleanupOutsideClick(rootState);
 
     const handleOutsideClick = (e) => {
+        // Primary button only (left-click)
+        if (e.button !== 0) return;
+
+        // Only the topmost dialog responds to outside press
+        if (!isTopmostDialog(rootState.rootId)) return;
+
         const popupElement = rootState.popupElement;
         const triggerElement = rootState.triggerElement;
 
@@ -336,6 +326,44 @@ function cleanupOutsideClick(rootState) {
     if (rootState.outsideClickCleanup) {
         rootState.outsideClickCleanup();
         rootState.outsideClickCleanup = null;
+    }
+}
+
+// Source: useDialogRoot.ts outsidePress guard — for modal dialogs, clicking the backdrop
+// element itself (not the popup) dismisses the dialog. Uses capture-phase 'click' event
+// ('intentional' mode in source) so that pointerdown alone does not dismiss.
+function setupBackdropClickListener(rootState) {
+    cleanupBackdropClick(rootState);
+
+    const handleBackdropClick = (e) => {
+        if (e.button !== 0) return;
+        if (!rootState.isOpen) return;
+        if (!isTopmostDialog(rootState.rootId)) return;
+
+        const target = e.composedPath ? e.composedPath()[0] : e.target;
+        const backdropElement = rootState.backdropElement;
+
+        if (!backdropElement) return;
+
+        if (target === backdropElement && rootState.dotNetRef) {
+            rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
+        }
+    };
+
+    // Use setTimeout(0) to avoid catching the click that opened the dialog
+    setTimeout(() => {
+        document.addEventListener('click', handleBackdropClick, true);
+    }, 0);
+
+    rootState.backdropClickCleanup = () => {
+        document.removeEventListener('click', handleBackdropClick, true);
+    };
+}
+
+function cleanupBackdropClick(rootState) {
+    if (rootState.backdropClickCleanup) {
+        rootState.backdropClickCleanup();
+        rootState.backdropClickCleanup = null;
     }
 }
 
@@ -454,6 +482,13 @@ export function setTriggerElement(rootId, element) {
     }
 }
 
+export function setBackdropElement(rootId, element) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.backdropElement = element;
+    }
+}
+
 export function setPopupElement(rootId, element) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
@@ -461,32 +496,60 @@ export function setPopupElement(rootId, element) {
     }
 }
 
-export function initializePopup(rootId, popupElement, dotNetRef, modal, initialFocusElement, finalFocusElement) {
+const COMPOSITE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
+function setupCompositeKeySuppression(rootState) {
+    const popup = rootState.popupElement;
+    if (!popup) return;
+    const handler = (e) => {
+        if (COMPOSITE_KEYS.has(e.key)) {
+            e.stopPropagation();
+        }
+    };
+    popup.addEventListener('keydown', handler);
+    rootState.compositeKeyCleanup = () => popup.removeEventListener('keydown', handler);
+}
+
+export function initializePopup(rootId, popupElement, modal, initialFocusMode, initialFocusElement, finalFocusMode, finalFocusElement) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
         rootState.popupElement = popupElement;
         rootState.modal = modal || 'true';
+        rootState.initialFocusMode = initialFocusMode || null;
         rootState.initialFocusElement = initialFocusElement;
+        rootState.finalFocusMode = finalFocusMode || null;
         rootState.finalFocusElement = finalFocusElement;
+        setupCompositeKeySuppression(rootState);
     }
 }
 
-export function setInitialFocusElement(rootId, element) {
+export function setInitialFocusElement(rootId, mode, element) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
+        rootState.initialFocusMode = mode || null;
         rootState.initialFocusElement = element;
 
-        // If popup is already open, focus the element now
-        if (rootState.isOpen && element) {
+        // If popup is already open and mode is 'element', focus now
+        if (rootState.isOpen && mode === 'element' && element) {
             element.focus();
         }
+    }
+}
+
+export function setFinalFocusElement(rootId, mode, element) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.finalFocusMode = mode || null;
+        rootState.finalFocusElement = element;
     }
 }
 
 export function disposePopup(rootId) {
     const rootState = state.roots.get(rootId);
     if (rootState) {
-        cleanupFocusTrap(rootState);
+        cleanupFocusManager(rootState);
+        rootState.compositeKeyCleanup?.();
+        rootState.compositeKeyCleanup = null;
         rootState.popupElement = null;
     }
 }

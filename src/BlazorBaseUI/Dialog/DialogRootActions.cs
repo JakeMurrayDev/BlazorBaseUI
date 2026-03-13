@@ -15,14 +15,4 @@ public sealed class DialogRootActions
     /// Gets the action that closes the dialog imperatively.
     /// </summary>
     public Action? Close { get; internal set; }
-
-    /// <summary>
-    /// Gets the action that opens the dialog imperatively.
-    /// </summary>
-    public Action? Open { get; internal set; }
-
-    /// <summary>
-    /// Gets the action that opens the dialog imperatively with a payload.
-    /// </summary>
-    public Action<object?>? OpenWithPayload { get; internal set; }
 }

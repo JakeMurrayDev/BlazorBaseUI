@@ -4,4 +4,4 @@ namespace BlazorBaseUI.Dialog;
 /// A button that closes the dialog when clicked.
 /// Renders a <c>&lt;button&gt;</c> element.
 /// </summary>
-public sealed partial class DialogClose;
+public partial class DialogClose;

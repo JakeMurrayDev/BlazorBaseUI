@@ -1,7 +1,9 @@
 namespace BlazorBaseUI.AlertDialog;
 
+using BlazorBaseUI.Dialog;
+
 /// <summary>
 /// A button that closes the alert dialog.
 /// Renders a <c>&lt;button&gt;</c> element.
 /// </summary>
-public partial class AlertDialogClose;
+public class AlertDialogClose : DialogClose;

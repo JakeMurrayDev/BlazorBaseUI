@@ -26,7 +26,7 @@ public class DialogDescriptionTests : BunitContext, IDialogDescriptionContract
             builder.OpenComponent<DialogRoot>(0);
             builder.AddAttribute(1, "Open", true);
             builder.AddAttribute(2, "Modal", BlazorBaseUI.Dialog.ModalMode.False);
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogPortal>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>

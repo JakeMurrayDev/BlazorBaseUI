@@ -1,17 +1,17 @@
 @using Microsoft.JSInterop
+
 @implements IAsyncDisposable
 @implements IDialogHandleSubscriber
+
 @inject IJSRuntime JSRuntime
 
-<CascadingValue Value="context" IsFixed="true">
-    @if (ChildContentWithPayload is not null)
-    {
-        @ChildContentWithPayload(new DialogRootPayloadContext(payload))
-    }
-    else
-    {
-        @ChildContent
-    }
+<CascadingValue Value="defaultRoleContext" IsFixed="true">
+    <CascadingValue Value="context" IsFixed="true">
+        @if (ChildContent is not null)
+        {
+            @ChildContent(new DialogRootPayloadContext(payload))
+        }
+    </CascadingValue>
 </CascadingValue>
 
 @code {
@@ -26,7 +26,7 @@
     private bool nested;
     private bool pendingOpenChange;
     private bool pendingBindingUpdate;
-    private int nestedDialogCount;
+    private int nestedCount;
     private string? titleId;
     private string? descriptionId;
     private string? activeTriggerId;
@@ -38,6 +38,7 @@
     private DialogRootContext context = null!;
     private DotNetObjectReference<DialogRoot>? dotNetRef;
     private IDialogHandle? subscribedHandle;
+    private static readonly DialogRoleContext defaultRoleContext = new();
 
     private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
         JSRuntime.InvokeAsync<IJSObjectReference>(
@@ -45,6 +46,11 @@
 
     [CascadingParameter]
     private DialogRootContext? ParentContext { get; set; }
+
+    [CascadingParameter]
+    private DialogRoleContext? RoleContext { get; set; }
+
+    private DialogRole ResolvedRole => RoleContext?.Role ?? DialogRole.Dialog;
 
     /// <summary>
     /// Gets or sets whether the dialog is currently open.
@@ -68,27 +74,6 @@
     public ModalMode Modal { get; set; } = ModalMode.True;
 
     /// <summary>
-    /// Gets or sets the ARIA role of the dialog.
-    /// Defaults to <see cref="DialogRole.Dialog"/>.
-    /// </summary>
-    [Parameter]
-    public DialogRole Role { get; set; } = DialogRole.Dialog;
-
-    /// <summary>
-    /// Determines whether the dialog should close when the Escape key is pressed.
-    /// Defaults to <see langword="true"/>.
-    /// </summary>
-    [Parameter]
-    public bool DismissOnEscape { get; set; } = true;
-
-    /// <summary>
-    /// Determines whether the dialog should close on outside clicks.
-    /// Defaults to <see langword="true"/>.
-    /// </summary>
-    [Parameter]
-    public bool DismissOnOutsidePress { get; set; } = true;
-
-    /// <summary>
     /// Gets or sets a reference to imperative actions for controlling the dialog programmatically.
     /// </summary>
     [Parameter]
@@ -100,7 +85,6 @@
     /// </summary>
     [Parameter]
     public IDialogHandle? Handle { get; set; }
-
     /// <summary>
     /// Gets or sets the callback invoked when the open state changes, for two-way binding.
     /// </summary>
@@ -120,6 +104,13 @@
     public EventCallback<bool> OnOpenChangeComplete { get; set; }
 
     /// <summary>
+    /// Determines whether pointer-based dismissal (outside clicks) is disabled.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool DisablePointerDismissal { get; set; }
+
+    /// <summary>
     /// Gets or sets the ID of the trigger that the dialog is associated with.
     /// This is useful in conjunction with the <see cref="Open"/> property to create a controlled dialog.
     /// </summary>
@@ -137,13 +128,7 @@
     /// Defines the child components of this instance.
     /// </summary>
     [Parameter]
-    public RenderFragment? ChildContent { get; set; }
-
-    /// <summary>
-    /// Gets or sets the child content render fragment that receives the payload context from the active trigger.
-    /// </summary>
-    [Parameter]
-    public RenderFragment<DialogRootPayloadContext>? ChildContentWithPayload { get; set; }
+    public RenderFragment<DialogRootPayloadContext>? ChildContent { get; set; }
 
     private bool IsControlled => Open.HasValue;
 
@@ -158,7 +143,7 @@
         isMounted = CurrentOpen;
         nested = ParentContext is not null;
         activeTriggerId = IsTriggerIdControlled ? TriggerId : DefaultTriggerId;
-        state = new DialogRootState(CurrentOpen, nestedDialogCount);
+        state = new DialogRootState(CurrentOpen);
         context = new DialogRootContext
         {
             RootId = rootId,
@@ -166,10 +151,9 @@
             Open = CurrentOpen,
             Mounted = isMounted,
             Modal = Modal,
-            Role = Role,
-            DismissOnEscape = DismissOnEscape,
-            DismissOnOutsidePress = DismissOnOutsidePress,
-            NestedDialogCount = nestedDialogCount,
+            Role = ResolvedRole,
+            DisablePointerDismissal = DisablePointerDismissal,
+            NestedDialogCount = nestedCount,
             OpenChangeReason = openChangeReason,
             TransitionStatus = transitionStatus,
             TitleId = titleId,
@@ -194,12 +178,23 @@
             ForceUnmount = ForceUnmount
         };
 
+        context.SetBackdropElement = el =>
+        {
+            context.BackdropElement = el;
+            if (hasRendered && el.HasValue)
+            {
+                _ = SetBackdropElementJsAsync(el.Value);
+            }
+        };
+        context.SetViewportElement = el => context.ViewportElement = el;
+        context.SetInteractionType = type => context.InteractionType = type;
+        context.OnNestedDialogOpen = () => { nestedCount++; context.NestedDialogCount = nestedCount; StateHasChanged(); };
+        context.OnNestedDialogClose = () => { nestedCount--; context.NestedDialogCount = nestedCount; StateHasChanged(); };
+
         if (ActionsRef is not null)
         {
             ActionsRef.Unmount = ForceUnmount;
             ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction);
-            ActionsRef.Open = () => _ = SetOpenWithExceptionHandlingAsync(true, OpenChangeReason.ImperativeAction);
-            ActionsRef.OpenWithPayload = p => _ = SetOpenWithPayloadWithExceptionHandlingAsync(p, OpenChangeReason.ImperativeAction);
         }
 
         SubscribeToHandle();
@@ -211,7 +206,7 @@
         var currentOpen = pendingBindingUpdate ? state.Open : CurrentOpen;
         if (state.Open != currentOpen)
         {
-            state = new DialogRootState(currentOpen, nestedDialogCount);
+            state = new DialogRootState(currentOpen);
             if (currentOpen)
             {
                 isMounted = true;
@@ -240,16 +235,12 @@
         }
 
         context.Modal = Modal;
-        context.Role = Role;
-        context.DismissOnEscape = DismissOnEscape;
-        context.DismissOnOutsidePress = DismissOnOutsidePress;
+        context.DisablePointerDismissal = DisablePointerDismissal;
 
         if (ActionsRef is not null)
         {
             ActionsRef.Unmount = ForceUnmount;
             ActionsRef.Close = () => _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ImperativeAction);
-            ActionsRef.Open = () => _ = SetOpenWithExceptionHandlingAsync(true, OpenChangeReason.ImperativeAction);
-            ActionsRef.OpenWithPayload = p => _ = SetOpenWithPayloadWithExceptionHandlingAsync(p, OpenChangeReason.ImperativeAction);
         }
 
         if (Handle != subscribedHandle)
@@ -273,7 +264,7 @@
                 try
                 {
                     var module = await ModuleTask.Value;
-                    await module.InvokeVoidAsync("setRootOpen", rootId, true);
+                    await module.InvokeVoidAsync("setRootOpen", rootId, true, context.InteractionType);
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
                 {
@@ -286,7 +277,7 @@
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("setRootOpen", rootId, CurrentOpen);
+                await module.InvokeVoidAsync("setRootOpen", rootId, CurrentOpen, context.InteractionType);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -300,7 +291,7 @@
     [JSInvokable]
     public async Task OnOutsidePress()
     {
-        if (DismissOnOutsidePress)
+        if (!DisablePointerDismissal)
         {
             await SetOpenAsync(false, OpenChangeReason.OutsidePress);
         }
@@ -312,10 +303,16 @@
     [JSInvokable]
     public async Task OnEscapeKey()
     {
-        if (DismissOnEscape)
-        {
-            await SetOpenAsync(false, OpenChangeReason.EscapeKey);
-        }
+        await SetOpenAsync(false, OpenChangeReason.EscapeKey);
+    }
+
+    /// <summary>
+    /// Handles focus-out events from JavaScript interop for non-modal dialogs.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnFocusOut()
+    {
+        await SetOpenAsync(false, OpenChangeReason.FocusOut);
     }
 
     /// <summary>
@@ -343,32 +340,23 @@
 
         if (!open)
         {
+            if (context.PreventUnmountingOnClose)
+            {
+                _ = InvokeOpenChangeCompleteAsync(open);
+                StateHasChanged();
+                return;
+            }
+
             isMounted = false;
             context.Mounted = false;
             activeTriggerId = null;
             context.ActiveTriggerId = null;
+            context.InteractionType = null;
             payload = null;
             context.Payload = null;
         }
 
         _ = InvokeOpenChangeCompleteAsync(open);
-        StateHasChanged();
-    }
-
-    /// <summary>
-    /// Handles nested dialog count changes from JavaScript interop.
-    /// </summary>
-    [JSInvokable]
-    public void OnNestedDialogCountChange(int count)
-    {
-        if (nestedDialogCount == count)
-        {
-            return;
-        }
-
-        nestedDialogCount = count;
-        context.NestedDialogCount = count;
-        state = state with { NestedDialogCount = count };
         StateHasChanged();
     }
 
@@ -395,18 +383,12 @@
 
     void IDialogHandleSubscriber.OnTriggerRegistered(string triggerId, ElementReference? element)
     {
-        triggerElements[triggerId] = element;
-
-        if (hasRendered && element.HasValue && activeTriggerId == triggerId)
-        {
-            _ = SetTriggerElementJsAsync(element.Value);
-        }
+        RegisterTriggerElement(triggerId, element);
     }
 
     void IDialogHandleSubscriber.OnTriggerUnregistered(string triggerId)
     {
-        triggerElements.Remove(triggerId);
-        triggerPayloads.Remove(triggerId);
+        UnregisterTriggerElement(triggerId);
     }
 
     void IDialogHandleSubscriber.OnTriggerElementUpdated(string triggerId, ElementReference? element)
@@ -419,12 +401,17 @@
         }
     }
 
-    void IDialogHandleSubscriber.OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId)
+    void IDialogHandleSubscriber.OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId, string? interactionType)
     {
         _ = InvokeAsync(async () =>
         {
             try
             {
+                if (interactionType is not null)
+                {
+                    context.InteractionType = interactionType;
+                }
+
                 if (open && triggerId is not null)
                 {
                     var handlePayload = GetPayloadFromHandle(triggerId);
@@ -442,6 +429,21 @@
         });
     }
 
+    void IDialogHandleSubscriber.OnOpenWithPayloadRequested(object? requestedPayload, OpenChangeReason reason)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await SetOpenWithPayloadAsync(requestedPayload, reason);
+            }
+            catch (Exception ex)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        });
+    }
+
     void IDialogHandleSubscriber.OnStateChanged()
     {
         _ = InvokeAsync(StateHasChanged);
@@ -450,6 +452,12 @@
     internal void RegisterTriggerElement(string triggerId, ElementReference? element)
     {
         triggerElements[triggerId] = element;
+
+        if (CurrentOpen && string.IsNullOrEmpty(activeTriggerId) && triggerElements.Count == 1)
+        {
+            activeTriggerId = triggerId;
+            context.ActiveTriggerId = activeTriggerId;
+        }
 
         if (hasRendered && element.HasValue && activeTriggerId == triggerId)
         {
@@ -505,13 +513,13 @@
         }
     }
 
-    private void SetTitleId(string id)
+    private void SetTitleId(string? id)
     {
         titleId = id;
         context.TitleId = id;
     }
 
-    private void SetDescriptionId(string id)
+    private void SetDescriptionId(string? id)
     {
         descriptionId = id;
         context.DescriptionId = id;
@@ -551,6 +559,18 @@
         }
     }
 
+    private async Task SetBackdropElementJsAsync(ElementReference element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setBackdropElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
     private async Task SetOpenAsync(bool nextOpen, OpenChangeReason reason)
     {
         if (CurrentOpen == nextOpen)
@@ -573,9 +593,22 @@
         {
             transitionStatus = TransitionStatus.Starting;
             isMounted = true;
+            context.PreventUnmountingOnClose = false;
+
+            if (string.IsNullOrEmpty(activeTriggerId) && triggerElements.Count == 1)
+            {
+                var (implicitId, _) = triggerElements.First();
+                activeTriggerId = implicitId;
+                context.ActiveTriggerId = activeTriggerId;
+            }
         }
         else
         {
+            if (args.PreventUnmountingOnClose)
+            {
+                context.PreventUnmountingOnClose = true;
+            }
+
             transitionStatus = TransitionStatus.Ending;
             payload = null;
             context.Payload = null;
@@ -589,8 +622,17 @@
             isOpen = nextOpen;
         }
 
-        state = new DialogRootState(nextOpen, nestedDialogCount);
+        state = new DialogRootState(nextOpen);
         context.Open = nextOpen;
+
+        if (nextOpen)
+        {
+            ParentContext?.OnNestedDialogOpen?.Invoke();
+        }
+        else
+        {
+            ParentContext?.OnNestedDialogClose?.Invoke();
+        }
 
         SyncHandleState(nextOpen, activeTriggerId);
 
@@ -606,7 +648,7 @@
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen);
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, context.InteractionType);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -670,18 +712,6 @@
         }
     }
 
-    private async Task SetOpenWithPayloadWithExceptionHandlingAsync(object? newPayload, OpenChangeReason reason)
-    {
-        try
-        {
-            await SetOpenWithPayloadAsync(newPayload, reason);
-        }
-        catch (Exception ex)
-        {
-            await DispatchExceptionAsync(ex);
-        }
-    }
-
     private void Close()
     {
         _ = SetOpenWithExceptionHandlingAsync(false, OpenChangeReason.ClosePress);
@@ -689,12 +719,18 @@
 
     private void ForceUnmount()
     {
+        if (CurrentOpen)
+        {
+            ParentContext?.OnNestedDialogClose?.Invoke();
+        }
+
         isMounted = false;
         context.Mounted = false;
         transitionStatus = TransitionStatus.Undefined;
         context.TransitionStatus = transitionStatus;
         activeTriggerId = null;
         context.ActiveTriggerId = null;
+        context.InteractionType = null;
         payload = null;
         context.Payload = null;
         _ = InvokeOpenChangeCompleteAsync(false);
