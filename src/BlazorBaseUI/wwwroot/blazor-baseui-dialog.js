@@ -218,13 +218,13 @@ function focusPopup(rootState, popupElement) {
 
     const mode = rootState.initialFocusMode;
 
-    // 'none' mode: don't move focus at all
-    if (mode === 'none') return;
-
     // Resolve initial focus target for the FocusManager
     let initialFocus = true;
 
-    if (mode === 'element' && rootState.initialFocusElement) {
+    if (mode === 'none') {
+        // Don't move focus, but still initialize FocusManager for trapping/return-focus
+        initialFocus = false;
+    } else if (mode === 'element' && rootState.initialFocusElement) {
         initialFocus = rootState.initialFocusElement;
     }
 
@@ -309,11 +309,12 @@ function setupOutsideClickListener(rootState) {
     };
 
     // Use a small delay to avoid catching the click that opened the dialog
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
         document.addEventListener('pointerdown', handleOutsideClick);
     }, 0);
 
     rootState.outsideClickCleanup = () => {
+        clearTimeout(timeoutId);
         document.removeEventListener('pointerdown', handleOutsideClick);
     };
 }
