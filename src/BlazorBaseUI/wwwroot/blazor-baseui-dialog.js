@@ -65,6 +65,7 @@ export function disposeRoot(rootId) {
         cleanupTransition(rootState);
         cleanupOutsideClick(rootState);
         cleanupBackdropClick(rootState);
+        rootState.compositeKeyCleanup?.();
         removeFromDialogStack(rootId);
 
         // Release scroll lock if this dialog had it
