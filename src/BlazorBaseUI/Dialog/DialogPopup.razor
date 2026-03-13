@@ -273,7 +273,7 @@
         attrs["tabindex"] = "-1";
         attrs["data-base-ui-focusable"] = string.Empty;
 
-        // Set aria-modal for accessibility. Also set by FloatingFocusManager (Gap 7)
+        // Set aria-modal for accessibility. Also set by FloatingFocusManager
         // at runtime, but kept here for SSR/bUnit where JS doesn't execute.
         if (Context.Modal != ModalMode.False)
         {

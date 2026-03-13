@@ -116,11 +116,6 @@ export function setRootOpen(rootId, isOpen, interactionType) {
     }
 }
 
-// Fix 16: dialogStack is kept solely for escape-key topmost-dialog resolution (isTopmostDialog).
-// Nested dialog counting is now handled by C# parent-child callbacks (OnNestedDialogOpen /
-// OnNestedDialogClose) on DialogRootContext, which are invoked from DialogRoot.razor when
-// SetOpenAsync or ForceUnmount changes the open state. This ensures sibling (non-nested)
-// modals do not incorrectly affect each other's nested count.
 function addToDialogStack(rootId) {
     if (!state.dialogStack.includes(rootId)) {
         state.dialogStack.push(rootId);
@@ -250,7 +245,7 @@ function focusPopup(rootState, popupElement) {
     // Clean up previous focus manager
     cleanupFocusManager(rootState);
 
-    // Delegate to shared FloatingFocusManager (Gap 7)
+    // Delegate to shared FloatingFocusManager
     const isModal = rootState.modal === 'true' || rootState.modal === 'trap-focus';
     const insideElements = [];
     if (rootState.backdropElement) {

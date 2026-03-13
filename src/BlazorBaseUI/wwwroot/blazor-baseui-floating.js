@@ -385,7 +385,7 @@ export async function initializePositioner(options) {
         collisionAvoidance = null
     } = options;
 
-    // Gap 9: Support virtual element as alternative to DOM trigger
+    // Support virtual element as alternative to DOM trigger
     const effectiveTrigger = virtualId
         ? virtualElements.get(virtualId)
         : triggerElement;
@@ -1339,10 +1339,10 @@ export function getHoverInteraction(interactionId) {
  * @param {boolean} options.escapeKey - Whether to dismiss on Escape key
  * @param {boolean} options.outsidePress - Whether to dismiss on outside press
  * @param {boolean} options.ancestorScroll - Whether to dismiss on ancestor scroll
- * @param {string} [options.treeId] - FloatingTree ID for tree-aware dismiss (Gap 3)
- * @param {string} [options.nodeId] - Node ID within the FloatingTree (Gap 3)
- * @param {boolean|Object} [options.bubbles] - Bubble prevention configuration (Gap 3)
- * @param {string|Object|Function} [options.outsidePressEvent='sloppy'] - Outside press event mode (Gap 2)
+ * @param {string} [options.treeId] - FloatingTree ID for tree-aware dismiss
+ * @param {string} [options.nodeId] - Node ID within the FloatingTree
+ * @param {boolean|Object} [options.bubbles] - Bubble prevention configuration
+ * @param {string|Object|Function} [options.outsidePressEvent='sloppy'] - Outside press event mode
  * @returns {Object} Interaction controller with cleanup method
  */
 export function createDismissInteraction(options) {
@@ -1364,13 +1364,13 @@ export function createDismissInteraction(options) {
     let isComposing = false;
     let currentPointerType = '';
 
-    // Gap 3: Normalize and store bubble flags
+    // Normalize and store bubble flags
     const normalizedBubbles = normalizeBubblesProp(bubbles);
     if (treeId && nodeId) {
         setNodeDismissBubbles(treeId, nodeId, normalizedBubbles);
     }
 
-    // Gap 3: Check if any open child prevents bubbling
+    // Check if any open child prevents bubbling
     function shouldPreventBubble(type) {
         if (!treeId || !nodeId) return false;
         const tree = state.trees.get(treeId);
@@ -1385,7 +1385,7 @@ export function createDismissInteraction(options) {
         return false;
     }
 
-    // Gap 2: Resolve which event type to use for outside press
+    // Resolve which event type to use for outside press
     function resolveOutsidePressEvent() {
         if (typeof outsidePressEvent === 'function') {
             return resolveEventType(outsidePressEvent());
@@ -1414,14 +1414,13 @@ export function createDismissInteraction(options) {
             return;
         }
 
-        // Gap 3: Tree-aware bubble prevention
         if (shouldPreventBubble('escape')) {
             return;
         }
 
         event.preventDefault();
 
-        // Gap 3: Stop propagation if escape doesn't bubble
+        // Stop propagation if escape doesn't bubble
         if (!normalizedBubbles.escapeKey) {
             event.stopPropagation();
         }
@@ -1441,7 +1440,6 @@ export function createDismissInteraction(options) {
     }
 
     function closeOnPressOutside(event) {
-        // Gap 3: Tree-aware bubble prevention
         if (shouldPreventBubble('outsidePress')) {
             return;
         }
@@ -1453,12 +1451,12 @@ export function createDismissInteraction(options) {
             return;
         }
 
-        // Gap 10: Check if target is in any registered trigger
+        // Check if target is in any registered trigger
         if (isTargetInRegisteredTriggers(interactionId, event)) {
             return;
         }
 
-        // Gap 4: Check if target is a third-party element
+        // Check if target is a third-party element
         if (isThirdPartyElement(target, floatingElement)) {
             return;
         }
@@ -1493,7 +1491,7 @@ export function createDismissInteraction(options) {
         onDismiss?.('ancestor-scroll');
     }
 
-    // Gap 1: Touch dismiss state machine
+    // Touch dismiss state machine
     const touchState = {
         startTime: 0,
         startX: 0,
@@ -1561,12 +1559,12 @@ export function createDismissInteraction(options) {
         touchState.dismissOnTouchEnd = false;
     }
 
-    // Track pointer type for Gap 2
+    // Track pointer type
     function handlePointerType(event) {
         currentPointerType = event.pointerType || '';
     }
 
-    // Gap 2: Determine which event to listen for outside press
+    // Determine which event to listen for outside press
     function handlePointerDown(event) {
         // Skip touch pointer events — deferred to touch state machine
         if (event.pointerType === 'touch') return;
@@ -1631,10 +1629,10 @@ export function createDismissInteraction(options) {
             outsidePressCleanup?.();
             scrollCleanup?.();
 
-            // Gap 10: Clean up registered triggers
+            // Clean up registered triggers
             triggerMaps.delete(interactionId);
 
-            // Gap 1: Clean up touch timeout
+            // Clean up touch timeout
             if (touchState.timeout) clearTimeout(touchState.timeout);
 
             state.interactions.delete(interactionId);
@@ -1646,7 +1644,7 @@ export function createDismissInteraction(options) {
 }
 
 // ============================================================================
-// Gap 15: Tabbable Utilities (enableFocusInside / disableFocusInside)
+// Tabbable Utilities (enableFocusInside / disableFocusInside)
 // ============================================================================
 
 /**
@@ -1734,7 +1732,7 @@ export function getPreviousTabbable(currentElement, container) {
 }
 
 // ============================================================================
-// Gap 14: Focus Guard Elements
+// Focus Guard Elements
 // ============================================================================
 
 const focusGuardPairs = new Map();
@@ -1858,7 +1856,7 @@ export function isFocusInsideGuardedScope(guardPairId) {
 }
 
 // ============================================================================
-// Gap 13: markOthers (inert/aria-hidden management)
+// markOthers (inert/aria-hidden management)
 // ============================================================================
 
 const counterMaps = {
@@ -1995,7 +1993,7 @@ export function supportsInert() {
 }
 
 // ============================================================================
-// Gap 7: Generalized FloatingFocusManager
+// FloatingFocusManager
 // ============================================================================
 
 const focusManagers = new Map();
@@ -2249,7 +2247,7 @@ export function updateFloatingFocusManager(managerId, options) {
 }
 
 // ============================================================================
-// Gap 3: Tree-Aware Bubble Prevention
+// Tree-Aware Bubble Prevention
 // ============================================================================
 
 /**
@@ -2284,7 +2282,7 @@ export function setNodeDismissBubbles(treeId, nodeId, options) {
 }
 
 // ============================================================================
-// Gap 6: List Navigation Utilities
+// List Navigation Utilities
 // ============================================================================
 
 /**
@@ -2685,7 +2683,7 @@ export function createListNavigation(options) {
 }
 
 // ============================================================================
-// Gap 5: Typeahead
+// Typeahead
 // ============================================================================
 
 /**
@@ -2818,12 +2816,7 @@ export function createTypeahead(options) {
 }
 
 // ============================================================================
-// Gap 1: Touch Dismiss State Machine (internal to createDismissInteraction)
-// Gap 2: outsidePressEvent Mode (extends createDismissInteraction)
-// Gap 10: Multi-Trigger Element Map
-//
-// These gaps modify createDismissInteraction above — see the extended version.
-// The functions below provide multi-trigger registration.
+// Multi-Trigger Element Map
 // ============================================================================
 
 const triggerMaps = new Map();
@@ -2861,7 +2854,7 @@ function isTargetInRegisteredTriggers(interactionId, event) {
 }
 
 // ============================================================================
-// Gap 9: Virtual Element / clientPoint
+// Virtual Element / clientPoint
 // ============================================================================
 
 const virtualElements = new Map();
@@ -2963,7 +2956,7 @@ export function createClientPointInteraction(options) {
 }
 
 // ============================================================================
-// Gap 11: getOverflowAncestors Standalone
+// getOverflowAncestors Standalone
 // ============================================================================
 
 /**
@@ -2974,7 +2967,7 @@ export function getOverflowAncestors(element) {
 }
 
 // ============================================================================
-// Gap 4: Third-Party Element Detection
+// Third-Party Element Detection
 // ============================================================================
 
 /**
@@ -3013,7 +3006,7 @@ export function isThirdPartyElement(target, floatingElement) {
 }
 
 // ============================================================================
-// Gap 8: FloatingDelayGroup
+// FloatingDelayGroup
 // ============================================================================
 
 const delayGroups = new Map();
