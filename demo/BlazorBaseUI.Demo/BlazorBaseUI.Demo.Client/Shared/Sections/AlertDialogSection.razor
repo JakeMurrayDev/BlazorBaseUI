@@ -106,56 +106,6 @@
         </div>
     </DemoSection>
 
-    <DemoSection Title="ESC Key Behavior"
-                 Description="By default, the ESC key closes the alert dialog. This can be disabled with DismissOnEscape='false'."
-                 CodeSnippet="@EscKeyCodeSnippet">
-        <div class="flex flex-wrap gap-4">
-            <AlertDialogRoot>
-                <AlertDialogTrigger ClassValue="@(s => TriggerClass(s))">
-                    ESC Enabled (Default)
-                </AlertDialogTrigger>
-                <AlertDialogPortal>
-                    <AlertDialogBackdrop ClassValue="@(s => BackdropClass(s))" />
-                    <AlertDialogPopup ClassValue="@(s => PopupClass(s))">
-                        <AlertDialogTitle class="text-lg font-semibold text-gray-900">
-                            ESC Key Closes
-                        </AlertDialogTitle>
-                        <AlertDialogDescription class="mt-2 text-sm text-gray-600">
-                            Press ESC to close this dialog. The ESC key is enabled by default.
-                        </AlertDialogDescription>
-                        <div class="mt-6 flex justify-end">
-                            <AlertDialogClose ClassValue="@(s => CloseButtonClass(s))">
-                                Close
-                            </AlertDialogClose>
-                        </div>
-                    </AlertDialogPopup>
-                </AlertDialogPortal>
-            </AlertDialogRoot>
-
-            <AlertDialogRoot DismissOnEscape="false">
-                <AlertDialogTrigger ClassValue="@(s => TriggerClass(s))">
-                    ESC Disabled
-                </AlertDialogTrigger>
-                <AlertDialogPortal>
-                    <AlertDialogBackdrop ClassValue="@(s => BackdropClass(s))" />
-                    <AlertDialogPopup ClassValue="@(s => PopupClass(s))">
-                        <AlertDialogTitle class="text-lg font-semibold text-gray-900">
-                            ESC Key Disabled
-                        </AlertDialogTitle>
-                        <AlertDialogDescription class="mt-2 text-sm text-gray-600">
-                            The ESC key won't close this dialog. You must use the close button.
-                        </AlertDialogDescription>
-                        <div class="mt-6 flex justify-end">
-                            <AlertDialogClose ClassValue="@(s => CloseButtonClass(s))">
-                                Close (Required)
-                            </AlertDialogClose>
-                        </div>
-                    </AlertDialogPopup>
-                </AlertDialogPortal>
-            </AlertDialogRoot>
-        </div>
-    </DemoSection>
-
     <DemoSection Title="Nested Alert Dialogs"
                  Description="Alert dialogs can be nested with proper stacking and focus management."
                  CodeSnippet="@NestedCodeSnippet">
@@ -173,7 +123,7 @@
                         This is the first alert dialog. You can open another one from here.
                     </AlertDialogDescription>
                     <div class="mt-4">
-                        <AlertDialogRoot>
+                        <AlertDialogRoot Context="_">
                             <AlertDialogTrigger ClassValue="@(s => SecondaryTriggerClass(s))">
                                 Open Second Alert
                             </AlertDialogTrigger>
@@ -284,10 +234,6 @@
                  CodeSnippet="@ActionsRefCodeSnippet">
         <div class="flex flex-col gap-4">
             <div class="flex items-center gap-3">
-                <button class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
-                        @onclick="OpenImperatively">
-                    Open Imperatively
-                </button>
                 <button class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
                         @onclick="CloseImperatively">
                     Close Imperatively
@@ -362,11 +308,6 @@
         lastReason = args.Reason;
     }
 
-    private void OpenImperatively()
-    {
-        actionsRef.Open?.Invoke();
-    }
-
     private void CloseImperatively()
     {
         actionsRef.Close?.Invoke();
@@ -437,7 +378,7 @@
 </AlertDialogRoot>";
 
     private const string BackdropCodeSnippet = @"// Alert Dialog cannot be dismissed by clicking backdrop
-// This is set automatically (DismissOnOutsidePress=false)
+// This is set automatically (DisablePointerDismissal=true)
 <AlertDialogRoot>
     <AlertDialogTrigger>Open Alert</AlertDialogTrigger>
     <AlertDialogPortal>
@@ -447,16 +388,6 @@
             <AlertDialogClose>Close (Required)</AlertDialogClose>
         </AlertDialogPopup>
     </AlertDialogPortal>
-</AlertDialogRoot>";
-
-    private const string EscKeyCodeSnippet = @"// ESC enabled (default)
-<AlertDialogRoot>
-    ...
-</AlertDialogRoot>
-
-// ESC disabled
-<AlertDialogRoot DismissOnEscape=""false"">
-    ...
 </AlertDialogRoot>";
 
     private const string NestedCodeSnippet = @"<AlertDialogRoot>

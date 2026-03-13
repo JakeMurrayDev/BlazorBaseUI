@@ -19,13 +19,13 @@ internal sealed class DialogRootContext
 
     public DialogRole Role { get; set; }
 
-    public bool DismissOnEscape { get; set; }
-
-    public bool DismissOnOutsidePress { get; set; }
+    public bool DisablePointerDismissal { get; set; }
 
     public int NestedDialogCount { get; set; }
 
     public OpenChangeReason OpenChangeReason { get; set; }
+
+    public string? InteractionType { get; set; }
 
     public TransitionStatus TransitionStatus { get; set; }
 
@@ -33,7 +33,11 @@ internal sealed class DialogRootContext
 
     public string? DescriptionId { get; set; }
 
+    public string? PopupId { get; set; }
+
     public string? ActiveTriggerId { get; set; }
+
+    public bool PreventUnmountingOnClose { get; set; }
 
     public object? Payload { get; set; }
 
@@ -47,15 +51,23 @@ internal sealed class DialogRootContext
 
     public Func<ElementReference?> GetPopupElement { get; set; } = null!;
 
-    public Action<string> SetTitleId { get; set; } = null!;
+    public Action<string?> SetTitleId { get; set; } = null!;
 
-    public Action<string> SetDescriptionId { get; set; } = null!;
+    public Action<string?> SetDescriptionId { get; set; } = null!;
 
     public Action<string, ElementReference?> RegisterTriggerElement { get; set; } = null!;
 
     public Action<string> UnregisterTriggerElement { get; set; } = null!;
 
+    public ElementReference? BackdropElement { get; set; }
+    public Action<ElementReference?> SetBackdropElement { get; set; } = null!;
+
+    public ElementReference? ViewportElement { get; set; }
+    public Action<ElementReference?> SetViewportElement { get; set; } = null!;
+
     public Action<ElementReference?> SetPopupElement { get; set; } = null!;
+
+    public Action<string?> SetInteractionType { get; set; } = null!;
 
     public Func<bool, OpenChangeReason, Task> SetOpenAsync { get; set; } = null!;
 
@@ -68,4 +80,8 @@ internal sealed class DialogRootContext
     public Action Close { get; set; } = null!;
 
     public Action ForceUnmount { get; set; } = null!;
+
+    public Action? OnNestedDialogOpen { get; set; }
+
+    public Action? OnNestedDialogClose { get; set; }
 }

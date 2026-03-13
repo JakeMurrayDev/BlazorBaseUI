@@ -16,6 +16,7 @@
 
 @code {
     private string triggerId = null!;
+    private string lastPointerType = string.Empty;
     private DialogTriggerState state;
     private DialogHandle<TPayload>? registeredHandle;
     private RenderElement<DialogTriggerState>? renderElementReference;
@@ -107,7 +108,6 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        // Handle Id change - unregister old trigger ID
         if (Id is not null && Id != triggerId)
         {
             UnregisterFromCurrentStore(triggerId);
@@ -196,9 +196,17 @@
         attrs["aria-expanded"] = open ? "true" : "false";
         attrs["id"] = triggerId;
 
+        if (open && RootContext?.PopupId is not null)
+        {
+            attrs["aria-controls"] = RootContext.PopupId;
+        }
+
         attrs["data-popup-open"] = open;
         attrs["data-disabled"] = Disabled;
 
+        attrs["data-base-ui-click-trigger"] = true;
+
+        attrs["onpointerdown"] = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDownAsync);
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 
         if (!NativeButton)
@@ -263,6 +271,12 @@
         return activeTriggerId == triggerId || (activeTriggerId is null && rootOpen);
     }
 
+    private Task HandlePointerDownAsync(PointerEventArgs e)
+    {
+        lastPointerType = e.PointerType ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
     private async Task HandleClickAsync(MouseEventArgs e)
     {
         if (Disabled || (!HasRootContext && !HasHandle))
@@ -271,7 +285,16 @@
         }
 
         var nextOpen = !IsOpenedByThisTrigger();
-        await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
+
+        // Detect interaction type only when opening (matching source: if (!open))
+        string? interactionType = null;
+        if (nextOpen)
+        {
+            interactionType = e.Detail == 0 ? "keyboard" : lastPointerType;
+            lastPointerType = string.Empty;
+        }
+
+        await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress, interactionType);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
@@ -286,19 +309,20 @@
         if (e.Key == "Enter" || e.Key == " ")
         {
             var nextOpen = !IsOpenedByThisTrigger();
-            await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress);
+            string? interactionType = nextOpen ? "keyboard" : null;
+            await RequestOpenAsync(nextOpen, OpenChangeReason.TriggerPress, interactionType);
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
-    private Task RequestOpenAsync(bool open, OpenChangeReason reason)
+    private Task RequestOpenAsync(bool open, OpenChangeReason reason, string? interactionType = null)
     {
         if (HasHandle)
         {
             if (open)
             {
-                Handle!.RequestOpen(triggerId, reason);
+                Handle!.RequestOpen(triggerId, reason, interactionType);
             }
             else
             {
@@ -309,6 +333,11 @@
 
         if (RootContext is not null)
         {
+            if (interactionType is not null)
+            {
+                RootContext.SetInteractionType(interactionType);
+            }
+
             if (open)
             {
                 return RootContext.SetOpenWithTriggerIdAsync(triggerId, Payload, reason);

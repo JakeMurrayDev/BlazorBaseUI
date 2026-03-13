@@ -618,20 +618,6 @@ public abstract class DialogTestsBase : TestBase
     #region ActionsRef Tests
 
     /// <summary>
-    /// Tests that ActionsRef.Open opens the dialog.
-    /// </summary>
-    [Fact]
-    public virtual async Task ActionsRef_Open_OpensDialog()
-    {
-        await NavigateAsync(CreateUrl("/tests/dialog").WithShowActionsButtons(true));
-
-        var openButton = GetByTestId("actions-open");
-        await openButton.ClickAsync();
-
-        await WaitForDialogOpenAsync();
-    }
-
-    /// <summary>
     /// Tests that ActionsRef.Close closes the dialog.
     /// </summary>
     [Fact]

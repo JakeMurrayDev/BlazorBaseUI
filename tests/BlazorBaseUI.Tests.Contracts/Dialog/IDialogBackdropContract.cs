@@ -8,7 +8,7 @@ public interface IDialogBackdropContract
     Task AppliesClassValue();
     Task AppliesStyleValue();
     Task HasRolePresentation();
-    Task DoesNotRenderWhenModalFalse();
+    Task RendersWhenModalFalse();
     Task ForceRenderOnlyRootByDefault();
     Task ForceRenderAllWhenTrue();
     Task HasDataOpenWhenOpen();

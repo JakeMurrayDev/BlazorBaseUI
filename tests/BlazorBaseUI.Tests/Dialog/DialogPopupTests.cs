@@ -29,7 +29,7 @@ public class DialogPopupTests : BunitContext, IDialogPopupContract
             builder.OpenComponent<DialogRoot>(0);
             builder.AddAttribute(1, "Open", open);
             builder.AddAttribute(2, "Modal", modal);
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogPortal>(0);
                 innerBuilder.AddAttribute(1, "KeepMounted", keepMounted);
@@ -71,7 +71,7 @@ public class DialogPopupTests : BunitContext, IDialogPopupContract
             builder.OpenComponent<DialogRoot>(0);
             builder.AddAttribute(1, "Open", true);
             builder.AddAttribute(2, "Modal", BlazorBaseUI.Dialog.ModalMode.False);
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<DialogPortal>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
@@ -84,7 +84,7 @@ public class DialogPopupTests : BunitContext, IDialogPopupContract
                         popupBuilder.OpenComponent<DialogRoot>(0);
                         popupBuilder.AddAttribute(1, "Open", true);
                         popupBuilder.AddAttribute(2, "Modal", BlazorBaseUI.Dialog.ModalMode.False);
-                        popupBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(nestedInnerBuilder =>
+                        popupBuilder.AddAttribute(3, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => nestedInnerBuilder =>
                         {
                             nestedInnerBuilder.OpenComponent<DialogPortal>(0);
                             nestedInnerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(nestedPortalBuilder =>

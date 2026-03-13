@@ -44,7 +44,6 @@
     @if (ShowActionsButtons)
     {
         <div style="margin-top: 10px;">
-            <button data-testid="actions-open" @onclick="() => actionsRef?.Open?.Invoke()">Actions Open</button>
             <button data-testid="actions-close" @onclick="() => actionsRef?.Close?.Invoke()">Actions Close</button>
         </div>
     }

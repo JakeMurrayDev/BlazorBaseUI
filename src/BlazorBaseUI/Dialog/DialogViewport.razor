@@ -16,6 +16,7 @@
     private DialogViewportState state;
     private RenderElement<DialogViewportState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
+    private ElementReference? previousElement;
 
     [CascadingParameter]
     private DialogRootContext? Context { get; set; }
@@ -59,28 +60,29 @@
     public ElementReference? Element => renderElementReference?.Element;
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
         if (Context is null)
         {
             throw new InvalidOperationException("DialogViewport must be used within a DialogRoot.");
         }
-
-        state = new DialogViewportState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
-        UpdateShouldRender();
-        BuildComponentAttributes();
-    }
-
-    /// <inheritdoc />
-    protected override void OnParametersSet()
-    {
-        if (Context is not null)
+        else
         {
             state = new DialogViewportState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
         }
 
         UpdateShouldRender();
         BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (Element.HasValue && Element.Value.Id != previousElement?.Id)
+        {
+            previousElement = Element.Value;
+            Context?.SetViewportElement(Element);
+        }
     }
 
     private void UpdateShouldRender()
