@@ -97,24 +97,11 @@ public class AlertDialogRootTests : BunitContext, IAlertDialogRootContract
     [Fact]
     public Task DoesNotDismissOnOutsidePress()
     {
-        var outsidePressReceived = false;
+        var cut = Render(CreateAlertDialog(defaultOpen: true));
 
-        var cut = Render(CreateAlertDialog(
-            defaultOpen: true,
-            onOpenChange: EventCallback.Factory.Create<DialogOpenChangeEventArgs>(this, args =>
-            {
-                if (!args.Open && args.Reason == BlazorBaseUI.Dialog.OpenChangeReason.OutsidePress)
-                {
-                    outsidePressReceived = true;
-                }
-            })
-        ));
-
-        // Dialog should be open
-        cut.Find("[role='alertdialog']").ShouldNotBeNull();
-
-        // Even if outside press were somehow triggered, DisablePointerDismissal=true prevents closing
-        outsidePressReceived.ShouldBeFalse();
+        // Verify AlertDialogRoot forwards DisablePointerDismissal=true to the underlying DialogRoot
+        var dialogRoot = cut.FindComponent<DialogRoot>();
+        dialogRoot.Instance.DisablePointerDismissal.ShouldBeTrue();
 
         return Task.CompletedTask;
     }

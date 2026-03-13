@@ -1378,6 +1378,7 @@ export function createDismissInteraction(options) {
 
         const children = tree.getNodeChildren(nodeId);
         for (const child of children) {
+            if (!child.context?.open) continue;
             if (type === 'escape' && child.__escapeKeyBubbles === false) return true;
             if (type === 'outsidePress' && child.__outsidePressBubbles === false) return true;
         }
@@ -1422,8 +1423,6 @@ export function createDismissInteraction(options) {
 
         // Gap 3: Stop propagation if escape doesn't bubble
         if (!normalizedBubbles.escapeKey) {
-            event.stopPropagation();
-        } else {
             event.stopPropagation();
         }
 
@@ -1582,10 +1581,11 @@ export function createDismissInteraction(options) {
 
     let outsidePressCleanup = null;
     if (outsidePress) {
+        const isDynamic = typeof outsidePressEvent === 'function' || typeof outsidePressEvent === 'object';
         const resolvedEvent = resolveOutsidePressEvent();
 
-        if (resolvedEvent === '__touch_state_machine__' || outsidePressEvent === 'sloppy') {
-            // Sloppy mode: pointerdown for mouse, touch state machine for touch
+        if (isDynamic || resolvedEvent === '__touch_state_machine__' || outsidePressEvent === 'sloppy') {
+            // Sloppy/dynamic mode: pointerdown for mouse, touch state machine for touch
             doc.addEventListener('pointerdown', handlePointerDown);
             doc.addEventListener('touchstart', handleTouchStart, { capture: true, passive: true });
             doc.addEventListener('touchmove', handleTouchMove, { capture: true, passive: true });
@@ -1598,7 +1598,7 @@ export function createDismissInteraction(options) {
                 doc.removeEventListener('touchend', handleTouchEnd, { capture: true });
             };
         } else {
-            // Specific event mode
+            // Specific event mode (static string)
             doc.addEventListener(resolvedEvent, closeOnPressOutside);
             outsidePressCleanup = () => {
                 doc.removeEventListener(resolvedEvent, closeOnPressOutside);
@@ -2139,19 +2139,23 @@ export function createFloatingFocusManager(options) {
         returnFocus,
         previouslyFocusedElement,
         guardPairId,
+        insideElements,
+        onClose,
+        markOthersCleanup,
+        focusOutCleanup,
 
         dispose(shouldReturnFocus = true) {
             // Remove aria-modal
             floatingElement.removeAttribute('aria-modal');
 
             // Clean up markOthers
-            markOthersCleanup?.();
+            this.markOthersCleanup?.();
 
             // Clean up focus guards
             if (guardPairId) disposeFocusGuards(guardPairId);
 
             // Clean up focus out listener
-            focusOutCleanup?.();
+            this.focusOutCleanup?.();
 
             // Clean up mutation observer
             mutationObserver?.disconnect();
@@ -2192,13 +2196,54 @@ export function disposeFloatingFocusManager(managerId, shouldReturnFocus = true)
 export function updateFloatingFocusManager(managerId, options) {
     const manager = focusManagers.get(managerId);
     if (!manager) return;
-    if (options.modal !== undefined) manager.modal = options.modal;
     if (options.returnFocus !== undefined) manager.returnFocus = options.returnFocus;
-    if (options.insideElements !== undefined) {
-        // Re-run markOthers with updated inside elements if modal
+
+    const modalChanged = options.modal !== undefined && options.modal !== manager.modal;
+    const insideElementsChanged = options.insideElements !== undefined;
+
+    if (modalChanged) {
+        manager.modal = options.modal;
+        if (options.modal) {
+            manager.floatingElement.setAttribute('aria-modal', 'true');
+        } else {
+            manager.floatingElement.removeAttribute('aria-modal');
+        }
+    }
+
+    if (insideElementsChanged) {
+        manager.insideElements = options.insideElements;
+    }
+
+    // Re-apply markOthers when modal or insideElements change
+    if (modalChanged || insideElementsChanged) {
+        manager.markOthersCleanup?.();
+        manager.markOthersCleanup = null;
+
         if (manager.modal) {
-            // Note: full re-initialization would be needed for production;
-            // this updates the stored reference for future cleanup
+            const avoidElements = [manager.floatingElement, ...manager.insideElements];
+            if (manager.triggerElement) avoidElements.push(manager.triggerElement);
+            manager.markOthersCleanup = markOthers(avoidElements, true, supportsInert());
+        }
+    }
+
+    // Toggle focusout listener when modal changes
+    if (modalChanged) {
+        manager.focusOutCleanup?.();
+        manager.focusOutCleanup = null;
+
+        if (!manager.modal && manager.onClose) {
+            function handleFocusOut(event) {
+                const relatedTarget = event.relatedTarget;
+                if (!relatedTarget) return;
+                if (contains(manager.floatingElement, relatedTarget)) return;
+                if (manager.triggerElement && contains(manager.triggerElement, relatedTarget)) return;
+                for (const el of manager.insideElements) {
+                    if (contains(el, relatedTarget)) return;
+                }
+                manager.onClose?.();
+            }
+            manager.floatingElement.addEventListener('focusout', handleFocusOut);
+            manager.focusOutCleanup = () => manager.floatingElement.removeEventListener('focusout', handleFocusOut);
         }
     }
 }

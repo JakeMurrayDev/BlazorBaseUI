@@ -351,11 +351,12 @@ function setupBackdropClickListener(rootState) {
     };
 
     // Use setTimeout(0) to avoid catching the click that opened the dialog
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
         document.addEventListener('click', handleBackdropClick, true);
     }, 0);
 
     rootState.backdropClickCleanup = () => {
+        clearTimeout(timeoutId);
         document.removeEventListener('click', handleBackdropClick, true);
     };
 }
