@@ -31,7 +31,11 @@
     private OpenChangeReason openChangeReason = OpenChangeReason.None;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private InstantType instantType = InstantType.None;
+    private string? interactionType;
     private object? payload;
+    private bool hasViewport;
+    private bool preventUnmountingOnClose;
+    private ModalMode previousModal;
     private PopoverRootState state;
     private PopoverRootContext context = null!;
     private DotNetObjectReference<PopoverRoot>? dotNetRef;
@@ -133,6 +137,7 @@
         isOpen = DefaultOpen;
         isMounted = CurrentOpen;
         activeTriggerId = DefaultTriggerId;
+        previousModal = Modal;
         state = new PopoverRootState(CurrentOpen);
         context = new PopoverRootContext
         {
@@ -158,8 +163,11 @@
             SetPositionerElement = SetPositionerElement,
             SetPopupElement = SetPopupElement,
             SetOpenAsync = SetOpenAsyncFromContext,
+            SetInteractionType = SetInteractionType,
             Close = Close,
-            ForceUnmount = ForceUnmount
+            ForceUnmount = ForceUnmount,
+            SetHasViewport = SetHasViewport,
+            SetInstantType = SetInstantTypeValue
         };
 
         if (ActionsRef is not null)
@@ -193,6 +201,15 @@
         }
 
         context.Modal = Modal;
+
+        if (Modal != previousModal)
+        {
+            previousModal = Modal;
+            if (CurrentOpen && hasRendered)
+            {
+                _ = UpdateScrollLockAsync();
+            }
+        }
 
         if (ActionsRef is not null)
         {
@@ -237,16 +254,53 @@
         }
     }
 
-    private void SetTitleId(string id)
+    private async Task UpdateScrollLockAsync()
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            var modalString = Modal switch
+            {
+                ModalMode.True => "true",
+                ModalMode.TrapFocus => "trap-focus",
+                _ => "false"
+            };
+            await module.InvokeVoidAsync("updateScrollLock", rootId, modalString);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+        }
+    }
+
+    private void SetTitleId(string? id)
     {
         titleId = id;
         context.TitleId = id;
     }
 
-    private void SetDescriptionId(string id)
+    private void SetDescriptionId(string? id)
     {
         descriptionId = id;
         context.DescriptionId = id;
+    }
+
+    private void SetHasViewport(bool value)
+    {
+        hasViewport = value;
+        context.HasViewport = value;
+    }
+
+    private void SetInstantTypeValue(InstantType type)
+    {
+        instantType = type;
+        context.InstantType = type;
+        StateHasChanged();
+    }
+
+    private void SetInteractionType(string? type)
+    {
+        interactionType = type;
+        context.InteractionType = type;
     }
 
     private void SetTriggerElement(ElementReference? element)
@@ -318,6 +372,10 @@
         context.ActiveTriggerId = null;
         payload = null;
         context.Payload = null;
+        openChangeReason = OpenChangeReason.None;
+        context.OpenChangeReason = OpenChangeReason.None;
+        interactionType = null;
+        context.InteractionType = null;
         _ = InvokeOpenChangeCompleteAsync(false);
         StateHasChanged();
     }
@@ -394,12 +452,23 @@
 
         if (!open)
         {
-            isMounted = false;
-            context.Mounted = false;
-            activeTriggerId = null;
-            context.ActiveTriggerId = null;
-            payload = null;
-            context.Payload = null;
+            if (preventUnmountingOnClose)
+            {
+                preventUnmountingOnClose = false;
+            }
+            else
+            {
+                isMounted = false;
+                context.Mounted = false;
+                activeTriggerId = null;
+                context.ActiveTriggerId = null;
+                payload = null;
+                context.Payload = null;
+            }
+
+            openChangeReason = OpenChangeReason.None;
+            context.OpenChangeReason = OpenChangeReason.None;
+            SetInteractionType(null);
         }
 
         instantType = InstantType.None;
@@ -407,6 +476,72 @@
 
         _ = InvokeOpenChangeCompleteAsync(open);
         StateHasChanged();
+    }
+
+    private async Task HandleViewportTriggerSwapAsync(string newTriggerId, object? payloadFromContext)
+    {
+        var previousTriggerId = activeTriggerId;
+        context.PreviousActiveTriggerId = previousTriggerId;
+
+        activeTriggerId = newTriggerId;
+        context.ActiveTriggerId = newTriggerId;
+
+        // Update payload from new trigger
+        var handlePayload = GetPayloadFromHandle(newTriggerId);
+        if (handlePayload is not null)
+        {
+            payload = handlePayload;
+        }
+        else if (payloadFromContext is not null)
+        {
+            payload = payloadFromContext;
+        }
+        context.Payload = payload;
+
+        SyncHandleState(true, activeTriggerId);
+
+        // Clear instant type to allow animation during viewport swap
+        instantType = InstantType.None;
+        context.InstantType = instantType;
+
+        if (hasRendered)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                var prevTriggerElement = GetTriggerElementById(previousTriggerId);
+                var newTriggerElement = GetTriggerElementById(newTriggerId);
+                if (prevTriggerElement.HasValue && newTriggerElement.HasValue)
+                {
+                    await module.InvokeVoidAsync("onViewportTriggerChange", rootId, prevTriggerElement.Value, newTriggerElement.Value);
+                }
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private ElementReference? GetTriggerElementById(string? triggerId)
+    {
+        if (triggerId is null)
+        {
+            return null;
+        }
+
+        if (triggerElements.TryGetValue(triggerId, out var element))
+        {
+            return element;
+        }
+
+        if (Handle is not null)
+        {
+            return GetTriggerElementFromHandle(triggerId);
+        }
+
+        return null;
     }
 
     /// <inheritdoc />
@@ -440,6 +575,12 @@
     {
         if (CurrentOpen == nextOpen)
         {
+            // Handle trigger swap for viewport transitions: popover stays open but switches trigger
+            if (nextOpen && triggerId is not null && triggerId != activeTriggerId && hasViewport)
+            {
+                await HandleViewportTriggerSwapAsync(triggerId, payloadFromContext);
+            }
+
             return;
         }
 
@@ -451,8 +592,15 @@
             return;
         }
 
+        if (!nextOpen && args.UnmountPrevented)
+        {
+            preventUnmountingOnClose = true;
+        }
+
         openChangeReason = reason;
         context.OpenChangeReason = reason;
+
+        bool isKeyboardClick = reason == OpenChangeReason.TriggerPress && interactionType == "keyboard";
 
         if (nextOpen)
         {
@@ -473,18 +621,16 @@
                 context.Payload = payload;
             }
 
-            instantType = reason == OpenChangeReason.TriggerPress ? InstantType.Click : InstantType.None;
+            instantType = isKeyboardClick ? InstantType.Click : InstantType.None;
             transitionStatus = TransitionStatus.Starting;
             isMounted = true;
         }
         else
         {
-            instantType = reason switch
-            {
-                OpenChangeReason.EscapeKey or OpenChangeReason.OutsidePress => InstantType.Dismiss,
-                OpenChangeReason.TriggerPress or OpenChangeReason.ClosePress => InstantType.Click,
-                _ => InstantType.None
-            };
+            instantType = isKeyboardClick ? InstantType.Click
+                : reason == OpenChangeReason.EscapeKey ? InstantType.Dismiss
+                : reason == OpenChangeReason.FocusOut ? InstantType.Focus
+                : InstantType.None;
             transitionStatus = TransitionStatus.Ending;
         }
 
@@ -508,7 +654,7 @@
             {
                 var module = await ModuleTask.Value;
                 var reasonString = reason == OpenChangeReason.TriggerHover ? "trigger-hover" : null;
-                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString);
+                await module.InvokeVoidAsync("setRootOpen", rootId, nextOpen, reasonString, interactionType);
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
@@ -544,12 +690,17 @@
         }
     }
 
-    void IPopoverHandleSubscriber.OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId)
+    void IPopoverHandleSubscriber.OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId, string? handleInteractionType)
     {
         _ = InvokeAsync(async () =>
         {
             try
             {
+                if (handleInteractionType is not null)
+                {
+                    SetInteractionType(handleInteractionType);
+                }
+
                 await SetOpenAsync(open, reason, triggerId);
             }
             catch (Exception ex)

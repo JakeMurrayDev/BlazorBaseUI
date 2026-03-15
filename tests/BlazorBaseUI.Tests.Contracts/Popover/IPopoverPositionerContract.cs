@@ -10,4 +10,12 @@ public interface IPopoverPositionerContract
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task RequiresContext();
+    Task ForwardsSideOffsetToInitializePositioner();
+    Task ForwardsAlignOffsetToInitializePositioner();
+    Task UpdatesDataSideFromJsCallback();
+    Task UpdatesDataAlignFromJsCallback();
+    Task SetsDataAnchorHiddenFromJsCallback();
+    Task RendersInternalBackdropWhenModalAndPressed();
+    Task DoesNotRenderInternalBackdropWhenNotModal();
+    Task DoesNotRenderInternalBackdropWhenHoverOpened();
 }

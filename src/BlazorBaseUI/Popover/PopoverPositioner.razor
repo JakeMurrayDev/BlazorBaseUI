@@ -4,6 +4,14 @@
 
 @if (RootContext is not null)
 {
+    @if (ShouldRenderInternalBackdrop())
+    {
+        <div @ref="internalBackdropElement"
+             role="presentation"
+             data-base-ui-inert
+             style="position:fixed;inset:0;pointer-events:auto"
+             inert="@(!RootContext?.GetOpen() ?? true)" />
+    }
     <CascadingValue Value="positionerContext" IsFixed="true">
         <RenderElement TState="PopoverPositionerState"
                        Tag="div"
@@ -22,7 +30,13 @@
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
     private ElementReference? arrowElement;
+    private ElementReference? internalBackdropElement;
+    private ElementReference? previousBackdropElement;
     private string? positionerId;
+    private Side computedSide;
+    private Align computedAlign;
+    private bool computedAnchorHidden;
+    private DotNetObjectReference<PopoverPositioner>? positionerDotNetRef;
     private PopoverPositionerState state;
     private PopoverPositionerContext positionerContext = null!;
     private RenderElement<PopoverPositionerState>? renderElementReference;
@@ -64,21 +78,42 @@
     /// Defaults to <c>0</c>.
     /// </summary>
     [Parameter]
-    public int SideOffset { get; set; }
+    public double SideOffset { get; set; }
+
+    /// <summary>
+    /// Gets or sets a function that computes the side offset dynamically based on anchor/popup dimensions.
+    /// When set, takes precedence over <see cref="SideOffset"/>.
+    /// </summary>
+    [Parameter]
+    public Func<OffsetData, double>? SideOffsetFunction { get; set; }
 
     /// <summary>
     /// Gets or sets the offset in pixels from the alignment edge of the anchor element.
     /// Defaults to <c>0</c>.
     /// </summary>
     [Parameter]
-    public int AlignOffset { get; set; }
+    public double AlignOffset { get; set; }
 
     /// <summary>
-    /// Gets or sets the padding in pixels between the popover and the collision boundary edge.
+    /// Gets or sets a function that computes the align offset dynamically based on anchor/popup dimensions.
+    /// When set, takes precedence over <see cref="AlignOffset"/>.
+    /// </summary>
+    [Parameter]
+    public Func<OffsetData, double>? AlignOffsetFunction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the uniform padding in pixels between the popover and the collision boundary edge.
     /// Defaults to <c>5</c>.
     /// </summary>
     [Parameter]
-    public int CollisionPadding { get; set; } = 5;
+    public double CollisionPadding { get; set; } = 5;
+
+    /// <summary>
+    /// Gets or sets per-side collision padding between the popover and the collision boundary edge.
+    /// When set, takes precedence over <see cref="CollisionPadding"/>.
+    /// </summary>
+    [Parameter]
+    public SidePadding? CollisionPaddingPerSide { get; set; }
 
     /// <summary>
     /// Gets or sets the boundary used to detect collisions for repositioning.
@@ -92,7 +127,7 @@
     /// Defaults to <c>5</c>.
     /// </summary>
     [Parameter]
-    public int ArrowPadding { get; set; } = 5;
+    public double ArrowPadding { get; set; } = 5;
 
     /// <summary>
     /// Determines whether the popover stays attached to its anchor element when it overflows.
@@ -110,10 +145,10 @@
 
     /// <summary>
     /// Gets or sets the CSS positioning method for the popover.
-    /// Defaults to <see cref="Popover.PositionMethod.Fixed"/>.
+    /// Defaults to <see cref="Popover.PositionMethod.Absolute"/>.
     /// </summary>
     [Parameter]
-    public PositionMethod PositionMethod { get; set; } = PositionMethod.Fixed;
+    public PositionMethod PositionMethod { get; set; } = PositionMethod.Absolute;
 
     /// <summary>
     /// Gets or sets how collisions are handled when positioning the popup.
@@ -160,11 +195,15 @@
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        computedSide = Side;
+        computedAlign = Align;
+        computedAnchorHidden = false;
+
         positionerContext = new PopoverPositionerContext
         {
-            Side = Side,
-            Align = Align,
-            AnchorHidden = false,
+            Side = computedSide,
+            Align = computedAlign,
+            AnchorHidden = computedAnchorHidden,
             ArrowUncentered = false,
             GetArrowElement = () => arrowElement,
             SetArrowElement = SetArrowElement
@@ -174,11 +213,17 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        var open = RootContext?.GetOpen() ?? false;
-        state = new PopoverPositionerState(open, Side, Align, false);
+        // Reset computed values when parameters change
+        computedSide = Side;
+        computedAlign = Align;
 
-        positionerContext.Side = Side;
-        positionerContext.Align = Align;
+        var open = RootContext?.GetOpen() ?? false;
+        var instant = RootContext?.InstantType ?? InstantType.None;
+        state = new PopoverPositionerState(open, computedSide, computedAlign, computedAnchorHidden, instant);
+
+        positionerContext.Side = computedSide;
+        positionerContext.Align = computedAlign;
+        positionerContext.AnchorHidden = computedAnchorHidden;
 
         BuildComponentAttributes();
     }
@@ -189,6 +234,7 @@
         if (firstRender)
         {
             hasRendered = true;
+            positionerDotNetRef = DotNetObjectReference.Create(this);
         }
 
         var currentElement = Element;
@@ -196,6 +242,23 @@
         {
             previousElement = currentElement;
             RootContext?.SetPositionerElement(currentElement);
+        }
+
+        // Track internal backdrop element
+        if (hasRendered && !Nullable.Equals(previousBackdropElement, internalBackdropElement))
+        {
+            previousBackdropElement = internalBackdropElement;
+            if (RootContext is not null && internalBackdropElement.HasValue)
+            {
+                try
+                {
+                    var module = await ModuleTask.Value;
+                    await module.InvokeVoidAsync("setInternalBackdrop", RootContext.RootId, internalBackdropElement.Value);
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
+            }
         }
 
         if (hasRendered && Element.HasValue && RootContext?.GetMounted() == true)
@@ -217,27 +280,88 @@
 
         attrs["role"] = "presentation";
 
-        if (!(RootContext?.GetMounted() ?? false))
+        var mounted = RootContext?.GetMounted() ?? false;
+        if (!mounted)
         {
             attrs["hidden"] = true;
         }
 
-        attrs["data-side"] = Side.ToDataAttributeString()!;
-        attrs["data-align"] = Align.ToDataAttributeString()!;
-
         var isOpen = RootContext?.GetOpen() ?? false;
-        attrs["data-open"] = isOpen;
-        attrs["data-closed"] = !isOpen;
-        attrs["data-anchor-hidden"] = state.AnchorHidden;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
 
-        var instantType = RootContext?.InstantType ?? InstantType.None;
-        var instantAttr = instantType.ToDataAttributeString();
-        if (!string.IsNullOrEmpty(instantAttr))
+        var styleParts = new List<string>();
+        if (!isOpen)
         {
-            attrs["data-instant"] = instantAttr;
+            styleParts.Add("pointer-events: none");
         }
 
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            styleParts.Add("transition-property: none");
+        }
+
+        if (styleParts.Count > 0)
+        {
+            attrs["style"] = string.Join("; ", styleParts);
+        }
+
+        attrs["data-side"] = computedSide.ToDataAttributeString()!;
+        attrs["data-align"] = computedAlign.ToDataAttributeString()!;
+
+        attrs["data-open"] = isOpen;
+        attrs["data-closed"] = !isOpen;
+        attrs["data-anchor-hidden"] = computedAnchorHidden;
+
         componentAttributes = attrs;
+    }
+
+    /// <summary>
+    /// Called from JavaScript when FloatingUI computes a new position, reporting the actual side, alignment, and anchor visibility.
+    /// </summary>
+    /// <summary>
+    /// Called from JavaScript to compute the side offset dynamically.
+    /// </summary>
+    [JSInvokable]
+    public double ComputeSideOffset(OffsetData data) => SideOffsetFunction?.Invoke(data) ?? SideOffset;
+
+    /// <summary>
+    /// Called from JavaScript to compute the align offset dynamically.
+    /// </summary>
+    [JSInvokable]
+    public double ComputeAlignOffset(OffsetData data) => AlignOffsetFunction?.Invoke(data) ?? AlignOffset;
+
+    [JSInvokable]
+    public void OnPositionUpdated(string side, string align, bool anchorHidden)
+    {
+        var newSide = Extensions.ParseSide(side);
+        var newAlign = Extensions.ParseAlign(align);
+
+        if (newSide == computedSide && newAlign == computedAlign && anchorHidden == computedAnchorHidden)
+        {
+            return;
+        }
+
+        computedSide = newSide;
+        computedAlign = newAlign;
+        computedAnchorHidden = anchorHidden;
+
+        positionerContext.Side = computedSide;
+        positionerContext.Align = computedAlign;
+        positionerContext.AnchorHidden = computedAnchorHidden;
+
+        var open = RootContext?.GetOpen() ?? false;
+        var instant = RootContext?.InstantType ?? InstantType.None;
+        state = new PopoverPositionerState(open, computedSide, computedAlign, computedAnchorHidden, instant);
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+
+    private bool ShouldRenderInternalBackdrop()
+    {
+        if (RootContext is null) return false;
+        return RootContext.Modal == ModalMode.True
+            && RootContext.OpenChangeReason != OpenChangeReason.TriggerHover
+            && RootContext.GetMounted();
     }
 
     private void SetArrowElement(ElementReference? element)
@@ -287,7 +411,9 @@
                 Align.ToDataAttributeString(),
                 SideOffset,
                 AlignOffset,
-                CollisionPadding,
+                CollisionPaddingPerSide is not null
+                    ? (object)new { top = CollisionPaddingPerSide.Top, right = CollisionPaddingPerSide.Right, bottom = CollisionPaddingPerSide.Bottom, left = CollisionPaddingPerSide.Left }
+                    : CollisionPadding,
                 CollisionBoundary.ToDataAttributeString(),
                 ArrowPadding,
                 arrowElement,
@@ -296,7 +422,10 @@
                 DisableAnchorTracking,
                 ca.Side,
                 ca.Align,
-                ca.Fallback);
+                ca.Fallback,
+                positionerDotNetRef,
+                SideOffsetFunction is not null,
+                AlignOffsetFunction is not null);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -329,7 +458,9 @@
                 Align.ToDataAttributeString(),
                 SideOffset,
                 AlignOffset,
-                CollisionPadding,
+                CollisionPaddingPerSide is not null
+                    ? (object)new { top = CollisionPaddingPerSide.Top, right = CollisionPaddingPerSide.Right, bottom = CollisionPaddingPerSide.Bottom, left = CollisionPaddingPerSide.Left }
+                    : CollisionPadding,
                 CollisionBoundary.ToDataAttributeString(),
                 ArrowPadding,
                 arrowElement,
@@ -337,7 +468,9 @@
                 PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
                 ca.Side,
                 ca.Align,
-                ca.Fallback);
+                ca.Fallback,
+                SideOffsetFunction is not null,
+                AlignOffsetFunction is not null);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -359,5 +492,7 @@
             {
             }
         }
+
+        positionerDotNetRef?.Dispose();
     }
 }

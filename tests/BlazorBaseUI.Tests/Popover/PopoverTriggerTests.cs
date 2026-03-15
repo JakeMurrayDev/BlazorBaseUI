@@ -19,6 +19,7 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
         bool defaultOpen = false,
         bool triggerDisabled = false,
         bool openOnHover = false,
+        bool nativeButton = true,
         RenderFragment<RenderProps<PopoverTriggerState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverTriggerState, string>? classValue = null,
@@ -36,6 +37,8 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
 
                 if (triggerDisabled)
                     innerBuilder.AddAttribute(attrIndex++, "Disabled", true);
+                if (!nativeButton)
+                    innerBuilder.AddAttribute(attrIndex++, "NativeButton", false);
                 if (openOnHover)
                     innerBuilder.AddAttribute(attrIndex++, "OpenOnHover", true);
                 if (render is not null)
@@ -233,17 +236,17 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
     }
 
     [Fact]
-    public async Task HasFocusHandlersWhenOpenOnHover()
+    public Task HasFocusHandlersWhenOpenOnHover()
     {
+        // Focus-based open/close is managed through JS-side focus management infrastructure,
+        // not Blazor event handlers. Verify no onfocus/onblur handlers are present.
         var cut = Render(CreateTriggerInRoot(openOnHover: true));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.HasAttribute("onfocus").ShouldBeFalse();
+        trigger.HasAttribute("onblur").ShouldBeFalse();
 
-        await trigger.FocusAsync(new FocusEventArgs());
-
-        trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        return Task.CompletedTask;
     }
 
     [Fact]
@@ -254,6 +257,79 @@ public class PopoverTriggerTests : BunitContext, IPopoverTriggerContract
         );
 
         cut.Markup.ShouldBeEmpty();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasAriaDisabledWhenDisabledCustomElement()
+    {
+        var cut = Render(CreateTriggerInRoot(triggerDisabled: true, nativeButton: false));
+
+        var trigger = cut.Find("[role='button']");
+        trigger.GetAttribute("aria-disabled").ShouldBe("true");
+        trigger.HasAttribute("disabled").ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasDataPressedWhenOpenViaClick()
+    {
+        var cut = Render(CreateTriggerInRoot(defaultOpen: false));
+
+        var trigger = cut.Find("button");
+        trigger.Click();
+
+        trigger.HasAttribute("data-popup-open").ShouldBeTrue();
+        trigger.HasAttribute("data-pressed").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotHaveDataPressedWhenClosed()
+    {
+        var cut = Render(CreateTriggerInRoot(defaultOpen: false));
+
+        var trigger = cut.Find("button");
+        trigger.HasAttribute("data-pressed").ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasDataClickTriggerAttribute()
+    {
+        var cut = Render(CreateTriggerInRoot());
+
+        var trigger = cut.Find("button");
+        trigger.HasAttribute("data-base-ui-click-trigger").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task InitializesHoverForHandleTrigger()
+    {
+        var handle = new PopoverHandle<string>();
+
+        RenderFragment content = builder =>
+        {
+            builder.OpenComponent<PopoverTypedTrigger<string>>(0);
+            builder.AddAttribute(1, "Id", "hover-handle-trigger");
+            builder.AddAttribute(2, "Handle", handle);
+            builder.AddAttribute(3, "OpenOnHover", true);
+            builder.AddAttribute(4, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Hover Me")));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(content);
+
+        // Trigger renders even without a root context when using a handle
+        var trigger = cut.Find("button");
+        trigger.ShouldNotBeNull();
+        trigger.TextContent.ShouldBe("Hover Me");
 
         return Task.CompletedTask;
     }

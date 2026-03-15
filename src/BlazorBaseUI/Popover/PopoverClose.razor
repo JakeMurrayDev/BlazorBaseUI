@@ -1,6 +1,6 @@
 @using Microsoft.AspNetCore.Components.Web
 
-<RenderElement TState="PopoverRootState"
+<RenderElement TState="PopoverCloseState"
                Tag="button"
                State="state"
                Render="Render"
@@ -12,8 +12,8 @@
                @ref="renderElementReference" />
 
 @code {
-    private PopoverRootState state;
-    private RenderElement<PopoverRootState>? renderElementReference;
+    private PopoverCloseState state;
+    private RenderElement<PopoverCloseState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
     [CascadingParameter]
@@ -23,19 +23,19 @@
     /// Gets or sets a custom render template for the close button element.
     /// </summary>
     [Parameter]
-    public RenderFragment<RenderProps<PopoverRootState>>? Render { get; set; }
+    public RenderFragment<RenderProps<PopoverCloseState>>? Render { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns CSS class names based on the current state.
     /// </summary>
     [Parameter]
-    public Func<PopoverRootState, string>? ClassValue { get; set; }
+    public Func<PopoverCloseState, string>? ClassValue { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns inline styles based on the current state.
     /// </summary>
     [Parameter]
-    public Func<PopoverRootState, string>? StyleValue { get; set; }
+    public Func<PopoverCloseState, string>? StyleValue { get; set; }
 
     /// <summary>
     /// Determines whether the close button is currently disabled.
@@ -72,7 +72,7 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        state = new PopoverRootState(RootContext?.GetOpen() ?? false);
+        state = new PopoverCloseState();
         BuildComponentAttributes();
     }
 

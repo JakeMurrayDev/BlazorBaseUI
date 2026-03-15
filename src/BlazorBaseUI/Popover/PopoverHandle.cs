@@ -220,17 +220,17 @@ public class PopoverHandle<TPayload> : IPopoverHandle
     /// <summary>
     /// Called by triggers to request opening the popover.
     /// </summary>
-    internal void RequestOpen(string triggerId, OpenChangeReason reason)
+    internal void RequestOpen(string triggerId, OpenChangeReason reason, string? interactionType = null)
     {
-        SetOpenInternal(true, reason, triggerId);
+        SetOpenInternal(true, reason, triggerId, interactionType);
     }
 
     /// <summary>
     /// Called by triggers to request closing the popover.
     /// </summary>
-    internal void RequestClose(OpenChangeReason reason)
+    internal void RequestClose(OpenChangeReason reason, string? interactionType = null)
     {
-        SetOpenInternal(false, reason, null);
+        SetOpenInternal(false, reason, null, interactionType);
     }
 
     /// <summary>
@@ -273,7 +273,7 @@ public class PopoverHandle<TPayload> : IPopoverHandle
         SyncState(open, triggerId, payload is TPayload typedPayload ? typedPayload : default);
     }
 
-    private void SetOpenInternal(bool nextOpen, OpenChangeReason reason, string? triggerId)
+    private void SetOpenInternal(bool nextOpen, OpenChangeReason reason, string? triggerId, string? interactionType = null)
     {
         if (isOpen == nextOpen && (nextOpen == false || activeTriggerId == triggerId))
         {
@@ -288,7 +288,7 @@ public class PopoverHandle<TPayload> : IPopoverHandle
 
         foreach (var subscriber in subscribers.ToArray())
         {
-            subscriber.OnOpenChangeRequested(nextOpen, reason, triggerId);
+            subscriber.OnOpenChangeRequested(nextOpen, reason, triggerId, interactionType);
         }
     }
 
@@ -333,7 +333,7 @@ internal interface IPopoverHandleSubscriber
     /// <summary>
     /// Called when an open/close state change is requested.
     /// </summary>
-    void OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId);
+    void OnOpenChangeRequested(bool open, OpenChangeReason reason, string? triggerId, string? interactionType = null);
 
     /// <summary>
     /// Called when the handle state has changed.

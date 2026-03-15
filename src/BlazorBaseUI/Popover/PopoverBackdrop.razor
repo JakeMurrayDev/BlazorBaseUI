@@ -1,5 +1,3 @@
-@using Microsoft.AspNetCore.Components.Web
-
 <RenderElement TState="PopoverBackdropState"
                Tag="div"
                Enabled="RootContext is not null"
@@ -89,23 +87,11 @@
         var isOpen = RootContext?.GetOpen() ?? false;
         attrs["data-open"] = isOpen;
         attrs["data-closed"] = !isOpen;
+
         var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         attrs["data-starting-style"] = transitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = transitionStatus == TransitionStatus.Ending;
 
-        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-
         componentAttributes = attrs;
-    }
-
-    private async Task HandleClickAsync(MouseEventArgs e)
-    {
-        if (RootContext is null)
-        {
-            return;
-        }
-
-        await RootContext.SetOpenAsync(false, OpenChangeReason.OutsidePress, null, null);
-        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 }

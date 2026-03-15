@@ -411,6 +411,10 @@ export async function initializePositioner(options) {
         positionMethod,
         disableAnchorTracking,
         collisionAvoidance,
+        onPositionUpdated: options.onPositionUpdated || null,
+        dotNetRef: options.dotNetRef || null,
+        hasSideOffsetFn: options.hasSideOffsetFn || false,
+        hasAlignOffsetFn: options.hasAlignOffsetFn || false,
         cleanup: null,
         computedSide: side,
         computedAlign: align
@@ -543,7 +547,27 @@ async function updatePositionInternal(positionerState) {
         const middleware = [];
 
         // Offset middleware
-        if (sideOffset !== 0 || alignOffset !== 0) {
+        if (positionerState.hasSideOffsetFn || positionerState.hasAlignOffsetFn) {
+            const dotNetRef = positionerState.dotNetRef;
+            middleware.push(FloatingUI.offset(async ({ rects, placement }) => {
+                const parts = placement.split('-');
+                const data = {
+                    anchorWidth: rects.reference.width,
+                    anchorHeight: rects.reference.height,
+                    popupWidth: rects.floating.width,
+                    popupHeight: rects.floating.height,
+                    side: parts[0],
+                    align: parts[1] || 'center'
+                };
+                const mainAxis = positionerState.hasSideOffsetFn
+                    ? await dotNetRef.invokeMethodAsync('ComputeSideOffset', data)
+                    : sideOffset;
+                const crossAxis = positionerState.hasAlignOffsetFn
+                    ? await dotNetRef.invokeMethodAsync('ComputeAlignOffset', data)
+                    : alignOffset;
+                return { mainAxis, crossAxis };
+            }));
+        } else if (sideOffset !== 0 || alignOffset !== 0) {
             middleware.push(FloatingUI.offset({
                 mainAxis: sideOffset,
                 crossAxis: alignOffset
@@ -681,6 +705,11 @@ async function updatePositionInternal(positionerState) {
         // Store computed placement for safePolygon
         positionerState.computedSide = effectiveSide;
         positionerState.computedAlign = effectiveAlign;
+
+        // Notify C# of computed position values
+        if (positionerState.onPositionUpdated) {
+            positionerState.onPositionUpdated(effectiveSide, effectiveAlign, !!middlewareData.hide?.referenceHidden);
+        }
 
     } catch {
         // Fallback to basic positioning if Floating UI fails
