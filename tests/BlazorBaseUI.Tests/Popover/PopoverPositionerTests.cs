@@ -188,12 +188,13 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
 
         var cut = Render(CreatePositionerInPopover(sideOffset: 20));
 
+        // initializePositioner(positionerId, rootId, triggerElement, side, sideOffset, alignOffset, ...)
         var initInvocations = popoverModule.Invocations
             .Where(i => i.Identifier == "initializePositioner")
             .ToList();
 
         initInvocations.Count.ShouldBeGreaterThan(0);
-        // SideOffset is the 5th argument (index 4) in initializePositioner
+        initInvocations[0].Arguments.Count.ShouldBeGreaterThanOrEqualTo(6);
         initInvocations[0].Arguments[4].ShouldBe(20d);
 
         return Task.CompletedTask;
@@ -206,12 +207,13 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
 
         var cut = Render(CreatePositionerInPopover(alignOffset: 15));
 
+        // initializePositioner(positionerId, rootId, triggerElement, side, sideOffset, alignOffset, ...)
         var initInvocations = popoverModule.Invocations
             .Where(i => i.Identifier == "initializePositioner")
             .ToList();
 
         initInvocations.Count.ShouldBeGreaterThan(0);
-        // AlignOffset is the 6th argument (index 5) in initializePositioner
+        initInvocations[0].Arguments.Count.ShouldBeGreaterThanOrEqualTo(6);
         initInvocations[0].Arguments[5].ShouldBe(15d);
 
         return Task.CompletedTask;

@@ -16,5 +16,5 @@ public interface IPopoverPopupContract
     Task AppliesStyleValueWithState();
     Task RequiresContext();
     Task PassesDisableInitialFocusToJs();
-    Task PassesFocusTargetElementToJs();
+    Task PassesFocusTargetDefaultToJs();
 }

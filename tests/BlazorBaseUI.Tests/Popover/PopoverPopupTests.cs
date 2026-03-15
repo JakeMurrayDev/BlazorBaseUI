@@ -270,7 +270,7 @@ public class PopoverPopupTests : BunitContext, IPopoverPopupContract
     }
 
     [Fact]
-    public Task PassesFocusTargetElementToJs()
+    public Task PassesFocusTargetDefaultToJs()
     {
         var cut = Render(CreatePopupInPopoverWithFocusTarget(initialFocus: new FocusTarget.Default()));
 

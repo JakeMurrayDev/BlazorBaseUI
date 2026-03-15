@@ -672,6 +672,7 @@ public abstract class PopoverTestsBase : TestBase
         var openState = GetByTestId("open-state");
         await Assertions.Expect(openState).ToHaveTextAsync("true");
         await Assertions.Expect(trigger).ToHaveAttributeAsync("data-popup-open", "");
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-pressed", "");
     }
 
     #endregion
@@ -1153,6 +1154,11 @@ public abstract class PopoverTestsBase : TestBase
 
         var parentOpenState = GetByTestId("parent-open-state");
         await WaitForTextContentAsync(parentOpenState, "false");
+
+        // Child should also be closed
+        await Assertions.Expect(childPopup).Not.ToBeVisibleAsync();
+        var childOpenState = GetByTestId("child-open-state");
+        await WaitForTextContentAsync(childOpenState, "false");
     }
 
     #endregion
@@ -1367,6 +1373,7 @@ public abstract class PopoverTestsBase : TestBase
         await WaitForDelayAsync(100);
 
         await Assertions.Expect(trigger).ToHaveAttributeAsync("data-popup-open", "");
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-pressed", "");
     }
 
     #endregion
@@ -1717,12 +1724,19 @@ public abstract class PopoverTestsBase : TestBase
         var openState = GetByTestId("open-state");
         await Assertions.Expect(openState).ToHaveTextAsync("true");
 
+        // Backdrop should not be visible during hover-only open
+        var backdrop = GetByTestId("popover-backdrop");
+        await Assertions.Expect(backdrop).Not.ToBeVisibleAsync();
+
         // Click trigger to engage modal mode
         await trigger.ClickAsync();
         await WaitForDelayAsync(200);
 
         // Popover should still be open
         await Assertions.Expect(openState).ToHaveTextAsync("true");
+
+        // Backdrop should now be visible in modal mode
+        await Assertions.Expect(backdrop).ToBeVisibleAsync();
     }
 
     #endregion

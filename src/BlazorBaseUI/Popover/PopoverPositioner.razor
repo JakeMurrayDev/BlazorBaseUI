@@ -248,12 +248,13 @@
         if (hasRendered && !Nullable.Equals(previousBackdropElement, internalBackdropElement))
         {
             previousBackdropElement = internalBackdropElement;
-            if (RootContext is not null && internalBackdropElement.HasValue)
+            if (RootContext is not null)
             {
                 try
                 {
                     var module = await ModuleTask.Value;
-                    await module.InvokeVoidAsync("setInternalBackdrop", RootContext.RootId, internalBackdropElement.Value);
+                    await module.InvokeVoidAsync("setInternalBackdrop", RootContext.RootId,
+                        internalBackdropElement.HasValue ? internalBackdropElement.Value : null);
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
                 {
