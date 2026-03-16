@@ -1,6 +1,6 @@
 @implements IDisposable
 
-<RenderElement TState="PopoverRootState"
+<RenderElement TState="PopoverDescriptionState"
                Tag="p"
                State="state"
                Render="Render"
@@ -13,8 +13,8 @@
 
 @code {
     private string descriptionId = string.Empty;
-    private PopoverRootState state;
-    private RenderElement<PopoverRootState>? renderElementReference;
+    private PopoverDescriptionState state;
+    private RenderElement<PopoverDescriptionState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
     [CascadingParameter]
@@ -24,19 +24,19 @@
     /// Gets or sets a custom render template for the description element.
     /// </summary>
     [Parameter]
-    public RenderFragment<RenderProps<PopoverRootState>>? Render { get; set; }
+    public RenderFragment<RenderProps<PopoverDescriptionState>>? Render { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns CSS class names based on the current state.
     /// </summary>
     [Parameter]
-    public Func<PopoverRootState, string>? ClassValue { get; set; }
+    public Func<PopoverDescriptionState, string>? ClassValue { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns inline styles based on the current state.
     /// </summary>
     [Parameter]
-    public Func<PopoverRootState, string>? StyleValue { get; set; }
+    public Func<PopoverDescriptionState, string>? StyleValue { get; set; }
 
     /// <summary>
     /// Defines the child components of this instance.
@@ -74,7 +74,7 @@
             RootContext?.SetDescriptionId(descriptionId);
         }
 
-        state = new PopoverRootState(RootContext?.GetOpen() ?? false);
+        state = new PopoverDescriptionState();
         BuildComponentAttributes();
     }
 
@@ -88,6 +88,6 @@
     /// <inheritdoc />
     public void Dispose()
     {
-        RootContext?.SetDescriptionId(string.Empty);
+        RootContext?.SetDescriptionId(null);
     }
 }

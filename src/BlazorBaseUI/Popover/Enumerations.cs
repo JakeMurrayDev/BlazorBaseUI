@@ -39,7 +39,17 @@ public enum InstantType
     /// <summary>
     /// The popover was dismissed.
     /// </summary>
-    Dismiss
+    Dismiss,
+
+    /// <summary>
+    /// The popover was closed because focus moved outside of it.
+    /// </summary>
+    Focus,
+
+    /// <summary>
+    /// The trigger element changed (viewport swap), disabling further transitions.
+    /// </summary>
+    TriggerChange
 }
 
 /// <summary>

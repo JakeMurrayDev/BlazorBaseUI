@@ -26,6 +26,8 @@
             <PopoverPositioner
                 Side="@(Side == "top" ? BlazorBaseUI.Side.Top : Side == "left" ? BlazorBaseUI.Side.Left : Side == "right" ? BlazorBaseUI.Side.Right : BlazorBaseUI.Side.Bottom)"
                 Align="@(Align == "start" ? BlazorBaseUI.Align.Start : Align == "end" ? BlazorBaseUI.Align.End : BlazorBaseUI.Align.Center)"
+                SideOffset="@SideOffset"
+                AlignOffset="@AlignOffset"
                 data-testid="popover-positioner">
                 <PopoverPopup data-testid="popover-popup">
                     @if (ShowTitle)
@@ -37,6 +39,11 @@
                         <PopoverDescription data-testid="popover-description">This is a description.</PopoverDescription>
                     }
                     <div data-testid="popover-content">Popover Content</div>
+                    @if (ShowFocusableContent)
+                    {
+                        <button data-testid="popup-button">Popup Button</button>
+                        <input data-testid="popup-input" type="text" placeholder="Popup input" />
+                    }
                     @if (ShowClose)
                     {
                         <PopoverClose data-testid="popover-close">Close</PopoverClose>
@@ -100,6 +107,15 @@
 
     [SupplyParameterFromQuery(Name = "align")]
     public string Align { get; set; } = "center";
+
+    [SupplyParameterFromQuery(Name = "sideOffset")]
+    public int SideOffset { get; set; }
+
+    [SupplyParameterFromQuery(Name = "alignOffset")]
+    public int AlignOffset { get; set; }
+
+    [SupplyParameterFromQuery(Name = "showFocusableContent")]
+    public bool ShowFocusableContent { get; set; }
 
     private bool isOpen;
     private int changeCount;

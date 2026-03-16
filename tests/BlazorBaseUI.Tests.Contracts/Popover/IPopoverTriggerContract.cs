@@ -16,4 +16,9 @@ public interface IPopoverTriggerContract
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task RequiresContext();
+    Task HasAriaDisabledWhenDisabledCustomElement();
+    Task HasDataPressedWhenOpenViaClick();
+    Task DoesNotHaveDataPressedWhenClosed();
+    Task HasDataClickTriggerAttribute();
+    Task InitializesHoverForHandleTrigger();
 }

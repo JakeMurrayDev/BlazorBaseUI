@@ -17,10 +17,10 @@ public class PopoverDescriptionTests : BunitContext, IPopoverDescriptionContract
 
     private RenderFragment CreateDescriptionInPopover(
         bool defaultOpen = true,
-        RenderFragment<RenderProps<PopoverRootState>>? render = null,
+        RenderFragment<RenderProps<PopoverDescriptionState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        Func<PopoverRootState, string>? classValue = null,
-        Func<PopoverRootState, string>? styleValue = null)
+        Func<PopoverDescriptionState, string>? classValue = null,
+        Func<PopoverDescriptionState, string>? styleValue = null)
     {
         return builder =>
         {
@@ -81,7 +81,7 @@ public class PopoverDescriptionTests : BunitContext, IPopoverDescriptionContract
     [Fact]
     public Task RendersWithCustomRender()
     {
-        RenderFragment<RenderProps<PopoverRootState>> render = props => builder =>
+        RenderFragment<RenderProps<PopoverDescriptionState>> render = props => builder =>
         {
             builder.OpenElement(0, "span");
             builder.AddMultipleAttributes(1, props.Attributes);
@@ -134,7 +134,7 @@ public class PopoverDescriptionTests : BunitContext, IPopoverDescriptionContract
     public Task AppliesClassValueWithState()
     {
         var cut = Render(CreateDescriptionInPopover(
-            classValue: state => state.Open ? "open-class" : "closed-class"
+            classValue: _ => "open-class"
         ));
 
         var description = cut.Find("p");

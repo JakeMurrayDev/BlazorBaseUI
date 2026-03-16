@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Components;
 
-namespace BlazorBaseUI.Dialog;
+namespace BlazorBaseUI;
 
 /// <summary>
-/// Represents a focus target for dialog initial or final focus placement.
+/// Represents a focus target for initial or final focus placement.
 /// </summary>
 public abstract record FocusTarget
 {

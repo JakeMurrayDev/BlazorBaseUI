@@ -8,13 +8,13 @@ public interface IPopoverPopupContract
     Task RendersChildren();
     Task HasRoleDialog();
     Task HasAriaModal();
-    Task HasAriaModalTrueWhenModalTrue();
-    Task HasAriaModalTrueWhenTrapFocus();
-    Task DoesNotHaveAriaModalWhenNonModal();
+    Task DoesNotHaveAriaModalRegardlessOfModalMode();
     Task HasDataOpenWhenOpen();
     Task HasAriaLabelledByWhenTitlePresent();
     Task HasAriaDescribedByWhenDescriptionPresent();
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
     Task RequiresContext();
+    Task PassesDisableInitialFocusToJs();
+    Task PassesFocusTargetDefaultToJs();
 }

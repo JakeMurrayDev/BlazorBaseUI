@@ -135,7 +135,9 @@ public class PopoverViewportTests : BunitContext, IPopoverViewportContract
 
         var popup = cut.Find("[role='dialog']");
         var viewport = popup.FirstElementChild;
-        viewport!.HasAttribute("data-open").ShouldBeTrue();
+        // Viewport does not have data-open; it uses data-transitioning instead
+        viewport!.HasAttribute("data-open").ShouldBeFalse();
+        viewport!.HasAttribute("data-transitioning").ShouldBeFalse();
 
         return Task.CompletedTask;
     }
@@ -150,5 +152,21 @@ public class PopoverViewportTests : BunitContext, IPopoverViewportContract
         cut.Markup.ShouldBeEmpty();
 
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task SetsInstantTypeTriggerChangeOnTransitionEnd()
+    {
+        var cut = Render(CreateViewportInPopover());
+
+        var viewport = cut.FindComponent<PopoverViewport>();
+
+        // Simulate a viewport transition start then end
+        await cut.InvokeAsync(() => viewport.Instance.OnViewportTransitionStart("right down"));
+        await cut.InvokeAsync(() => viewport.Instance.OnViewportTransitionEnd());
+
+        // After transition end, the popup should have data-instant="trigger-change"
+        var popup = cut.Find("[role='dialog']");
+        popup.GetAttribute("data-instant").ShouldBe("trigger-change");
     }
 }

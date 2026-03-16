@@ -1,3 +1,6 @@
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
 
 <RenderElement TState="PopoverViewportState"
                Tag="div"
@@ -12,12 +15,24 @@
                @ref="renderElementReference" />
 
 @code {
+    private Lazy<Task<IJSObjectReference>>? moduleTask;
+    private bool hasRendered;
+    private string? activationDirection;
+    private bool transitioning;
     private PopoverViewportState state;
     private RenderElement<PopoverViewportState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
+    private DotNetObjectReference<PopoverViewport>? dotNetRef;
+
+    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+        JSRuntime.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/BlazorBaseUI/blazor-baseui-popover.js").AsTask());
 
     [CascadingParameter]
     private PopoverRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private PopoverPositionerContext? PositionerContext { get; set; }
 
     /// <summary>
     /// Gets or sets a custom render template for the viewport element.
@@ -55,23 +70,105 @@
     public ElementReference? Element => renderElementReference?.Element;
 
     /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        RootContext?.SetHasViewport(true);
+    }
+
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        var open = RootContext?.GetOpen() ?? false;
-        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
-        state = new PopoverViewportState(open, transitionStatus);
+        state = new PopoverViewportState(activationDirection, transitioning);
         BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            if (RootContext is not null && Element.HasValue)
+            {
+                try
+                {
+                    var module = await ModuleTask.Value;
+                    await module.InvokeVoidAsync("initializeViewport", RootContext.RootId, Element.Value, dotNetRef);
+
+                    var side = PositionerContext?.Side ?? Side.Bottom;
+                    var direction = RootContext.Direction ?? "ltr";
+                    await module.InvokeVoidAsync("initializeAutoResize", RootContext.RootId, side.ToDataAttributeString(), direction);
+                }
+                catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+                {
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Called from JavaScript when a viewport content transition starts.
+    /// </summary>
+    [JSInvokable]
+    public void OnViewportTransitionStart(string direction)
+    {
+        activationDirection = direction;
+        transitioning = true;
+        state = new PopoverViewportState(activationDirection, transitioning);
+        BuildComponentAttributes();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Called from JavaScript when a viewport content transition ends.
+    /// </summary>
+    [JSInvokable]
+    public void OnViewportTransitionEnd()
+    {
+        activationDirection = null;
+        transitioning = false;
+        RootContext?.SetInstantType(InstantType.TriggerChange);
+        state = new PopoverViewportState(activationDirection, transitioning);
+        BuildComponentAttributes();
+        StateHasChanged();
     }
 
     private void BuildComponentAttributes()
     {
         var attrs = new Dictionary<string, object>();
 
-        attrs["data-open"] = state.Open;
-        attrs["data-closed"] = !state.Open;
-        attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
-        attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
+        if (!string.IsNullOrEmpty(state.ActivationDirection))
+        {
+            attrs["data-activation-direction"] = state.ActivationDirection;
+        }
+
+        attrs["data-transitioning"] = state.Transitioning;
+        attrs["data-current"] = true;
 
         componentAttributes = attrs;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        RootContext?.SetHasViewport(false);
+
+        if (moduleTask?.IsValueCreated == true && hasRendered && RootContext is not null)
+        {
+            try
+            {
+                var module = await ModuleTask.Value;
+                await module.InvokeVoidAsync("disposeAutoResize", RootContext.RootId);
+                await module.InvokeVoidAsync("disposeViewport", RootContext.RootId);
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+            }
+        }
+
+        dotNetRef?.Dispose();
     }
 }

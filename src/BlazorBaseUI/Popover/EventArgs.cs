@@ -32,7 +32,18 @@ public sealed class PopoverOpenChangeEventArgs : EventArgs
     public bool Canceled { get; private set; }
 
     /// <summary>
+    /// Gets a value indicating whether unmounting on close has been prevented.
+    /// </summary>
+    public bool UnmountPrevented { get; private set; }
+
+    /// <summary>
     /// Cancels the open state change, preventing the popover from opening or closing.
     /// </summary>
     public void Cancel() => Canceled = true;
+
+    /// <summary>
+    /// Prevents the popover from unmounting when it closes.
+    /// The popup remains in the DOM after the close transition completes.
+    /// </summary>
+    public void PreventUnmountOnClose() => UnmountPrevented = true;
 }

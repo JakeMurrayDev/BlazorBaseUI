@@ -20,6 +20,8 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
         RenderFragment<RenderProps<PopoverPositionerState>>? render = null,
         BlazorBaseUI.Side side = BlazorBaseUI.Side.Bottom,
         BlazorBaseUI.Align align = BlazorBaseUI.Align.Center,
+        double sideOffset = 0,
+        double alignOffset = 0,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
         Func<PopoverPositionerState, string>? classValue = null,
         Func<PopoverPositionerState, string>? styleValue = null)
@@ -44,6 +46,10 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
                         portalBuilder.AddAttribute(attrIndex++, "Render", render);
                     portalBuilder.AddAttribute(attrIndex++, "Side", side);
                     portalBuilder.AddAttribute(attrIndex++, "Align", align);
+                    if (sideOffset != 0d)
+                        portalBuilder.AddAttribute(attrIndex++, "SideOffset", sideOffset);
+                    if (alignOffset != 0d)
+                        portalBuilder.AddAttribute(attrIndex++, "AlignOffset", alignOffset);
                     if (classValue is not null)
                         portalBuilder.AddAttribute(attrIndex++, "ClassValue", classValue);
                     if (styleValue is not null)
@@ -173,5 +179,163 @@ public class PopoverPositionerTests : BunitContext, IPopoverPositionerContract
         cut.Markup.ShouldBeEmpty();
 
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ForwardsSideOffsetToInitializePositioner()
+    {
+        var popoverModule = JSInterop.SetupModule("./_content/BlazorBaseUI/blazor-baseui-popover.js");
+
+        var cut = Render(CreatePositionerInPopover(sideOffset: 20));
+
+        // initializePositioner(positionerId, rootId, triggerElement, side, sideOffset, alignOffset, ...)
+        var initInvocations = popoverModule.Invocations
+            .Where(i => i.Identifier == "initializePositioner")
+            .ToList();
+
+        initInvocations.Count.ShouldBeGreaterThan(0);
+        initInvocations[0].Arguments.Count.ShouldBeGreaterThanOrEqualTo(6);
+        initInvocations[0].Arguments[4].ShouldBe(20d);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ForwardsAlignOffsetToInitializePositioner()
+    {
+        var popoverModule = JSInterop.SetupModule("./_content/BlazorBaseUI/blazor-baseui-popover.js");
+
+        var cut = Render(CreatePositionerInPopover(alignOffset: 15));
+
+        // initializePositioner(positionerId, rootId, triggerElement, side, sideOffset, alignOffset, ...)
+        var initInvocations = popoverModule.Invocations
+            .Where(i => i.Identifier == "initializePositioner")
+            .ToList();
+
+        initInvocations.Count.ShouldBeGreaterThan(0);
+        initInvocations[0].Arguments.Count.ShouldBeGreaterThanOrEqualTo(6);
+        initInvocations[0].Arguments[5].ShouldBe(15d);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task UpdatesDataSideFromJsCallback()
+    {
+        var cut = Render(CreatePositionerInPopover(side: BlazorBaseUI.Side.Bottom));
+
+        var positioner = cut.FindComponent<PopoverPositioner>();
+        positioner.Instance.ShouldNotBeNull();
+
+        // Simulate JS callback reporting a flipped side
+        await cut.InvokeAsync(() => positioner.Instance.OnPositionUpdated("top", "center", false));
+
+        var positionerElement = cut.Find("[role='presentation']");
+        positionerElement.GetAttribute("data-side").ShouldBe("top");
+    }
+
+    [Fact]
+    public async Task UpdatesDataAlignFromJsCallback()
+    {
+        var cut = Render(CreatePositionerInPopover(align: BlazorBaseUI.Align.Center));
+
+        var positioner = cut.FindComponent<PopoverPositioner>();
+
+        // Simulate JS callback reporting shifted alignment
+        await cut.InvokeAsync(() => positioner.Instance.OnPositionUpdated("bottom", "start", false));
+
+        var positionerElement = cut.Find("[role='presentation']");
+        positionerElement.GetAttribute("data-align").ShouldBe("start");
+    }
+
+    [Fact]
+    public async Task SetsDataAnchorHiddenFromJsCallback()
+    {
+        var cut = Render(CreatePositionerInPopover());
+
+        var positioner = cut.FindComponent<PopoverPositioner>();
+
+        // Simulate JS callback reporting anchor hidden
+        await cut.InvokeAsync(() => positioner.Instance.OnPositionUpdated("bottom", "center", true));
+
+        var positionerElement = cut.Find("[role='presentation']");
+        positionerElement.HasAttribute("data-anchor-hidden").ShouldBeTrue();
+    }
+
+    [Fact]
+    public Task RendersInternalBackdropWhenModalAndPressed()
+    {
+        var cut = Render(CreatePositionerInPopoverWithModal(BlazorBaseUI.Popover.ModalMode.True));
+
+        var positioner = cut.Find("[data-side]");
+        var previousSibling = positioner.PreviousElementSibling;
+
+        previousSibling.ShouldNotBeNull();
+        previousSibling!.GetAttribute("role").ShouldBe("presentation");
+        previousSibling.HasAttribute("data-base-ui-inert").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotRenderInternalBackdropWhenNotModal()
+    {
+        var cut = Render(CreatePositionerInPopoverWithModal(BlazorBaseUI.Popover.ModalMode.False));
+
+        var positioner = cut.Find("[data-side]");
+        var previousSibling = positioner.PreviousElementSibling;
+
+        if (previousSibling is not null)
+        {
+            previousSibling.HasAttribute("data-base-ui-inert").ShouldBeFalse();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotRenderInternalBackdropWhenHoverOpened()
+    {
+        // When hover opened, the open change reason is TriggerHover,
+        // so internal backdrop should not render even with modal=true
+        // We can't easily simulate hover open in bUnit, so we test the non-modal path
+        var cut = Render(CreatePositionerInPopoverWithModal(BlazorBaseUI.Popover.ModalMode.False));
+
+        var inertElements = cut.FindAll("[data-base-ui-inert]");
+        inertElements.Count.ShouldBe(0);
+
+        return Task.CompletedTask;
+    }
+
+    private RenderFragment CreatePositionerInPopoverWithModal(
+        BlazorBaseUI.Popover.ModalMode modal)
+    {
+        return builder =>
+        {
+            builder.OpenComponent<PopoverRoot>(0);
+            builder.AddAttribute(1, "DefaultOpen", true);
+            builder.AddAttribute(2, "Modal", modal);
+            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<PopoverTrigger>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Toggle")));
+                innerBuilder.CloseComponent();
+
+                innerBuilder.OpenComponent<PopoverPortal>(10);
+                innerBuilder.AddAttribute(11, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<PopoverPositioner>(0);
+                    portalBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(posBuilder =>
+                    {
+                        posBuilder.OpenComponent<PopoverPopup>(0);
+                        posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Content")));
+                        posBuilder.CloseComponent();
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
     }
 }

@@ -469,6 +469,84 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithSideOffset(int value)
+    {
+        queryParams["sideOffset"] = value.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithAlignOffset(int value)
+    {
+        queryParams["alignOffset"] = value.ToString();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowFocusableContent(bool value)
+    {
+        queryParams["showFocusableContent"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithPopoverUseInitialFocus(bool value)
+    {
+        queryParams["useInitialFocus"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithPopoverUseFinalFocus(bool value)
+    {
+        queryParams["useFinalFocus"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithLayout(string layout)
+    {
+        queryParams["layout"] = layout;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithParentModal(bool value)
+    {
+        queryParams["parentModal"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithChildModal(bool value)
+    {
+        queryParams["childModal"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUseHandle(bool value)
+    {
+        queryParams["useHandle"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithUseViewport(bool value)
+    {
+        queryParams["useViewport"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowPayload(bool value)
+    {
+        queryParams["showPayload"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithShowProgrammaticButtons(bool value)
+    {
+        queryParams["showProgrammaticButtons"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithDefaultTriggerId(string triggerId)
+    {
+        queryParams["defaultTriggerId"] = triggerId;
+        return this;
+    }
+
     // Tooltip-specific parameters
     public TestPageUrlBuilder WithDelay(int delayMs)
     {

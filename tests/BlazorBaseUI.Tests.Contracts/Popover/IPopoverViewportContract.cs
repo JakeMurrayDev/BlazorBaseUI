@@ -8,4 +8,5 @@ public interface IPopoverViewportContract
     Task RendersChildrenInCurrentContainer();
     Task HasDataCurrentAttribute();
     Task RequiresContext();
+    Task SetsInstantTypeTriggerChangeOnTransitionEnd();
 }

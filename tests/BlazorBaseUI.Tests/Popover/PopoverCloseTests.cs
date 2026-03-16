@@ -17,10 +17,10 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
 
     private RenderFragment CreateCloseInPopover(
         bool defaultOpen = true,
-        RenderFragment<RenderProps<PopoverRootState>>? render = null,
+        RenderFragment<RenderProps<PopoverCloseState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        Func<PopoverRootState, string>? classValue = null,
-        Func<PopoverRootState, string>? styleValue = null)
+        Func<PopoverCloseState, string>? classValue = null,
+        Func<PopoverCloseState, string>? styleValue = null)
     {
         return builder =>
         {
@@ -85,7 +85,7 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
     [Fact]
     public Task RendersWithCustomRender()
     {
-        RenderFragment<RenderProps<PopoverRootState>> render = props => builder =>
+        RenderFragment<RenderProps<PopoverCloseState>> render = props => builder =>
         {
             builder.OpenElement(0, "div");
             builder.AddMultipleAttributes(1, props.Attributes);
@@ -198,7 +198,7 @@ public class PopoverCloseTests : BunitContext, IPopoverCloseContract
     public Task AppliesClassValueWithState()
     {
         var cut = Render(CreateCloseInPopover(
-            classValue: state => state.Open ? "open-class" : "closed-class"
+            classValue: _ => "open-class"
         ));
 
         var dialog = cut.Find("[role='dialog']");

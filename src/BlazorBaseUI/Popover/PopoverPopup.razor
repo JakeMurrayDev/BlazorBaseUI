@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@using BlazorBaseUI.Toolbar
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 
@@ -34,6 +35,9 @@
     [CascadingParameter]
     private PopoverPositionerContext? PositionerContext { get; set; }
 
+    [CascadingParameter]
+    private ToolbarRootContext? ToolbarContext { get; set; }
+
     /// <summary>
     /// Gets or sets a custom render template for the popup element.
     /// </summary>
@@ -41,18 +45,22 @@
     public RenderFragment<RenderProps<PopoverPopupState>>? Render { get; set; }
 
     /// <summary>
-    /// Gets or sets the element to focus when the popover is opened.
-    /// When <see langword="null"/>, focuses the first focusable element inside the popup.
+    /// Gets or sets the focus target when the popover is opened.
+    /// Accepts <see cref="FocusTarget.None"/>, <see cref="FocusTarget.Default"/>,
+    /// <see cref="FocusTarget.Element"/>, or <see cref="FocusTarget.Callback"/>.
+    /// An <see cref="ElementReference"/> is implicitly converted to <see cref="FocusTarget.Element"/>.
     /// </summary>
     [Parameter]
-    public ElementReference? InitialFocus { get; set; }
+    public FocusTarget? InitialFocus { get; set; }
 
     /// <summary>
-    /// Gets or sets the element to focus when the popover is closed.
-    /// When <see langword="null"/>, focuses the trigger element.
+    /// Gets or sets the focus target when the popover is closed.
+    /// Accepts <see cref="FocusTarget.None"/>, <see cref="FocusTarget.Default"/>,
+    /// <see cref="FocusTarget.Element"/>, or <see cref="FocusTarget.Callback"/>.
+    /// An <see cref="ElementReference"/> is implicitly converted to <see cref="FocusTarget.Element"/>.
     /// </summary>
     [Parameter]
-    public ElementReference? FinalFocus { get; set; }
+    public FocusTarget? FinalFocus { get; set; }
 
     /// <summary>
     /// Gets or sets a function that returns CSS class names based on the current state.
@@ -122,13 +130,7 @@
         var attrs = new Dictionary<string, object>();
 
         attrs["role"] = "dialog";
-        attrs["tabindex"] = "-1";
-
-        var modal = RootContext?.Modal ?? ModalMode.False;
-        if (modal is ModalMode.True or ModalMode.TrapFocus)
-        {
-            attrs["aria-modal"] = "true";
-        }
+        attrs["data-base-ui-focusable"] = true;
 
         var titleId = RootContext?.TitleId;
         if (!string.IsNullOrEmpty(titleId))
@@ -162,6 +164,11 @@
         attrs["data-starting-style"] = transitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = transitionStatus == TransitionStatus.Ending;
 
+        if (transitionStatus == TransitionStatus.Starting)
+        {
+            attrs["style"] = "transition-property: none";
+        }
+
         attrs["onkeydown"] = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
 
         componentAttributes = attrs;
@@ -183,27 +190,40 @@
                 ModalMode.TrapFocus => "trap-focus",
                 _ => "false"
             };
+            var (initialMode, initialElement) = ResolveFocusTarget(InitialFocus);
+            var (finalMode, finalElement) = ResolveFocusTarget(FinalFocus);
             await module.InvokeVoidAsync("initializePopup",
                 RootContext.RootId, Element.Value, dotNetRef, modalString,
-                InitialFocus, FinalFocus);
+                initialMode, initialElement, finalMode, finalElement,
+                ToolbarContext is not null);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
         }
     }
 
+    private (string? Mode, ElementReference? Element) ResolveFocusTarget(FocusTarget? target)
+    {
+        return target switch
+        {
+            null => (null, null),
+            FocusTarget.None => ("none", null),
+            FocusTarget.Default => ("default", null),
+            FocusTarget.Element e => ("element", e.Ref),
+            FocusTarget.Callback cb => ResolveFocusCallback(cb),
+            _ => (null, null)
+        };
+    }
+
+    private (string? Mode, ElementReference? Element) ResolveFocusCallback(FocusTarget.Callback cb)
+    {
+        var interactionType = RootContext?.InteractionType ?? "";
+        var result = cb.Fn(interactionType);
+        return result.HasValue ? ("element", result.Value) : ("none", null);
+    }
+
     private async Task HandleKeyDownAsync(KeyboardEventArgs e)
     {
-        if (RootContext is null)
-        {
-            return;
-        }
-
-        if (e.Key == "Escape")
-        {
-            await RootContext.SetOpenAsync(false, OpenChangeReason.EscapeKey, null, null);
-        }
-
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);
     }
 
@@ -215,7 +235,7 @@
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("disposePopup", Element.Value);
+                await module.InvokeVoidAsync("disposePopup", RootContext?.RootId, Element.Value);
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)

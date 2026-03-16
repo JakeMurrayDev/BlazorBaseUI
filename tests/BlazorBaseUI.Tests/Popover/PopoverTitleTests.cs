@@ -17,10 +17,10 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
 
     private RenderFragment CreateTitleInPopover(
         bool defaultOpen = true,
-        RenderFragment<RenderProps<PopoverRootState>>? render = null,
+        RenderFragment<RenderProps<PopoverTitleState>>? render = null,
         IReadOnlyDictionary<string, object>? additionalAttributes = null,
-        Func<PopoverRootState, string>? classValue = null,
-        Func<PopoverRootState, string>? styleValue = null)
+        Func<PopoverTitleState, string>? classValue = null,
+        Func<PopoverTitleState, string>? styleValue = null)
     {
         return builder =>
         {
@@ -81,7 +81,7 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
     [Fact]
     public Task RendersWithCustomRender()
     {
-        RenderFragment<RenderProps<PopoverRootState>> render = props => builder =>
+        RenderFragment<RenderProps<PopoverTitleState>> render = props => builder =>
         {
             builder.OpenElement(0, "h3");
             builder.AddMultipleAttributes(1, props.Attributes);
@@ -134,7 +134,7 @@ public class PopoverTitleTests : BunitContext, IPopoverTitleContract
     public Task AppliesClassValueWithState()
     {
         var cut = Render(CreateTitleInPopover(
-            classValue: state => state.Open ? "open-class" : "closed-class"
+            classValue: _ => "open-class"
         ));
 
         var title = cut.Find("h2");

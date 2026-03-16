@@ -33,6 +33,11 @@ internal sealed class PopoverRootContext
     public OpenChangeReason OpenChangeReason { get; set; }
 
     /// <summary>
+    /// Gets or sets the interaction type that opened the popover (e.g. "mouse", "touch", "pen", "keyboard").
+    /// </summary>
+    public string? InteractionType { get; set; }
+
+    /// <summary>
     /// Gets or sets the current transition status of the popover.
     /// </summary>
     public TransitionStatus TransitionStatus { get; set; }
@@ -90,12 +95,12 @@ internal sealed class PopoverRootContext
     /// <summary>
     /// Gets or sets a delegate that sets the title element ID.
     /// </summary>
-    public Action<string> SetTitleId { get; set; } = null!;
+    public Action<string?> SetTitleId { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets a delegate that sets the description element ID.
     /// </summary>
-    public Action<string> SetDescriptionId { get; set; } = null!;
+    public Action<string?> SetDescriptionId { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets a delegate that sets the trigger element reference.
@@ -123,7 +128,37 @@ internal sealed class PopoverRootContext
     public Action Close { get; set; } = null!;
 
     /// <summary>
+    /// Gets or sets a value indicating whether a viewport component is present.
+    /// </summary>
+    public bool HasViewport { get; set; }
+
+    /// <summary>
     /// Gets or sets a delegate that forces the popover to unmount immediately.
     /// </summary>
     public Action ForceUnmount { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets a delegate that sets the interaction type.
+    /// </summary>
+    public Action<string?> SetInteractionType { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets a delegate that sets whether a viewport is present.
+    /// </summary>
+    public Action<bool> SetHasViewport { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets a delegate that sets the instant type for transitions.
+    /// </summary>
+    public Action<InstantType> SetInstantType { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the ID of the previously active trigger, used for viewport transitions.
+    /// </summary>
+    public string? PreviousActiveTriggerId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text direction for RTL support (<c>"ltr"</c> or <c>"rtl"</c>).
+    /// </summary>
+    public string Direction { get; set; } = "ltr";
 }
