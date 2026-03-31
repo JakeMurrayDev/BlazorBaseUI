@@ -8,4 +8,5 @@ public interface IMenuRadioItemContract
     Task HasDataCheckedWhenSelected();
     Task SelectsOnClick();
     Task InheritsDisabledFromGroup();
+    Task RendersLabelAsDataAttribute();
 }

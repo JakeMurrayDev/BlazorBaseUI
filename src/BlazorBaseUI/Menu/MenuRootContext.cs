@@ -33,19 +33,19 @@ internal sealed class MenuRootContext
     public MenuParentType ParentType { get; set; }
 
     /// <summary>
-    /// Gets the visual orientation of the menu.
+    /// Gets or sets the visual orientation of the menu.
     /// </summary>
-    public MenuOrientation Orientation { get; init; }
+    public MenuOrientation Orientation { get; set; }
 
     /// <summary>
-    /// Gets whether moving the pointer over items highlights them.
+    /// Gets or sets whether moving the pointer over items highlights them.
     /// </summary>
-    public bool HighlightItemOnHover { get; init; }
+    public bool HighlightItemOnHover { get; set; }
 
     /// <summary>
     /// Gets or sets the reason the menu's open state last changed.
     /// </summary>
-    public OpenChangeReason OpenChangeReason { get; set; }
+    public MenuOpenChangeReason MenuOpenChangeReason { get; set; }
 
     /// <summary>
     /// Gets or sets the current transition animation status.
@@ -55,12 +55,12 @@ internal sealed class MenuRootContext
     /// <summary>
     /// Gets or sets the type of instant transition to apply.
     /// </summary>
-    public InstantType InstantType { get; set; }
+    public MenuInstantType MenuInstantType { get; set; }
 
     /// <summary>
     /// Gets or sets the index of the currently active (focused) item.
     /// </summary>
-    public int ActiveIndex { get; set; }
+    public int? ActiveIndex { get; set; }
 
     /// <summary>
     /// Gets the delegate that returns the current open state.
@@ -95,15 +95,86 @@ internal sealed class MenuRootContext
     /// <summary>
     /// Gets the delegate that sets the active item index.
     /// </summary>
-    public Action<int> SetActiveIndex { get; init; } = null!;
+    public Action<int?> SetActiveIndex { get; init; } = null!;
 
     /// <summary>
     /// Gets the delegate that sets the open state asynchronously with a reason and optional payload.
     /// </summary>
-    public Func<bool, OpenChangeReason, object?, Task> SetOpenAsync { get; init; } = null!;
+    public Func<bool, MenuOpenChangeReason, object?, Task> SetOpenAsync { get; init; } = null!;
 
     /// <summary>
     /// Gets the delegate that emits a close event with a reason and optional payload.
     /// </summary>
-    public Action<OpenChangeReason, object?> EmitClose { get; init; } = null!;
+    public Action<MenuOpenChangeReason, object?> EmitClose { get; init; } = null!;
+
+    /// <summary>
+    /// Gets the text direction of the menu.
+    /// </summary>
+    public string? Direction { get; init; }
+
+    /// <summary>
+    /// Gets or sets the ID of the active trigger element.
+    /// </summary>
+    public string? TriggerId { get; set; }
+
+    /// <summary>
+    /// Gets the delegate that returns the popup element reference.
+    /// </summary>
+    public Func<ElementReference?>? GetPopupElement { get; init; }
+
+    /// <summary>
+    /// Gets the unique identifier for the popup element.
+    /// </summary>
+    public string? PopupId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the element to return focus to when the menu closes.
+    /// </summary>
+    public FocusTarget? FinalFocus { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resolved final focus mode for JS interop.
+    /// </summary>
+    public string? FinalFocusMode { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resolved final focus element for JS interop.
+    /// </summary>
+    public ElementReference? FinalFocusElement { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether a viewport component is present.
+    /// </summary>
+    public bool HasViewport { get; set; }
+
+    /// <summary>
+    /// Gets the delegate that sets whether a viewport component is present.
+    /// </summary>
+    public Action<bool>? SetHasViewport { get; init; }
+
+    /// <summary>
+    /// Gets the delegate that sets the instant type for transitions.
+    /// </summary>
+    public Action<MenuInstantType>? SetMenuInstantType { get; init; }
+
+    /// <summary>
+    /// Gets or sets the interaction type that opened the menu (e.g., "mouse", "touch", "keyboard").
+    /// </summary>
+    public string? InteractionType { get; set; }
+
+    /// <summary>
+    /// Gets the delegate that sets the interaction type.
+    /// </summary>
+    public Action<string?>? SetInteractionType { get; init; }
+
+    /// <summary>
+    /// Gets or sets whether the menu popup is inside a toolbar.
+    /// When true, composite keys (arrows, Home, End) are prevented from propagating to the toolbar.
+    /// </summary>
+    public bool InsideToolbar { get; set; }
+
+    /// <summary>
+    /// Gets or sets the floating root context adapter for <see cref="FloatingFocusManager.FloatingFocusManager"/>.
+    /// </summary>
+    public IFloatingRootContext? FloatingRootContext { get; set; }
 }

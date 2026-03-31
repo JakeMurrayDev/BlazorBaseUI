@@ -13,13 +13,14 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
         object? defaultValue = null,
         bool groupDisabled = false,
         bool itemDisabled = false,
+        string? label = null,
         RenderFragment<RenderProps<MenuRadioItemState>>? render = null)
     {
         return builder =>
         {
             builder.OpenComponent<MenuRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", defaultOpen);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
@@ -46,6 +47,8 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
                             groupBuilder.AddAttribute(firstItemAttrIndex++, "Value", "option1");
                             if (itemDisabled)
                                 groupBuilder.AddAttribute(firstItemAttrIndex++, "Disabled", true);
+                            if (label is not null)
+                                groupBuilder.AddAttribute(firstItemAttrIndex++, "Label", label);
                             if (render is not null)
                                 groupBuilder.AddAttribute(firstItemAttrIndex++, "Render", render);
                             groupBuilder.AddAttribute(firstItemAttrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Option 1")));
@@ -72,7 +75,7 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
         var cut = Render(CreateRadioItemInRoot());
 
         var item = cut.Find("[role='menuitemradio']");
-        item.GetAttribute("role").ShouldBe("menuitemradio");
+        item.GetAttribute("role")!.ShouldBe("menuitemradio");
 
         return Task.CompletedTask;
     }
@@ -85,7 +88,7 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
             builder.OpenElement(0, "span");
             builder.AddMultipleAttributes(1, props.Attributes);
             if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback!);
             builder.AddContent(3, props.ChildContent);
             builder.CloseElement();
         };
@@ -104,8 +107,8 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
         var cut = Render(CreateRadioItemInRoot(defaultValue: "option1"));
 
         var items = cut.FindAll("[role='menuitemradio']");
-        items[0].GetAttribute("aria-checked").ShouldBe("true");
-        items[1].GetAttribute("aria-checked").ShouldBe("false");
+        items[0].GetAttribute("aria-checked")!.ShouldBe("true");
+        items[1].GetAttribute("aria-checked")!.ShouldBe("false");
 
         return Task.CompletedTask;
     }
@@ -131,7 +134,7 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
         {
             builder.OpenComponent<MenuRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", true);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
@@ -171,7 +174,7 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
         });
 
         var items = cut.FindAll("[role='menuitemradio']");
-        items[0].GetAttribute("aria-checked").ShouldBe("true");
+        items[0].GetAttribute("aria-checked")!.ShouldBe("true");
 
         items[1].Click();
 
@@ -188,7 +191,18 @@ public class MenuRadioItemTests : BunitContext, IMenuRadioItemContract
 
         var items = cut.FindAll("[role='menuitemradio']");
         items[0].HasAttribute("data-disabled").ShouldBeTrue();
-        items[0].GetAttribute("aria-disabled").ShouldBe("true");
+        items[0].GetAttribute("aria-disabled")!.ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RendersLabelAsDataAttribute()
+    {
+        var cut = Render(CreateRadioItemInRoot(label: "My Radio"));
+
+        var item = cut.Find("[role='menuitemradio']");
+        item.GetAttribute("data-label")!.ShouldBe("My Radio");
 
         return Task.CompletedTask;
     }

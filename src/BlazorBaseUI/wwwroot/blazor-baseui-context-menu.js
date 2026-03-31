@@ -22,6 +22,7 @@ export function initializeContextMenu(rootId, triggerElement, virtualAnchorEleme
     virtualAnchorElement,
     dotNetRef,
     isOpen: false,
+    backdropElement: null,
     touchPosition: null,
     longPressTimeoutId: null,
     allowMouseUpTimeoutId: null,
@@ -45,6 +46,10 @@ export function initializeContextMenu(rootId, triggerElement, virtualAnchorEleme
   root.documentContextMenuHandler = (e) => {
     const target = e.target;
     if (triggerElement.contains(target)) {
+      e.preventDefault();
+      return;
+    }
+    if (root.backdropElement && root.backdropElement.contains(target)) {
       e.preventDefault();
     }
   };
@@ -84,6 +89,18 @@ export function disposeContextMenu(rootId) {
   }
 
   state.roots.delete(rootId);
+}
+
+/**
+ * Stores a reference to the backdrop element for native context menu suppression.
+ * @param {string} rootId - Unique identifier for the context menu instance.
+ * @param {HTMLElement} element - The backdrop DOM element.
+ */
+export function setBackdropElement(rootId, element) {
+  const root = state.roots.get(rootId);
+  if (root) {
+    root.backdropElement = element;
+  }
 }
 
 function positionVirtualAnchor(root, x, y, isTouchEvent) {
@@ -140,6 +157,35 @@ function setupMouseUpListener(rootId) {
     }
     root.allowMouseUp = false;
 
+    // Check if mouseup is on a menu item — activate it (click-drag-release gesture)
+    const menuItem = mouseEvent.target.closest(
+      '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
+    );
+
+    if (menuItem) {
+      const initialPoint = root.initialCursorPoint;
+      root.initialCursorPoint = null;
+
+      // Don't activate if cursor barely moved from initial right-click position (1px threshold)
+      if (initialPoint) {
+        const dx = mouseEvent.clientX - initialPoint.x;
+        const dy = mouseEvent.clientY - initialPoint.y;
+        if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) return;
+      }
+
+      // On non-macOS, don't activate on right-button mouseup
+      const isMac = /mac/i.test(navigator.userAgent);
+      if (!isMac && mouseEvent.button === 2) return;
+
+      // Don't activate submenu triggers or disabled items
+      if (menuItem.hasAttribute('aria-haspopup')) return;
+      if (menuItem.getAttribute('aria-disabled') === 'true') return;
+
+      menuItem.click();
+      return;
+    }
+
+    // No menu item under cursor — proceed with existing cancel behavior
     root.dotNetRef.invokeMethodAsync('OnCancelOpen');
   };
 

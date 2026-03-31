@@ -9,10 +9,13 @@ public interface IMenuTriggerContract
     Task HasAriaExpandedFalseWhenClosed();
     Task HasAriaExpandedTrueWhenOpen();
     Task HasDataPopupOpenWhenOpen();
-    Task HasDataDisabledWhenDisabled();
+    Task HasDisabledWhenDisabled();
     Task AppliesClassValueWithState();
     Task AppliesStyleValueWithState();
-    Task ToggleMenuOnClick();
+    Task ToggleMenuOnPointerDown();
     Task DoesNotToggleWhenDisabled();
     Task RequiresContext();
+    Task CloseDelayDefaultsToZero();
+    Task HandleBasedTriggerRegistersOnRender();
+    Task HandleBasedTriggerUnregistersOnDispose();
 }

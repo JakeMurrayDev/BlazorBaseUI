@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Menu;
 /// <summary>
 /// Specifies the modal behavior of the menu when open.
 /// </summary>
-public enum ModalMode
+public enum MenuModalMode
 {
     /// <summary>The menu is not modal; user interaction with the rest of the document is allowed.</summary>
     False,
@@ -15,7 +15,7 @@ public enum ModalMode
 /// <summary>
 /// Specifies the type of instant transition to apply.
 /// </summary>
-public enum InstantType
+public enum MenuInstantType
 {
     /// <summary>No instant transition.</summary>
     None,
@@ -27,13 +27,16 @@ public enum InstantType
     Dismiss,
 
     /// <summary>Instant transition triggered by a group interaction.</summary>
-    Group
+    Group,
+
+    /// <summary>Instant transition triggered by switching between detached triggers.</summary>
+    TriggerChange
 }
 
 /// <summary>
 /// Specifies the reason the menu's open state changed.
 /// </summary>
-public enum OpenChangeReason
+public enum MenuOpenChangeReason
 {
     /// <summary>The trigger was hovered.</summary>
     TriggerHover,
@@ -103,4 +106,22 @@ public enum MenuOrientation
 
     /// <summary>Horizontal orientation; roving focus uses left/right arrow keys.</summary>
     Horizontal
+}
+
+/// <summary>
+/// Specifies the reason the radio group's selected value changed.
+/// </summary>
+public enum MenuRadioGroupChangeReason
+{
+    /// <summary>A radio item was pressed.</summary>
+    ItemPress
+}
+
+/// <summary>
+/// Specifies the reason the checkbox item's checked state changed.
+/// </summary>
+public enum MenuCheckboxItemChangeReason
+{
+    /// <summary>The checkbox item was pressed.</summary>
+    ItemPress
 }

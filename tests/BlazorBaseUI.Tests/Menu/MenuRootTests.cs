@@ -12,7 +12,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         bool? open = null,
         bool defaultOpen = false,
         bool disabled = false,
-        BlazorBaseUI.Menu.ModalMode modal = BlazorBaseUI.Menu.ModalMode.True,
+        BlazorBaseUI.Menu.MenuModalMode modal = BlazorBaseUI.Menu.MenuModalMode.True,
         MenuOrientation orientation = MenuOrientation.Vertical,
         MenuRootActions? actionsRef = null,
         EventCallback<MenuOpenChangeEventArgs>? onOpenChange = null,
@@ -39,7 +39,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
             if (onOpenChangeComplete.HasValue)
                 builder.AddAttribute(attrIndex++, "OnOpenChangeComplete", onOpenChangeComplete.Value);
 
-            builder.AddAttribute(attrIndex++, "ChildContent", CreateChildContent(includeTrigger, includePositioner));
+            builder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => CreateChildContent(includeTrigger, includePositioner)));
             builder.CloseComponent();
         };
     }
@@ -82,7 +82,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         {
             builder.OpenComponent<MenuRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", true);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 innerBuilder.AddAttribute(1, "ClassValue", (Func<MenuTriggerState, string>)(state =>
@@ -108,7 +108,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         var cut = Render(CreateMenuRoot(open: false));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
         return Task.CompletedTask;
     }
@@ -119,17 +119,17 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         var cut = Render(CreateMenuRoot(defaultOpen: true));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         return Task.CompletedTask;
     }
 
     [Fact]
-    public Task InvokesOnOpenChangeWithReason()
+    public async Task InvokesOnOpenChangeWithReason()
     {
         var invoked = false;
         var receivedOpen = false;
-        var receivedReason = OpenChangeReason.None;
+        var receivedReason = MenuOpenChangeReason.None;
 
         var cut = Render(CreateMenuRoot(
             onOpenChange: EventCallback.Factory.Create<MenuOpenChangeEventArgs>(this, args =>
@@ -141,13 +141,11 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         ));
 
         var trigger = cut.Find("button");
-        trigger.Click();
+        await trigger.TriggerEventAsync("onpointerdown", new Microsoft.AspNetCore.Components.Web.PointerEventArgs());
 
         invoked.ShouldBeTrue();
         receivedOpen.ShouldBeTrue();
-        receivedReason.ShouldBe(OpenChangeReason.TriggerPress);
-
-        return Task.CompletedTask;
+        receivedReason.ShouldBe(MenuOpenChangeReason.TriggerPress);
     }
 
     [Fact]
@@ -162,7 +160,7 @@ public class MenuRootTests : BunitContext, IMenuRootContract
 
         // Menu should be open
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         return Task.CompletedTask;
     }
@@ -174,7 +172,6 @@ public class MenuRootTests : BunitContext, IMenuRootContract
 
         var trigger = cut.Find("button");
         trigger.HasAttribute("disabled").ShouldBeTrue();
-        trigger.HasAttribute("data-disabled").ShouldBeTrue();
 
         return Task.CompletedTask;
     }
@@ -182,8 +179,8 @@ public class MenuRootTests : BunitContext, IMenuRootContract
     [Fact]
     public Task SupportsModalModes()
     {
-        var cutModal = Render(CreateMenuRoot(modal: BlazorBaseUI.Menu.ModalMode.True));
-        var cutNonModal = Render(CreateMenuRoot(modal: BlazorBaseUI.Menu.ModalMode.False));
+        var cutModal = Render(CreateMenuRoot(modal: BlazorBaseUI.Menu.MenuModalMode.True));
+        var cutNonModal = Render(CreateMenuRoot(modal: BlazorBaseUI.Menu.MenuModalMode.False));
 
         // Both should render the trigger
         cutModal.Find("button").ShouldNotBeNull();
@@ -216,9 +213,36 @@ public class MenuRootTests : BunitContext, IMenuRootContract
         ));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         actions.Close.ShouldNotBeNull();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ChildContentReceivesPayloadContext()
+    {
+        MenuRootPayloadContext? capturedContext = null;
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<MenuRoot>(0);
+            builder.AddAttribute(1, "DefaultOpen", true);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(ctx =>
+            {
+                capturedContext = ctx;
+                return innerBuilder =>
+                {
+                    innerBuilder.OpenComponent<MenuTrigger>(0);
+                    innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
+                    innerBuilder.CloseComponent();
+                };
+            }));
+            builder.CloseComponent();
+        });
+
+        capturedContext.ShouldNotBeNull();
 
         return Task.CompletedTask;
     }

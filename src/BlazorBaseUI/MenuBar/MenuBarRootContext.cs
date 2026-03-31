@@ -40,7 +40,7 @@ internal sealed class MenuBarRootContext
     /// <summary>
     /// Gets or sets the callback to notify the menubar that a submenu has opened or closed.
     /// </summary>
-    public Action<bool> SetHasSubmenuOpen { get; set; } = null!;
+    public Action<bool, string?> SetHasSubmenuOpen { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the function that returns whether any submenu is currently open.

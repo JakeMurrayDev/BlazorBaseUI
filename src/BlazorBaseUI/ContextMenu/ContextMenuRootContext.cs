@@ -16,4 +16,10 @@ internal sealed class ContextMenuRootContext
     /// Gets the delegate that returns the virtual anchor element reference used for positioning.
     /// </summary>
     public Func<ElementReference?> GetVirtualAnchorElement { get; init; } = null!;
+
+    /// <summary>
+    /// Gets or sets the callback to register the backdrop element with the context menu JS,
+    /// enabling native context menu suppression when right-clicking the backdrop.
+    /// </summary>
+    public Func<ElementReference, Task>? RegisterBackdropElement { get; set; }
 }

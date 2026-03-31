@@ -32,6 +32,7 @@
     private bool previousModal;
     private bool hasSubmenuOpen;
     private int openSubmenuCount;
+    private string? openMethod;
     private MenuBarRootState state;
     private MenuBarRootContext context = null!;
     private RenderElement<MenuBarRootState>? renderElementReference;
@@ -215,6 +216,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
     }
@@ -227,7 +229,8 @@
         attrs["role"] = "menubar";
         attrs["aria-orientation"] = orientationString!;
         attrs["data-orientation"] = orientationString!;
-        attrs["data-has-submenu-open"] = hasSubmenuOpen ? "true" : "false";
+        attrs["data-has-submenu-open"] = hasSubmenuOpen;
+        attrs["data-modal"] = Modal;
         attrs["data-disabled"] = Disabled;
 
         componentAttributes = attrs;
@@ -277,17 +280,22 @@
         });
     }
 
-    private void SetHasSubmenuOpen(bool value)
+    private void SetHasSubmenuOpen(bool value, string? interactionType)
     {
         // Use counter-based tracking to handle multiple menus correctly.
         // This prevents scroll lock jank when hovering between menu items:
-        // - Menu A opens: count 0 → 1, hasSubmenuOpen becomes true, lock
-        // - Menu B opens: count 1 → 2, hasSubmenuOpen stays true, no change
-        // - Menu A closes: count 2 → 1, hasSubmenuOpen stays true, no change (no unlock!)
-        // - Menu B closes: count 1 → 0, hasSubmenuOpen becomes false, unlock
+        // - Menu A opens: count 0 â 1, hasSubmenuOpen becomes true, lock
+        // - Menu B opens: count 1 â 2, hasSubmenuOpen stays true, no change
+        // - Menu A closes: count 2 â 1, hasSubmenuOpen stays true, no change (no unlock!)
+        // - Menu B closes: count 1 â 0, hasSubmenuOpen becomes false, unlock
         if (value)
         {
             openSubmenuCount++;
+
+            if (openSubmenuCount == 1 && interactionType is not null)
+            {
+                openMethod = interactionType;
+            }
         }
         else
         {
@@ -295,6 +303,12 @@
         }
 
         var newHasSubmenuOpen = openSubmenuCount > 0;
+
+        if (!newHasSubmenuOpen)
+        {
+            openMethod = null;
+        }
+
         if (hasSubmenuOpen == newHasSubmenuOpen)
         {
             return;
@@ -346,6 +360,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -363,6 +378,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -376,11 +392,12 @@
         try
         {
             var module = await moduleTask.Value;
-            var shouldLock = Modal && hasSubmenuOpen;
+            var shouldLock = Modal && hasSubmenuOpen && openMethod != "touch";
             await module.InvokeVoidAsync("updateScrollLock", Element.Value, shouldLock);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -398,6 +415,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -415,6 +433,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 }

@@ -7,6 +7,12 @@ namespace BlazorBaseUI.Menu;
 public partial class MenuRoot;
 
 /// <summary>
+/// Provides the current payload value to the menu's child content.
+/// </summary>
+/// <param name="Payload">The payload from the active trigger, or <see langword="null"/> if no payload is set.</param>
+public readonly record struct MenuRootPayloadContext(object? Payload);
+
+/// <summary>
 /// Provides imperative actions for controlling the menu programmatically.
 /// </summary>
 public sealed class MenuRootActions

@@ -139,6 +139,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
 
@@ -156,7 +157,7 @@
             return;
         }
 
-        await RootContext.SetOpenAsync(true, OpenChangeReason.TriggerPress, null);
+        await RootContext.SetOpenAsync(true, MenuOpenChangeReason.TriggerPress, null);
 
         state = new ContextMenuTriggerState(RootContext.GetOpen());
         BuildComponentAttributes();
@@ -174,7 +175,7 @@
             return;
         }
 
-        await RootContext.SetOpenAsync(false, OpenChangeReason.CancelOpen, null);
+        await RootContext.SetOpenAsync(false, MenuOpenChangeReason.CancelOpen, null);
 
         state = new ContextMenuTriggerState(RootContext.GetOpen());
         BuildComponentAttributes();
@@ -228,9 +229,23 @@
                 Element.Value,
                 virtualAnchor.Value,
                 dotNetRef);
+
+            ContextMenuContext.RegisterBackdropElement = async (element) =>
+            {
+                try
+                {
+                    var mod = await ModuleTask.Value;
+                    await mod.InvokeVoidAsync("setBackdropElement", ContextMenuContext.RootId, element);
+                }
+                catch (Exception ex2) when (ex2 is JSDisconnectedException or TaskCanceledException)
+                {
+                    _ = ex2; // Expected during circuit disconnect - safe to ignore.
+                }
+            };
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 }

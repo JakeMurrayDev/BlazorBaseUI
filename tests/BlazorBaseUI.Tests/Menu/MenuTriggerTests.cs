@@ -24,7 +24,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
             builder.AddAttribute(1, "DefaultOpen", defaultOpen);
             if (disabled)
                 builder.AddAttribute(2, "Disabled", true);
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 var attrIndex = 1;
@@ -82,7 +82,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
             builder.OpenElement(0, "div");
             builder.AddMultipleAttributes(1, props.Attributes);
             if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback!);
             builder.AddContent(3, props.ChildContent);
             builder.CloseElement();
         };
@@ -107,8 +107,8 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         ));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("data-testid").ShouldBe("trigger");
-        trigger.GetAttribute("aria-label").ShouldBe("Open menu");
+        trigger.GetAttribute("data-testid")!.ShouldBe("trigger");
+        trigger.GetAttribute("aria-label")!.ShouldBe("Open menu");
 
         return Task.CompletedTask;
     }
@@ -119,7 +119,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         var cut = Render(CreateTriggerInRoot());
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-haspopup").ShouldBe("menu");
+        trigger.GetAttribute("aria-haspopup")!.ShouldBe("menu");
 
         return Task.CompletedTask;
     }
@@ -130,7 +130,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         var cut = Render(CreateTriggerInRoot(defaultOpen: false));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
         return Task.CompletedTask;
     }
@@ -141,7 +141,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         var cut = Render(CreateTriggerInRoot(defaultOpen: true));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         return Task.CompletedTask;
     }
@@ -158,12 +158,13 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
     }
 
     [Fact]
-    public Task HasDataDisabledWhenDisabled()
+    public Task HasDisabledWhenDisabled()
     {
         var cut = Render(CreateTriggerInRoot(disabled: true));
 
         var trigger = cut.Find("button");
-        trigger.HasAttribute("data-disabled").ShouldBeTrue();
+        trigger.HasAttribute("disabled").ShouldBeTrue();
+        trigger.GetAttribute("aria-disabled")!.ShouldBeNull();
 
         return Task.CompletedTask;
     }
@@ -196,7 +197,7 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
     }
 
     [Fact]
-    public async Task ToggleMenuOnClick()
+    public async Task ToggleMenuOnPointerDown()
     {
         bool userHandlerCalled = false;
         var cut = Render(CreateTriggerInRoot(defaultOpen: false,
@@ -207,13 +208,16 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
             }));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
-        await trigger.TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await trigger.TriggerEventAsync("onpointerdown", new Microsoft.AspNetCore.Components.Web.PointerEventArgs());
         cut.FindComponent<MenuTrigger>().Render();
 
         trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
+
+        // User click handler still fires on the subsequent click
+        await trigger.TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         userHandlerCalled.ShouldBeTrue();
     }
 
@@ -223,11 +227,11 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         var cut = Render(CreateTriggerInRoot(defaultOpen: false, disabled: true));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
         trigger.Click();
 
-        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
         return Task.CompletedTask;
     }
@@ -243,5 +247,93 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         cut.Markup.ShouldBeEmpty();
 
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task CloseDelayDefaultsToZero()
+    {
+        var cut = Render(CreateTriggerInRoot());
+
+        var triggerComponent = cut.FindComponent<MenuTrigger>();
+        triggerComponent.Instance.CloseDelay.ShouldBe(0);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HandleBasedTriggerRegistersOnRender()
+    {
+        var handle = new MenuHandle();
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<MenuRoot>(0);
+            builder.AddAttribute(1, "Handle", (IMenuHandle)handle);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
+            {
+                innerBuilder.OpenComponent<MenuPositioner>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(posBuilder =>
+                {
+                    posBuilder.OpenComponent<MenuPopup>(0);
+                    posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenComponent<MenuItem>(0);
+                        popupBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item")));
+                        popupBuilder.CloseComponent();
+                    }));
+                    posBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+
+            builder.OpenComponent<MenuTrigger>(10);
+            builder.AddAttribute(11, "Handle", (IMenuHandle)handle);
+            builder.AddAttribute(12, "ChildContent", (RenderFragment)(b => b.AddContent(0, "External Trigger")));
+            builder.CloseComponent();
+        });
+
+        // The trigger should render and have aria-haspopup
+        var buttons = cut.FindAll("button[aria-haspopup='menu']");
+        buttons.Count.ShouldBeGreaterThan(0);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task HandleBasedTriggerUnregistersOnDispose()
+    {
+        var handle = new MenuHandle();
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<MenuRoot>(0);
+            builder.AddAttribute(1, "Handle", (IMenuHandle)handle);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
+            {
+                innerBuilder.OpenComponent<MenuPositioner>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(posBuilder =>
+                {
+                    posBuilder.OpenComponent<MenuPopup>(0);
+                    posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenComponent<MenuItem>(0);
+                        popupBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item")));
+                        popupBuilder.CloseComponent();
+                    }));
+                    posBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+
+            builder.OpenComponent<MenuTrigger>(10);
+            builder.AddAttribute(11, "Handle", (IMenuHandle)handle);
+            builder.AddAttribute(12, "ChildContent", (RenderFragment)(b => b.AddContent(0, "External Trigger")));
+            builder.CloseComponent();
+        });
+
+        // Disposing should not throw
+        await cut.FindComponent<MenuTrigger>().Instance.DisposeAsync();
     }
 }

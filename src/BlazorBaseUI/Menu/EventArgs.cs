@@ -8,7 +8,7 @@ public sealed class MenuOpenChangeEventArgs : EventArgs
     /// <summary>
     /// Initializes a new instance of the <see cref="MenuOpenChangeEventArgs"/> class.
     /// </summary>
-    public MenuOpenChangeEventArgs(bool open, OpenChangeReason reason, object? payload = null)
+    public MenuOpenChangeEventArgs(bool open, MenuOpenChangeReason reason, object? payload = null)
     {
         Open = open;
         Reason = reason;
@@ -23,7 +23,7 @@ public sealed class MenuOpenChangeEventArgs : EventArgs
     /// <summary>
     /// Gets the reason the menu's open state changed.
     /// </summary>
-    public OpenChangeReason Reason { get; }
+    public MenuOpenChangeReason Reason { get; }
 
     /// <summary>
     /// Gets the optional payload associated with the state change.
@@ -36,9 +36,29 @@ public sealed class MenuOpenChangeEventArgs : EventArgs
     public bool IsCanceled { get; private set; }
 
     /// <summary>
+    /// Gets whether unmounting on close should be prevented.
+    /// </summary>
+    public bool PreventUnmount { get; private set; }
+
+    /// <summary>
+    /// Gets whether the event should propagate to parent menus.
+    /// </summary>
+    public bool IsPropagationAllowed { get; private set; }
+
+    /// <summary>
     /// Cancels the open state change, preventing the menu from opening or closing.
     /// </summary>
     public void Cancel() => IsCanceled = true;
+
+    /// <summary>
+    /// Allows the open state change event to propagate to parent menus in nested menu scenarios.
+    /// </summary>
+    public void AllowPropagation() => IsPropagationAllowed = true;
+
+    /// <summary>
+    /// Prevents the menu from unmounting when closing, keeping it mounted in the DOM.
+    /// </summary>
+    public void PreventUnmountOnClose() => PreventUnmount = true;
 }
 
 /// <summary>
@@ -49,15 +69,21 @@ public sealed class MenuRadioGroupChangeEventArgs : EventArgs
     /// <summary>
     /// Initializes a new instance of the <see cref="MenuRadioGroupChangeEventArgs"/> class.
     /// </summary>
-    public MenuRadioGroupChangeEventArgs(object? value)
+    public MenuRadioGroupChangeEventArgs(object? value, MenuRadioGroupChangeReason reason)
     {
         Value = value;
+        Reason = reason;
     }
 
     /// <summary>
     /// Gets the newly selected value.
     /// </summary>
     public object? Value { get; }
+
+    /// <summary>
+    /// Gets the reason the selected value changed.
+    /// </summary>
+    public MenuRadioGroupChangeReason Reason { get; }
 
     /// <summary>
     /// Gets whether the value change has been canceled.
@@ -81,15 +107,21 @@ public sealed class MenuCheckboxItemChangeEventArgs : EventArgs
     /// <summary>
     /// Initializes a new instance of the <see cref="MenuCheckboxItemChangeEventArgs"/> class.
     /// </summary>
-    public MenuCheckboxItemChangeEventArgs(bool @checked)
+    public MenuCheckboxItemChangeEventArgs(bool @checked, MenuCheckboxItemChangeReason reason)
     {
         Checked = @checked;
+        Reason = reason;
     }
 
     /// <summary>
     /// Gets the new checked state.
     /// </summary>
     public bool Checked { get; }
+
+    /// <summary>
+    /// Gets the reason the checked state changed.
+    /// </summary>
+    public MenuCheckboxItemChangeReason Reason { get; }
 
     /// <summary>
     /// Gets whether the checked state change has been canceled.

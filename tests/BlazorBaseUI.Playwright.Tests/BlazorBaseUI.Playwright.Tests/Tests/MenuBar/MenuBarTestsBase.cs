@@ -50,14 +50,14 @@ public abstract class MenuBarTestsBase : TestBase
 
         var root = GetByTestId("menubar-root");
 
-        // Initially no submenu is open - attribute should be "false"
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "false");
+        // Initially no submenu is open - attribute should be absent
+        await Assertions.Expect(root).Not.ToHaveAttributeAsync("data-has-submenu-open", "");
 
         // Open a menu
         await OpenMenu1Async();
 
-        // data-has-submenu-open should be "true"
-        await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "true");
+        // data-has-submenu-open should be present as standalone attribute
+        await Assertions.Expect(root).ToHaveAttributeAsync("data-has-submenu-open", "");
     }
 
     [Fact]

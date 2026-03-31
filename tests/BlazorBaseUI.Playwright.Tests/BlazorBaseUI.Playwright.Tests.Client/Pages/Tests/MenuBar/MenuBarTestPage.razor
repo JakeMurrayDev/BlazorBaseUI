@@ -14,7 +14,7 @@
         data-testid="menubar-root">
 
         @* First Menu *@
-        <MenuRoot
+        <MenuRoot Context="_"
             @bind-Open="menu1Open"
             OnOpenChange="args => HandleMenuOpenChange(1, args)"
             >
@@ -39,7 +39,7 @@
         </MenuRoot>
 
         @* Second Menu *@
-        <MenuRoot
+        <MenuRoot Context="_"
             @bind-Open="menu2Open"
             OnOpenChange="args => HandleMenuOpenChange(2, args)"
             >
@@ -67,7 +67,7 @@
         </MenuRoot>
 
         @* Third Menu *@
-        <MenuRoot
+        <MenuRoot Context="_"
             @bind-Open="menu3Open"
             OnOpenChange="args => HandleMenuOpenChange(3, args)"
             >
@@ -91,7 +91,7 @@
         @if (ShowSubmenu)
         {
             @* Fourth Menu with Submenu *@
-            <MenuRoot
+            <MenuRoot Context="_"
                 @bind-Open="menu4Open"
                 OnOpenChange="args => HandleMenuOpenChange(4, args)"
                 >

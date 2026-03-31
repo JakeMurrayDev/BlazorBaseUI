@@ -19,7 +19,7 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         {
             builder.OpenComponent<MenuRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", defaultOpen);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
@@ -71,7 +71,7 @@ public class MenuItemTests : BunitContext, IMenuItemContract
             builder.OpenElement(0, "span");
             builder.AddMultipleAttributes(1, props.Attributes);
             if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback!);
             builder.AddContent(3, props.ChildContent);
             builder.CloseElement();
         };
@@ -85,12 +85,104 @@ public class MenuItemTests : BunitContext, IMenuItemContract
     }
 
     [Fact]
+    public Task ForwardsAdditionalAttributes()
+    {
+        var cut = Render(CreateMenuItemInRoot(
+            additionalAttributes: new Dictionary<string, object>
+            {
+                { "data-testid", "my-item" },
+                { "aria-label", "Custom label" }
+            }
+        ));
+
+        var item = cut.Find("[role='menuitem']");
+        item.GetAttribute("data-testid")!.ShouldBe("my-item");
+        item.GetAttribute("aria-label")!.ShouldBe("Custom label");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesClassValue()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<MenuRoot>(0);
+            builder.AddAttribute(1, "DefaultOpen", true);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
+            {
+                innerBuilder.OpenComponent<MenuTrigger>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
+                innerBuilder.CloseComponent();
+
+                innerBuilder.OpenComponent<MenuPositioner>(2);
+                innerBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(posBuilder =>
+                {
+                    posBuilder.OpenComponent<MenuPopup>(0);
+                    posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenComponent<MenuItem>(0);
+                        popupBuilder.AddAttribute(1, "ClassValue", (Func<MenuItemState, string?>)(s => s.Disabled ? "disabled-class" : "enabled-class"));
+                        popupBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item")));
+                        popupBuilder.CloseComponent();
+                    }));
+                    posBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var item = cut.Find("[role='menuitem']");
+        item.ClassList.ShouldContain("enabled-class");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task AppliesStyleValue()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<MenuRoot>(0);
+            builder.AddAttribute(1, "DefaultOpen", true);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
+            {
+                innerBuilder.OpenComponent<MenuTrigger>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
+                innerBuilder.CloseComponent();
+
+                innerBuilder.OpenComponent<MenuPositioner>(2);
+                innerBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(posBuilder =>
+                {
+                    posBuilder.OpenComponent<MenuPopup>(0);
+                    posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenComponent<MenuItem>(0);
+                        popupBuilder.AddAttribute(1, "StyleValue", (Func<MenuItemState, string?>)(_ => "color: red"));
+                        popupBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item")));
+                        popupBuilder.CloseComponent();
+                    }));
+                    posBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var item = cut.Find("[role='menuitem']");
+        item.GetAttribute("style")!.ShouldContain("color: red");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task HasRoleMenuitem()
     {
         var cut = Render(CreateMenuItemInRoot());
 
         var item = cut.Find("[role='menuitem']");
-        item.GetAttribute("role").ShouldBe("menuitem");
+        item.GetAttribute("role")!.ShouldBe("menuitem");
 
         return Task.CompletedTask;
     }
@@ -101,7 +193,7 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         var cut = Render(CreateMenuItemInRoot());
 
         var item = cut.Find("[role='menuitem']");
-        item.GetAttribute("tabindex").ShouldBe("-1");
+        item.GetAttribute("tabindex")!.ShouldBe("-1");
 
         return Task.CompletedTask;
     }
@@ -123,7 +215,7 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         var cut = Render(CreateMenuItemInRoot(itemDisabled: true));
 
         var item = cut.Find("[role='menuitem']");
-        item.GetAttribute("aria-disabled").ShouldBe("true");
+        item.GetAttribute("aria-disabled")!.ShouldBe("true");
 
         return Task.CompletedTask;
     }
@@ -159,12 +251,12 @@ public class MenuItemTests : BunitContext, IMenuItemContract
             builder.AddAttribute(1, "DefaultOpen", true);
             builder.AddAttribute(2, "OnOpenChange", EventCallback.Factory.Create<MenuOpenChangeEventArgs>(this, args =>
             {
-                if (!args.Open && args.Reason == OpenChangeReason.ItemPress)
+                if (!args.Open && args.Reason == MenuOpenChangeReason.ItemPress)
                 {
                     closeEmitted = true;
                 }
             }));
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
@@ -203,13 +295,13 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         var cut = Render(CreateMenuItemInRoot(closeOnClick: false));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         var item = cut.Find("[role='menuitem']");
         item.Click();
 
         // Menu should remain open
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         return Task.CompletedTask;
     }
@@ -228,16 +320,68 @@ public class MenuItemTests : BunitContext, IMenuItemContract
         ));
 
         var trigger = cut.Find("button");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         var item = cut.Find("[role='menuitem']");
         item.Click();
 
         // Menu should remain open (no close action for disabled items)
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
         // User onclick should not be invoked when item logic is blocked
         // Note: The EventUtilities.InvokeOnClickAsync is called after the disabled check returns
         clicked.ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasDataHighlightedOnMouseEnter()
+    {
+        var cut = Render(CreateMenuItemInRoot());
+
+        var item = cut.Find("[role='menuitem']");
+        item.HasAttribute("data-highlighted").ShouldBeFalse();
+
+        item.MouseEnter();
+
+        item.HasAttribute("data-highlighted").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SetsLabelAsDataAttribute()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<MenuRoot>(0);
+            builder.AddAttribute(1, "DefaultOpen", true);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
+            {
+                innerBuilder.OpenComponent<MenuTrigger>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
+                innerBuilder.CloseComponent();
+
+                innerBuilder.OpenComponent<MenuPositioner>(2);
+                innerBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(posBuilder =>
+                {
+                    posBuilder.OpenComponent<MenuPopup>(0);
+                    posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenComponent<MenuItem>(0);
+                        popupBuilder.AddAttribute(1, "Label", "custom-label");
+                        popupBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Item")));
+                        popupBuilder.CloseComponent();
+                    }));
+                    posBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var item = cut.Find("[role='menuitem']");
+        item.GetAttribute("data-label")!.ShouldBe("custom-label");
 
         return Task.CompletedTask;
     }

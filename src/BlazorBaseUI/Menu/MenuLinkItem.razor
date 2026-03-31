@@ -1,0 +1,157 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<RenderElement TState="MenuLinkItemState"
+               Tag="a"
+               State="state"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private bool highlighted;
+    private bool hasMouseMoveAttribute;
+    private string? defaultId;
+    private MenuLinkItemState state;
+    private RenderElement<MenuLinkItemState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    [CascadingParameter]
+    private MenuRootContext? RootContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text label to use when the item is matched during keyboard text navigation.
+    /// </summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>
+    /// Determines whether the menu closes when this link item is clicked.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool CloseOnClick { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id attribute of the menu link item element.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<MenuLinkItemState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuLinkItemState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<MenuLinkItemState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        hasMouseMoveAttribute = AttributeUtilities.HasAttribute(AdditionalAttributes, "onmousemove");
+        state = new MenuLinkItemState(highlighted);
+        BuildComponentAttributes();
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        attrs["role"] = "menuitem";
+
+        attrs["id"] = Id ?? (defaultId ??= Guid.NewGuid().ToIdString());
+
+        attrs["tabindex"] = highlighted ? 0 : -1;
+
+        attrs["data-highlighted"] = highlighted;
+
+        if (!string.IsNullOrEmpty(Label))
+        {
+            attrs["data-label"] = Label;
+        }
+
+        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+        attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
+        attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+        attrs["onmousemove"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync);
+
+        componentAttributes = attrs;
+    }
+
+    private async Task HandleClickAsync(MouseEventArgs e)
+    {
+        if (CloseOnClick && RootContext is not null)
+        {
+            RootContext.EmitClose(MenuOpenChangeReason.ItemPress, null);
+        }
+
+        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseEnterAsync(MouseEventArgs e)
+    {
+        highlighted = true;
+        state = state with { Highlighted = true };
+        BuildComponentAttributes();
+        StateHasChanged();
+
+        await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
+    }
+
+    private async Task HandleMouseLeaveAsync(MouseEventArgs e)
+    {
+        highlighted = false;
+        state = state with { Highlighted = false };
+        BuildComponentAttributes();
+        StateHasChanged();
+
+        await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+    }
+
+    private Task HandleMouseMoveAsync(MouseEventArgs e)
+    {
+        if (!highlighted)
+        {
+            highlighted = true;
+            state = state with { Highlighted = true };
+            BuildComponentAttributes();
+            StateHasChanged();
+        }
+
+        return hasMouseMoveAttribute
+            ? EventUtilities.InvokeOnMouseMoveAsync(AdditionalAttributes, e)
+            : Task.CompletedTask;
+    }
+}

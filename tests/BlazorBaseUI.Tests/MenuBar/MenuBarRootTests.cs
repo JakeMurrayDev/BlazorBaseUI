@@ -55,7 +55,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         {
             // First menu
             builder.OpenComponent<MenuRoot>(0);
-            builder.AddAttribute(1, "ChildContent", (RenderFragment)(menuBuilder =>
+            builder.AddAttribute(1, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => menuBuilder =>
             {
                 menuBuilder.OpenComponent<MenuTrigger>(0);
                 menuBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "File")));
@@ -79,7 +79,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
 
             // Second menu
             builder.OpenComponent<MenuRoot>(10);
-            builder.AddAttribute(11, "ChildContent", (RenderFragment)(menuBuilder =>
+            builder.AddAttribute(11, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => menuBuilder =>
             {
                 menuBuilder.OpenComponent<MenuTrigger>(0);
                 menuBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Edit")));
@@ -139,7 +139,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("role").ShouldBe("menubar");
+        menubar.GetAttribute("role")!.ShouldBe("menubar");
 
         return Task.CompletedTask;
     }
@@ -150,7 +150,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(orientation: Orientation.Horizontal, includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("aria-orientation").ShouldBe("horizontal");
+        menubar.GetAttribute("aria-orientation")!.ShouldBe("horizontal");
 
         return Task.CompletedTask;
     }
@@ -161,7 +161,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(orientation: Orientation.Vertical, includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("aria-orientation").ShouldBe("vertical");
+        menubar.GetAttribute("aria-orientation")!.ShouldBe("vertical");
 
         return Task.CompletedTask;
     }
@@ -172,7 +172,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(orientation: Orientation.Horizontal, includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("data-orientation").ShouldBe("horizontal");
+        menubar.GetAttribute("data-orientation")!.ShouldBe("horizontal");
 
         return Task.CompletedTask;
     }
@@ -195,7 +195,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(additionalAttributes: attrs, includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("data-testid").ShouldBe("my-menubar");
+        menubar.GetAttribute("data-testid")!.ShouldBe("my-menubar");
 
         return Task.CompletedTask;
     }
@@ -207,7 +207,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(classValue: classValue, includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("class").ShouldContain("custom-class");
+        menubar.GetAttribute("class")!.ShouldContain("custom-class");
 
         return Task.CompletedTask;
     }
@@ -219,7 +219,7 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var cut = Render(CreateMenuBarRoot(styleValue: styleValue, includeMenus: false));
 
         var menubar = cut.Find("[role='menubar']");
-        menubar.GetAttribute("style").ShouldContain("color: red");
+        menubar.GetAttribute("style")!.ShouldContain("color: red");
 
         return Task.CompletedTask;
     }
@@ -238,6 +238,15 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
     }
 
     [Fact]
+    public Task HasDataModalWhenModal()
+    {
+        var cut = Render(CreateMenuBarRoot());
+        var menubar = cut.Find("[role='menubar']");
+        menubar.HasAttribute("data-modal").ShouldBeTrue();
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task TracksHasSubmenuOpenState()
     {
         // This test verifies that the MenuBarRoot tracks has-submenu-open state
@@ -249,18 +258,18 @@ public class MenuBarRootTests : BunitContext, IMenuBarRootContract
         var menubar = cut.Find("[role='menubar']");
 
         // Initially no submenu is open
-        menubar.GetAttribute("data-has-submenu-open").ShouldBe("false");
+        menubar.HasAttribute("data-has-submenu-open").ShouldBeFalse();
 
-        // Click first trigger to open menu (must use TriggerEventAsync to properly await the async handler chain)
+        // Pointerdown on trigger to open menu (must use TriggerEventAsync to properly await the async handler chain)
         var trigger = cut.Find("button[aria-haspopup='menu']");
-        await trigger.TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await trigger.TriggerEventAsync("onpointerdown", new Microsoft.AspNetCore.Components.Web.PointerEventArgs());
 
         // Force re-render since the open state propagates through a fixed cascading context
         cut.FindComponent<MenuTrigger>().Render();
 
         // Verify the menu opened (the trigger's aria-expanded should change)
         trigger = cut.Find("button[aria-haspopup='menu']");
-        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         // Note: The data-has-submenu-open attribute update happens through
         // MenuBarContext.SetHasSubmenuOpen which is called from MenuRoot.SetOpenAsync.

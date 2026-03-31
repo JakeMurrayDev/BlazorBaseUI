@@ -13,6 +13,6 @@ public readonly record struct MenuPopupState(
     bool Open,
     Side Side,
     Align Align,
-    InstantType Instant,
+    MenuInstantType Instant,
     TransitionStatus TransitionStatus,
     bool Nested);

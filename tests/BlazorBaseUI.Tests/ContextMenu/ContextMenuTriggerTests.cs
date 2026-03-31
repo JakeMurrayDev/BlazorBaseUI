@@ -83,7 +83,7 @@ public class ContextMenuTriggerTests : BunitContext, IContextMenuTriggerContract
             builder.OpenElement(0, "span");
             builder.AddMultipleAttributes(1, props.Attributes);
             if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback!);
             builder.AddContent(3, props.ChildContent);
             builder.CloseElement();
         };
@@ -108,8 +108,8 @@ public class ContextMenuTriggerTests : BunitContext, IContextMenuTriggerContract
         ));
 
         var trigger = cut.Find("[style*='touch-callout']");
-        trigger.GetAttribute("data-testid").ShouldBe("trigger");
-        trigger.GetAttribute("aria-label").ShouldBe("Context menu area");
+        trigger.GetAttribute("data-testid")!.ShouldBe("trigger");
+        trigger.GetAttribute("aria-label")!.ShouldBe("Context menu area");
 
         return Task.CompletedTask;
     }

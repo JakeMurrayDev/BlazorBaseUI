@@ -12,13 +12,14 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
         bool parentDefaultOpen = true,
         bool submenuDefaultOpen = false,
         bool triggerDisabled = false,
+        bool openOnHover = true,
         RenderFragment<RenderProps<MenuSubmenuTriggerState>>? render = null)
     {
         return builder =>
         {
             builder.OpenComponent<MenuRoot>(0);
             builder.AddAttribute(1, "DefaultOpen", parentDefaultOpen);
-            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
             {
                 innerBuilder.OpenComponent<MenuTrigger>(0);
                 innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Main Trigger")));
@@ -43,6 +44,7 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
 
                             if (triggerDisabled)
                                 submenuBuilder.AddAttribute(attrIndex++, "Disabled", true);
+                            submenuBuilder.AddAttribute(attrIndex++, "OpenOnHover", openOnHover);
                             if (render is not null)
                                 submenuBuilder.AddAttribute(attrIndex++, "Render", render);
                             submenuBuilder.AddAttribute(attrIndex++, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Submenu")));
@@ -92,7 +94,7 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
             builder.OpenElement(0, "span");
             builder.AddMultipleAttributes(1, props.Attributes);
             if (props.ElementReferenceCallback is not null)
-                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback!);
             builder.AddContent(3, props.ChildContent);
             builder.CloseElement();
         };
@@ -111,7 +113,7 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
         var cut = Render(CreateSubmenuTriggerInRoot());
 
         var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup]");
-        submenuTrigger.GetAttribute("aria-haspopup").ShouldBe("menu");
+        submenuTrigger.GetAttribute("aria-haspopup")!.ShouldBe("menu");
 
         return Task.CompletedTask;
     }
@@ -122,7 +124,7 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
         var cut = Render(CreateSubmenuTriggerInRoot(submenuDefaultOpen: false));
 
         var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
-        submenuTrigger.GetAttribute("aria-expanded").ShouldBe("false");
+        submenuTrigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
         return Task.CompletedTask;
     }
@@ -133,29 +135,29 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
         var cut = Render(CreateSubmenuTriggerInRoot(submenuDefaultOpen: true));
 
         var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
-        submenuTrigger.GetAttribute("aria-expanded").ShouldBe("true");
+        submenuTrigger.GetAttribute("aria-expanded")!.ShouldBe("true");
 
         return Task.CompletedTask;
     }
 
     [Fact]
-    public Task HasDataOpenWhenOpen()
+    public Task HasDataPopupOpenWhenOpen()
     {
         var cut = Render(CreateSubmenuTriggerInRoot(submenuDefaultOpen: true));
 
         var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
-        submenuTrigger.HasAttribute("data-open").ShouldBeTrue();
+        submenuTrigger.HasAttribute("data-popup-open").ShouldBeTrue();
 
         return Task.CompletedTask;
     }
 
     [Fact]
-    public Task HasDataClosedWhenClosed()
+    public Task DoesNotHaveDataPopupOpenWhenClosed()
     {
         var cut = Render(CreateSubmenuTriggerInRoot(submenuDefaultOpen: false));
 
         var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
-        submenuTrigger.HasAttribute("data-closed").ShouldBeTrue();
+        submenuTrigger.HasAttribute("data-popup-open").ShouldBeFalse();
 
         return Task.CompletedTask;
     }
@@ -172,6 +174,17 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
     }
 
     [Fact]
+    public Task HasAriaDisabledWhenDisabled()
+    {
+        var cut = Render(CreateSubmenuTriggerInRoot(triggerDisabled: true));
+
+        var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
+        submenuTrigger.GetAttribute("aria-disabled").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task RequiresSubmenuContext()
     {
         // MenuSubmenuTrigger throws when not inside a MenuSubmenuRoot
@@ -181,7 +194,7 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
             {
                 builder.OpenComponent<MenuRoot>(0);
                 builder.AddAttribute(1, "DefaultOpen", true);
-                builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+                builder.AddAttribute(2, "ChildContent", (RenderFragment<MenuRootPayloadContext>)(_ => innerBuilder =>
                 {
                     innerBuilder.OpenComponent<MenuTrigger>(0);
                     innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
@@ -205,6 +218,45 @@ public class MenuSubmenuTriggerTests : BunitContext, IMenuSubmenuTriggerContract
                 builder.CloseComponent();
             });
         });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task CloseDelayDefaultsToZero()
+    {
+        var cut = Render(CreateSubmenuTriggerInRoot());
+
+        var triggerComponent = cut.FindComponent<MenuSubmenuTrigger>();
+        triggerComponent.Instance.CloseDelay.ShouldBe(0);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HighlightsOnMouseEnter()
+    {
+        var cut = Render(CreateSubmenuTriggerInRoot());
+
+        var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
+        submenuTrigger.MouseEnter();
+
+        submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
+        submenuTrigger.HasAttribute("data-highlighted").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task DoesNotToggleOnClickWhenOpenOnHover()
+    {
+        var cut = Render(CreateSubmenuTriggerInRoot(submenuDefaultOpen: false, openOnHover: true));
+
+        var submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
+        submenuTrigger.Click();
+
+        submenuTrigger = cut.Find("[role='menuitem'][aria-haspopup='menu']");
+        submenuTrigger.GetAttribute("aria-expanded")!.ShouldBe("false");
 
         return Task.CompletedTask;
     }

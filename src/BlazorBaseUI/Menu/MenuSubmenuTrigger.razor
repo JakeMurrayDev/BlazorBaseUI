@@ -22,6 +22,8 @@
     private bool hasRendered;
     private bool hoverInitialized;
     private string? hoverRootId;
+    private int itemIndex = -1;
+    private string triggerId = null!;
     private MenuSubmenuTriggerState state;
     private RenderElement<MenuSubmenuTriggerState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
@@ -63,7 +65,13 @@
     /// When <see langword="null"/>, falls back to the <see cref="Delay"/> value.
     /// </summary>
     [Parameter]
-    public int? CloseDelay { get; set; }
+    public int CloseDelay { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id attribute of the submenu trigger element.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
 
     /// <summary>
     /// Gets or sets the text label to use when the item is matched during keyboard text navigation.
@@ -115,6 +123,7 @@
             throw new InvalidOperationException("MenuSubmenuTrigger must be placed inside a MenuSubmenuRoot.");
         }
 
+        triggerId = Id ?? Guid.NewGuid().ToIdString();
         BuildComponentAttributes();
     }
 
@@ -141,6 +150,11 @@
             hasRendered = true;
             RootContext?.SetTriggerElement(Element);
 
+            if (SubmenuContext?.ParentMenu?.RootId is not null && Element.HasValue)
+            {
+                _ = UpdateItemIndexAsync();
+            }
+
             if (OpenOnHover && !hoverInitialized)
             {
                 _ = InitializeHoverInteractionAsync();
@@ -161,6 +175,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
     }
@@ -168,33 +183,37 @@
     private void BuildComponentAttributes()
     {
         var attrs = new Dictionary<string, object>();
-        var open = RootContext?.GetOpen() ?? false;
-        var highlighted = GetHighlighted();
-        var disabled = Disabled || (RootContext?.Disabled ?? false);
 
         attrs["role"] = "menuitem";
+        attrs["id"] = triggerId;
         attrs["aria-haspopup"] = "menu";
-        attrs["aria-expanded"] = open ? "true" : "false";
+        attrs["aria-expanded"] = state.Open ? "true" : "false";
 
+        var popupId = RootContext?.PopupId;
+        if (state.Open && !string.IsNullOrEmpty(popupId))
+        {
+            attrs["aria-controls"] = popupId;
+        }
+
+        attrs["onpointerdown"] = EventCallback.Factory.Create<PointerEventArgs>(this, HandlePointerDownAsync);
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
+        attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
+        attrs["onfocusout"] = EventCallback.Factory.Create<FocusEventArgs>(this, HandleFocusOutAsync);
 
-        if (disabled)
+        if (state.Disabled)
         {
             attrs["aria-disabled"] = "true";
         }
 
-        attrs["tabindex"] = open || highlighted ? 0 : -1;
+        attrs["tabindex"] = state.Open || state.Highlighted ? 0 : -1;
 
-        attrs["data-open"] = open;
-        attrs["data-closed"] = !open;
-
-        if (open)
+        if (state.Open)
         {
             attrs["data-popup-open"] = true;
         }
 
-        attrs["data-disabled"] = disabled;
-        attrs["data-highlighted"] = highlighted;
+        attrs["data-disabled"] = state.Disabled;
+        attrs["data-highlighted"] = state.Highlighted;
 
         if (!string.IsNullOrEmpty(Label))
         {
@@ -206,18 +225,70 @@
 
     private bool GetHighlighted()
     {
-        return SubmenuContext?.ParentMenu?.ActiveIndex >= 0;
+        if (itemIndex < 0 || SubmenuContext?.ParentMenu is null)
+        {
+            return false;
+        }
+
+        return SubmenuContext.ParentMenu.ActiveIndex == itemIndex;
+    }
+
+    private Task HandleMouseEnterAsync(MouseEventArgs e)
+    {
+        if (itemIndex >= 0 && SubmenuContext?.ParentMenu is not null)
+        {
+            SubmenuContext.ParentMenu.ActiveIndex = itemIndex;
+            state = new MenuSubmenuTriggerState(state.Disabled, Highlighted: true, state.Open);
+            BuildComponentAttributes();
+            StateHasChanged();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task HandleFocusOutAsync(FocusEventArgs e)
+    {
+        if (GetHighlighted() && SubmenuContext?.ParentMenu is not null)
+        {
+            SubmenuContext.ParentMenu.ActiveIndex = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task UpdateItemIndexAsync()
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            itemIndex = await module.InvokeAsync<int>("getItemIndex",
+                SubmenuContext!.ParentMenu!.RootId, Element!.Value);
+            StateHasChanged();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
+    private async Task HandlePointerDownAsync(PointerEventArgs e)
+    {
+        if (!OpenOnHover && !state.Disabled && RootContext is not null)
+        {
+            var nextOpen = !RootContext.GetOpen();
+            await RootContext.SetOpenAsync(nextOpen, MenuOpenChangeReason.TriggerPress, null);
+            state = new MenuSubmenuTriggerState(state.Disabled, state.Highlighted, nextOpen);
+            BuildComponentAttributes();
+        }
     }
 
     private async Task HandleClickAsync(MouseEventArgs e)
     {
-        if (Disabled || RootContext is null)
+        if (state.Disabled || RootContext is null)
         {
             return;
         }
 
-        var nextOpen = !RootContext.GetOpen();
-        await RootContext.SetOpenAsync(nextOpen, OpenChangeReason.TriggerPress, null);
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
     }
 
@@ -231,13 +302,14 @@
         try
         {
             var module = await ModuleTask.Value;
-            var effectiveCloseDelay = CloseDelay ?? Delay;
+            var effectiveCloseDelay = CloseDelay;
             await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
             hoverInitialized = true;
             hoverRootId = RootContext.RootId;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 }
