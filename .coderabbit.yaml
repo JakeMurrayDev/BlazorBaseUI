@@ -24,7 +24,7 @@ reviews:
         Private fields do NOT use underscore prefix. This is a project convention. Do not suggest adding underscores.
 
         **All Code in @code Block (Intentional)**
-        All component logic is inside `@code { }`. We do NOT use partial classes or code-behind files (.razor.cs). Do not suggest splitting code.
+        All component logic is inside `@code { }`. Code-behind files (.razor.cs) are only used for documentation stubs (namespace + XML doc + partial class declaration) — never for logic. Do not suggest moving logic to code-behind.
 
         **Cascading Parameters (Intentional)**
         Cascading parameters are always private and use dedicated context record types. We never cascade parent components directly.
