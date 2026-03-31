@@ -1,0 +1,27 @@
+@using BlazorBaseUI.Portal
+
+<Portal Target="@Container" @ref="portalRef">
+    @ChildContent
+</Portal>
+
+@code {
+    private Portal? portalRef;
+
+    /// <summary>
+    /// Gets or sets a CSS selector for the container to render the portal into.
+    /// Defaults to <c>"body"</c>.
+    /// </summary>
+    [Parameter]
+    public string Container { get; set; } = "body";
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets the element reference of the portal container node.
+    /// </summary>
+    public ElementReference? Element => portalRef?.Element;
+}

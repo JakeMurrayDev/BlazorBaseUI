@@ -23,6 +23,8 @@
         JSRuntime.InvokeAsync<IJSObjectReference>(
             "import", "./_content/BlazorBaseUI/blazor-baseui-portal.js").AsTask());
 
+    private string Id => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId);
+
     /// <summary>
     /// Gets or sets a custom render fragment that replaces the default element.
     /// </summary>
@@ -53,8 +55,6 @@
     /// </summary>
     public ElementReference? Element => renderElementReference?.Element;
 
-    private string Id => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId);
-
     /// <inheritdoc />
     protected override void OnInitialized()
     {
@@ -82,6 +82,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
     }
@@ -106,6 +107,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
     }
