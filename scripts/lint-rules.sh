@@ -199,8 +199,8 @@ check_rule_09() {
       # Check if JSDisconnectedException appears within 20 lines after
       local start=$((line_num > 20 ? line_num - 20 : 1))
       local end=$((line_num + 20))
-      if ! sed -n "${start},${end}p" "$file" | grep -q "JSDisconnectedException"; then
-        report 9 "$file" "$line_num" "JS interop call without circuit-safe try/catch (JSDisconnectedException)"
+      if ! sed -n "${start},${end}p" "$file" | grep -qE "JSDisconnectedException|TaskCanceledException"; then
+        report 9 "$file" "$line_num" "JS interop call without circuit-safe try/catch (JSDisconnectedException/TaskCanceledException)"
       fi
     done
   done < <(find "$SRC_DIR" -name "*.razor" -not -path "*/obj/*" -print0)

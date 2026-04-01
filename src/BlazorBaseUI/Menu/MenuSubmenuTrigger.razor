@@ -62,7 +62,7 @@
     /// <summary>
     /// Gets or sets the delay in milliseconds before closing the submenu that was opened on hover.
     /// Requires the <see cref="OpenOnHover"/> property.
-    /// When <see langword="null"/>, falls back to the <see cref="Delay"/> value.
+    /// Defaults to <c>0</c>.
     /// </summary>
     [Parameter]
     public int CloseDelay { get; set; }
@@ -165,12 +165,16 @@
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask?.IsValueCreated == true && hasRendered && hoverInitialized && hoverRootId is not null)
+        if (moduleTask?.IsValueCreated == true && hasRendered)
         {
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("disposeHoverInteraction", hoverRootId);
+                if (hoverInitialized && hoverRootId is not null)
+                {
+                    await module.InvokeVoidAsync("disposeHoverInteraction", hoverRootId);
+                }
+
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
@@ -294,7 +298,8 @@
 
     private async Task InitializeHoverInteractionAsync()
     {
-        if (RootContext is null || !Element.HasValue)
+        var element = Element;
+        if (RootContext is null || !element.HasValue)
         {
             return;
         }
@@ -302,8 +307,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            var effectiveCloseDelay = CloseDelay;
-            await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, effectiveCloseDelay);
+            await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, element.Value, Delay, CloseDelay);
             hoverInitialized = true;
             hoverRootId = RootContext.RootId;
         }

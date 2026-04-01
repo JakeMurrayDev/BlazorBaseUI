@@ -549,7 +549,8 @@
 
     private async Task InitializeHoverInteractionAsync()
     {
-        if (!Element.HasValue)
+        var element = Element;
+        if (!element.HasValue)
         {
             return;
         }
@@ -561,7 +562,7 @@
                 var module = await ModuleTask.Value;
                 hoverDotNetRef = DotNetObjectReference.Create(this);
                 var hoverId = $"hover-{triggerId}";
-                await module.InvokeVoidAsync("initializeHoverInteraction", hoverId, Element.Value, Delay, CloseDelay, hoverDotNetRef);
+                await module.InvokeVoidAsync("initializeHoverInteraction", hoverId, element.Value, Delay, CloseDelay, hoverDotNetRef);
                 hoverInitialized = true;
                 hoverRootId = hoverId;
             }
@@ -580,7 +581,7 @@
             try
             {
                 var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, Element.Value, Delay, CloseDelay);
+                await module.InvokeVoidAsync("initializeHoverInteraction", RootContext.RootId, element.Value, Delay, CloseDelay);
                 hoverInitialized = true;
                 hoverRootId = RootContext.RootId;
             }

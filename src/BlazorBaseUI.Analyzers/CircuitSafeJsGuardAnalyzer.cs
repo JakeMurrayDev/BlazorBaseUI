@@ -130,14 +130,14 @@ public sealed class CircuitSafeJsGuardAnalyzer : DiagnosticAnalyzer
                     if (catchClause.Declaration is not null)
                     {
                         var typeText = catchClause.Declaration.Type.ToString();
-                        if (typeText.Contains("JSDisconnectedException"))
+                        if (typeText.Contains("JSDisconnectedException") || typeText.Contains("TaskCanceledException"))
                             return true;
                     }
 
                     if (catchClause.Filter is not null)
                     {
                         var filterText = catchClause.Filter.FilterExpression.ToString();
-                        if (filterText.Contains("JSDisconnectedException"))
+                        if (filterText.Contains("JSDisconnectedException") || filterText.Contains("TaskCanceledException"))
                             return true;
                     }
                 }

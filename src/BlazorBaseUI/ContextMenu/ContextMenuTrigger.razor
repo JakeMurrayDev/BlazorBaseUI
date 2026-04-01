@@ -213,8 +213,9 @@
             return;
         }
 
+        var element = Element;
         var virtualAnchor = ContextMenuContext.GetVirtualAnchorElement();
-        if (!virtualAnchor.HasValue)
+        if (!element.HasValue || !virtualAnchor.HasValue)
         {
             return;
         }
@@ -226,7 +227,7 @@
             await module.InvokeVoidAsync(
                 "initializeContextMenu",
                 ContextMenuContext.RootId,
-                Element.Value,
+                element.Value,
                 virtualAnchor.Value,
                 dotNetRef);
 

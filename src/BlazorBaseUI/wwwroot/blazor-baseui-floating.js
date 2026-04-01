@@ -843,6 +843,7 @@ function updatePositionFallback(positionerState) {
     positionerElement.style.top = `${top}px`;
     positionerElement.style.left = `${left}px`;
     positionerElement.style.zIndex = '1000';
+    positionerElement.setAttribute('data-positioned', '');
 
     positionerElement.setAttribute('data-side', side);
     positionerElement.setAttribute('data-align', align);
@@ -2524,11 +2525,13 @@ export function createFloatingFocusManager(options) {
 
     // Track tabbable index for restoreFocus (A1)
     let tabbableIndex = -1;
-    floatingElement.addEventListener('focusin', function(event) {
+    const tabbableIndexHandler = function(event) {
         const tabbableContent = getTabbableElements(floatingElement);
         const idx = tabbableContent.indexOf(event.target);
         if (idx !== -1) tabbableIndex = idx;
-    });
+    };
+    floatingElement.addEventListener('focusin', tabbableIndexHandler);
+    let tabbableIndexCleanup = () => floatingElement.removeEventListener('focusin', tabbableIndexHandler);
 
     // Store interaction state on a shared object accessible by createFocusOutHandler
     const interactionState = {
@@ -2661,6 +2664,9 @@ export function createFloatingFocusManager(options) {
 
             // Clean up focusin listener
             focusInCleanup?.();
+
+            // Clean up tabbable index focusin listener
+            tabbableIndexCleanup?.();
 
             // Clean up mutation observer
             mutationObserver?.disconnect();
@@ -2905,7 +2911,7 @@ export function setNodeDismissBubbles(treeId, nodeId, options) {
  */
 export const NAVIGABLE_ITEM_SELECTOR =
     '[role="option"], [role="menuitem"], [role="menuitemcheckbox"], ' +
-    '[role="menuitemradio"], [data-base-ui-list-item]';
+    '[role="menuitemradio"], [data-blazor-base-ui-list-item]';
 
 /**
  * Creates a shared item registry for tracking list items.
@@ -3099,14 +3105,14 @@ export function findNextEnabledIndex(currentIndex, itemCount, disabledIndices, d
  */
 export function applyActiveState(listElement, itemElement, virtual) {
     // Remove previous active state
-    const prev = listElement.querySelector('[data-base-ui-active]');
+    const prev = listElement.querySelector('[data-blazor-base-ui-active]');
     if (prev) {
-        prev.removeAttribute('data-base-ui-active');
+        prev.removeAttribute('data-blazor-base-ui-active');
         if (!virtual) prev.setAttribute('tabindex', '-1');
     }
 
     if (itemElement) {
-        itemElement.setAttribute('data-base-ui-active', '');
+        itemElement.setAttribute('data-blazor-base-ui-active', '');
         if (virtual) {
             listElement.setAttribute('aria-activedescendant', itemElement.id || '');
         } else {

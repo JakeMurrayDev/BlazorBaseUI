@@ -153,6 +153,8 @@
     public void OnTransitionStarted()
     {
         transitionStatus = TransitionStatus.Undefined;
+        state = state with { TransitionStatus = transitionStatus };
+        BuildComponentAttributes();
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -164,6 +166,8 @@
     {
         isMounted = false;
         transitionStatus = TransitionStatus.Undefined;
+        state = state with { TransitionStatus = transitionStatus };
+        BuildComponentAttributes();
         _ = InvokeAsync(StateHasChanged);
     }
 

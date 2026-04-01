@@ -39,7 +39,7 @@ public sealed class MemberOrderingAnalyzer : DiagnosticAnalyzer
         "OnInitialized", "OnInitializedAsync",
         "OnParametersSet", "OnParametersSetAsync",
         "OnAfterRender", "OnAfterRenderAsync",
-        "SetParametersAsync");
+        "SetParametersAsync", "ShouldRender");
 
     private static readonly ImmutableHashSet<string> DisposeMethodNames = ImmutableHashSet.Create(
         "Dispose", "DisposeAsync");

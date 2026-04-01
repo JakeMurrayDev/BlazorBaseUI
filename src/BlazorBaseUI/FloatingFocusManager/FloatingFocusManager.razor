@@ -217,7 +217,7 @@
 
             var resolvedReturnFocus = ReturnFocusCallback is not null
                 ? ReturnFocusCallback(closeInteractionType)
-                : true;
+                : ReturnFocus;
             await DisposeManagerAsync(shouldReturnFocus: resolvedReturnFocus);
         }
 
