@@ -1,0 +1,6 @@
+<Project>
+  <Target Name="RemoveBinObj" AfterTargets="Clean">
+    <RemoveDir Directories="$(BaseOutputPath)" />
+    <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
+  </Target>
+</Project>

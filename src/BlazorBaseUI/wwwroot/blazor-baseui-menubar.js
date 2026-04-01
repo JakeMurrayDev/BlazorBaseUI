@@ -32,6 +32,7 @@ function focusItem(item) {
     if (item) {
         item.tabIndex = 0;
         item.focus();
+        item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 }
 

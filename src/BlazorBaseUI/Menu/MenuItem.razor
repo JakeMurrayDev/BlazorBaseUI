@@ -14,6 +14,7 @@
 @code {
     private bool highlighted;
     private bool hasMouseMoveAttribute;
+    private string? defaultId;
     private MenuItemState state;
     private RenderElement<MenuItemState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
@@ -97,10 +98,7 @@
 
         attrs["role"] = "menuitem";
 
-        if (!string.IsNullOrEmpty(Id))
-        {
-            attrs["id"] = Id;
-        }
+        attrs["id"] = Id ?? (defaultId ??= Guid.NewGuid().ToIdString());
 
         attrs["tabindex"] = highlighted ? 0 : -1;
 
@@ -134,7 +132,7 @@
 
         if (CloseOnClick && RootContext is not null)
         {
-            RootContext.EmitClose(OpenChangeReason.ItemPress, null);
+            RootContext.EmitClose(MenuOpenChangeReason.ItemPress, null);
         }
 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
@@ -142,8 +140,7 @@
 
     private async Task HandleMouseEnterAsync(MouseEventArgs e)
     {
-        var shouldHighlight = RootContext?.HighlightItemOnHover ?? true;
-        if (!Disabled && shouldHighlight)
+        if (!Disabled)
         {
             highlighted = true;
             state = state with { Highlighted = true };
@@ -156,22 +153,17 @@
 
     private async Task HandleMouseLeaveAsync(MouseEventArgs e)
     {
-        var shouldHighlight = RootContext?.HighlightItemOnHover ?? true;
-        if (shouldHighlight)
-        {
-            highlighted = false;
-            state = state with { Highlighted = false };
-            BuildComponentAttributes();
-            StateHasChanged();
-        }
+        highlighted = false;
+        state = state with { Highlighted = false };
+        BuildComponentAttributes();
+        StateHasChanged();
 
         await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
     }
 
     private Task HandleMouseMoveAsync(MouseEventArgs e)
     {
-        var shouldHighlight = RootContext?.HighlightItemOnHover ?? true;
-        if (!Disabled && !highlighted && shouldHighlight)
+        if (!Disabled && !highlighted)
         {
             highlighted = true;
             state = state with { Highlighted = true };

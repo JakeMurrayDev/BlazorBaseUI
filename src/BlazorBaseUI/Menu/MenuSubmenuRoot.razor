@@ -3,8 +3,12 @@
               DefaultOpen="DefaultOpen"
               Disabled="Disabled"
               CloseParentOnEsc="CloseParentOnEsc"
-              Direction="Direction"
               LoopFocus="LoopFocus"
+              HighlightItemOnHover="HighlightItemOnHover"
+              Orientation="Orientation"
+              Handle="Handle"
+              TriggerId="TriggerId"
+              DefaultTriggerId="DefaultTriggerId"
               ActionsRef="ActionsRef"
               OpenChanged="OpenChanged"
               OnOpenChange="OnOpenChange"
@@ -47,17 +51,43 @@
     public bool CloseParentOnEsc { get; set; }
 
     /// <summary>
-    /// Gets or sets the text direction of the submenu.
-    /// </summary>
-    [Parameter]
-    public Direction Direction { get; set; } = Direction.Ltr;
-
-    /// <summary>
     /// Determines whether keyboard focus loops back to the first item when the end of the list is reached while using the arrow keys.
     /// Defaults to <see langword="true"/>.
     /// </summary>
     [Parameter]
     public bool LoopFocus { get; set; } = true;
+
+    /// <summary>
+    /// Determines whether moving the pointer over items highlights them.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    [Parameter]
+    public bool HighlightItemOnHover { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the visual orientation of the submenu.
+    /// </summary>
+    [Parameter]
+    public MenuOrientation Orientation { get; set; } = MenuOrientation.Vertical;
+
+    /// <summary>
+    /// Gets or sets a handle to connect this root with detached trigger components.
+    /// </summary>
+    [Parameter]
+    public IMenuHandle? Handle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ID of the trigger element that the menu should be associated with.
+    /// Used for detached trigger patterns.
+    /// </summary>
+    [Parameter]
+    public string? TriggerId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default trigger ID when using uncontrolled trigger selection.
+    /// </summary>
+    [Parameter]
+    public string? DefaultTriggerId { get; set; }
 
     /// <summary>
     /// Gets or sets a reference to imperative actions for controlling the menu programmatically.
@@ -90,7 +120,7 @@
     public RenderFragment? ChildContent { get; set; }
 
     /// <inheritdoc />
-    protected override void OnParametersSet()
+    protected override void OnInitialized()
     {
         submenuContext = new MenuSubmenuRootContext { ParentMenu = ParentMenuContext };
     }

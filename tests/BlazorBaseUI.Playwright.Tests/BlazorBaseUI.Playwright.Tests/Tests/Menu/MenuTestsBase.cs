@@ -1036,4 +1036,58 @@ public abstract class MenuTestsBase : TestBase
     }
 
     #endregion
+
+    #region Checkbox Item Keyboard Tests
+
+    [Fact]
+    public virtual async Task CheckboxItem_Space_TogglesCheckedState()
+    {
+        await NavigateAsync(CreateUrl("/tests/menu")
+            .WithDefaultOpen(true)
+            .WithShowCheckbox(true));
+
+        var checkboxItem = GetByTestId("menu-checkbox-item");
+        var checkboxState = GetByTestId("checkbox-state");
+
+        // Navigate to the checkbox item (after 5 regular items)
+        for (var i = 0; i < 5; i++)
+            await Page.Keyboard.PressAsync("ArrowDown");
+
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("data-highlighted", "");
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("aria-checked", "false");
+
+        await Page.Keyboard.PressAsync(" ");
+
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("aria-checked", "true");
+        await Assertions.Expect(checkboxState).ToHaveTextAsync("true");
+
+        await Page.Keyboard.PressAsync(" ");
+
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("aria-checked", "false");
+        await Assertions.Expect(checkboxState).ToHaveTextAsync("false");
+    }
+
+    [Fact]
+    public virtual async Task CheckboxItem_Enter_TogglesCheckedState()
+    {
+        await NavigateAsync(CreateUrl("/tests/menu")
+            .WithDefaultOpen(true)
+            .WithShowCheckbox(true));
+
+        var checkboxItem = GetByTestId("menu-checkbox-item");
+
+        // Navigate to the checkbox item
+        for (var i = 0; i < 5; i++)
+            await Page.Keyboard.PressAsync("ArrowDown");
+
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("data-highlighted", "");
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("aria-checked", "false");
+
+        await Page.Keyboard.PressAsync("Enter");
+
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("aria-checked", "true");
+        await Assertions.Expect(checkboxItem).ToHaveAttributeAsync("data-checked", "");
+    }
+
+    #endregion
 }

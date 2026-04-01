@@ -170,7 +170,7 @@ public class ContextMenuRootTests : BunitContext, IContextMenuRootContract
     [Fact]
     public Task OmitsModalOpenOnHoverDelayCloseDelayProps()
     {
-        // ContextMenuRoot always passes ModalMode.True to MenuRoot (matching React default).
+        // ContextMenuRoot always passes MenuModalMode.True to MenuRoot (matching React default).
         // It does not expose Modal, OpenOnHover, Delay, or CloseDelay parameters.
         var cut = Render(CreateContextMenuRoot());
 

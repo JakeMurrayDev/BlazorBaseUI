@@ -1,0 +1,131 @@
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+
+<CascadingValue Value="nodeContext" IsFixed="true">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    private FloatingTreeNode node = null!;
+    private FloatingNodeContext nodeContext = null!;
+    private bool previousOpen;
+
+    /// <summary>
+    /// The tree context provided by the ancestor <see cref="FloatingTree"/>.
+    /// </summary>
+    [CascadingParameter]
+    private FloatingTreeContext? TreeContext { get; set; }
+
+    /// <summary>
+    /// The parent node context, if this node is nested within another <see cref="FloatingNode"/>.
+    /// </summary>
+    [CascadingParameter]
+    private FloatingNodeContext? ParentNodeContext { get; set; }
+
+    /// <summary>
+    /// The child content to render within the node context.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// An optional consumer-provided identifier for this node.
+    /// When <c>null</c>, a unique ID is generated automatically.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// The current open state of the floating element this node represents.
+    /// When provided, triggers a JS-side context update for tree coordination.
+    /// </summary>
+    [Parameter]
+    public bool? Open { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        var nodeId = Id ?? Guid.NewGuid().ToString("N");
+        var parentId = ParentNodeContext?.NodeId;
+        var treeId = TreeContext?.TreeId ?? string.Empty;
+
+        node = new FloatingTreeNode(nodeId, parentId);
+        nodeContext = new FloatingNodeContext(nodeId, parentId, treeId, TreeContext);
+        nodeContext.SetContext = UpdateContext;
+
+        TreeContext?.RegisterNode(node);
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (Open.HasValue && Open.Value != previousOpen)
+        {
+            previousOpen = Open.Value;
+
+            if (TreeContext?.ModuleTask?.IsValueCreated == true)
+            {
+                _ = UpdateContextJsAsync(node.Context);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && TreeContext?.ModuleTask is not null)
+        {
+            try
+            {
+                var module = await TreeContext.ModuleTask.Value;
+                await module.InvokeVoidAsync("addTreeNode", TreeContext.TreeId, node.Id, node.ParentId);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex;
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        TreeContext?.UnregisterNode(node);
+
+        if (TreeContext?.ModuleTask?.IsValueCreated == true)
+        {
+            try
+            {
+                var module = await TreeContext.ModuleTask.Value;
+                await module.InvokeVoidAsync("removeTreeNode", TreeContext.TreeId, node.Id);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex;
+            }
+        }
+    }
+
+    private void UpdateContext(IFloatingRootContext? context)
+    {
+        node.Context = context;
+
+        if (TreeContext?.ModuleTask?.IsValueCreated == true)
+        {
+            _ = UpdateContextJsAsync(context);
+        }
+    }
+
+    private async Task UpdateContextJsAsync(IFloatingRootContext? context)
+    {
+        try
+        {
+            var module = await TreeContext!.ModuleTask!.Value;
+            await module.InvokeVoidAsync("updateTreeNodeContext", TreeContext.TreeId, node.Id, context);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+}

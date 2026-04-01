@@ -5,17 +5,18 @@
  */
 
 import { acquireScrollLock } from './blazor-baseui-scroll-lock.js';
+import {
+    createHoverInteraction,
+    checkForTransitionOrAnimation,
+    getMaxTransitionDuration,
+    normalizeCollisionAvoidance,
+    initializePositioner as floatingInitializePositioner,
+    updatePositioner as floatingUpdatePositioner,
+    disposePositioner as floatingDisposePositioner
+} from './blazor-baseui-floating.js';
 
-// Reference to shared floating module (loaded separately)
-let floatingModule = null;
-
-async function ensureFloatingModule() {
-    if (!floatingModule) {
-        floatingModule = await import('./blazor-baseui-floating.js');
-    }
-    return floatingModule;
-}
-
+const PATIENT_CLICK_THRESHOLD = 500;
+const TYPEAHEAD_TIMEOUT = 500;
 const STATE_KEY = Symbol.for('BlazorBaseUI.Menu.State');
 
 if (!window[STATE_KEY]) {
@@ -31,7 +32,7 @@ function initGlobalListeners() {
     if (state.globalListenersInitialized) return;
 
     document.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
-    document.addEventListener('mousedown', handleGlobalMouseDown);
+    document.addEventListener('pointerdown', handleGlobalPointerDown);
     state.globalListenersInitialized = true;
 }
 
@@ -169,23 +170,101 @@ function handleGlobalKeyDown(e) {
                 break;
             case 'Enter':
             case ' ':
+                // Space during active typeahead: append to buffer, continue search
+                if (e.key === ' ' && topmostRoot.typingBuffer.length > 0) {
+                    e.preventDefault();
+                    topmostRoot.lastTypeaheadTime = Date.now();
+
+                    if (topmostRoot.typingTimer !== null) {
+                        clearTimeout(topmostRoot.typingTimer);
+                    }
+                    topmostRoot.typingTimer = setTimeout(() => {
+                        topmostRoot.typingBuffer = '';
+                        topmostRoot.typingTimer = null;
+                        topmostRoot.lastTypeaheadTime = 0;
+                    }, TYPEAHEAD_TIMEOUT);
+
+                    topmostRoot.typingBuffer += ' ';
+                    const spaceSearchString = topmostRoot.typingBuffer;
+                    const spaceStartIndex = currentIndex >= 0 ? currentIndex : 0;
+
+                    for (let i = 0; i < items.length; i++) {
+                        const idx = (spaceStartIndex + i) % items.length;
+                        const label = items[idx].getAttribute('data-label');
+                        const text = (label ?? items[idx].textContent)?.trim().toLowerCase() || '';
+                        if (text.startsWith(spaceSearchString)) {
+                            newIndex = idx;
+                            break;
+                        }
+                    }
+                    // Don't clear buffer on no-match for Space (React behavior)
+                    break;
+                }
+
                 e.preventDefault();
                 if (currentIndex >= 0 && currentIndex < items.length) {
+                    // Disabled items are focusable but non-activatable
+                    if (items[currentIndex].getAttribute('aria-disabled') === 'true') {
+                        return;
+                    }
                     items[currentIndex].click();
                 }
                 return;
             default:
-                // Typeahead: find item starting with pressed character
+                // Multi-character typeahead with accumulated buffer
                 if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    e.preventDefault();
+                    topmostRoot.lastTypeaheadTime = Date.now();
+
+                    // Clear any existing reset timer, start a new 500ms timer
+                    if (topmostRoot.typingTimer !== null) {
+                        clearTimeout(topmostRoot.typingTimer);
+                    }
+                    topmostRoot.typingTimer = setTimeout(() => {
+                        topmostRoot.typingBuffer = '';
+                        topmostRoot.typingTimer = null;
+                        topmostRoot.lastTypeaheadTime = 0;
+                    }, TYPEAHEAD_TIMEOUT);
+
                     const char = e.key.toLowerCase();
-                    const startIndex = currentIndex + 1;
+
+                    // Repeated-character cycling: if all items have different first two chars,
+                    // typing the same letter repeatedly cycles through items starting with that letter
+                    const allowCycling = items.every(item => {
+                        const text = (item.getAttribute('data-label') ?? item.textContent)?.trim().toLowerCase() || '';
+                        return text.length < 2 || text[0] !== text[1];
+                    });
+
+                    if (allowCycling && topmostRoot.typingBuffer === char) {
+                        // Same letter typed again — reset buffer, search from current+1
+                        topmostRoot.typingBuffer = '';
+                    }
+
+                    topmostRoot.typingBuffer += char;
+                    const searchString = topmostRoot.typingBuffer;
+                    const startIndex = ((currentIndex + 1) % items.length + items.length) % items.length;
+
                     for (let i = 0; i < items.length; i++) {
                         const idx = (startIndex + i) % items.length;
                         const label = items[idx].getAttribute('data-label');
                         const text = (label ?? items[idx].textContent)?.trim().toLowerCase() || '';
-                        if (text.startsWith(char)) {
+                        if (text.startsWith(searchString)) {
                             newIndex = idx;
                             break;
+                        }
+                    }
+
+                    // No match: clear buffer and end session
+                    if (newIndex === currentIndex) {
+                        const hasMatch = items.some(item => {
+                            const text = (item.getAttribute('data-label') ?? item.textContent)?.trim().toLowerCase() || '';
+                            return text.startsWith(searchString);
+                        });
+                        if (!hasMatch) {
+                            topmostRoot.typingBuffer = '';
+                            clearTimeout(topmostRoot.typingTimer);
+                            topmostRoot.typingTimer = null;
+                            topmostRoot.lastTypeaheadTime = 0;
                         }
                     }
                 }
@@ -196,6 +275,11 @@ function handleGlobalKeyDown(e) {
             topmostRoot.activeIndex = newIndex;
             highlightItem(topmostRoot.popupElement, items, newIndex);
             topmostRoot.dotNetRef.invokeMethodAsync('OnActiveIndexChange', newIndex).catch(() => { });
+
+            // Close child submenus when keyboard-navigating to a non-submenu-trigger item
+            if (!items[newIndex].hasAttribute('aria-haspopup')) {
+                closeChildSubmenus(topmostRoot.rootId);
+            }
         }
     }
 }
@@ -253,19 +337,19 @@ function getTextDirection(element) {
 function getMenuItems(popupElement) {
     if (!popupElement) return [];
 
-    const selector = '[role="menuitem"]:not([aria-disabled="true"]):not([disabled]), ' +
-                     '[role="menuitemcheckbox"]:not([aria-disabled="true"]):not([disabled]), ' +
-                     '[role="menuitemradio"]:not([aria-disabled="true"]):not([disabled])';
+    // Include disabled items in keyboard navigation (focusableWhenDisabled: true).
+    // Disabled items are focusable but non-activatable — the activation guard is
+    // in the keydown handler (Enter/Space) and click handler.
+    const selector = '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]';
 
     return Array.from(popupElement.querySelectorAll(selector));
 }
 
-function highlightItem(popupElement, items, index) {
+function updateItemHighlight(items, index) {
     items.forEach((item, i) => {
         if (i === index) {
             item.setAttribute('data-highlighted', '');
             item.setAttribute('tabindex', '0');
-            item.focus();
         } else {
             item.removeAttribute('data-highlighted');
             item.setAttribute('tabindex', '-1');
@@ -273,7 +357,59 @@ function highlightItem(popupElement, items, index) {
     });
 }
 
-function handleGlobalMouseDown(e) {
+function highlightItem(popupElement, items, index) {
+    updateItemHighlight(items, index);
+    if (index >= 0 && index < items.length) {
+        items[index].focus();
+    }
+}
+
+function closeChildSubmenus(rootId) {
+    const parentState = state.roots.get(rootId);
+    if (!parentState?.popupElement) return;
+
+    for (const [childId, childState] of state.roots) {
+        if (childId === rootId || !childState.isOpen || !childState.isNested) continue;
+        if (childState.triggerElement && parentState.popupElement.contains(childState.triggerElement)) {
+            childState.dotNetRef?.invokeMethodAsync('OnEscapeKey').catch(() => {});
+        }
+    }
+}
+
+function setupPopupMouseDelegation(rootId, rootState, popupElement) {
+    cleanupPopupMouseDelegation(rootState, popupElement);
+
+    const handler = (e) => {
+        if (!rootState.highlightItemOnHover) return;
+
+        const item = e.target.closest('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]');
+        if (!item || !popupElement.contains(item)) return;
+
+        const items = getMenuItems(popupElement);
+        const index = items.indexOf(item);
+        if (index === -1) return;
+
+        rootState.activeIndex = index;
+        updateItemHighlight(items, index);
+
+        // Close child submenus when hovering a non-submenu-trigger item
+        if (!item.hasAttribute('aria-haspopup')) {
+            closeChildSubmenus(rootId);
+        }
+    };
+
+    popupElement.addEventListener('mouseover', handler);
+    rootState.popupMouseHandler = handler;
+}
+
+function cleanupPopupMouseDelegation(rootState, popupElement) {
+    if (rootState.popupMouseHandler && popupElement) {
+        popupElement.removeEventListener('mouseover', rootState.popupMouseHandler);
+        rootState.popupMouseHandler = null;
+    }
+}
+
+function handleGlobalPointerDown(e) {
     for (const [id, rootState] of state.roots) {
         if (!rootState.isOpen || !rootState.dotNetRef) continue;
 
@@ -299,6 +435,19 @@ function handleGlobalMouseDown(e) {
         }
 
         if (!clickedInsidePopup && !clickedOnTrigger) {
+            // Context menu grace period: don't dismiss within 500ms of opening
+            // to prevent long-press touch from immediately closing the menu
+            if (rootState.allowOutsidePressAt && Date.now() < rootState.allowOutsidePressAt) {
+                continue;
+            }
+
+            // Touch close prevention: don't dismiss via touch within 300ms of
+            // opening via trigger-focus to prevent focus→open→click→close flicker
+            if (rootState.allowTouchToCloseAt && Date.now() < rootState.allowTouchToCloseAt
+                && e.pointerType === 'touch') {
+                continue;
+            }
+
             rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
         }
     }
@@ -308,7 +457,7 @@ function handleGlobalMouseDown(e) {
 // Root Management
 // ============================================================================
 
-export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal, menubarElement, orientation, highlightItemOnHover, direction, isNested) {
+export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, modal, menubarElement, orientation, highlightItemOnHover, direction, isNested, finalFocusMode, finalFocusElement, parentType) {
     initGlobalListeners();
 
     state.roots.set(rootId, {
@@ -327,8 +476,33 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
         orientation: orientation || 'vertical',
         highlightItemOnHover: highlightItemOnHover ?? true,
         direction: direction || 'ltr',
-        isNested: isNested || false
+        isNested: isNested || false,
+        finalFocusMode: finalFocusMode || null,
+        finalFocusElement: finalFocusElement || null,
+        parentType: parentType || null,
+        allowOutsidePressAt: null,
+        allowTouchToCloseAt: null,
+        hoverDisabledByClick: false,
+        popupClickHandler: null,
+        popupMouseHandler: null,
+        stickIfOpen: false,
+        patientClickTimeout: null,
+        rootId: rootId,
+        lastTypeaheadTime: 0,
+        typingBuffer: '',
+        typingTimer: null,
+        allowMouseUpTrigger: false,
+        popupMouseUpHandler: null
     });
+}
+
+export function updateRoot(rootId, modal, orientation, loopFocus, highlightItemOnHover) {
+    const rootState = state.roots.get(rootId);
+    if (!rootState) return;
+    rootState.modal = modal ?? true;
+    rootState.orientation = orientation || 'vertical';
+    rootState.loopFocus = loopFocus ?? true;
+    rootState.highlightItemOnHover = highlightItemOnHover ?? true;
 }
 
 export function disposeRoot(rootId) {
@@ -343,6 +517,15 @@ export function disposeRoot(rootId) {
         if (rootState.hoverInteraction) {
             rootState.hoverInteraction.cleanup();
         }
+        // Clean up composite key suppression
+        rootState.compositeKeyCleanup?.();
+        // Clean up mouseup arm timeout
+        if (rootState._mouseUpArmTimeout) {
+            clearTimeout(rootState._mouseUpArmTimeout);
+            rootState._mouseUpArmTimeout = null;
+        }
+        // Clean up mouse delegation handler
+        cleanupPopupMouseDelegation(rootState, rootState.popupElement);
     }
     state.roots.delete(rootId);
 }
@@ -351,8 +534,14 @@ export function disposeRoot(rootId) {
 // Hover Interaction Support
 // ============================================================================
 
-export async function initializeHoverInteraction(rootId, triggerElement, openDelay, closeDelay) {
+export async function initializeHoverInteraction(rootId, triggerElement, openDelay, closeDelay, callbackDotNetRef) {
     let rootState = state.roots.get(rootId);
+
+    // For handle-based triggers, create a lightweight state entry if root doesn't exist
+    if (!rootState && callbackDotNetRef) {
+        rootState = { triggerElement, isOpen: false };
+        state.roots.set(rootId, rootState);
+    }
 
     // If root state doesn't exist yet, wait with retries for it to be initialized
     // This handles the case where the trigger's OnAfterRender runs before the root's InitializeJsAsync completes
@@ -373,45 +562,116 @@ export async function initializeHoverInteraction(rootId, triggerElement, openDel
 
     if (!rootState.triggerElement) return;
 
-    const floating = await ensureFloatingModule();
-
-    // Clean up existing hover interaction
+    // Clean up existing hover interaction and allowMouseEnter listeners
     if (rootState.hoverInteraction) {
         rootState.hoverInteraction.cleanup();
     }
+    rootState.allowMouseEnterCleanup?.();
+    rootState.allowMouseEnterCleanup = null;
 
-    rootState.hoverInteraction = floating.createHoverInteraction({
+    // Use callback dotnet ref if provided, otherwise fall back to root dotnet ref
+    const dotNetRef = callbackDotNetRef || rootState.dotNetRef;
+
+    // allowMouseEnter starts false — hover opens instantly until deliberate mouse movement
+    const configuredOpenDelay = openDelay || 0;
+    const configuredCloseDelay = closeDelay || 0;
+    rootState.allowMouseEnter = false;
+
+    rootState.hoverInteraction = createHoverInteraction({
         interactionId: `menu-hover-${rootId}`,
         triggerElement: rootState.triggerElement,
         floatingElement: rootState.popupElement,
-        openDelay: openDelay || 0,
-        closeDelay: closeDelay || 0,
+        openDelay: 0,
+        closeDelay: 0,
         mouseOnly: true,
         useSafePolygon: true,
-        safePolygonOptions: { blockPointerEvents: false },
+        safePolygonOptions: { blockPointerEvents: true },
         onOpen: (reason) => {
             // Skip if we're within the ignore period (e.g., after keyboard close)
             if (rootState.ignoreHoverUntil && Date.now() < rootState.ignoreHoverUntil) {
                 return;
             }
-            if (rootState.dotNetRef && !rootState.isOpen) {
-                rootState.dotNetRef.invokeMethodAsync('OnHoverOpen').catch(() => { });
+            // Skip if hover was disabled by a click inside the popup
+            if (rootState.hoverDisabledByClick) {
+                return;
+            }
+            if (dotNetRef && !rootState.isOpen) {
+                dotNetRef.invokeMethodAsync('OnHoverOpen').catch(() => { });
             }
         },
         onClose: (reason) => {
-            if (rootState.dotNetRef && rootState.isOpen) {
-                rootState.dotNetRef.invokeMethodAsync('OnHoverClose').catch(() => { });
+            if (dotNetRef && rootState.isOpen) {
+                dotNetRef.invokeMethodAsync('OnHoverClose').catch(() => { });
             }
         }
     });
+
+    // Once mouse moves over trigger or popup, switch to configured delays
+    function onAllowMouseEnter() {
+        if (!rootState.allowMouseEnter) {
+            rootState.allowMouseEnter = true;
+            rootState.hoverInteraction?.setDelays(configuredOpenDelay, configuredCloseDelay);
+        }
+    }
+    rootState.triggerElement.addEventListener('mousemove', onAllowMouseEnter);
+    if (rootState.popupElement) {
+        rootState.popupElement.addEventListener('mousemove', onAllowMouseEnter);
+    }
+    rootState.allowMouseEnterCleanup = () => {
+        rootState.triggerElement?.removeEventListener('mousemove', onAllowMouseEnter);
+        rootState.popupElement?.removeEventListener('mousemove', onAllowMouseEnter);
+    };
 }
 
 export function disposeHoverInteraction(rootId) {
     const rootState = state.roots.get(rootId);
-    if (rootState?.hoverInteraction) {
-        rootState.hoverInteraction.cleanup();
-        rootState.hoverInteraction = null;
+    if (rootState) {
+        rootState.allowMouseEnterCleanup?.();
+        rootState.allowMouseEnterCleanup = null;
+        if (rootState.hoverInteraction) {
+            rootState.hoverInteraction.cleanup();
+            rootState.hoverInteraction = null;
+        }
     }
+}
+
+function clearPatientClickTimeout(rootState) {
+    if (rootState.patientClickTimeout !== null) {
+        clearTimeout(rootState.patientClickTimeout);
+        rootState.patientClickTimeout = null;
+    }
+    rootState.stickIfOpen = false;
+}
+
+export function consumeStickIfOpen(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (!rootState) return false;
+    if (rootState.stickIfOpen) {
+        clearPatientClickTimeout(rootState);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Arms the click-and-drag mouseup activation on the popup.
+ * Called by MenuTrigger on pointerdown to enable drag-to-select.
+ * After 200ms, releasing the mouse over a menu item will activate it.
+ */
+export function armMouseUpTrigger(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (!rootState) return;
+
+    rootState.allowMouseUpTrigger = false;
+
+    if (rootState._mouseUpArmTimeout) {
+        clearTimeout(rootState._mouseUpArmTimeout);
+    }
+
+    rootState._mouseUpArmTimeout = setTimeout(() => {
+        rootState.allowMouseUpTrigger = true;
+        rootState._mouseUpArmTimeout = null;
+    }, 200);
 }
 
 export function updateHoverInteractionFloatingElement(rootId) {
@@ -432,7 +692,7 @@ export function setHoverInteractionOpen(rootId, isOpen) {
 // Open/Close State
 // ============================================================================
 
-export async function setRootOpen(rootId, isOpen, reason, highlightLast) {
+export async function setRootOpen(rootId, isOpen, reason, highlightLast, interactionType) {
     let rootState = state.roots.get(rootId);
 
     // If root state doesn't exist yet, wait briefly for it to be initialized
@@ -452,6 +712,10 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast) {
     // Sync with hover interaction
     if (rootState.hoverInteraction) {
         rootState.hoverInteraction.setOpen(isOpen);
+        if (!isOpen) {
+            rootState.allowMouseEnter = false;
+            rootState.hoverInteraction.setDelays(0, 0);
+        }
     }
 
     if (isOpen) {
@@ -460,9 +724,33 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast) {
         // If highlightLast is true, we'll set the index after we know the item count
         rootState.activeIndex = rootState.menubarElement ? -1 : (highlightLast ? -2 : 0);
 
-        // Apply scroll lock if modal and not opened via hover (guard against double acquisition)
-        if (rootState.modal && reason !== 'trigger-hover' && !rootState.releaseScrollLock) {
+        // Apply scroll lock if modal and not opened via hover or touch (guard against double acquisition)
+        if (rootState.modal && reason !== 'trigger-hover' && interactionType !== 'touch' && !rootState.releaseScrollLock) {
             rootState.releaseScrollLock = acquireScrollLock(rootState.positionerElement);
+        }
+
+        // Touch close prevention: after opening via trigger-focus, block touch-click
+        // dismissals for 300ms to prevent focus→open→click→close flicker on mobile
+        if (reason === 'trigger-focus') {
+            rootState.allowTouchToCloseAt = Date.now() + 300;
+        } else {
+            rootState.allowTouchToCloseAt = null;
+        }
+
+        // Context menu grace period: after opening a context menu, block outside-press
+        // dismissals for 500ms to prevent long-press touch from immediately closing
+        if (rootState.parentType === 'context-menu') {
+            rootState.allowOutsidePressAt = Date.now() + 500;
+        }
+
+        // Patient click protection: when hover-opened, suppress clicks for 500ms
+        if (reason === 'trigger-hover') {
+            clearPatientClickTimeout(rootState);
+            rootState.stickIfOpen = true;
+            rootState.patientClickTimeout = setTimeout(() => {
+                rootState.stickIfOpen = false;
+                rootState.patientClickTimeout = null;
+            }, PATIENT_CLICK_THRESHOLD);
         }
 
         waitForPopupAndStartTransition(rootState, isOpen);
@@ -473,16 +761,22 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast) {
             rootState.releaseScrollLock = null;
         }
 
-        // Return focus to trigger when menu closes via keyboard or item click
-        // Don't focus trigger for hover-based closes or outside clicks (user clicked elsewhere)
-        const shouldFocusTrigger = reason === 'escape-key' || reason === 'item-press' || reason === 'close-press';
-        if (shouldFocusTrigger && rootState.triggerElement) {
-            // Use setTimeout to ensure focus happens after the menu is fully closed
-            setTimeout(() => {
-                if (rootState.triggerElement && document.contains(rootState.triggerElement)) {
-                    rootState.triggerElement.focus();
-                }
-            }, 0);
+        // Return focus when menu closes via keyboard or item click
+        // Don't focus for hover-based closes or outside clicks (user clicked elsewhere)
+        const shouldReturnFocus = reason === 'escape-key' || reason === 'item-press' || reason === 'close-press';
+        if (shouldReturnFocus && rootState.finalFocusMode !== 'none') {
+            const focusTarget = rootState.finalFocusMode === 'element' && rootState.finalFocusElement
+                ? rootState.finalFocusElement
+                : rootState.triggerElement;
+
+            if (focusTarget) {
+                // Use setTimeout to ensure focus happens after the menu is fully closed
+                setTimeout(() => {
+                    if (focusTarget && document.contains(focusTarget)) {
+                        focusTarget.focus();
+                    }
+                }, 0);
+            }
         }
 
         // For keyboard closes, temporarily disable hover interaction to prevent immediate reopen
@@ -490,6 +784,44 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast) {
         if (reason === 'escape-key' && rootState.hoverInteraction) {
             rootState.ignoreHoverUntil = Date.now() + 300;
         }
+
+        // Clear grace period timers
+        rootState.allowOutsidePressAt = null;
+        rootState.allowTouchToCloseAt = null;
+
+        // Reset hover click suppression so hover works on next open
+        rootState.hoverDisabledByClick = false;
+
+        // Clear patient click protection
+        clearPatientClickTimeout(rootState);
+
+        // Clear typeahead state
+        rootState.typingBuffer = '';
+        if (rootState.typingTimer !== null) {
+            clearTimeout(rootState.typingTimer);
+            rootState.typingTimer = null;
+        }
+        rootState.lastTypeaheadTime = 0;
+
+        // Clean up popup click handler
+        if (rootState.popupClickHandler && rootState.popupElement) {
+            rootState.popupElement.removeEventListener('click', rootState.popupClickHandler);
+            rootState.popupClickHandler = null;
+        }
+
+        // Clean up popup mouseup handler (click-and-drag)
+        if (rootState.popupMouseUpHandler && rootState.popupElement) {
+            rootState.popupElement.removeEventListener('mouseup', rootState.popupMouseUpHandler);
+            rootState.popupMouseUpHandler = null;
+        }
+        rootState.allowMouseUpTrigger = false;
+        if (rootState._mouseUpArmTimeout) {
+            clearTimeout(rootState._mouseUpArmTimeout);
+            rootState._mouseUpArmTimeout = null;
+        }
+
+        // Clean up mouse delegation handler
+        cleanupPopupMouseDelegation(rootState, rootState.popupElement);
 
         startTransition(rootState, isOpen);
     }
@@ -520,6 +852,34 @@ function waitForPopupAndStartTransition(rootState, isOpen) {
         if (isOpen) {
             // Wait for menu items to be rendered before highlighting
             waitForItemsAndHighlight(rootState, popupElement);
+
+            // Add click listener to suppress hover re-opens after click interactions
+            if (!rootState.popupClickHandler) {
+                rootState.popupClickHandler = () => {
+                    rootState.hoverDisabledByClick = true;
+                };
+                popupElement.addEventListener('click', rootState.popupClickHandler);
+            }
+
+            // Add mouseup listener for click-and-drag from trigger activation
+            // When allowMouseUpTrigger is set (by trigger pointerdown), releasing
+            // the mouse over a menu item activates it — matching React's behavior.
+            if (!rootState.popupMouseUpHandler) {
+                rootState.popupMouseUpHandler = (e) => {
+                    if (!rootState.allowMouseUpTrigger) return;
+                    rootState.allowMouseUpTrigger = false;
+
+                    const item = e.target.closest('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]');
+                    if (!item || !popupElement.contains(item)) return;
+                    if (item.getAttribute('aria-disabled') === 'true') return;
+
+                    // Only activate regular items, not submenu triggers
+                    if (!item.hasAttribute('aria-haspopup')) {
+                        item.click();
+                    }
+                };
+                popupElement.addEventListener('mouseup', rootState.popupMouseUpHandler);
+            }
         }
         startTransition(rootState, isOpen);
         return;
@@ -585,7 +945,7 @@ function waitForItemsAndHighlight(rootState, popupElement) {
     requestAnimationFrame(checkForItems);
 }
 
-async function startTransition(rootState, isOpen) {
+function startTransition(rootState, isOpen) {
     const popupElement = rootState.popupElement;
 
     if (!popupElement) {
@@ -595,8 +955,7 @@ async function startTransition(rootState, isOpen) {
         return;
     }
 
-    const floating = await ensureFloatingModule();
-    const hasTransition = floating.checkForTransitionOrAnimation(popupElement);
+    const hasTransition = checkForTransitionOrAnimation(popupElement);
 
     if (isOpen) {
         requestAnimationFrame(() => {
@@ -628,11 +987,9 @@ async function startTransition(rootState, isOpen) {
     }
 }
 
-async function setupTransitionEndListener(rootState, isOpen) {
+function setupTransitionEndListener(rootState, isOpen) {
     const popupElement = rootState.popupElement;
     if (!popupElement) return;
-
-    const floating = await ensureFloatingModule();
 
     if (rootState.transitionCleanup) {
         rootState.transitionCleanup();
@@ -669,7 +1026,7 @@ async function setupTransitionEndListener(rootState, isOpen) {
 
     rootState.transitionCleanup = cleanup;
 
-    const fallbackTimeout = floating.getMaxTransitionDuration(popupElement);
+    const fallbackTimeout = getMaxTransitionDuration(popupElement);
     rootState.fallbackTimeoutId = setTimeout(() => {
         if (!called && rootState.dotNetRef) {
             called = true;
@@ -699,7 +1056,38 @@ export async function setTriggerElement(rootId, element) {
     rootState.triggerElement = element;
 }
 
-export async function setPopupElement(rootId, element) {
+export async function setPositionerElement(rootId, element) {
+    let rootState = state.roots.get(rootId);
+
+    // Wait for root state to be initialized if not yet available
+    if (!rootState) {
+        for (let attempt = 0; attempt < 10; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            rootState = state.roots.get(rootId);
+            if (rootState) break;
+        }
+        if (!rootState) return;
+    }
+
+    rootState.positionerElement = element;
+}
+
+const COMPOSITE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
+function setupCompositeKeySuppression(rootState) {
+    rootState.compositeKeyCleanup?.();
+    const popup = rootState.popupElement;
+    if (!popup) return;
+    const handler = (e) => {
+        if (COMPOSITE_KEYS.has(e.key)) {
+            e.stopPropagation();
+        }
+    };
+    popup.addEventListener('keydown', handler);
+    rootState.compositeKeyCleanup = () => popup.removeEventListener('keydown', handler);
+}
+
+export async function setPopupElement(rootId, element, insideToolbar) {
     let rootState = state.roots.get(rootId);
 
     // Wait for root state to be initialized if not yet available
@@ -713,6 +1101,18 @@ export async function setPopupElement(rootId, element) {
     }
 
     rootState.popupElement = element;
+    rootState.insideToolbar = !!insideToolbar;
+
+    // Set up mouse highlight delegation for cross-mode (keyboard→mouse) consistency
+    if (element) {
+        setupPopupMouseDelegation(rootId, rootState, element);
+    }
+
+    // Prevent composite keys (arrows, Home, End) from propagating to toolbar
+    if (rootState.insideToolbar) {
+        setupCompositeKeySuppression(rootState);
+    }
+
     // Update hover interaction with the new popup element
     if (rootState.hoverInteraction && element) {
         rootState.hoverInteraction.setFloatingElement(element);
@@ -723,10 +1123,15 @@ export async function setPopupElement(rootId, element) {
 // Positioning (delegated to shared floating module)
 // ============================================================================
 
-export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidance) {
-    const floating = await ensureFloatingModule();
+export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback, dotNetRef, hasViewport, shiftCrossAxis) {
+    let onPositionUpdated = null;
+    if (dotNetRef) {
+        onPositionUpdated = (effectiveSide, effectiveAlign, anchorHidden) => {
+            dotNetRef.invokeMethodAsync('OnPositionUpdated', effectiveSide, effectiveAlign, anchorHidden).catch(() => { });
+        };
+    }
 
-    const positionerId = await floating.initializePositioner({
+    const positionerId = await floatingInitializePositioner({
         positionerElement,
         triggerElement,
         side,
@@ -740,7 +1145,11 @@ export async function initializePositioner(positionerElement, triggerElement, si
         sticky: sticky || false,
         positionMethod: positionMethod || 'absolute',
         disableAnchorTracking: disableAnchorTracking || false,
-        collisionAvoidance: collisionAvoidance || 'flip-shift'
+        collisionAvoidance: normalizeCollisionAvoidance({ side: collisionAvoidanceSide, align: collisionAvoidanceAlign, fallbackAxisSide: collisionAvoidanceFallback }),
+        onPositionUpdated,
+        dotNetRef: dotNetRef || null,
+        hasViewport: hasViewport || false,
+        shiftCrossAxis: shiftCrossAxis || false
     });
 
     if (positionerId) {
@@ -750,10 +1159,8 @@ export async function initializePositioner(positionerElement, triggerElement, si
     return positionerId;
 }
 
-export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidance) {
-    const floating = await ensureFloatingModule();
-
-    await floating.updatePositioner(positionerId, {
+export async function updatePosition(positionerId, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, collisionAvoidanceSide, collisionAvoidanceAlign, collisionAvoidanceFallback, shiftCrossAxis) {
+    await floatingUpdatePositioner(positionerId, {
         triggerElement,
         side,
         align,
@@ -765,12 +1172,241 @@ export async function updatePosition(positionerId, triggerElement, side, align, 
         arrowElement,
         sticky: sticky || false,
         positionMethod: positionMethod || 'absolute',
-        collisionAvoidance: collisionAvoidance || 'flip-shift'
+        collisionAvoidance: normalizeCollisionAvoidance({ side: collisionAvoidanceSide, align: collisionAvoidanceAlign, fallbackAxisSide: collisionAvoidanceFallback }),
+        shiftCrossAxis: shiftCrossAxis || false
     });
 }
 
-export async function disposePositioner(positionerId) {
-    const floating = await ensureFloatingModule();
-    floating.disposePositioner(positionerId);
+export function disposePositioner(positionerId) {
+    floatingDisposePositioner(positionerId);
     state.positioners.delete(positionerId);
+}
+
+// ============================================================================
+// Viewport Content Transitions
+// ============================================================================
+
+const DIRECTION_TOLERANCE = 5;
+
+export function initializeViewport(rootId, viewportElement, dotNetRef) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.viewportElement = viewportElement;
+        rootState.viewportDotNetRef = dotNetRef;
+    }
+}
+
+export function disposeViewport(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        // Remove any leftover cloned elements
+        if (rootState.viewportElement?.parentNode) {
+            const parent = rootState.viewportElement.parentNode;
+            const clones = parent.querySelectorAll('[data-previous]');
+            clones.forEach(clone => clone.remove());
+        }
+        rootState.viewportElement = null;
+        rootState.viewportDotNetRef = null;
+    }
+}
+
+export function initializeAutoResize(rootId, side, direction) {
+    const rootState = state.roots.get(rootId);
+    if (!rootState) return;
+    rootState.currentSide = side || 'bottom';
+    rootState.direction = direction || 'ltr';
+    setupMenuAutoResize(rootState);
+}
+
+export function disposeAutoResize(rootId) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        cleanupMenuAutoResize(rootState);
+    }
+}
+
+export function onViewportTriggerChange(rootId, previousTriggerElement, newTriggerElement) {
+    const rootState = state.roots.get(rootId);
+    if (!rootState?.viewportElement || !rootState.viewportDotNetRef) return;
+
+    const currentContainer = rootState.viewportElement;
+    const parent = currentContainer.parentNode;
+    if (!parent) return;
+
+    // Clone the current container as the "previous" content
+    const clone = currentContainer.cloneNode(true);
+    clone.removeAttribute('data-current');
+    clone.setAttribute('data-previous', '');
+    clone.setAttribute('inert', '');
+
+    // Set dimensions on the clone for CSS transition use
+    const width = currentContainer.offsetWidth;
+    const height = currentContainer.offsetHeight;
+    clone.style.setProperty('--popup-width', `${width}px`);
+    clone.style.setProperty('--popup-height', `${height}px`);
+    clone.style.position = 'absolute';
+
+    // Calculate activation direction from trigger positions
+    const prevRect = previousTriggerElement.getBoundingClientRect();
+    const newRect = newTriggerElement.getBoundingClientRect();
+
+    const prevCenterX = prevRect.left + prevRect.width / 2;
+    const prevCenterY = prevRect.top + prevRect.height / 2;
+    const newCenterX = newRect.left + newRect.width / 2;
+    const newCenterY = newRect.top + newRect.height / 2;
+
+    const dx = newCenterX - prevCenterX;
+    const dy = newCenterY - prevCenterY;
+
+    // Space-separated dual axis direction matching React
+    const horizontal = Math.abs(dx) < DIRECTION_TOLERANCE ? '' : (dx > 0 ? 'right' : 'left');
+    const vertical = Math.abs(dy) < DIRECTION_TOLERANCE ? '' : (dy > 0 ? 'down' : 'up');
+    const directionStr = `${horizontal} ${vertical}`.trim();
+
+    // Apply transition-hint data attributes
+    clone.setAttribute('data-ending-style', '');
+    currentContainer.setAttribute('data-starting-style', '');
+
+    // Insert clone before current container
+    parent.insertBefore(clone, currentContainer);
+
+    // Notify Blazor of transition start
+    rootState.viewportDotNetRef.invokeMethodAsync('OnViewportTransitionStart', directionStr).catch(() => { });
+
+    // Wait two rAF frames then listen for transition/animation end
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            // Remove data-starting-style from the current container after 2 rAF frames
+            currentContainer.removeAttribute('data-starting-style');
+
+            let ended = false;
+            const onEnd = (event) => {
+                if (event && event.target !== clone) return;
+                if (ended) return;
+                ended = true;
+                clone.removeEventListener('transitionend', onEnd);
+                clone.removeEventListener('animationend', onEnd);
+                clearTimeout(fallbackId);
+                clone.remove();
+                if (rootState.viewportDotNetRef) {
+                    rootState.viewportDotNetRef.invokeMethodAsync('OnViewportTransitionEnd').catch(() => { });
+                }
+            };
+
+            clone.addEventListener('transitionend', onEnd);
+            clone.addEventListener('animationend', onEnd);
+
+            // Fallback timeout in case no transition/animation fires
+            const fallbackId = setTimeout(onEnd, 500);
+        });
+    });
+}
+
+// ============================================================================
+// Auto-Resize Support (for viewport content size changes)
+// ============================================================================
+
+function setPopupCssSize(el, size) {
+    if (!el) return;
+    if (size === 'auto') {
+        el.style.setProperty('--popup-width', 'auto');
+        el.style.setProperty('--popup-height', 'auto');
+    } else {
+        el.style.setProperty('--popup-width', `${size.width}px`);
+        el.style.setProperty('--popup-height', `${size.height}px`);
+    }
+}
+
+function setPositionerCssSize(el, size) {
+    if (!el) return;
+    if (size === 'max-content') {
+        el.style.setProperty('--positioner-width', 'max-content');
+        el.style.setProperty('--positioner-height', 'max-content');
+    } else {
+        el.style.setProperty('--positioner-width', `${size.width}px`);
+        el.style.setProperty('--positioner-height', `${size.height}px`);
+    }
+}
+
+function getCssDimensions(el) {
+    if (!el) return { width: 0, height: 0 };
+    const style = getComputedStyle(el);
+    return {
+        width: Math.ceil(parseFloat(style.width) || 0),
+        height: Math.ceil(parseFloat(style.height) || 0)
+    };
+}
+
+function applyAnchoringStyles(el, side, direction) {
+    if (!el) return;
+    const isRtl = direction === 'rtl';
+    if (side === 'top') {
+        el.style.position = 'absolute';
+        el.style.bottom = '0';
+        el.style.top = 'auto';
+    } else if (side === 'bottom') {
+        el.style.position = '';
+        el.style.bottom = '';
+        el.style.top = '';
+    }
+    if ((side === 'left' && !isRtl) || (side === 'right' && isRtl)) {
+        el.style.position = 'absolute';
+        el.style.right = '0';
+        el.style.left = 'auto';
+    } else if ((side === 'right' && !isRtl) || (side === 'left' && isRtl)) {
+        el.style.position = '';
+        el.style.right = '';
+        el.style.left = '';
+    }
+}
+
+function setupMenuAutoResize(rootState) {
+    cleanupMenuAutoResize(rootState);
+
+    const { popupElement, positionerElement } = rootState;
+    if (!popupElement || !positionerElement || typeof ResizeObserver === 'undefined') return;
+
+    const side = rootState.currentSide || 'bottom';
+    const direction = rootState.direction || 'ltr';
+    applyAnchoringStyles(popupElement, side, direction);
+
+    const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) {
+            rootState.liveDimensions = {
+                width: Math.ceil(entry.borderBoxSize[0]?.inlineSize || entry.contentRect.width),
+                height: Math.ceil(entry.borderBoxSize[0]?.blockSize || entry.contentRect.height)
+            };
+        }
+    });
+    observer.observe(popupElement);
+
+    // Initial measurement
+    setPopupCssSize(popupElement, 'auto');
+    setPositionerCssSize(positionerElement, 'max-content');
+    const dims = getCssDimensions(popupElement);
+    rootState.autoResizeCommitted = dims;
+    setPositionerCssSize(positionerElement, dims);
+
+    rootState.autoResizeObserver = observer;
+}
+
+function cleanupMenuAutoResize(rootState) {
+    if (rootState.autoResizeObserver) {
+        rootState.autoResizeObserver.disconnect();
+        rootState.autoResizeObserver = null;
+    }
+    rootState.autoResizeCommitted = null;
+    rootState.liveDimensions = null;
+}
+
+// ============================================================================
+// Item Index Query
+// ============================================================================
+
+export function getItemIndex(rootId, element) {
+    const root = state.roots.get(rootId);
+    if (!root || !root.popupElement) return -1;
+    const items = getMenuItems(root.popupElement);
+    return items.indexOf(element);
 }

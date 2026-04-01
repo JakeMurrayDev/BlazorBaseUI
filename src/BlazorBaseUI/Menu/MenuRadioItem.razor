@@ -15,6 +15,8 @@
 
 @code {
     private bool highlighted;
+    private bool hasMouseMoveAttribute;
+    private string? defaultId;
     private MenuRadioItemContext? itemContext;
     private MenuRadioItemState state;
     private RenderElement<MenuRadioItemState>? renderElementReference;
@@ -45,11 +47,23 @@
     public bool Disabled { get; set; }
 
     /// <summary>
+    /// Gets or sets the text label to use when the item is matched during keyboard text navigation.
+    /// </summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>
     /// Determines whether the menu closes when this item is clicked.
     /// Defaults to <see langword="false"/>.
     /// </summary>
     [Parameter]
     public bool CloseOnClick { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id attribute of the radio item element.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
 
     /// <summary>
     /// Allows you to replace the component's HTML element
@@ -90,6 +104,8 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        hasMouseMoveAttribute = AttributeUtilities.HasAttribute(AdditionalAttributes, "onmousemove");
+
         if (itemContext is null)
         {
             itemContext = new MenuRadioItemContext
@@ -120,6 +136,9 @@
 
         attrs["role"] = "menuitemradio";
         attrs["aria-checked"] = Checked ? "true" : "false";
+
+        attrs["id"] = Id ?? (defaultId ??= Guid.NewGuid().ToIdString());
+
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 
         if (ResolvedDisabled)
@@ -130,11 +149,17 @@
         attrs["tabindex"] = highlighted ? 0 : -1;
         attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
         attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+        attrs["onmousemove"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync);
 
         attrs["data-checked"] = Checked;
         attrs["data-unchecked"] = !Checked;
         attrs["data-disabled"] = ResolvedDisabled;
         attrs["data-highlighted"] = highlighted;
+
+        if (!string.IsNullOrEmpty(Label))
+        {
+            attrs["data-label"] = Label;
+        }
 
         componentAttributes = attrs;
     }
@@ -148,13 +173,13 @@
 
         if (RadioGroupContext is not null)
         {
-            var eventArgs = new MenuRadioGroupChangeEventArgs(Value);
+            var eventArgs = new MenuRadioGroupChangeEventArgs(Value, MenuRadioGroupChangeReason.ItemPress);
             await RadioGroupContext.SetValueAsync(Value, eventArgs);
         }
 
         if (CloseOnClick && RootContext is not null)
         {
-            RootContext.EmitClose(OpenChangeReason.ItemPress, null);
+            RootContext.EmitClose(MenuOpenChangeReason.ItemPress, null);
         }
 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
@@ -168,6 +193,7 @@
             itemContext.Highlighted = true;
             state = state with { Highlighted = true };
             BuildComponentAttributes();
+            StateHasChanged();
         }
 
         await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
@@ -181,8 +207,25 @@
             itemContext.Highlighted = false;
             state = state with { Highlighted = false };
             BuildComponentAttributes();
+            StateHasChanged();
         }
 
         await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+    }
+
+    private Task HandleMouseMoveAsync(MouseEventArgs e)
+    {
+        if (!ResolvedDisabled && !highlighted && itemContext is not null)
+        {
+            highlighted = true;
+            itemContext.Highlighted = true;
+            state = state with { Highlighted = true };
+            BuildComponentAttributes();
+            StateHasChanged();
+        }
+
+        return hasMouseMoveAttribute
+            ? EventUtilities.InvokeOnMouseMoveAsync(AdditionalAttributes, e)
+            : Task.CompletedTask;
     }
 }

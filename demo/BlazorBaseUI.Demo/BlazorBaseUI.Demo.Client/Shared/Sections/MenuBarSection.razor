@@ -9,7 +9,7 @@
     <DemoSection Title="Basic MenuBar"
                  Description="A menubar containing multiple menus. Click a trigger to open its menu. When one menu is open, hovering over another trigger switches to that menu.">
         <MenuBarRoot ClassValue="@(_ => MenuBarClass())">
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     File
                 </MenuTrigger>
@@ -26,7 +26,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Edit
                 </MenuTrigger>
@@ -43,7 +43,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     View
                 </MenuTrigger>
@@ -63,7 +63,7 @@
     <DemoSection Title="Keyboard Navigation"
                  Description="Use ArrowLeft/Right to navigate between menubar items, Space or Enter to open menus. Within menus, ArrowUp/Down navigates items.">
         <MenuBarRoot ClassValue="@(_ => MenuBarClass())">
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     First
                 </MenuTrigger>
@@ -77,7 +77,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Second
                 </MenuTrigger>
@@ -90,7 +90,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Third
                 </MenuTrigger>
@@ -121,7 +121,7 @@
     <DemoSection Title="Hover Behavior"
                  Description="When no menu is open, hovering does not open menus. When one menu is open, hover over another trigger to switch menus instantly.">
         <MenuBarRoot ClassValue="@(_ => MenuBarClass())">
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Hover A
                 </MenuTrigger>
@@ -134,7 +134,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Hover B
                 </MenuTrigger>
@@ -147,7 +147,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Hover C
                 </MenuTrigger>
@@ -167,7 +167,7 @@
     <DemoSection Title="With Submenus"
                  Description="Menubar menus can contain nested submenus that open on hover or arrow key navigation.">
         <MenuBarRoot ClassValue="@(_ => MenuBarClass())">
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     File
                 </MenuTrigger>
@@ -196,7 +196,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Edit
                 </MenuTrigger>
@@ -215,7 +215,7 @@
     <DemoSection Title="Disabled MenuBar"
                  Description="When disabled, no menus can be opened and keyboard navigation is blocked.">
         <MenuBarRoot Disabled="true" ClassValue="@(_ => MenuBarClass())">
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     File
                 </MenuTrigger>
@@ -228,7 +228,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Edit
                 </MenuTrigger>
@@ -250,7 +250,7 @@
             <div>
                 <p class="mb-2 text-sm font-medium text-gray-700">Loop enabled (default):</p>
                 <MenuBarRoot LoopFocus="true" ClassValue="@(_ => MenuBarClass())">
-                    <MenuRoot>
+                    <MenuRoot Context="_">
                         <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">First</MenuTrigger>
                         <MenuPortal>
                             <MenuPositioner SideOffset="4">
@@ -260,7 +260,7 @@
                             </MenuPositioner>
                         </MenuPortal>
                     </MenuRoot>
-                    <MenuRoot>
+                    <MenuRoot Context="_">
                         <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">Second</MenuTrigger>
                         <MenuPortal>
                             <MenuPositioner SideOffset="4">
@@ -270,7 +270,7 @@
                             </MenuPositioner>
                         </MenuPortal>
                     </MenuRoot>
-                    <MenuRoot>
+                    <MenuRoot Context="_">
                         <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">Last</MenuTrigger>
                         <MenuPortal>
                             <MenuPositioner SideOffset="4">
@@ -285,7 +285,7 @@
             <div>
                 <p class="mb-2 text-sm font-medium text-gray-700">Loop disabled:</p>
                 <MenuBarRoot LoopFocus="false" ClassValue="@(_ => MenuBarClass())">
-                    <MenuRoot>
+                    <MenuRoot Context="_">
                         <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">First</MenuTrigger>
                         <MenuPortal>
                             <MenuPositioner SideOffset="4">
@@ -295,7 +295,7 @@
                             </MenuPositioner>
                         </MenuPortal>
                     </MenuRoot>
-                    <MenuRoot>
+                    <MenuRoot Context="_">
                         <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">Second</MenuTrigger>
                         <MenuPortal>
                             <MenuPositioner SideOffset="4">
@@ -305,7 +305,7 @@
                             </MenuPositioner>
                         </MenuPortal>
                     </MenuRoot>
-                    <MenuRoot>
+                    <MenuRoot Context="_">
                         <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">Last</MenuTrigger>
                         <MenuPortal>
                             <MenuPositioner SideOffset="4">
@@ -323,7 +323,7 @@
     <DemoSection Title="Checkbox and Radio Items"
                  Description="Menubar menus support checkbox and radio items for toggleable options.">
         <MenuBarRoot ClassValue="@(_ => MenuBarClass())">
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     View
                 </MenuTrigger>
@@ -346,7 +346,7 @@
                     </MenuPositioner>
                 </MenuPortal>
             </MenuRoot>
-            <MenuRoot>
+            <MenuRoot Context="_">
                 <MenuTrigger ClassValue="@(_ => MenuBarTriggerClass())">
                     Theme
                 </MenuTrigger>

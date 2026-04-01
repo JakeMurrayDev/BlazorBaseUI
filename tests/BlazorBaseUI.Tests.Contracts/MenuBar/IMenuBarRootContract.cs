@@ -13,5 +13,6 @@ public interface IMenuBarRootContract
     Task AppliesClassValue();
     Task AppliesStyleValue();
     Task CascadesContextToChildren();
+    Task HasDataModalWhenModal();
     Task TracksHasSubmenuOpenState();
 }

@@ -19,6 +19,18 @@ if (!window[STATE_KEY]) {
 
 const state = window[STATE_KEY];
 
+// Inject CSS to hide positioners until JS has computed their position.
+// Prevents flash-of-unpositioned-content when elements are portaled.
+if (!document.querySelector('[data-baseui-positioner-css]')) {
+    const style = document.createElement('style');
+    style.setAttribute('data-baseui-positioner-css', '');
+    style.textContent = [
+        '[role="presentation"][data-side]:not([data-positioned]) { visibility: hidden !important; position: fixed !important; }',
+        '[role="presentation"][data-side]:not([data-open]) { pointer-events: none; }'
+    ].join('\n');
+    document.head.appendChild(style);
+}
+
 // ============================================================================
 // Browser Detection
 // ============================================================================
@@ -221,8 +233,27 @@ export class FloatingTreeStore {
         }
     }
 
-    getNodeChildren(nodeId) {
-        return this.nodes.filter(node => node.parentId === nodeId);
+    getNodeChildren(nodeId, onlyOpenChildren = true) {
+        return this.nodes
+            .filter(n => n.parentId === nodeId && (!onlyOpenChildren || n.context?.open))
+            .flatMap(child => [child, ...this.getNodeChildren(child.id, onlyOpenChildren)]);
+    }
+
+    getDeepestNode(nodeId) {
+        let deepestNodeId = nodeId;
+        let maxDepth = -1;
+
+        const findDeepest = (currentNodeId, depth) => {
+            if (depth > maxDepth) {
+                deepestNodeId = currentNodeId;
+                maxDepth = depth;
+            }
+            const children = this.getNodeChildren(currentNodeId);
+            children.forEach(child => findDeepest(child.id, depth + 1));
+        };
+
+        findDeepest(nodeId, 0);
+        return this.nodes.find(n => n.id === deepestNodeId);
     }
 
     getNodeAncestors(nodeId) {
@@ -250,6 +281,26 @@ export function getFloatingTree(treeId) {
 
 export function disposeFloatingTree(treeId) {
     state.trees.delete(treeId);
+}
+
+export function addTreeNode(treeId, nodeId, parentId) {
+    const tree = state.trees.get(treeId);
+    if (!tree) return;
+    tree.addNode({ id: nodeId, parentId: parentId, context: null });
+}
+
+export function removeTreeNode(treeId, nodeId) {
+    const tree = state.trees.get(treeId);
+    if (!tree) return;
+    const node = tree.nodes.find(n => n.id === nodeId);
+    if (node) tree.removeNode(node);
+}
+
+export function updateTreeNodeContext(treeId, nodeId, context) {
+    const tree = state.trees.get(treeId);
+    if (!tree) return;
+    const node = tree.nodes.find(n => n.id === nodeId);
+    if (node) node.context = context;
 }
 
 // ============================================================================
@@ -444,6 +495,7 @@ export function disposePositioner(positionerId) {
     const positionerState = state.positioners.get(positionerId);
     if (positionerState) {
         cleanupAutoUpdate(positionerState);
+        positionerState.positionerElement?.removeAttribute('data-positioned');
         state.positioners.delete(positionerId);
     }
 }
@@ -500,7 +552,7 @@ function cleanupAutoUpdate(positionerState) {
  * Normalizes collision avoidance settings from either string format (menu)
  * or object format (popover/tooltip) into a consistent object.
  */
-function normalizeCollisionAvoidance(collisionAvoidance) {
+export function normalizeCollisionAvoidance(collisionAvoidance) {
     if (!collisionAvoidance) {
         return { side: 'flip', align: 'flip', fallbackAxisSide: 'end' };
     }
@@ -644,6 +696,8 @@ async function updatePositionInternal(positionerState) {
         positionerElement.style.left = `${x}px`;
         positionerElement.style.top = `${y}px`;
         positionerElement.style.zIndex = '1000';
+        positionerElement.style.visibility = '';
+        positionerElement.setAttribute('data-positioned', '');
 
         // Set CSS custom properties
         positionerElement.style.setProperty('--positioner-width', `${positionerElement.offsetWidth}px`);
@@ -789,6 +843,7 @@ function updatePositionFallback(positionerState) {
     positionerElement.style.top = `${top}px`;
     positionerElement.style.left = `${left}px`;
     positionerElement.style.zIndex = '1000';
+    positionerElement.setAttribute('data-positioned', '');
 
     positionerElement.setAttribute('data-side', side);
     positionerElement.setAttribute('data-align', align);
@@ -1002,7 +1057,7 @@ export function safePolygon(options = {}) {
             // If any nested child is open, abort
             if (tree && nodeId) {
                 const children = tree.getNodeChildren(nodeId);
-                if (children.some(child => child.context?.open)) {
+                if (children.length > 0) {
                     return;
                 }
             }
@@ -1407,7 +1462,6 @@ export function createDismissInteraction(options) {
 
         const children = tree.getNodeChildren(nodeId);
         for (const child of children) {
-            if (!child.context?.open) continue;
             if (type === 'escape' && child.__escapeKeyBubbles === false) return true;
             if (type === 'outsidePress' && child.__outsidePressBubbles === false) return true;
         }
@@ -1683,7 +1737,8 @@ export function createDismissInteraction(options) {
 export const TABBABLE_SELECTOR =
     'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
     'select:not([disabled]), textarea:not([disabled]), ' +
-    '[tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+    '[tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]), ' +
+    'details > summary:first-of-type, audio[controls], video[controls]';
 
 /**
  * Returns all tabbable elements within a container, ordered by DOM position.
@@ -1691,13 +1746,38 @@ export const TABBABLE_SELECTOR =
  */
 export function getTabbableElements(container) {
     if (!container) return [];
-    const elements = Array.from(container.querySelectorAll(TABBABLE_SELECTOR));
+
+    // Collect elements from the container and any shadow roots
+    function collectElements(root, result) {
+        const elements = root.querySelectorAll(TABBABLE_SELECTOR);
+        for (const el of elements) {
+            result.push(el);
+        }
+        // Walk shadow roots for shadow DOM elements
+        const allElements = root.querySelectorAll('*');
+        for (const el of allElements) {
+            if (el.shadowRoot) {
+                collectElements(el.shadowRoot, result);
+            }
+        }
+    }
+
+    const elements = [];
+    collectElements(container, elements);
+
     return elements.filter(el => {
         if (el.hasAttribute('data-tabindex')) return true;
         const tabindex = el.getAttribute('tabindex');
         if (tabindex !== null && parseInt(tabindex, 10) < 0) return false;
         if (el.disabled) return false;
         if (el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return false;
+
+        // Skip non-first summary children of details elements
+        if (el.tagName === 'SUMMARY') {
+            const details = el.closest('details');
+            if (details && details.querySelector('summary') !== el) return false;
+        }
+
         return true;
     });
 }
@@ -1740,8 +1820,8 @@ export function enableFocusInside(container) {
  * Given the currently focused element, returns the next tabbable element
  * within the floating element scope. Wraps around if at the end.
  */
-export function getNextTabbable(currentElement, container) {
-    const tabbable = getTabbableElements(container);
+export function getNextTabbable(currentElement, container, scope) {
+    const tabbable = getTabbableElements(scope || container);
     if (tabbable.length === 0) return null;
     const index = tabbable.indexOf(currentElement);
     if (index === -1 || index === tabbable.length - 1) return tabbable[0];
@@ -1751,13 +1831,62 @@ export function getNextTabbable(currentElement, container) {
 /**
  * Given the currently focused element, returns the previous tabbable element
  * within the floating element scope. Wraps around if at the start.
+ * @param {Element} currentElement - The currently focused element.
+ * @param {Element} container - The floating element container.
+ * @param {Element} [scope] - Optional broader scope to search (e.g. document.body for non-modal Tab-out).
  */
-export function getPreviousTabbable(currentElement, container) {
-    const tabbable = getTabbableElements(container);
+export function getPreviousTabbable(currentElement, container, scope) {
+    const tabbable = getTabbableElements(scope || container);
     if (tabbable.length === 0) return null;
     const index = tabbable.indexOf(currentElement);
     if (index <= 0) return tabbable[tabbable.length - 1];
     return tabbable[index - 1];
+}
+
+// ============================================================================
+// Focus Utilities
+// ============================================================================
+
+let pendingFocusRafId = 0;
+
+/**
+ * Enqueues a focus call on the next animation frame, optionally cancelling
+ * any previously enqueued focus to prevent focus race conditions.
+ */
+function enqueueFocus(el, { preventScroll = false, cancelPrevious = true } = {}) {
+    if (cancelPrevious) cancelAnimationFrame(pendingFocusRafId);
+    pendingFocusRafId = requestAnimationFrame(() => el?.focus({ preventScroll }));
+}
+
+/**
+ * Checks whether an element is a typeable form element (input/textarea/contenteditable).
+ */
+function isTypeableFormElement(el) {
+    if (!el) return false;
+    const tagName = el.tagName;
+    if (tagName === 'TEXTAREA') return true;
+    if (tagName === 'INPUT') {
+        const type = el.getAttribute('type') || 'text';
+        const nonTypeable = ['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'];
+        return !nonTypeable.includes(type);
+    }
+    return el.isContentEditable;
+}
+
+/**
+ * Checks whether an element is a typeable combobox (role="combobox" with a typeable element).
+ */
+function isTypeableCombobox(el) {
+    if (!el) return false;
+    return el.getAttribute('role') === 'combobox' && isTypeableFormElement(el);
+}
+
+/**
+ * Checks whether the event's relatedTarget is outside the given container.
+ */
+function isOutsideEvent(event, container) {
+    const relatedTarget = event.relatedTarget;
+    return !relatedTarget || !contains(container, relatedTarget);
 }
 
 // ============================================================================
@@ -1776,11 +1905,14 @@ export function initializeFocusGuards(options) {
         floatingElement,
         triggerElement = null,
         modal = true,
-        onClose = null
+        onClose = null,
+        closeOnFocusOut = true,
+        nextFocusableElement = null,
+        previousFocusableElement = null
     } = options;
 
     const guardPairId = `guard-${++focusGuardCounter}`;
-    const guards = floatingElement.parentElement?.querySelectorAll('[data-base-ui-focus-guard]');
+    const guards = floatingElement.parentElement?.querySelectorAll('[data-blazor-base-ui-focus-guard]');
     if (!guards || guards.length < 2) {
         // Guards not rendered yet; store config for deferred init
         focusGuardPairs.set(guardPairId, {
@@ -1793,17 +1925,48 @@ export function initializeFocusGuards(options) {
     const beforeGuard = guards[0];
     const afterGuard = guards[guards.length - 1];
 
-    function handleBeforeGuardFocus() {
-        const tabbable = getTabbableElements(floatingElement);
-        if (tabbable.length > 0) {
-            tabbable[tabbable.length - 1].focus();
+    function handleBeforeGuardFocus(event) {
+        if (modal) {
+            // Modal: wrap around to last tabbable element
+            const tabbable = getTabbableElements(floatingElement);
+            if (tabbable.length > 0) {
+                tabbable[tabbable.length - 1].focus();
+            } else {
+                floatingElement.focus();
+            }
         } else {
-            floatingElement.focus();
+            // Non-modal: direction-aware behavior
+            if (isOutsideEvent(event, floatingElement)) {
+                // Focus came from outside (e.g., Shift+Tab from document) — focus previous tabbable in document
+                if (previousFocusableElement) {
+                    previousFocusableElement.focus();
+                } else {
+                    const tabbable = getTabbableElements(floatingElement);
+                    if (tabbable.length > 0) {
+                        tabbable[tabbable.length - 1].focus();
+                    } else {
+                        floatingElement.focus();
+                    }
+                }
+            } else {
+                // Focus came from inside (Shift+Tab from first tabbable) — move to previous focusable
+                if (previousFocusableElement) {
+                    previousFocusableElement.focus();
+                } else {
+                    const tabbable = getTabbableElements(floatingElement);
+                    if (tabbable.length > 0) {
+                        tabbable[tabbable.length - 1].focus();
+                    } else {
+                        floatingElement.focus();
+                    }
+                }
+            }
         }
     }
 
-    function handleAfterGuardFocus() {
+    function handleAfterGuardFocus(event) {
         if (modal) {
+            // Modal: wrap around to first tabbable element
             const tabbable = getTabbableElements(floatingElement);
             if (tabbable.length > 0) {
                 tabbable[0].focus();
@@ -1811,7 +1974,12 @@ export function initializeFocusGuards(options) {
                 floatingElement.focus();
             }
         } else {
-            onClose?.();
+            // Non-modal: Tab past last tabbable
+            if (nextFocusableElement) {
+                nextFocusableElement.focus();
+            } else if (closeOnFocusOut) {
+                onClose?.();
+            }
         }
     }
 
@@ -1893,8 +2061,8 @@ const counterMaps = {
     'inert': new WeakMap(),
     'none': new WeakMap()
 };
-const markerMap = new WeakMap();
-const uncontrolledElementsSet = new WeakSet();
+let markerMap = new WeakMap();
+let uncontrolledElementsSet = new WeakSet();
 let lockCount = 0;
 
 function getCounterMap(control) {
@@ -1915,6 +2083,14 @@ function applyAttributeToOthers(avoidElements, body, ariaHidden, inert) {
     const controlAttribute = inert ? 'inert' : ariaHidden ? 'aria-hidden' : null;
     const counterMap = getCounterMap(controlAttribute ?? 'none');
     const markedElements = [];
+
+    // Add aria-live elements to avoid list so their ancestor chains are preserved
+    const liveRegions = body.querySelectorAll('[aria-live]');
+    for (const el of liveRegions) {
+        if (!avoidElements.includes(el)) {
+            avoidElements.push(el);
+        }
+    }
 
     // Build set of ancestor elements to skip
     const avoidAncestors = new Set();
@@ -1956,7 +2132,7 @@ function applyAttributeToOthers(avoidElements, body, ariaHidden, inert) {
                 if (controlAttribute) {
                     child.setAttribute(controlAttribute, controlAttribute === 'aria-hidden' ? 'true' : '');
                 }
-                child.setAttribute('data-base-ui-inert', '');
+                child.setAttribute('data-blazor-base-ui-inert', '');
             }
             counterMap.set(child, currentCount + 1);
 
@@ -1988,7 +2164,7 @@ function applyAttributeToOthers(avoidElements, body, ariaHidden, inert) {
             const newMarkerCount = markerCount - 1;
             if (newMarkerCount <= 0) {
                 markerMap.delete(child);
-                child.removeAttribute('data-base-ui-inert');
+                child.removeAttribute('data-blazor-base-ui-inert');
             } else {
                 markerMap.set(child, newMarkerCount);
             }
@@ -2000,6 +2176,8 @@ function applyAttributeToOthers(avoidElements, body, ariaHidden, inert) {
             counterMaps['aria-hidden'] = new WeakMap();
             counterMaps['inert'] = new WeakMap();
             counterMaps['none'] = new WeakMap();
+            uncontrolledElementsSet = new WeakSet();
+            markerMap = new WeakMap();
         }
     };
 }
@@ -2009,7 +2187,7 @@ function applyAttributeToOthers(avoidElements, body, ariaHidden, inert) {
  * or inert, creating a modal accessibility barrier.
  */
 export function markOthers(avoidElements, ariaHidden = false, inert = false) {
-    const body = document.body;
+    const body = avoidElements[0]?.ownerDocument?.body ?? document.body;
     if (!body) return () => {};
     return applyAttributeToOthers(avoidElements, body, ariaHidden, inert);
 }
@@ -2024,6 +2202,107 @@ export function supportsInert() {
 // ============================================================================
 // FloatingFocusManager
 // ============================================================================
+
+/**
+ * Creates a shared focusout handler with enhanced checks (F4).
+ * Used by both createFloatingFocusManager and updateFloatingFocusManager.
+ * @param {object} mgr - Manager-like object with floatingElement, triggerElement, insideElements, onClose, treeId, nodeId
+ * @param {object} interactionCtx - Interaction state with isPointerDown, pointerDownOutside getters, preventReturnFocus setter
+ */
+function createFocusOutHandler(mgr, interactionCtx) {
+    return function handleFocusOut(event) {
+        queueMicrotask(() => {
+            // Suppress during pointer interactions
+            if (interactionCtx?.isPointerDown) return;
+
+            const relatedTarget = event.relatedTarget;
+
+            // If focus moved to a focus guard, don't close
+            if (relatedTarget?.hasAttribute('data-blazor-base-ui-focus-guard')) return;
+
+            // If no related target (focus went to body/outside), close
+            if (!relatedTarget) {
+                if (!interactionCtx?.pointerDownOutside) {
+                    if (interactionCtx) interactionCtx.preventReturnFocus = true;
+                    mgr.onClose?.();
+                }
+                return;
+            }
+
+            // Check if focus stayed inside floating element or trigger
+            if (contains(mgr.floatingElement, relatedTarget)) return;
+            if (mgr.triggerElement && contains(mgr.triggerElement, relatedTarget)) return;
+            for (const el of (mgr.insideElements || [])) {
+                if (contains(el, relatedTarget)) return;
+            }
+
+            // Tree-aware checks: don't close if focus moved to a child/ancestor floating element
+            const mgrTreeId = mgr.treeId;
+            const mgrNodeId = mgr.nodeId;
+            if (mgrTreeId && mgrNodeId) {
+                const tree = state.trees.get(mgrTreeId);
+                if (tree) {
+                    const children = tree.getNodeChildren(mgrNodeId);
+                    for (const child of children) {
+                        if (child.context?.floatingElement && contains(child.context.floatingElement, relatedTarget)) {
+                            return;
+                        }
+                        if (child.context?.domReference && contains(child.context.domReference, relatedTarget)) {
+                            return;
+                        }
+                    }
+                    const ancestors = tree.getNodeAncestors(mgrNodeId);
+                    for (const ancestor of ancestors) {
+                        if (ancestor.context?.floatingElement && contains(ancestor.context.floatingElement, relatedTarget)) {
+                            return;
+                        }
+                        if (ancestor.context?.domReference === relatedTarget) {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Restore focus if element was removed from DOM (A1)
+            if (mgr.restoreFocus && event.currentTarget !== mgr.triggerElement) {
+                const target = event.target;
+                const activeEl = document.activeElement;
+                if (activeEl === document.body || (target && !target.isConnected)) {
+                    if (mgr.restoreFocusMode === 'popup') {
+                        mgr.floatingElement.focus();
+                        return;
+                    }
+                    const tabbableContent = getTabbableElements(mgr.floatingElement);
+                    const nodeToFocus = tabbableContent[mgr.tabbableIndex] ||
+                        tabbableContent[tabbableContent.length - 1] || mgr.floatingElement;
+                    if (nodeToFocus && nodeToFocus.focus) nodeToFocus.focus();
+                    return;
+                }
+            }
+
+            if (interactionCtx) interactionCtx.preventReturnFocus = true;
+            mgr.onClose?.();
+        });
+    };
+}
+
+const PREVIOUSLY_FOCUSED_LIMIT = 20;
+let previouslyFocusedElements = [];
+
+function addPreviouslyFocusedElement(el) {
+    previouslyFocusedElements = previouslyFocusedElements.filter(e => e.isConnected);
+    if (el && el.tagName !== 'BODY') {
+        previouslyFocusedElements.push(el);
+        if (previouslyFocusedElements.length > PREVIOUSLY_FOCUSED_LIMIT) {
+            previouslyFocusedElements = previouslyFocusedElements.slice(-PREVIOUSLY_FOCUSED_LIMIT);
+        }
+    }
+}
+
+function getPreviouslyFocusedElement() {
+    previouslyFocusedElements = previouslyFocusedElements.filter(e => e.isConnected);
+    return previouslyFocusedElements[previouslyFocusedElements.length - 1];
+}
 
 const focusManagers = new Map();
 let focusManagerCounter = 0;
@@ -2041,44 +2320,137 @@ export function createFloatingFocusManager(options) {
         initialFocus = true,
         initialFocusSelector = null,
         returnFocus = true,
+        returnFocusElement = null,
         restoreFocus = false,
         restoreFocusMode = null,
         closeOnFocusOut = true,
         interactionType = '',
-        onClose = null,
+        dotNetRef = null,
+        onClose: onCloseOption = null,
         treeId = null,
         nodeId = null,
-        insideElements = []
+        insideElements = [],
+        order = null,
+        nextFocusableElement = null,
+        previousFocusableElement = null,
+        portalNode = null,
+        beforeOutsideGuard = null,
+        afterOutsideGuard = null
     } = options;
+
+    const onClose = onCloseOption ?? (dotNetRef ? () => dotNetRef.invokeMethodAsync('OnClose').catch(() => {}) : null);
 
     const managerId = `fm-${++focusManagerCounter}`;
     const doc = getDocument(floatingElement);
+    addPreviouslyFocusedElement(document.activeElement);
     const previouslyFocusedElement = activeElement(doc);
 
     let markOthersCleanup = null;
-    let guardPairId = null;
     let focusOutCleanup = null;
     let mutationObserver = null;
+    let tabKeydownCleanup = null;
+    let focusInCleanup = null;
+    let lastFocusedIndex = 0;
+    let preventReturnFocus = false;
+
+    // Create hidden fallback span for return focus when trigger disconnects (FFM-F14)
+    let returnFocusFallback = null;
+    if (triggerElement && triggerElement.isConnected) {
+        returnFocusFallback = document.createElement('span');
+        returnFocusFallback.setAttribute('aria-hidden', 'true');
+        returnFocusFallback.setAttribute('tabindex', '-1');
+        returnFocusFallback.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;pointer-events:none;';
+        triggerElement.after(returnFocusFallback);
+    }
+
+    // Document-level interaction tracking (F11)
+    let lastInteractionType = '';
+    let isPointerDown = false;
+    let pointerDownOutside = false;
+
+    function handleDocPointerDown(event) {
+        lastInteractionType = 'pointer';
+        const target = event.target;
+        // Only set isPointerDown when the event target is within the floating or trigger element
+        if (contains(floatingElement, target) || (triggerElement && contains(triggerElement, target))) {
+            isPointerDown = true;
+        }
+        pointerDownOutside = !contains(floatingElement, target) &&
+            !(triggerElement && contains(triggerElement, target));
+
+        // FFM-F10: Don't suppress return focus for nested floating elements or virtual clicks
+        if (pointerDownOutside) {
+            // Check if target is within a child floating element in the tree
+            if (treeId && nodeId) {
+                const tree = state.trees.get(treeId);
+                if (tree) {
+                    const children = tree.getNodeChildren(nodeId);
+                    for (const child of children) {
+                        if (child.context?.floatingElement && contains(child.context.floatingElement, target)) {
+                            pointerDownOutside = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            // Check for virtual click (programmatic click with no pointer type)
+            if (event.detail === 0 && !event.pointerType) {
+                pointerDownOutside = false;
+            }
+        }
+    }
+    function handleDocPointerUpOrCancel() {
+        isPointerDown = false;
+        pointerDownOutside = false;
+    }
+    function handleDocKeyDown() {
+        lastInteractionType = 'keyboard';
+    }
+
+    doc.addEventListener('pointerdown', handleDocPointerDown, true);
+    doc.addEventListener('pointerup', handleDocPointerUpOrCancel, true);
+    doc.addEventListener('pointercancel', handleDocPointerUpOrCancel, true);
+    doc.addEventListener('keydown', handleDocKeyDown, true);
+
+    const interactionTrackingCleanup = () => {
+        doc.removeEventListener('pointerdown', handleDocPointerDown, true);
+        doc.removeEventListener('pointerup', handleDocPointerUpOrCancel, true);
+        doc.removeEventListener('pointercancel', handleDocPointerUpOrCancel, true);
+        doc.removeEventListener('keydown', handleDocKeyDown, true);
+    };
+
+    // Detect untrapped typeable combobox (F5)
+    const isUntrappedTypeableCombobox = isTypeableCombobox(triggerElement) && !initialFocus;
 
     // Apply aria-modal in modal mode
     if (modal) {
         floatingElement.setAttribute('aria-modal', 'true');
     }
 
-    // Mark other elements as inert/aria-hidden in modal mode
-    if (modal) {
-        const avoidElements = [floatingElement, ...insideElements];
-        if (triggerElement) avoidElements.push(triggerElement);
-        markOthersCleanup = markOthers(avoidElements, true, supportsInert());
+    // Mark other elements as inert/aria-hidden in modal or untrapped combobox mode
+    if (modal || isUntrappedTypeableCombobox) {
+        const markAvoid = [floatingElement, ...(insideElements || [])];
+        if (triggerElement) markAvoid.push(triggerElement);
+        if (options.beforeGuardElement) markAvoid.push(options.beforeGuardElement);
+        if (options.afterGuardElement) markAvoid.push(options.afterGuardElement);
+        if (nextFocusableElement) markAvoid.push(nextFocusableElement);
+        if (previousFocusableElement) markAvoid.push(previousFocusableElement);
+        markOthersCleanup = markOthers(markAvoid, modal || isUntrappedTypeableCombobox);
     }
 
-    // Initialize focus guards
-    guardPairId = initializeFocusGuards({
-        floatingElement,
-        triggerElement,
-        modal,
-        onClose
-    });
+    // Prevent Tab from escaping empty modal
+    if (modal) {
+        function handleTabKeyDown(event) {
+            if (event.key === 'Tab') {
+                const tabbable = getTabbableElements(floatingElement);
+                if (tabbable.length === 0) {
+                    event.preventDefault();
+                }
+            }
+        }
+        floatingElement.addEventListener('keydown', handleTabKeyDown);
+        tabKeydownCleanup = () => floatingElement.removeEventListener('keydown', handleTabKeyDown);
+    }
 
     // Handle initial focus
     function setInitialFocus() {
@@ -2124,6 +2496,14 @@ export function createFloatingFocusManager(options) {
 
     // Setup focus restoration when focused element is removed from DOM
     if (restoreFocus) {
+        function handleFocusIn(event) {
+            const tabbable = getTabbableElements(floatingElement);
+            const idx = tabbable.indexOf(event.target);
+            if (idx !== -1) lastFocusedIndex = idx;
+        }
+        floatingElement.addEventListener('focusin', handleFocusIn);
+        focusInCleanup = () => floatingElement.removeEventListener('focusin', handleFocusIn);
+
         mutationObserver = new MutationObserver(() => {
             const active = activeElement(doc);
             if (!active || active === doc.body) {
@@ -2132,7 +2512,8 @@ export function createFloatingFocusManager(options) {
                 } else {
                     const tabbable = getTabbableElements(floatingElement);
                     if (tabbable.length > 0) {
-                        tabbable[0].focus();
+                        const targetIndex = Math.min(lastFocusedIndex, tabbable.length - 1);
+                        tabbable[targetIndex].focus();
                     } else {
                         floatingElement.focus();
                     }
@@ -2142,34 +2523,128 @@ export function createFloatingFocusManager(options) {
         mutationObserver.observe(floatingElement, { childList: true, subtree: true });
     }
 
+    // Track tabbable index for restoreFocus (A1)
+    let tabbableIndex = -1;
+    const tabbableIndexHandler = function(event) {
+        const tabbableContent = getTabbableElements(floatingElement);
+        const idx = tabbableContent.indexOf(event.target);
+        if (idx !== -1) tabbableIndex = idx;
+    };
+    floatingElement.addEventListener('focusin', tabbableIndexHandler);
+    let tabbableIndexCleanup = () => floatingElement.removeEventListener('focusin', tabbableIndexHandler);
+
+    // Store interaction state on a shared object accessible by createFocusOutHandler
+    const interactionState = {
+        get isPointerDown() { return isPointerDown; },
+        get pointerDownOutside() { return pointerDownOutside; },
+        set preventReturnFocus(v) { preventReturnFocus = v; }
+    };
+
     // Setup closeOnFocusOut for non-modal
     if (!modal && closeOnFocusOut) {
-        function handleFocusOut(event) {
-            const relatedTarget = event.relatedTarget;
-            if (!relatedTarget) return;
-            if (contains(floatingElement, relatedTarget)) return;
-            if (triggerElement && contains(triggerElement, relatedTarget)) return;
-            for (const el of insideElements) {
-                if (contains(el, relatedTarget)) return;
-            }
-            onClose?.();
-        }
+        const handleFocusOut = createFocusOutHandler(
+            { floatingElement, triggerElement, insideElements, onClose, treeId, nodeId,
+              restoreFocus, restoreFocusMode, get tabbableIndex() { return tabbableIndex; } },
+            interactionState
+        );
         floatingElement.addEventListener('focusout', handleFocusOut);
-        focusOutCleanup = () => floatingElement.removeEventListener('focusout', handleFocusOut);
+
+        // Also attach to trigger for Safari button focus loss (F4)
+        if (triggerElement) {
+            triggerElement.addEventListener('focusout', handleFocusOut);
+            function handleTriggerPointerDown(event) {
+                // Safari doesn't focus buttons on click — suppress focusout close
+                if (isSafari()) {
+                    interactionState.preventReturnFocus = false;
+                }
+            }
+            triggerElement.addEventListener('pointerdown', handleTriggerPointerDown);
+            focusOutCleanup = () => {
+                floatingElement.removeEventListener('focusout', handleFocusOut);
+                triggerElement.removeEventListener('focusout', handleFocusOut);
+                triggerElement.removeEventListener('pointerdown', handleTriggerPointerDown);
+            };
+        } else {
+            focusOutCleanup = () => floatingElement.removeEventListener('focusout', handleFocusOut);
+        }
     }
+
+    // Call handleTabIndex when focus leaves trigger and enters floating element (FFM-F13)
+    let triggerFocusOutCleanup = null;
+    if (triggerElement) {
+        function handleTriggerFocusOut(event) {
+            // Use microtask to check relatedTarget after focus settles
+            queueMicrotask(() => {
+                const newFocus = document.activeElement;
+                if (newFocus && contains(floatingElement, newFocus)) {
+                    handleTabIndex(floatingElement, order);
+                }
+            });
+        }
+        triggerElement.addEventListener('focusout', handleTriggerFocusOut);
+        triggerFocusOutCleanup = () => triggerElement.removeEventListener('focusout', handleTriggerFocusOut);
+    }
+
+    // Dynamic handleTabIndex (F7/F9)
+    function handleTabIndex(floatingEl, orderOption) {
+        if (!floatingEl) return;
+        if (
+            (!orderOption || !orderOption.includes('floating')) &&
+            !floatingEl.getAttribute('role')?.includes('dialog')
+        ) {
+            return;
+        }
+        const allFocusable = getTabbableElements(floatingEl);
+        const tabbableContent = allFocusable.filter(el => {
+            const dataTabIndex = el.getAttribute('data-tabindex') || '';
+            return el.tabIndex >= 0 ||
+                (el.hasAttribute('data-tabindex') && !dataTabIndex.startsWith('-'));
+        });
+        const tabIndex = floatingEl.getAttribute('tabindex');
+        if ((orderOption && orderOption.includes('floating')) || tabbableContent.length === 0) {
+            if (tabIndex !== '0') floatingEl.setAttribute('tabindex', '0');
+        } else if (
+            tabIndex !== '-1' ||
+            (floatingEl.hasAttribute('data-tabindex') &&
+                floatingEl.getAttribute('data-tabindex') !== '-1')
+        ) {
+            floatingEl.setAttribute('tabindex', '-1');
+            floatingEl.setAttribute('data-tabindex', '-1');
+        }
+    }
+
+    handleTabIndex(floatingElement, order);
 
     const manager = {
         id: managerId,
         floatingElement,
         triggerElement,
         modal,
+        closeOnFocusOut,
         returnFocus,
+        returnFocusElement,
         previouslyFocusedElement,
-        guardPairId,
         insideElements,
         onClose,
+        order,
+        nextFocusableElement,
+        previousFocusableElement,
         markOthersCleanup,
         focusOutCleanup,
+        treeId,
+        nodeId,
+        interactionState,
+        isUntrappedTypeableCombobox,
+        beforeGuardElement: options.beforeGuardElement || null,
+        afterGuardElement: options.afterGuardElement || null,
+        portalNode,
+        beforeOutsideGuard,
+        afterOutsideGuard,
+        restoreFocus,
+        restoreFocusMode,
+        get tabbableIndex() { return tabbableIndex; },
+        get lastInteractionType() { return lastInteractionType; },
+        handleTabIndex,
 
         dispose(shouldReturnFocus = true) {
             // Remove aria-modal
@@ -2178,27 +2653,65 @@ export function createFloatingFocusManager(options) {
             // Clean up markOthers
             this.markOthersCleanup?.();
 
-            // Clean up focus guards
-            if (guardPairId) disposeFocusGuards(guardPairId);
-
             // Clean up focus out listener
             this.focusOutCleanup?.();
+
+            // Clean up trigger focusout listener (FFM-F13)
+            triggerFocusOutCleanup?.();
+
+            // Clean up Tab keydown listener
+            tabKeydownCleanup?.();
+
+            // Clean up focusin listener
+            focusInCleanup?.();
+
+            // Clean up tabbable index focusin listener
+            tabbableIndexCleanup?.();
 
             // Clean up mutation observer
             mutationObserver?.disconnect();
 
-            // Return focus
+            // Clean up interaction tracking listeners
+            interactionTrackingCleanup();
+
+            // Prune disconnected entries from the global previouslyFocusedElements stack
+            previouslyFocusedElements = previouslyFocusedElements.filter(e => e.isConnected);
+
+            // Return focus (F8 - enhanced suppression)
             if (shouldReturnFocus && this.returnFocus !== false) {
-                requestAnimationFrame(() => {
-                    if (this.returnFocus instanceof HTMLElement) {
-                        this.returnFocus.focus();
-                    } else if (this.previouslyFocusedElement) {
-                        this.previouslyFocusedElement.focus();
-                    } else if (triggerElement) {
-                        triggerElement.focus();
+                if (preventReturnFocus) {
+                    preventReturnFocus = false;
+                } else {
+                    const active = activeElement(doc);
+                    // Don't return focus if activeElement has moved somewhere meaningful
+                    const hasMoved = active && active !== doc.body && !contains(floatingElement, active);
+
+                    // Suppress return focus for hover closes (FFM-F9):
+                    // If the last interaction was pointer, focus is NOT inside the floating element,
+                    // and isPointerDown is false, this indicates a hover-close where focus was never
+                    // in the popup — don't steal focus back to the trigger.
+                    const isHoverClose = lastInteractionType === 'pointer' &&
+                        !isPointerDown &&
+                        active && !contains(floatingElement, active);
+
+                    if (!hasMoved && !isHoverClose) {
+                        const returnTarget = triggerElement || getPreviouslyFocusedElement();
+                        const returnEl = this.returnFocus instanceof HTMLElement
+                            ? this.returnFocus
+                            : this.returnFocusElement || this.previouslyFocusedElement || returnTarget;
+                        if (returnEl?.isConnected) {
+                            enqueueFocus(returnEl);
+                        } else if (returnFocusFallback?.isConnected) {
+                            // Fallback span for when trigger disconnects (FFM-F14)
+                            enqueueFocus(returnFocusFallback);
+                        }
                     }
-                });
+                }
             }
+
+            // Clean up return focus fallback span (FFM-F14)
+            returnFocusFallback?.remove();
+            returnFocusFallback = null;
 
             focusManagers.delete(managerId);
         }
@@ -2215,6 +2728,15 @@ export function disposeFloatingFocusManager(managerId, shouldReturnFocus = true)
     const manager = focusManagers.get(managerId);
     if (!manager) return;
     manager.dispose(shouldReturnFocus);
+}
+
+/**
+ * Returns the last interaction type tracked by the focus manager (e.g. "pointer", "keyboard").
+ * Used to pass the close interaction type to ReturnFocusCallback.
+ */
+export function getLastInteractionType(managerId) {
+    const manager = focusManagers.get(managerId);
+    return manager?.lastInteractionType ?? '';
 }
 
 /**
@@ -2241,36 +2763,106 @@ export function updateFloatingFocusManager(managerId, options) {
         manager.insideElements = options.insideElements;
     }
 
+    const closeOnFocusOutChanged = options.closeOnFocusOut !== undefined && options.closeOnFocusOut !== manager.closeOnFocusOut;
+
+    if (closeOnFocusOutChanged) {
+        manager.closeOnFocusOut = options.closeOnFocusOut;
+    }
+
     // Re-apply markOthers when modal or insideElements change
     if (modalChanged || insideElementsChanged) {
         manager.markOthersCleanup?.();
         manager.markOthersCleanup = null;
 
-        if (manager.modal) {
-            const avoidElements = [manager.floatingElement, ...manager.insideElements];
-            if (manager.triggerElement) avoidElements.push(manager.triggerElement);
-            manager.markOthersCleanup = markOthers(avoidElements, true, supportsInert());
+        // Use stored isUntrappedTypeableCombobox from creation time (F6)
+        if (manager.modal || manager.isUntrappedTypeableCombobox) {
+            const markAvoid = [manager.floatingElement, ...(manager.insideElements || [])];
+            if (manager.triggerElement) markAvoid.push(manager.triggerElement);
+            if (manager.beforeGuardElement) markAvoid.push(manager.beforeGuardElement);
+            if (manager.afterGuardElement) markAvoid.push(manager.afterGuardElement);
+            if (manager.nextFocusableElement) markAvoid.push(manager.nextFocusableElement);
+            if (manager.previousFocusableElement) markAvoid.push(manager.previousFocusableElement);
+            manager.markOthersCleanup = markOthers(markAvoid, manager.modal || manager.isUntrappedTypeableCombobox);
         }
     }
 
-    // Toggle focusout listener when modal changes
-    if (modalChanged) {
+    // Toggle focusout listener when modal or closeOnFocusOut changes
+    if (modalChanged || closeOnFocusOutChanged) {
         manager.focusOutCleanup?.();
         manager.focusOutCleanup = null;
 
-        if (!manager.modal && manager.onClose) {
-            function handleFocusOut(event) {
-                const relatedTarget = event.relatedTarget;
-                if (!relatedTarget) return;
-                if (contains(manager.floatingElement, relatedTarget)) return;
-                if (manager.triggerElement && contains(manager.triggerElement, relatedTarget)) return;
-                for (const el of manager.insideElements) {
-                    if (contains(el, relatedTarget)) return;
-                }
-                manager.onClose?.();
-            }
+        if (!manager.modal && manager.closeOnFocusOut && manager.onClose) {
+            const handleFocusOut = createFocusOutHandler(manager, manager.interactionState);
             manager.floatingElement.addEventListener('focusout', handleFocusOut);
-            manager.focusOutCleanup = () => manager.floatingElement.removeEventListener('focusout', handleFocusOut);
+
+            // Also attach to trigger for Safari button focus loss (F4)
+            if (manager.triggerElement) {
+                manager.triggerElement.addEventListener('focusout', handleFocusOut);
+                function handleTriggerPointerDown() {
+                    if (isSafari()) {
+                        manager.interactionState.preventReturnFocus = false;
+                    }
+                }
+                manager.triggerElement.addEventListener('pointerdown', handleTriggerPointerDown);
+                manager.focusOutCleanup = () => {
+                    manager.floatingElement.removeEventListener('focusout', handleFocusOut);
+                    manager.triggerElement.removeEventListener('focusout', handleFocusOut);
+                    manager.triggerElement.removeEventListener('pointerdown', handleTriggerPointerDown);
+                };
+            } else {
+                manager.focusOutCleanup = () => manager.floatingElement.removeEventListener('focusout', handleFocusOut);
+            }
+        }
+    }
+
+    // Update order and re-run handleTabIndex
+    if (options.order !== undefined) {
+        manager.order = options.order;
+        manager.handleTabIndex(manager.floatingElement, options.order);
+    }
+}
+
+/**
+ * Handles focus guard focus events by redirecting focus appropriately (F3).
+ */
+export function handleFocusGuardFocus(managerId, direction) {
+    const manager = focusManagers.get(managerId);
+    if (!manager) return;
+
+    if (direction === 'before') {
+        if (manager.modal) {
+            const els = getTabbableElements(manager.floatingElement);
+            const last = els[els.length - 1] || manager.floatingElement;
+            if (last && last.focus) last.focus();
+        } else if (manager.portalNode) {
+            const target = manager.previousFocusableElement || manager.beforeOutsideGuard;
+            if (target && target.focus) target.focus();
+        } else {
+            const target = manager.previousFocusableElement || manager.triggerElement;
+            if (target && target.focus) target.focus();
+        }
+    } else {
+        if (manager.modal) {
+            const els = getTabbableElements(manager.floatingElement);
+            const first = els[0] || manager.floatingElement;
+            if (first && first.focus) first.focus();
+        } else if (manager.portalNode) {
+            if (manager.closeOnFocusOut) {
+                manager.interactionState.preventReturnFocus = true;
+            }
+            const target = manager.nextFocusableElement || manager.afterOutsideGuard;
+            if (target && target.focus) {
+                target.focus();
+            } else if (manager.closeOnFocusOut && manager.onClose) {
+                manager.onClose();
+            }
+        } else {
+            const target = manager.nextFocusableElement;
+            if (target && target.focus) {
+                target.focus();
+            } else if (manager.closeOnFocusOut && manager.onClose) {
+                manager.onClose();
+            }
         }
     }
 }
@@ -2319,7 +2911,7 @@ export function setNodeDismissBubbles(treeId, nodeId, options) {
  */
 export const NAVIGABLE_ITEM_SELECTOR =
     '[role="option"], [role="menuitem"], [role="menuitemcheckbox"], ' +
-    '[role="menuitemradio"], [data-base-ui-list-item]';
+    '[role="menuitemradio"], [data-blazor-base-ui-list-item]';
 
 /**
  * Creates a shared item registry for tracking list items.
@@ -2513,14 +3105,14 @@ export function findNextEnabledIndex(currentIndex, itemCount, disabledIndices, d
  */
 export function applyActiveState(listElement, itemElement, virtual) {
     // Remove previous active state
-    const prev = listElement.querySelector('[data-base-ui-active]');
+    const prev = listElement.querySelector('[data-blazor-base-ui-active]');
     if (prev) {
-        prev.removeAttribute('data-base-ui-active');
+        prev.removeAttribute('data-blazor-base-ui-active');
         if (!virtual) prev.setAttribute('tabindex', '-1');
     }
 
     if (itemElement) {
-        itemElement.setAttribute('data-base-ui-active', '');
+        itemElement.setAttribute('data-blazor-base-ui-active', '');
         if (virtual) {
             listElement.setAttribute('aria-activedescendant', itemElement.id || '');
         } else {
@@ -3015,8 +3607,8 @@ export function isThirdPartyElement(target, floatingElement) {
     // If the root is not the document element, it's detached — treat as third-party
     if (root !== document.documentElement && root !== document) return true;
 
-    // Check if the target's root contains any data-base-ui-inert markers
-    const inertMarkers = document.querySelectorAll('[data-base-ui-inert]');
+    // Check if the target's root contains any data-blazor-base-ui-inert markers
+    const inertMarkers = document.querySelectorAll('[data-blazor-base-ui-inert]');
     if (inertMarkers.length === 0) return false;
 
     // If target is a direct ancestor of the floating element (e.g., overlay), not third-party
@@ -3026,7 +3618,7 @@ export function isThirdPartyElement(target, floatingElement) {
     // If they don't, and inert markers exist, this element was injected after markOthers ran
     let current = target;
     while (current && current !== document.body) {
-        if (current.hasAttribute('data-base-ui-inert')) return false;
+        if (current.hasAttribute('data-blazor-base-ui-inert')) return false;
         current = current.parentElement;
     }
 
@@ -3038,8 +3630,11 @@ export function isThirdPartyElement(target, floatingElement) {
 // FloatingDelayGroup
 // ============================================================================
 
-const delayGroups = new Map();
-let delayGroupCounter = 0;
+const DELAY_GROUP_KEY = Symbol.for('BlazorBaseUI.DelayGroup.State');
+if (!window[DELAY_GROUP_KEY]) {
+    window[DELAY_GROUP_KEY] = { groups: new Map(), counter: 0 };
+}
+const delayGroupState = window[DELAY_GROUP_KEY];
 
 /**
  * Creates a delay group for coordinating open/close delays across
@@ -3048,7 +3643,7 @@ let delayGroupCounter = 0;
 export function createDelayGroup(options) {
     const { delay, timeoutMs = 0 } = options;
 
-    const groupId = `dg-${++delayGroupCounter}`;
+    const groupId = `dg-${++delayGroupState.counter}`;
     const openDelay = typeof delay === 'number' ? delay : (delay?.open ?? 0);
     const closeDelay = typeof delay === 'number' ? delay : (delay?.close ?? 0);
 
@@ -3057,6 +3652,7 @@ export function createDelayGroup(options) {
         openDelay,
         closeDelay,
         timeoutMs,
+        setIsInstantPhaseRef: options.setIsInstantPhaseRef || null,
         members: new Map(),
         isInstantPhase: false,
         currentOpenId: null,
@@ -3072,11 +3668,11 @@ export function createDelayGroup(options) {
         dispose() {
             if (this.timeoutHandle) clearTimeout(this.timeoutHandle);
             this.members.clear();
-            delayGroups.delete(groupId);
+            delayGroupState.groups.delete(groupId);
         }
     };
 
-    delayGroups.set(groupId, group);
+    delayGroupState.groups.set(groupId, group);
     return group;
 }
 
@@ -3084,7 +3680,7 @@ export function createDelayGroup(options) {
  * Registers a floating element as a member of a delay group.
  */
 export function registerDelayGroupMember(groupId, interactionId, callbacks) {
-    const group = delayGroups.get(groupId);
+    const group = delayGroupState.groups.get(groupId);
     if (!group) return;
 
     group.members.set(interactionId, {
@@ -3094,37 +3690,486 @@ export function registerDelayGroupMember(groupId, interactionId, callbacks) {
 }
 
 /**
+ * Notifies the delay group that a member has opened.
+ * Cancels pending timeout, sets instant phase, and closes previous member.
+ */
+export function notifyDelayGroupMemberOpened(groupId, interactionId) {
+    const group = delayGroupState.groups.get(groupId);
+    if (!group) return;
+
+    if (group.timeoutHandle) {
+        clearTimeout(group.timeoutHandle);
+        group.timeoutHandle = null;
+    }
+
+    const previousOpenId = group.currentOpenId;
+    group.currentOpenId = interactionId;
+
+    if (previousOpenId !== null && previousOpenId !== interactionId) {
+        group.isInstantPhase = true;
+
+        // Notify group-level context once
+        group.setIsInstantPhaseRef?.invokeMethodAsync('SetIsInstantPhase', true);
+
+        // Notify current member
+        const currentMember = group.members.get(interactionId);
+        if (currentMember) {
+            currentMember.closeMember?.invokeMethodAsync('SetMemberInstantPhase', true);
+        }
+
+        // Notify and close previous member
+        const prevMember = group.members.get(previousOpenId);
+        if (prevMember) {
+            prevMember.closeMember?.invokeMethodAsync('SetMemberInstantPhase', true);
+            prevMember.closeMember?.invokeMethodAsync('CloseMember', 'delay-group');
+        }
+    } else {
+        // No previous member open, or same member re-opened — not instant phase
+        group.isInstantPhase = false;
+
+        // Notify group-level context once
+        group.setIsInstantPhaseRef?.invokeMethodAsync('SetIsInstantPhase', false);
+    }
+}
+
+/**
+ * Notifies the delay group that a member has closed.
+ * Starts timeout to exit instant phase if applicable.
+ */
+export function notifyDelayGroupMemberClosed(groupId, interactionId) {
+    const group = delayGroupState.groups.get(groupId);
+    if (!group) return;
+
+    if (group.currentOpenId !== interactionId) return;
+
+    group.currentOpenId = null;
+
+    // Notify only the closing member
+    const closingMember = group.members.get(interactionId);
+    if (closingMember) {
+        closingMember.closeMember?.invokeMethodAsync('SetMemberInstantPhase', false);
+    }
+
+    if (group.timeoutMs > 0) {
+        group.timeoutHandle = setTimeout(() => {
+            // Guard: if another member opened during the timeout, skip the reset
+            if (group.currentOpenId !== null) {
+                group.timeoutHandle = null;
+                return;
+            }
+
+            group.isInstantPhase = false;
+            group.setIsInstantPhaseRef?.invokeMethodAsync('SetIsInstantPhase', false);
+            group.timeoutHandle = null;
+        }, group.timeoutMs);
+    } else {
+        group.isInstantPhase = false;
+        group.setIsInstantPhaseRef?.invokeMethodAsync('SetIsInstantPhase', false);
+    }
+}
+
+/**
  * Unregisters a floating element from a delay group.
  */
 export function unregisterDelayGroupMember(groupId, interactionId) {
-    const group = delayGroups.get(groupId);
+    const group = delayGroupState.groups.get(groupId);
     if (!group) return;
 
-    group.members.delete(interactionId);
-
-    // If no members open, start timeout to exit instant phase
-    if (group.isInstantPhase && group.currentOpenId === interactionId) {
-        group.currentOpenId = null;
-        if (group.timeoutMs > 0) {
-            group.timeoutHandle = setTimeout(() => {
-                group.isInstantPhase = false;
-                group.members.forEach(member => member.setIsInstantPhase?.(false));
-                group.timeoutHandle = null;
-            }, group.timeoutMs);
-        } else {
-            group.isInstantPhase = false;
-            group.members.forEach(member => member.setIsInstantPhase?.(false));
-        }
+    if (group.currentOpenId === interactionId) {
+        notifyDelayGroupMemberClosed(groupId, interactionId);
     }
+
+    group.members.delete(interactionId);
 }
 
 /**
  * Disposes a delay group and all its internal state.
  */
 export function disposeDelayGroup(groupId) {
-    const group = delayGroups.get(groupId);
+    const group = delayGroupState.groups.get(groupId);
     if (!group) return;
     group.dispose();
+}
+
+/**
+ * Updates delay group options after creation (e.g., when parameters change).
+ */
+export function updateDelayGroupOptions(groupId, options) {
+    const group = delayGroupState.groups.get(groupId);
+    if (!group) return;
+    const { delay, timeoutMs } = options;
+    if (delay !== undefined) {
+        group.openDelay = typeof delay === 'number' ? delay : (delay?.open ?? group.openDelay);
+        group.closeDelay = typeof delay === 'number' ? delay : (delay?.close ?? group.closeDelay);
+    }
+    if (timeoutMs !== undefined) group.timeoutMs = timeoutMs;
+}
+
+// ============================================================================
+// Floating Tree Event Bridge (FT-F7)
+// ============================================================================
+
+let treeEventListenerId = 0;
+
+/**
+ * Emits an event on the JS-side tree event emitter.
+ */
+export function emitTreeEvent(treeId, eventName, data) {
+    const tree = state.trees?.get(treeId);
+    if (tree) tree.events.emit(eventName, data);
+}
+
+/**
+ * Subscribes a .NET callback to a JS-side tree event.
+ * Returns a string listener ID for cleanup.
+ */
+export function onTreeEvent(treeId, eventName, dotNetRef, methodName) {
+    const tree = state.trees?.get(treeId);
+    if (!tree) return null;
+    const id = String(++treeEventListenerId);
+    const listener = (data) => dotNetRef.invokeMethodAsync(methodName, data).catch(() => {});
+    tree.events.on(eventName, listener);
+    if (!tree._jsListeners) tree._jsListeners = new Map();
+    tree._jsListeners.set(id, { eventName, listener });
+    return id;
+}
+
+/**
+ * Unsubscribes a previously registered JS-side tree event listener.
+ */
+export function offTreeEvent(treeId, listenerId) {
+    const tree = state.trees?.get(treeId);
+    if (!tree?._jsListeners) return;
+    const entry = tree._jsListeners.get(listenerId);
+    if (entry) {
+        tree.events.off(entry.eventName, entry.listener);
+        tree._jsListeners.delete(listenerId);
+    }
+}
+
+// ============================================================================
+// InternalBackdrop — cutout clip-path management
+// ============================================================================
+//
+// BLAZOR WORKAROUND: In the React source, InternalBackdrop computes the cutout
+// clip-path synchronously during render via getBoundingClientRect(). Blazor
+// cannot read DOM layout during render, so instead we initialize the clip-path
+// once via JS interop and then keep it updated reactively using ResizeObserver
+// and scroll listeners. This avoids per-render JS interop calls and ensures the
+// clip-path stays in sync when the cutout element moves (scroll, resize, layout).
+//
+// React source: .base-ui/packages/react/src/utils/InternalBackdrop.tsx
+// ============================================================================
+
+const backdropInstances = new Map();
+let backdropCounter = 0;
+
+/**
+ * Computes the clip-path polygon for a cutout element and applies it to the
+ * backdrop element's style directly.
+ */
+function updateBackdropClipPath(backdropElement, cutoutElement) {
+    if (!cutoutElement || !backdropElement) return;
+
+    const rect = cutoutElement.getBoundingClientRect();
+    backdropElement.style.clipPath =
+        `polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, ` +
+        `${rect.left}px ${rect.top}px, ${rect.left}px ${rect.bottom}px, ` +
+        `${rect.right}px ${rect.bottom}px, ${rect.right}px ${rect.top}px, ` +
+        `${rect.left}px ${rect.top}px)`;
+}
+
+/**
+ * Collects all scrollable ancestors of an element for scroll listening.
+ */
+function getScrollAncestors(element) {
+    const ancestors = [];
+    let current = element.parentElement;
+    while (current) {
+        const style = getComputedStyle(current);
+        if (/(auto|scroll|overlay)/.test(style.overflow + style.overflowX + style.overflowY)) {
+            ancestors.push(current);
+        }
+        current = current.parentElement;
+    }
+    ancestors.push(window);
+    return ancestors;
+}
+
+/**
+ * Initializes reactive clip-path management for an InternalBackdrop.
+ * Sets up ResizeObserver and scroll listeners to keep the cutout in sync.
+ *
+ * @param {HTMLElement} backdropElement - The backdrop div element.
+ * @param {HTMLElement} cutoutElement - The element to cut out.
+ * @returns {string} The backdrop instance ID.
+ */
+export function initializeBackdrop(backdropElement, cutoutElement) {
+    const id = `backdrop-${++backdropCounter}`;
+
+    // Initial clip-path
+    updateBackdropClipPath(backdropElement, cutoutElement);
+
+    const update = () => updateBackdropClipPath(backdropElement, cutoutElement);
+
+    // Observe resize of the cutout element
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(cutoutElement);
+
+    // Listen for scroll on all scrollable ancestors
+    const scrollAncestors = getScrollAncestors(cutoutElement);
+    for (const ancestor of scrollAncestors) {
+        ancestor.addEventListener('scroll', update, { passive: true });
+    }
+
+    // Listen for window resize
+    window.addEventListener('resize', update, { passive: true });
+
+    backdropInstances.set(id, {
+        backdropElement,
+        cutoutElement,
+        resizeObserver,
+        scrollAncestors,
+        update
+    });
+
+    return id;
+}
+
+/**
+ * Updates the cutout element for an existing backdrop instance.
+ * Tears down old listeners and sets up new ones for the new element.
+ *
+ * @param {string} id - The backdrop instance ID.
+ * @param {HTMLElement} cutoutElement - The new cutout element.
+ */
+export function updateBackdropCutout(id, cutoutElement) {
+    const instance = backdropInstances.get(id);
+    if (!instance) return;
+
+    // Tear down old listeners
+    instance.resizeObserver.disconnect();
+    for (const ancestor of instance.scrollAncestors) {
+        ancestor.removeEventListener('scroll', instance.update);
+    }
+    window.removeEventListener('resize', instance.update);
+
+    // Set up new listeners
+    instance.cutoutElement = cutoutElement;
+    instance.update = () => updateBackdropClipPath(instance.backdropElement, cutoutElement);
+
+    updateBackdropClipPath(instance.backdropElement, cutoutElement);
+
+    instance.resizeObserver = new ResizeObserver(instance.update);
+    instance.resizeObserver.observe(cutoutElement);
+
+    instance.scrollAncestors = getScrollAncestors(cutoutElement);
+    for (const ancestor of instance.scrollAncestors) {
+        ancestor.addEventListener('scroll', instance.update, { passive: true });
+    }
+    window.addEventListener('resize', instance.update, { passive: true });
+}
+
+/**
+ * Disposes a backdrop instance and cleans up all listeners.
+ *
+ * @param {string} id - The backdrop instance ID.
+ */
+export function disposeBackdrop(id) {
+    const instance = backdropInstances.get(id);
+    if (!instance) return;
+
+    instance.resizeObserver.disconnect();
+    for (const ancestor of instance.scrollAncestors) {
+        ancestor.removeEventListener('scroll', instance.update);
+    }
+    window.removeEventListener('resize', instance.update);
+
+    // Clear clip-path
+    if (instance.backdropElement) {
+        instance.backdropElement.style.clipPath = '';
+    }
+
+    backdropInstances.delete(id);
+}
+
+// ============================================================================
+// FloatingPortal — portal-level focus management
+// ============================================================================
+
+const portalInstances = new Map();
+let portalCounter = 0;
+
+/**
+ * Initializes focus management for a FloatingPortal instance.
+ * Attaches focusin/focusout listeners on the portal node for non-modal tabbability
+ * and sets up outside focus guard handlers.
+ *
+ * @param {object} options
+ * @param {HTMLElement} options.portalNode - The portal container element.
+ * @param {HTMLElement} [options.beforeOutsideGuard] - The before-outside focus guard element.
+ * @param {HTMLElement} [options.afterOutsideGuard] - The after-outside focus guard element.
+ * @param {HTMLElement} [options.beforeInsideGuard] - The before-inside focus guard element.
+ * @param {HTMLElement} [options.afterInsideGuard] - The after-inside focus guard element.
+ * @param {DotNetObjectReference} [options.dotNetRef] - .NET reference for close callbacks.
+ * @returns {string} The portal instance ID.
+ */
+export function initializeFloatingPortal(options) {
+    const {
+        portalNode,
+        beforeOutsideGuard = null,
+        afterOutsideGuard = null,
+        beforeInsideGuard = null,
+        afterInsideGuard = null,
+        dotNetRef = null
+    } = options;
+
+    const portalId = `portal-${++portalCounter}`;
+
+    const instance = {
+        portalNode,
+        beforeOutsideGuard,
+        afterOutsideGuard,
+        beforeInsideGuard,
+        afterInsideGuard,
+        dotNetRef,
+        focusManagerState: null,
+        cleanup: null
+    };
+
+    attachPortalFocusListeners(instance);
+    portalInstances.set(portalId, instance);
+    return portalId;
+}
+
+/**
+ * Updates the focus manager state for a portal instance.
+ * Called by FloatingFocusManager when it mounts/unmounts within the portal.
+ *
+ * @param {string} portalId - The portal instance ID.
+ * @param {object|null} focusManagerState - The focus state, or null to clear.
+ * @param {boolean} focusManagerState.modal - Whether focus is trapped.
+ * @param {boolean} focusManagerState.open - Whether the floating element is open.
+ * @param {HTMLElement} [focusManagerState.domReference] - The trigger element.
+ * @param {boolean} focusManagerState.closeOnFocusOut - Whether to close on focus-out.
+ */
+export function updatePortalFocusManagerState(portalId, focusManagerState) {
+    const instance = portalInstances.get(portalId);
+    if (!instance) return;
+
+    instance.focusManagerState = focusManagerState;
+
+    // Re-attach listeners since behavior depends on modal/open state
+    detachPortalFocusListeners(instance);
+    attachPortalFocusListeners(instance);
+}
+
+/**
+ * Disposes a FloatingPortal instance and cleans up all listeners.
+ *
+ * @param {string} portalId - The portal instance ID.
+ */
+export function disposeFloatingPortal(portalId) {
+    const instance = portalInstances.get(portalId);
+    if (!instance) return;
+
+    detachPortalFocusListeners(instance);
+    portalInstances.delete(portalId);
+}
+
+/**
+ * Attaches focusin/focusout listeners on the portal node for non-modal tabbability,
+ * and outside focus guard focus handlers.
+ */
+function attachPortalFocusListeners(instance) {
+    const { portalNode, focusManagerState } = instance;
+    if (!portalNode) return;
+
+    const modal = focusManagerState?.modal ?? false;
+    const open = focusManagerState?.open ?? false;
+    const cleanups = [];
+
+    // Non-modal focus management: enable/disable focus inside the portal
+    // when focus enters/leaves, so portal contents are only tabbable when
+    // the portal itself has been focused.
+    if (!modal && portalNode) {
+        function onFocusChange(event) {
+            if (event.relatedTarget && isOutsideEvent(event, portalNode)) {
+                const focusing = event.type === 'focusin';
+                const manageFocus = focusing ? enableFocusInside : disableFocusInside;
+                manageFocus(portalNode);
+            }
+        }
+
+        portalNode.addEventListener('focusin', onFocusChange, true);
+        portalNode.addEventListener('focusout', onFocusChange, true);
+        cleanups.push(() => {
+            portalNode.removeEventListener('focusin', onFocusChange, true);
+            portalNode.removeEventListener('focusout', onFocusChange, true);
+        });
+    }
+
+    // When not open, re-enable focus inside the portal
+    if (!open && portalNode) {
+        enableFocusInside(portalNode);
+    }
+
+    // Outside focus guard handlers
+    if (instance.beforeOutsideGuard) {
+        function handleBeforeOutsideFocus(event) {
+            const fms = instance.focusManagerState;
+            if (isOutsideEvent(event, portalNode)) {
+                // Focus came from outside — redirect to inside before guard
+                instance.beforeInsideGuard?.focus();
+            } else {
+                // Focus came from inside (Shift+Tab past first element) — move to previous tabbable in page
+                const domReference = fms?.domReference ?? null;
+                const prevTabbable = getPreviousTabbable(domReference, document.body, document.body);
+                prevTabbable?.focus();
+            }
+        }
+
+        instance.beforeOutsideGuard.addEventListener('focus', handleBeforeOutsideFocus);
+        cleanups.push(() => {
+            instance.beforeOutsideGuard?.removeEventListener('focus', handleBeforeOutsideFocus);
+        });
+    }
+
+    if (instance.afterOutsideGuard) {
+        function handleAfterOutsideFocus(event) {
+            const fms = instance.focusManagerState;
+            if (isOutsideEvent(event, portalNode)) {
+                // Focus came from outside — redirect to inside after guard
+                instance.afterInsideGuard?.focus();
+            } else {
+                // Focus came from inside (Tab past last element) — move to next tabbable in page
+                const domReference = fms?.domReference ?? null;
+                const nextTabbable = getNextTabbable(domReference, document.body, document.body);
+                nextTabbable?.focus();
+
+                if (fms?.closeOnFocusOut && instance.dotNetRef) {
+                    instance.dotNetRef.invokeMethodAsync('OnPortalFocusOut');
+                }
+            }
+        }
+
+        instance.afterOutsideGuard.addEventListener('focus', handleAfterOutsideFocus);
+        cleanups.push(() => {
+            instance.afterOutsideGuard?.removeEventListener('focus', handleAfterOutsideFocus);
+        });
+    }
+
+    instance.cleanup = () => {
+        for (const fn of cleanups) fn();
+    };
+}
+
+/**
+ * Detaches all focus listeners from a portal instance.
+ */
+function detachPortalFocusListeners(instance) {
+    instance.cleanup?.();
+    instance.cleanup = null;
 }
 
 // ============================================================================

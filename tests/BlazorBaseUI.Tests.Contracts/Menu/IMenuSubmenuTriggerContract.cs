@@ -7,8 +7,12 @@ public interface IMenuSubmenuTriggerContract
     Task HasAriaHaspopupMenu();
     Task HasAriaExpandedFalseWhenClosed();
     Task HasAriaExpandedTrueWhenOpen();
-    Task HasDataOpenWhenOpen();
-    Task HasDataClosedWhenClosed();
+    Task HasDataPopupOpenWhenOpen();
+    Task DoesNotHaveDataPopupOpenWhenClosed();
     Task HasDataDisabledWhenDisabled();
+    Task HasAriaDisabledWhenDisabled();
     Task RequiresSubmenuContext();
+    Task CloseDelayDefaultsToZero();
+    Task HighlightsOnMouseEnter();
+    Task DoesNotToggleOnClickWhenOpenOnHover();
 }

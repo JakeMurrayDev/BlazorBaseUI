@@ -54,9 +54,15 @@ public static class JsInteropSetup
         module.SetupVoid("disposeHoverInteraction", _ => true).SetVoidResult();
         module.SetupVoid("updateHoverInteractionFloatingElement", _ => true).SetVoidResult();
         module.SetupVoid("setHoverInteractionOpen", _ => true).SetVoidResult();
+        module.SetupVoid("setInternalBackdrop", _ => true).SetVoidResult();
         module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
         module.SetupVoid("updatePosition", _ => true).SetVoidResult();
         module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
+        module.SetupVoid("initializeViewport", _ => true).SetVoidResult();
+        module.SetupVoid("disposeViewport", _ => true).SetVoidResult();
+        module.SetupVoid("initializeAutoResize", _ => true).SetVoidResult();
+        module.SetupVoid("disposeAutoResize", _ => true).SetVoidResult();
+        module.SetupVoid("onViewportTriggerChange", _ => true).SetVoidResult();
     }
 
     private const string MenuBarModule = "./_content/BlazorBaseUI/blazor-baseui-menubar.js";
@@ -359,6 +365,7 @@ public static class JsInteropSetup
     {
         var module = jsInterop.SetupModule(ContextMenuModule);
         module.SetupVoid("initializeContextMenu", _ => true).SetVoidResult();
+        module.SetupVoid("setBackdropElement", _ => true).SetVoidResult();
         module.SetupVoid("disposeContextMenu", _ => true).SetVoidResult();
     }
 
@@ -374,6 +381,31 @@ public static class JsInteropSetup
     {
         var module = jsInterop.SetupModule(FloatingModule);
         module.Setup<bool>("isSafari").SetResult(false);
+    }
+
+    public static void SetupFloatingTreeModule(BunitJSInterop jsInterop)
+    {
+        var module = jsInterop.SetupModule(FloatingModule);
+        module.SetupVoid("getFloatingTree", _ => true).SetVoidResult();
+        module.SetupVoid("disposeFloatingTree", _ => true).SetVoidResult();
+    }
+
+    public static void SetupFloatingFocusManagerModule(BunitJSInterop jsInterop, string managerId = "fm-1")
+    {
+        var module = jsInterop.SetupModule(FloatingModule);
+        module.Setup<string>("createFloatingFocusManager", _ => true).SetResult(managerId);
+        module.SetupVoid("disposeFloatingFocusManager", _ => true).SetVoidResult();
+        module.SetupVoid("updateFloatingFocusManager", _ => true).SetVoidResult();
+    }
+
+    public static void SetupFloatingDelayGroupModule(BunitJSInterop jsInterop, string groupId = "dg-1")
+    {
+        var module = jsInterop.SetupModule(FloatingModule);
+        module.Setup<System.Text.Json.JsonElement>("createDelayGroup", _ => true)
+            .SetResult(System.Text.Json.JsonSerializer.SerializeToElement(new { groupId }));
+        module.SetupVoid("registerDelayGroupMember", _ => true).SetVoidResult();
+        module.SetupVoid("unregisterDelayGroupMember", _ => true).SetVoidResult();
+        module.SetupVoid("disposeDelayGroup", _ => true).SetVoidResult();
     }
 
     private const string SelectModule = "./_content/BlazorBaseUI/blazor-baseui-select.js";

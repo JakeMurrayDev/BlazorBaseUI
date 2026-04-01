@@ -1,4 +1,5 @@
-@using Microsoft.AspNetCore.Components.Web
+@using BlazorBaseUI.ContextMenu
+@using Microsoft.JSInterop
 
 <RenderElement TState="MenuBackdropState"
                Tag="div"
@@ -20,6 +21,9 @@
 
     [CascadingParameter]
     private MenuRootContext? RootContext { get; set; }
+
+    [CascadingParameter]
+    private ContextMenuRootContext? ContextMenuContext { get; set; }
 
     /// <summary>
     /// Allows you to replace the component's HTML element
@@ -60,11 +64,27 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        var open = RootContext?.Open ?? false;
+        var open = RootContext?.GetOpen() ?? false;
         var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
         state = new MenuBackdropState(open, transitionStatus);
         BuildComponentAttributes();
         BuildComputedStyleValue();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && ContextMenuContext?.RegisterBackdropElement is not null && Element.HasValue)
+        {
+            try
+            {
+                await ContextMenuContext.RegisterBackdropElement(Element.Value);
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
+            }
+        }
     }
 
     private void BuildComponentAttributes()
@@ -83,15 +103,13 @@
         attrs["data-closed"] = !state.Open;
         attrs["data-starting-style"] = state.TransitionStatus == TransitionStatus.Starting;
         attrs["data-ending-style"] = state.TransitionStatus == TransitionStatus.Ending;
-        attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
-
         componentAttributes = attrs;
     }
 
     private void BuildComputedStyleValue()
     {
-        var openChangeReason = RootContext?.OpenChangeReason ?? OpenChangeReason.None;
-        var pointerEvents = openChangeReason == OpenChangeReason.TriggerHover ? "none" : null;
+        var openChangeReason = RootContext?.MenuOpenChangeReason ?? MenuOpenChangeReason.None;
+        var pointerEvents = openChangeReason == MenuOpenChangeReason.TriggerHover ? "none" : null;
 
         computedStyleValue = s =>
         {
@@ -105,14 +123,4 @@
         };
     }
 
-    private async Task HandleClickAsync(MouseEventArgs e)
-    {
-        if (RootContext is null)
-        {
-            return;
-        }
-
-        await RootContext.SetOpenAsync(false, OpenChangeReason.OutsidePress, null);
-        await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
-    }
 }

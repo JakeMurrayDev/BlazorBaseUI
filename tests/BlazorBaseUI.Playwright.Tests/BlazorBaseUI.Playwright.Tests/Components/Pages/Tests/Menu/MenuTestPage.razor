@@ -5,11 +5,11 @@
 <PageTitle>Menu Test Page (Server)</PageTitle>
 
 <div data-testid="test-container" data-interactive="@RendererInfo.IsInteractive.ToString().ToLowerInvariant()" dir="@Direction">
-    <MenuRoot
+    <MenuRoot Context="_"
         @bind-Open="isOpen"
         DefaultOpen="@DefaultOpen"
         Disabled="@Disabled"
-        Modal="@(Modal ? ModalMode.True : ModalMode.False)"
+        Modal="@(Modal ? MenuModalMode.True : MenuModalMode.False)"
         Orientation="@((Orientation ?? "vertical") == "horizontal" ? MenuOrientation.Horizontal : MenuOrientation.Vertical)"
         Direction="@(Direction == "rtl" ? BlazorBaseUI.Direction.Rtl : BlazorBaseUI.Direction.Ltr)"
         LoopFocus="@LoopFocus"

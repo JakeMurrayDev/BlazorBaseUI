@@ -13,4 +13,5 @@ public readonly record struct MenuPositionerState(
     Side Side,
     Align Align,
     bool AnchorHidden,
-    bool Nested);
+    bool Nested,
+    MenuInstantType Instant);

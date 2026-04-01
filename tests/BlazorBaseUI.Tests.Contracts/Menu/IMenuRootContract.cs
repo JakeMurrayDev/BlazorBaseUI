@@ -11,4 +11,5 @@ public interface IMenuRootContract
     Task SupportsModalModes();
     Task SupportsOrientations();
     Task ActionsRefProvidesCloseMethod();
+    Task ChildContentReceivesPayloadContext();
 }

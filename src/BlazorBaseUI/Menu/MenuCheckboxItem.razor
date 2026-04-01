@@ -16,6 +16,8 @@
 @code {
     private bool highlighted;
     private bool internalChecked;
+    private bool hasMouseMoveAttribute;
+    private string? defaultId;
     private MenuCheckboxItemContext? itemContext;
     private MenuCheckboxItemState state;
     private RenderElement<MenuCheckboxItemState>? renderElementReference;
@@ -69,6 +71,18 @@
     public bool Disabled { get; set; }
 
     /// <summary>
+    /// Gets or sets the text label to use when the item is matched during keyboard text navigation.
+    /// </summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>
+    /// Gets or sets the id attribute of the checkbox item element.
+    /// </summary>
+    [Parameter]
+    public string? Id { get; set; }
+
+    /// <summary>
     /// Allows you to replace the component's HTML element
     /// with a different tag, or compose it with another component.
     /// </summary>
@@ -116,6 +130,8 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        hasMouseMoveAttribute = AttributeUtilities.HasAttribute(AdditionalAttributes, "onmousemove");
+
         if (itemContext is null)
         {
             itemContext = new MenuCheckboxItemContext
@@ -146,6 +162,9 @@
 
         attrs["role"] = "menuitemcheckbox";
         attrs["aria-checked"] = IsChecked ? "true" : "false";
+
+        attrs["id"] = Id ?? (defaultId ??= Guid.NewGuid().ToIdString());
+
         attrs["onclick"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleClickAsync);
 
         if (Disabled)
@@ -156,11 +175,17 @@
         attrs["tabindex"] = highlighted ? 0 : -1;
         attrs["onmouseenter"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseEnterAsync);
         attrs["onmouseleave"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseLeaveAsync);
+        attrs["onmousemove"] = EventCallback.Factory.Create<MouseEventArgs>(this, HandleMouseMoveAsync);
 
         attrs["data-checked"] = IsChecked;
         attrs["data-unchecked"] = !IsChecked;
         attrs["data-disabled"] = Disabled;
         attrs["data-highlighted"] = highlighted;
+
+        if (!string.IsNullOrEmpty(Label))
+        {
+            attrs["data-label"] = Label;
+        }
 
         componentAttributes = attrs;
     }
@@ -173,7 +198,7 @@
         }
 
         var newChecked = !IsChecked;
-        var eventArgs = new MenuCheckboxItemChangeEventArgs(newChecked);
+        var eventArgs = new MenuCheckboxItemChangeEventArgs(newChecked, MenuCheckboxItemChangeReason.ItemPress);
         await OnCheckedChange.InvokeAsync(eventArgs);
 
         if (eventArgs.IsCanceled)
@@ -199,7 +224,7 @@
 
         if (CloseOnClick && RootContext is not null)
         {
-            RootContext.EmitClose(OpenChangeReason.ItemPress, null);
+            RootContext.EmitClose(MenuOpenChangeReason.ItemPress, null);
         }
 
         await EventUtilities.InvokeOnClickAsync(AdditionalAttributes, e);
@@ -213,6 +238,7 @@
             itemContext.Highlighted = true;
             state = state with { Highlighted = true };
             BuildComponentAttributes();
+            StateHasChanged();
         }
 
         await EventUtilities.InvokeOnMouseEnterAsync(AdditionalAttributes, e);
@@ -226,8 +252,25 @@
             itemContext.Highlighted = false;
             state = state with { Highlighted = false };
             BuildComponentAttributes();
+            StateHasChanged();
         }
 
         await EventUtilities.InvokeOnMouseLeaveAsync(AdditionalAttributes, e);
+    }
+
+    private Task HandleMouseMoveAsync(MouseEventArgs e)
+    {
+        if (!Disabled && !highlighted && itemContext is not null)
+        {
+            highlighted = true;
+            itemContext.Highlighted = true;
+            state = state with { Highlighted = true };
+            BuildComponentAttributes();
+            StateHasChanged();
+        }
+
+        return hasMouseMoveAttribute
+            ? EventUtilities.InvokeOnMouseMoveAsync(AdditionalAttributes, e)
+            : Task.CompletedTask;
     }
 }

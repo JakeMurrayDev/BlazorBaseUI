@@ -5,13 +5,12 @@
     <CascadingValue TValue="MenuRootContext" Value="@((MenuRootContext)null!)" IsFixed="true">
         <MenuRoot Open="Open"
                   DefaultOpen="DefaultOpen"
-                  Modal="ModalMode.True"
+                  Modal="MenuModalMode.True"
                   LoopFocus="LoopFocus"
                   Orientation="Orientation"
                   HighlightItemOnHover="HighlightItemOnHover"
                   Disabled="Disabled"
                   CloseParentOnEsc="CloseParentOnEsc"
-                  Direction="Direction"
                   ActionsRef="ActionsRef"
                   OpenChanged="OpenChanged"
                   OnOpenChange="OnOpenChange"
@@ -77,12 +76,6 @@
     /// </summary>
     [Parameter]
     public bool CloseParentOnEsc { get; set; }
-
-    /// <summary>
-    /// Gets or sets the text direction of the menu.
-    /// </summary>
-    [Parameter]
-    public Direction Direction { get; set; } = Direction.Ltr;
 
     /// <summary>
     /// Gets or sets a reference to imperative actions for controlling the menu programmatically.

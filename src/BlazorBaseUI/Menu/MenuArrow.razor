@@ -88,11 +88,6 @@
         attrs["data-closed"] = !state.Open;
         attrs["data-uncentered"] = state.Uncentered;
 
-        if (PositionerContext?.AnchorHidden == true)
-        {
-            attrs["data-anchor-hidden"] = true;
-        }
-
         componentAttributes = attrs;
     }
 }
