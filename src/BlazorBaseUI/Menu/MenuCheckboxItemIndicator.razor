@@ -28,6 +28,9 @@
     private Dictionary<string, object> componentAttributes = new();
     private Lazy<Task<IJSObjectReference>> moduleTask = default!;
     private DotNetObjectReference<MenuCheckboxItemIndicator>? dotNetRef;
+    private bool pendingEntryTransition;
+    private bool pendingExitTransition;
+    private int transitionVersion;
 
     private bool Rendered => ItemContext?.Checked == true;
 
@@ -119,11 +122,22 @@
     }
 
     /// <inheritdoc />
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             hasRendered = true;
+        }
+
+        if (pendingEntryTransition)
+        {
+            pendingEntryTransition = false;
+            await StartEntryTransitionAsync();
+        }
+        else if (pendingExitTransition)
+        {
+            pendingExitTransition = false;
+            await StartExitTransitionAsync();
         }
     }
 
@@ -164,6 +178,13 @@
     [JSInvokable]
     public void OnTransitionEnded()
     {
+        // Ignore stale callbacks from a previous transition that was superseded
+        // by a newer checked state change (e.g. rapid checked -> unchecked -> checked).
+        if (Rendered)
+        {
+            return;
+        }
+
         isMounted = false;
         transitionStatus = TransitionStatus.Undefined;
         state = state with { TransitionStatus = transitionStatus };
@@ -193,19 +214,24 @@
         if (isRendered && !wasRendered)
         {
             isMounted = true;
+            transitionVersion++;
 
             if (hasRendered)
             {
                 transitionStatus = TransitionStatus.Starting;
-                _ = StartEntryTransitionAsync();
+                pendingEntryTransition = true;
+                pendingExitTransition = false;
             }
         }
         else if (!isRendered && wasRendered)
         {
+            transitionVersion++;
+
             if (hasRendered)
             {
                 transitionStatus = TransitionStatus.Ending;
-                _ = StartExitTransitionAsync();
+                pendingExitTransition = true;
+                pendingEntryTransition = false;
             }
             else
             {

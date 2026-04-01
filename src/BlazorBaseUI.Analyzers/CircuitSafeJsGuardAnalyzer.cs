@@ -19,13 +19,13 @@ public sealed class CircuitSafeJsGuardAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
         DiagnosticId,
         "JS interop call missing circuit-safe guard",
-        "JS interop call '{0}' is not inside a try-catch for JSDisconnectedException",
+        "JS interop call '{0}' is not inside a try-catch for JSDisconnectedException or TaskCanceledException",
         "Reliability",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description:
             "All JS interop calls must be wrapped in a try-catch that handles " +
-            "JSDisconnectedException to avoid unhandled exceptions when the circuit disconnects.");
+            "JSDisconnectedException or TaskCanceledException to avoid unhandled exceptions when the circuit disconnects.");
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(Rule);

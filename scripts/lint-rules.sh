@@ -229,8 +229,7 @@ check_rule_10() {
 check_rule_11() {
   # Pass 1: Build set of base class names (types that are inherited)
   local base_classes
-  base_classes=$(grep -rhP '(class|record)\s+\w+.*:\s*' "$SRC_DIR" --include="*.cs" --include="*.razor" 2>/dev/null \
-    | grep -v "*/obj/*" \
+  base_classes=$(grep -rP '(class|record)\s+\w+.*:\s*' "$SRC_DIR" --include="*.cs" --include="*.razor" --exclude-dir=obj --exclude-dir=bin 2>/dev/null \
     | sed -n 's/.*:\s*\([A-Z][A-Za-z0-9_]*\).*/\1/p' \
     | sort -u)
 
