@@ -48,7 +48,12 @@ while [[ $# -gt 0 ]]; do
         echo "Missing value for --rule"
         exit 1
       fi
-      RULE_FILTER="$2"; shift 2 ;;
+      RULE_FILTER="${2#0}"
+      if [[ -z "${RULE_NAMES[$RULE_FILTER]+x}" ]]; then
+        echo "Invalid --rule value: $2 (valid: ${!RULE_NAMES[*]})"
+        exit 1
+      fi
+      shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
