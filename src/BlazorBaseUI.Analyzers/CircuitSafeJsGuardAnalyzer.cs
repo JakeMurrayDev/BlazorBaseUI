@@ -123,6 +123,11 @@ public sealed class CircuitSafeJsGuardAnalyzer : DiagnosticAnalyzer
             if (current is MethodDeclarationSyntax)
                 break;
 
+            // Lambda/anonymous method boundaries: the lambda may execute outside
+            // any enclosing try-catch, so stop walking up the tree.
+            if (current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax or LocalFunctionStatementSyntax)
+                break;
+
             if (current is TryStatementSyntax tryStmt)
             {
                 // Only treat as guarded when the invocation is inside the try block itself,

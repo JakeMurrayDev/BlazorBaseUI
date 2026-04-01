@@ -59,16 +59,18 @@ should_run() {
 
 check_suppression() {
   local file="$1" line_num="$2" rule_num="$3"
+  local padded
+  padded=$(printf "%02d" "$rule_num")
   local prev_line=$((line_num - 1))
   local current_line
   current_line=$(sed -n "${line_num}p" "$file")
-  if echo "$current_line" | grep -q "lint-ignore:RULE-${rule_num}"; then
+  if echo "$current_line" | grep -q "lint-ignore:RULE-${padded}"; then
     return 0
   fi
   if [ "$prev_line" -gt 0 ]; then
     local prev
     prev=$(sed -n "${prev_line}p" "$file")
-    if echo "$prev" | grep -q "lint-ignore:RULE-${rule_num}"; then
+    if echo "$prev" | grep -q "lint-ignore:RULE-${padded}"; then
       return 0
     fi
   fi
@@ -217,10 +219,12 @@ check_rule_09() {
 check_rule_10() {
   while IFS= read -r -d '' file; do
     # Find [CascadingParameter] and check next non-empty line for private
+    local total_lines
+    total_lines=$(wc -l < "$file")
     grep -n "\[CascadingParameter\]" "$file" 2>/dev/null | while IFS=: read -r line_num _; do
       local next_line=$((line_num + 1))
       local next_content=""
-      while true; do
+      while [ "$next_line" -le "$total_lines" ]; do
         next_content=$(sed -n "${next_line}p" "$file")
         # skip blank lines and attribute lines
         if echo "$next_content" | grep -qE '^\s*$|^\s*\['; then
