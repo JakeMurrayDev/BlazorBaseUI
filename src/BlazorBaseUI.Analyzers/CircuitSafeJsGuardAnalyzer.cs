@@ -82,7 +82,7 @@ public sealed class CircuitSafeJsGuardAnalyzer : DiagnosticAnalyzer
             methodSymbol = symbolInfo.CandidateSymbols[0] as IMethodSymbol;
 
         if (methodSymbol is null)
-            return true;
+            return false;
 
         var ns = methodSymbol.ContainingType?.ContainingNamespace?.ToDisplayString();
         return ns is not null && ns.StartsWith("Microsoft.JSInterop");
@@ -125,6 +125,14 @@ public sealed class CircuitSafeJsGuardAnalyzer : DiagnosticAnalyzer
 
             if (current is TryStatementSyntax tryStmt)
             {
+                // Only treat as guarded when the invocation is inside the try block itself,
+                // not inside the catch or finally blocks of the same try statement.
+                if (!tryStmt.Block.Span.Contains(node.Span))
+                {
+                    current = current.Parent;
+                    continue;
+                }
+
                 foreach (var catchClause in tryStmt.Catches)
                 {
                     if (catchClause.Declaration is not null)

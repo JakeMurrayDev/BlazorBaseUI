@@ -43,7 +43,12 @@ for key in "${!RULE_NAMES[@]}"; do : ; done
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --rule) RULE_FILTER="$2"; shift 2 ;;
+    --rule)
+      if [[ $# -lt 2 || -z "${2:-}" ]]; then
+        echo "Missing value for --rule"
+        exit 1
+      fi
+      RULE_FILTER="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -214,9 +219,17 @@ check_rule_10() {
     # Find [CascadingParameter] and check next non-empty line for private
     grep -n "\[CascadingParameter\]" "$file" 2>/dev/null | while IFS=: read -r line_num _; do
       local next_line=$((line_num + 1))
-      local next_content
-      next_content=$(sed -n "${next_line}p" "$file")
-      if ! echo "$next_content" | grep -q "private"; then
+      local next_content=""
+      while true; do
+        next_content=$(sed -n "${next_line}p" "$file")
+        # skip blank lines and attribute lines
+        if echo "$next_content" | grep -qE '^\s*$|^\s*\['; then
+          next_line=$((next_line + 1))
+          continue
+        fi
+        break
+      done
+      if ! echo "$next_content" | grep -q "\bprivate\b"; then
         report 10 "$file" "$line_num" "[CascadingParameter] not followed by private accessor"
       fi
     done
