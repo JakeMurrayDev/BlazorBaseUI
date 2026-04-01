@@ -88,15 +88,6 @@
     }
 
     /// <inheritdoc />
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            hasRendered = true;
-        }
-    }
-
-    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         UpdateTransitionStatus();
@@ -125,6 +116,15 @@
         previousDisabled = itemDisabled;
         previousHighlighted = itemHighlighted;
         previousTransitionStatus = transitionStatus;
+    }
+
+    /// <inheritdoc />
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+        }
     }
 
     /// <inheritdoc />

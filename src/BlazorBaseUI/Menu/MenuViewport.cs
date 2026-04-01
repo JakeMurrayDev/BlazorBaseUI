@@ -5,4 +5,4 @@ namespace BlazorBaseUI.Menu;
 /// enabling animated transitions between different trigger activations.
 /// Renders a <c>&lt;div&gt;</c> element.
 /// </summary>
-public sealed partial class MenuViewport;
+public partial class MenuViewport;
