@@ -9,29 +9,48 @@
 @implements IFieldStateSubscriber
 @inject IJSRuntime JSRuntime
 
-<CascadingValue TValue="ISelectRootContext" Value="context" IsFixed="true">
-    <CascadingValue TValue="SelectRootContext<TValue>" Value="typedContext" IsFixed="true">
-        @ChildContent
+<CascadingValue TValue="IFloatingRootContext" Value="typedContext?.FloatingRootContext" IsFixed="true">
+    <CascadingValue TValue="ISelectRootContext" Value="context" IsFixed="true">
+        <CascadingValue TValue="SelectRootContext<TValue>" Value="typedContext" IsFixed="true">
+            @ChildContent
+        </CascadingValue>
     </CascadingValue>
 </CascadingValue>
 
-@if (!string.IsNullOrEmpty(ResolvedName))
+@{
+    var hasName = !string.IsNullOrEmpty(ResolvedName);
+    var hasField = FieldContext is not null;
+    var serializedValue = typedContext?.GetFormValue(CurrentValue) ?? CurrentValue?.ToString() ?? string.Empty;
+    var hasMultipleSelection = Multiple && GetCurrentValues().Count > 0;
+    var hiddenInputName = Multiple ? null : ResolvedName;
+    var hiddenInputId = hiddenInputName is null && hasName ? $"{rootId}-hidden-input" : null;
+    var describedBy = LabelableContext?.GetAriaDescribedBy();
+}
+
+@if (hasName || hasField)
 {
-    @if (Multiple)
+    <input style="border:0;clip:rect(0 0 0 0);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;white-space:nowrap;width:1px"
+           tabindex="-1"
+           aria-hidden="true"
+           id="@hiddenInputId"
+           name="@hiddenInputName"
+           autocomplete="@AutoComplete"
+           value="@serializedValue"
+           disabled="@ResolvedDisabled"
+           required="@(Required && !hasMultipleSelection)"
+           readonly="@ReadOnly"
+           aria-invalid="@(FieldState.Valid == false ? "true" : null)"
+           aria-describedby="@(string.IsNullOrEmpty(describedBy) ? null : describedBy)"
+           @onfocus="HandleHiddenInputFocus"
+           @onchange="HandleHiddenInputChange" />
+
+    @if (Multiple && hasName)
     {
         var values = GetCurrentValues();
         @foreach (var v in values)
         {
             <input type="hidden" name="@ResolvedName" value="@(typedContext?.GetFormValue(v) ?? v?.ToString())" />
         }
-        @if (values.Count == 0)
-        {
-            <input type="hidden" name="@ResolvedName" value="" />
-        }
-    }
-    else
-    {
-        <input type="hidden" name="@ResolvedName" value="@(typedContext?.GetFormValue(CurrentValue) ?? CurrentValue?.ToString())" disabled="@ResolvedDisabled" />
     }
 }
 
@@ -41,17 +60,19 @@
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
     private bool isOpen;
-    private bool isMounted;
+    private readonly TransitionLifecycleManager transition = new();
     private int activeIndex = -1;
     private TValue? internalValue;
     private List<TValue> internalValues = new();
     private ElementReference? triggerElement;
     private ElementReference? popupElement;
+    private ElementReference? positionerElement;
+    private ElementReference? valueElement;
+    private ElementReference? selectedItemTextElement;
     private ElementReference? listElement;
     private SelectOpenChangeReason openChangeReason = SelectOpenChangeReason.None;
-    private TransitionStatus transitionStatus = TransitionStatus.Undefined;
     private SelectRootState state;
-    private SelectRootContext<TValue> typedContext = null!;
+    internal SelectRootContext<TValue> typedContext = null!;
     private ISelectRootContext context = null!;
     private DotNetObjectReference<SelectRoot<TValue>>? dotNetRef;
 
@@ -143,7 +164,7 @@
     /// Gets or sets the modal behavior of the select when open.
     /// </summary>
     [Parameter]
-    public ModalMode Modal { get; set; } = ModalMode.True;
+    public SelectModalMode Modal { get; set; } = SelectModalMode.True;
 
     /// <summary>
     /// Gets or sets the text direction of the select.
@@ -163,6 +184,12 @@
     /// </summary>
     [Parameter]
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Provides a hint to the browser for autofill on the hidden form input.
+    /// </summary>
+    [Parameter]
+    public string? AutoComplete { get; set; }
 
     /// <summary>
     /// Gets or sets a function to convert a value to its string label for display.
@@ -191,6 +218,15 @@
     /// </summary>
     [Parameter]
     public IReadOnlyList<SelectOption<TValue>>? Items { get; set; }
+
+    /// <summary>
+    /// Gets or sets the grouped static options for pre-mount label resolution.
+    /// Mirrors React Base UI's grouped <c>{ items: [...] }</c> shape accepted by
+    /// <c>resolveSelectedLabel</c>. Usable together with <see cref="Items"/>; both
+    /// are scanned when resolving a label.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<SelectOptionGroup<TValue>>? ItemGroups { get; set; }
 
     /// <summary>
     /// Gets or sets the callback for two-way binding of the open state.
@@ -254,7 +290,11 @@
     {
         rootId = Id ?? Guid.NewGuid().ToIdString();
         isOpen = DefaultOpen;
-        isMounted = CurrentOpen;
+
+        if (CurrentOpen)
+        {
+            transition.BeginOpen();
+        }
 
         if (!IsValueControlled)
         {
@@ -280,25 +320,33 @@
         {
             RootId = rootId,
             Open = CurrentOpen,
-            Mounted = isMounted,
+            Mounted = transition.IsMounted,
             Disabled = ResolvedDisabled,
             ReadOnly = ReadOnly,
             Required = Required,
             Multiple = Multiple,
             HighlightItemOnHover = HighlightItemOnHover,
             OpenChangeReason = openChangeReason,
-            TransitionStatus = transitionStatus,
+            TransitionStatus = transition.TransitionStatus,
             ActiveIndex = activeIndex,
             FieldState = FieldState,
             Items = Items,
+            ItemGroups = ItemGroups,
             ItemToStringLabel = ItemToStringLabel,
             ItemToStringValue = ItemToStringValue,
             IsItemEqualToValue = IsItemEqualToValue,
             GetOpen = () => CurrentOpen,
-            GetMounted = () => isMounted,
+            GetMounted = () => transition.IsMounted,
             GetTriggerElement = () => triggerElement,
             SetTriggerElement = SetTriggerElement,
+            GetPopupElement = () => popupElement,
             SetPopupElement = SetPopupElement,
+            GetPositionerElement = () => positionerElement,
+            SetPositionerElement = SetPositionerElement,
+            GetValueElement = () => valueElement,
+            SetValueElement = SetValueElement,
+            GetSelectedItemTextElement = () => selectedItemTextElement,
+            SetSelectedItemTextElement = SetSelectedItemTextElement,
             SetListElement = SetListElement,
             ClearHighlightsAsync = ClearHighlightsInternalAsync,
             SetActiveIndex = SetActiveIndex,
@@ -306,10 +354,21 @@
             GetValue = () => CurrentValue,
             GetValues = GetCurrentValues,
             SelectValueAsync = SelectValueInternalAsync,
+            SetValueBoxedFunc = SetValueBoxedInternalAsync,
+            SyncActiveIndexSilentFunc = SyncActiveIndexSilentAsync,
             OnTriggerFocusAction = HandleTriggerFocus,
-            OnTriggerBlurAction = HandleTriggerBlur
+            OnTriggerBlurAction = HandleTriggerBlur,
+            OpenInteractionType = InteractionType.None,
+            AllowSelectedMouseUp = false,
+            AllowUnselectedMouseUp = false,
+            KeyboardActive = false,
+            Modal = Modal == SelectModalMode.True,
+            InitialValueBoxed = Multiple
+                ? (GetCurrentValues().Count == 0 ? null : (object?)GetCurrentValues()[0])
+                : (object?)CurrentValue
         };
 
+        typedContext.FloatingRootContext = new SelectFloatingRootContextAdapter(typedContext);
         context = typedContext;
     }
 
@@ -321,10 +380,10 @@
         {
             if (currentOpen)
             {
-                isMounted = true;
+                transition.BeginOpen();
             }
             context.Open = currentOpen;
-            context.Mounted = isMounted;
+            context.Mounted = transition.IsMounted;
         }
 
         context.Disabled = ResolvedDisabled;
@@ -333,12 +392,18 @@
         context.Multiple = Multiple;
         context.HighlightItemOnHover = HighlightItemOnHover;
         typedContext.Items = Items;
+        typedContext.ItemGroups = ItemGroups;
         typedContext.ItemToStringLabel = ItemToStringLabel;
         typedContext.ItemToStringValue = ItemToStringValue;
         typedContext.IsItemEqualToValue = IsItemEqualToValue;
         typedContext.FieldState = FieldState;
 
         state = SelectRootState.FromFieldState(FieldState, currentOpen);
+
+        if (!currentOpen)
+        {
+            SyncSelectedIndex();
+        }
     }
 
     /// <inheritdoc />
@@ -367,6 +432,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
 
@@ -398,17 +464,34 @@
     }
 
     /// <summary>
+    /// Invoked from JavaScript when the Tab key is pressed while open.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnTabKey()
+    {
+        await SetOpenAsync(false, SelectOpenChangeReason.FocusOut);
+    }
+
+    /// <summary>
+    /// Invoked from JavaScript when keyboard/mouse active state changes.
+    /// </summary>
+    [JSInvokable]
+    public void OnKeyboardActiveChange(bool active)
+    {
+        context.KeyboardActive = active;
+    }
+
+    /// <summary>
     /// Invoked from JavaScript when a transition animation completes.
     /// </summary>
     [JSInvokable]
     public void OnTransitionEnd(bool open)
     {
-        transitionStatus = TransitionStatus.Undefined;
-        context.TransitionStatus = transitionStatus;
+        var unmounted = transition.HandleTransitionEnd(open);
+        context.TransitionStatus = transition.TransitionStatus;
 
-        if (!open)
+        if (unmounted)
         {
-            isMounted = false;
             context.Mounted = false;
             activeIndex = -1;
             context.ActiveIndex = activeIndex;
@@ -444,6 +527,7 @@
             activeIndex = index;
             context.ActiveIndex = index;
             typedContext.NotifyHighlightCleared();
+            typedContext.NotifyStateChanged();
             StateHasChanged();
         }
     }
@@ -471,15 +555,16 @@
 
         if (nextOpen)
         {
-            transitionStatus = TransitionStatus.Starting;
-            isMounted = true;
+            transition.BeginOpen();
             activeIndex = 0;
         }
         else
         {
-            transitionStatus = TransitionStatus.Ending;
+            transition.BeginClose();
+            context.OpenInteractionType = InteractionType.None;
+            SyncSelectedIndex();
 
-            if (reason is SelectOpenChangeReason.OutsidePress or SelectOpenChangeReason.EscapeKey)
+            if (reason is SelectOpenChangeReason.OutsidePress or SelectOpenChangeReason.FocusOut)
             {
                 FieldContext?.SetTouched(true);
                 FieldContext?.SetFocused(false);
@@ -491,8 +576,8 @@
             }
         }
 
-        context.TransitionStatus = transitionStatus;
-        context.Mounted = isMounted;
+        context.TransitionStatus = transition.TransitionStatus;
+        context.Mounted = transition.IsMounted;
         context.ActiveIndex = activeIndex;
 
         if (!IsControlled)
@@ -519,6 +604,7 @@
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
             }
         }
 
@@ -594,6 +680,61 @@
         }
     }
 
+    private async Task SetValueBoxedInternalAsync(object? boxedValue, SelectOpenChangeReason reason)
+    {
+        if (ReadOnly)
+        {
+            return;
+        }
+
+        if (Multiple)
+        {
+            var replacement = new List<TValue>();
+            if (boxedValue is System.Collections.IEnumerable enumerable and not string)
+            {
+                foreach (var item in enumerable)
+                {
+                    if (item is TValue tv)
+                    {
+                        replacement.Add(tv);
+                    }
+                }
+            }
+
+            if (!IsValuesControlled)
+            {
+                internalValues = replacement;
+            }
+
+            if (ValuesChanged.HasDelegate)
+            {
+                await ValuesChanged.InvokeAsync(replacement);
+            }
+
+            HandleValueChanged();
+            typedContext.NotifyStateChanged();
+            StateHasChanged();
+        }
+        else
+        {
+            TValue? value = boxedValue is TValue tv ? tv : default;
+
+            if (!IsValueControlled)
+            {
+                internalValue = value;
+            }
+
+            if (ValueChanged.HasDelegate)
+            {
+                await ValueChanged.InvokeAsync(value);
+            }
+
+            HandleValueChanged();
+            typedContext.NotifyStateChanged();
+            StateHasChanged();
+        }
+    }
+
     private object? GetValidationValue()
     {
         if (Multiple)
@@ -656,6 +797,49 @@
         }
     }
 
+    private async Task HandleHiddenInputFocus()
+    {
+        await FocusTriggerAsync();
+    }
+
+    private async Task HandleHiddenInputChange(ChangeEventArgs e)
+    {
+        if (Multiple || ReadOnly || typedContext is null)
+        {
+            return;
+        }
+
+        var inputValue = e.Value?.ToString();
+        if (string.IsNullOrEmpty(inputValue))
+        {
+            return;
+        }
+
+        var matchValue = typedContext.FindValueByFormString(inputValue);
+        if (matchValue.Found)
+        {
+            await SelectValueInternalAsync(matchValue.Value);
+        }
+    }
+
+    private void SyncSelectedIndex()
+    {
+        if (typedContext?.Items is not null)
+        {
+            var value = CurrentValue;
+            for (var i = 0; i < typedContext.Items.Count; i++)
+            {
+                if (typedContext.AreEqual(typedContext.Items[i].Value, value))
+                {
+                    typedContext.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        typedContext!.SelectedIndex = -1;
+    }
+
     private async ValueTask FocusTriggerAsync()
     {
         if (!hasRendered || !triggerElement.HasValue)
@@ -670,6 +854,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -700,7 +885,7 @@
         try
         {
             var module = await ModuleTask.Value;
-            var modal = Modal == ModalMode.True;
+            var modal = Modal == SelectModalMode.True;
             var directionStr = Direction.ToAttributeString() ?? "ltr";
             await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, true, modal, directionStr);
 
@@ -726,6 +911,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -748,6 +934,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -770,6 +957,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -787,6 +975,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -800,6 +989,80 @@
         }
     }
 
+    private void SetValueElement(ElementReference? element)
+    {
+        valueElement = element;
+        if (hasRendered)
+        {
+            _ = SyncValueElementAsync(element);
+        }
+    }
+
+    private async Task SyncValueElementAsync(ElementReference? element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setValueElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
+    private void SetSelectedItemTextElement(ElementReference? element)
+    {
+        selectedItemTextElement = element;
+        if (hasRendered)
+        {
+            _ = SyncSelectedItemTextElementAsync(element);
+        }
+    }
+
+    private async Task SyncSelectedItemTextElementAsync(ElementReference? element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setSelectedItemTextElement", rootId, element);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
+    private void SetPositionerElement(ElementReference? element)
+    {
+        positionerElement = element;
+
+        if (hasRendered)
+        {
+            _ = SetPositionerElementAsync(element);
+        }
+    }
+
+    private async Task SetPositionerElementAsync(ElementReference? element)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            if (element.HasValue)
+            {
+                await module.InvokeVoidAsync("registerPositioner", rootId, element.Value);
+            }
+            else
+            {
+                await module.InvokeVoidAsync("unregisterPositioner", rootId);
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
     private async Task SetPopupElementAsync(ElementReference element)
     {
         try
@@ -809,6 +1072,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -837,6 +1101,30 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
+        }
+    }
+
+    private async Task SyncActiveIndexSilentAsync(int index)
+    {
+        // Lightweight state sync for hover paths. The JS `setActiveIndex` export
+        // only writes `rootState.activeIndex` (no focus, no scroll, no DOM attr
+        // writes). The DOM-mutating version is named `setActiveItem` internally.
+        activeIndex = index;
+
+        if (!hasRendered)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setActiveIndex", rootId, index);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 
@@ -853,6 +1141,7 @@
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
     }
 }

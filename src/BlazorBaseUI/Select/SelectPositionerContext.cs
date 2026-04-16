@@ -41,4 +41,35 @@ internal sealed class SelectPositionerContext
     /// Gets the delegate that sets the arrow element reference.
     /// </summary>
     public Action<ElementReference?> SetArrowElement { get; init; } = null!;
+
+    /// <summary>
+    /// Gets the delegate that flips <c>alignItemWithTrigger</c> off at runtime.
+    /// Mirrors the React <c>setControlledAlignItemWithTrigger</c> dispatch made
+    /// available to the popup so it can disable align-item mode when it cannot
+    /// fit within the viewport.
+    /// </summary>
+    public Action<bool> SetControlledAlignItemWithTrigger { get; init; } = null!;
+
+    /// <summary>
+    /// Gets the delegate that returns the scroll-up arrow element reference.
+    /// Mirrors the React <c>scrollUpArrowRef</c>. <see langword="null"/> when
+    /// no scroll-up arrow is mounted.
+    /// </summary>
+    public Func<ElementReference?> GetScrollUpArrow { get; init; } = null!;
+
+    /// <summary>
+    /// Gets the delegate that registers the scroll-up arrow element reference.
+    /// </summary>
+    public Action<ElementReference?> SetScrollUpArrow { get; init; } = null!;
+
+    /// <summary>
+    /// Gets the delegate that returns the scroll-down arrow element reference.
+    /// Mirrors the React <c>scrollDownArrowRef</c>.
+    /// </summary>
+    public Func<ElementReference?> GetScrollDownArrow { get; init; } = null!;
+
+    /// <summary>
+    /// Gets the delegate that registers the scroll-down arrow element reference.
+    /// </summary>
+    public Action<ElementReference?> SetScrollDownArrow { get; init; } = null!;
 }

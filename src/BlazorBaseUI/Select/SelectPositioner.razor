@@ -1,9 +1,14 @@
 @using Microsoft.JSInterop
+@using BlazorBaseUI.Portal
 
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 
 <CascadingValue TValue="SelectPositionerContext" Value="positionerContext" IsFixed="true">
+    @if (RootContext is not null && RootContext.Mounted && RootContext.Modal)
+    {
+        <InternalBackdrop Cutout="RootContext.GetTriggerElement()" Inert="@(!RootContext.Open)" />
+    }
     <RenderElement TState="SelectPositionerState"
                    Tag="div"
                    State="state"
@@ -18,18 +23,29 @@
 </CascadingValue>
 
 @code {
-    private Lazy<Task<IJSObjectReference>>? moduleTask;
-    private bool hasRendered;
+    private PositionerInterop positionerInterop = null!;
     private ElementReference? arrowElement;
-    private string? positionerId;
+    private ElementReference? scrollUpArrowElement;
+    private ElementReference? scrollDownArrowElement;
+    private DotNetObjectReference<SelectPositioner>? positionerDotNetRef;
+    private Lazy<Task<IJSObjectReference>>? selectModuleTask;
+    private Lazy<Task<IJSObjectReference>>? floatingModuleTask;
     private SelectPositionerState state;
-    private SelectPositionerContext positionerContext = null!;
+    internal SelectPositionerContext positionerContext = null!;
     private RenderElement<SelectPositionerState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
-    private Lazy<Task<IJSObjectReference>> ModuleTask => moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
-        JSRuntime.InvokeAsync<IJSObjectReference>(
-            "import", "./_content/BlazorBaseUI/blazor-baseui-select.js").AsTask());
+    private Side computedSide;
+    private Align computedAlign;
+    private bool computedAnchorHidden;
+    private bool computedArrowUncentered;
+    private bool controlledAlignItemWithTrigger;
+    private bool alignItemWithTriggerActive;
+    private bool lastMounted;
+    private int prevItemMapSize;
+    private bool itemMapSubscribed;
+    private string? scrollLockToken;
+    private ElementReference? lastPositionerElement;
 
     [CascadingParameter]
     private ISelectRootContext? RootContext { get; set; }
@@ -72,9 +88,12 @@
 
     /// <summary>
     /// Gets or sets how to handle collisions when positioning the popup.
+    /// When <see langword="null"/>, defaults to the dropdown-specific avoidance
+    /// (flip on both axes with no perpendicular fallback), mirroring the React
+    /// <c>DROPDOWN_COLLISION_AVOIDANCE</c> constant.
     /// </summary>
     [Parameter]
-    public CollisionAvoidance CollisionAvoidance { get; set; } = CollisionAvoidance.FlipShift;
+    public CollisionAvoidance? CollisionAvoidance { get; set; }
 
     /// <summary>
     /// Gets or sets the minimum distance to maintain between the arrow and the edges of the popup.
@@ -156,29 +175,104 @@
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        positionerInterop = new PositionerInterop(
+            JSRuntime,
+            "./_content/BlazorBaseUI/blazor-baseui-select.js");
+        positionerDotNetRef = DotNetObjectReference.Create(this);
+
+        controlledAlignItemWithTrigger = AlignItemWithTrigger;
+        computedSide = Side;
+        computedAlign = Align;
+
         positionerContext = new SelectPositionerContext
         {
             Side = Side,
             Align = Align,
-            AlignItemWithTriggerActive = AlignItemWithTrigger,
+            AnchorHidden = false,
+            ArrowUncentered = false,
+            AlignItemWithTriggerActive = false,
             GetArrowElement = () => arrowElement,
-            SetArrowElement = SetArrowElement
+            SetArrowElement = SetArrowElement,
+            SetControlledAlignItemWithTrigger = SetControlledAlignItemWithTrigger,
+            GetScrollUpArrow = () => scrollUpArrowElement,
+            SetScrollUpArrow = element => scrollUpArrowElement = element,
+            GetScrollDownArrow = () => scrollDownArrowElement,
+            SetScrollDownArrow = element => scrollDownArrowElement = element
         };
+
+        if (RootContext is not null)
+        {
+            RootContext.ItemMapChanged += OnItemMapChanged;
+            itemMapSubscribed = true;
+        }
+
+        state = new SelectPositionerState(false, computedSide, computedAlign, false);
         BuildComponentAttributes();
     }
 
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        var open = RootContext?.GetOpen() ?? false;
+        if (RootContext is null)
+        {
+            state = new SelectPositionerState(false, computedSide, computedAlign, false);
+            return;
+        }
 
-        state = new SelectPositionerState(open, Side, Align, false);
+        var open = RootContext.Open;
+        var mounted = RootContext.Mounted;
+        var modal = RootContext.Modal;
+        var openMethod = RootContext.OpenInteractionType;
 
-        positionerContext.Side = Side;
-        positionerContext.Align = Align;
-        positionerContext.AlignItemWithTriggerActive = AlignItemWithTrigger;
+        // Reset the latch when unmounted so the next open picks up the current prop.
+        if (!mounted && controlledAlignItemWithTrigger != AlignItemWithTrigger)
+        {
+            controlledAlignItemWithTrigger = AlignItemWithTrigger;
+        }
+
+        alignItemWithTriggerActive =
+            mounted && controlledAlignItemWithTrigger && openMethod != InteractionType.Touch;
+
+        // When transitioning from mounted to unmounted, reset scroll arrow visibility
+        // so the next open doesn't carry stale state (React useIsoLayoutEffect).
+        if (!mounted && lastMounted)
+        {
+            if (RootContext.ScrollUpArrowVisible)
+            {
+                RootContext.ScrollUpArrowVisible = false;
+            }
+            if (RootContext.ScrollDownArrowVisible)
+            {
+                RootContext.ScrollDownArrowVisible = false;
+            }
+        }
+
+        RootContext.AlignItemWithTriggerActive = alignItemWithTriggerActive;
+
+        // Body scroll lock, per React useScrollLock((aliw || modal) && open && !touch).
+        var shouldScrollLock =
+            (alignItemWithTriggerActive || modal) && open && openMethod != InteractionType.Touch;
+
+        if (shouldScrollLock && scrollLockToken is null)
+        {
+            _ = ApplyScrollLockAsync();
+        }
+        else if (!shouldScrollLock && scrollLockToken is not null)
+        {
+            _ = ReleaseScrollLockAsync();
+        }
+
+        var renderedSide = alignItemWithTriggerActive ? Side.None : computedSide;
+        state = new SelectPositionerState(open, renderedSide, computedAlign, computedAnchorHidden);
+
+        positionerContext.Side = renderedSide;
+        positionerContext.Align = computedAlign;
+        positionerContext.AnchorHidden = computedAnchorHidden;
+        positionerContext.ArrowUncentered = computedArrowUncentered;
+        positionerContext.AlignItemWithTriggerActive = alignItemWithTriggerActive;
 
         BuildComponentAttributes();
+        lastMounted = mounted;
     }
 
     /// <inheritdoc />
@@ -186,12 +280,24 @@
     {
         if (firstRender)
         {
-            hasRendered = true;
+            positionerInterop.MarkRendered();
+
+            if (RootContext is not null && Element.HasValue)
+            {
+                RootContext.SetPositionerElement(Element);
+                lastPositionerElement = Element;
+            }
+        }
+        else if (RootContext is not null && Element.HasValue &&
+                 !Nullable.Equals(Element, lastPositionerElement))
+        {
+            RootContext.SetPositionerElement(Element);
+            lastPositionerElement = Element;
         }
 
-        if (hasRendered && Element.HasValue && RootContext?.GetMounted() == true)
+        if (positionerInterop.HasRendered && Element.HasValue && RootContext?.Mounted == true)
         {
-            if (string.IsNullOrEmpty(positionerId))
+            if (!positionerInterop.IsInitialized)
             {
                 await InitializePositionerAsync();
             }
@@ -205,25 +311,95 @@
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (moduleTask?.IsValueCreated == true && hasRendered && !string.IsNullOrEmpty(positionerId))
+        if (itemMapSubscribed && RootContext is not null)
+        {
+            RootContext.ItemMapChanged -= OnItemMapChanged;
+            itemMapSubscribed = false;
+        }
+
+        if (RootContext is not null)
+        {
+            RootContext.SetPositionerElement(null);
+            RootContext.AlignItemWithTriggerActive = false;
+        }
+
+        await ReleaseScrollLockAsync();
+        await positionerInterop.DisposeAsync();
+        positionerDotNetRef?.Dispose();
+
+        if (floatingModuleTask?.IsValueCreated == true)
         {
             try
             {
-                var module = await ModuleTask.Value;
-                await module.InvokeVoidAsync("disposePositioner", positionerId);
+                var module = await floatingModuleTask.Value;
                 await module.DisposeAsync();
             }
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
             {
+                _ = ex;
             }
         }
+
+        if (selectModuleTask?.IsValueCreated == true)
+        {
+            try
+            {
+                var module = await selectModuleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Invoked by JS after every resolved placement change. Mirrors Menu's
+    /// position callback pattern so <c>data-side</c>/<c>data-align</c>/
+    /// <c>data-anchor-hidden</c> and the positioner context reflect the
+    /// post-collision values.
+    /// </summary>
+    [JSInvokable]
+    public void OnPositionUpdated(string side, string align, bool anchorHidden, bool arrowUncentered)
+    {
+        var newSide = Extensions.ParseSide(side);
+        var newAlign = Extensions.ParseAlign(align);
+
+        if (newSide == computedSide && newAlign == computedAlign &&
+            anchorHidden == computedAnchorHidden && arrowUncentered == computedArrowUncentered)
+        {
+            return;
+        }
+
+        computedSide = newSide;
+        computedAlign = newAlign;
+        computedAnchorHidden = anchorHidden;
+        computedArrowUncentered = arrowUncentered;
+
+        var renderedSide = alignItemWithTriggerActive ? Side.None : computedSide;
+        positionerContext.Side = renderedSide;
+        positionerContext.Align = computedAlign;
+        positionerContext.AnchorHidden = anchorHidden;
+        positionerContext.ArrowUncentered = arrowUncentered;
+
+        state = new SelectPositionerState(RootContext?.Open ?? false, renderedSide, computedAlign, computedAnchorHidden);
+        BuildComponentAttributes();
+
+        _ = InvokeAsync(() =>
+        {
+            StateHasChanged();
+            RootContext?.NotifyStateChanged();
+        });
     }
 
     private void BuildComponentAttributes()
     {
         var attrs = new Dictionary<string, object>();
-        var open = RootContext?.GetOpen() ?? false;
-        var mounted = RootContext?.GetMounted() ?? false;
+        var open = RootContext?.Open ?? false;
+        var mounted = RootContext?.Mounted ?? false;
+        var transitionStatus = RootContext?.TransitionStatus ?? TransitionStatus.Undefined;
+
         attrs["role"] = "presentation";
 
         if (!mounted)
@@ -231,17 +407,24 @@
             attrs["hidden"] = true;
         }
 
-        attrs["data-side"] = Side.ToDataAttributeString()!;
-        attrs["data-align"] = Align.ToDataAttributeString()!;
-        attrs["data-open"] = open;
-        attrs["data-closed"] = !open;
+        attrs["data-side"] = state.Side.ToDataAttributeString()!;
+        attrs["data-align"] = state.Align.ToDataAttributeString()!;
+        attrs["data-anchor-hidden"] = state.AnchorHidden;
 
-        if (state.AnchorHidden)
-        {
-            attrs["data-anchor-hidden"] = true;
-        }
+        TransitionAttributeHelper.ApplyTransitionAttributes(attrs, open, transitionStatus);
 
         componentAttributes = attrs;
+    }
+
+    private void SetControlledAlignItemWithTrigger(bool value)
+    {
+        if (controlledAlignItemWithTrigger == value)
+        {
+            return;
+        }
+
+        controlledAlignItemWithTrigger = value;
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void SetArrowElement(ElementReference? element)
@@ -253,11 +436,35 @@
 
         arrowElement = element;
 
-        if (hasRendered && !string.IsNullOrEmpty(positionerId))
+        if (positionerInterop.HasRendered && positionerInterop.IsInitialized)
         {
             _ = UpdatePositionAsync();
         }
     }
+
+    private CollisionAvoidance ResolvedCollisionAvoidance =>
+        CollisionAvoidance ?? new CollisionAvoidance
+        {
+            Side = CollisionAvoidanceSideMode.Flip,
+            Align = CollisionAvoidanceAlignMode.Flip,
+            FallbackAxisSide = CollisionAvoidanceFallbackAxisSide.None
+        };
+
+    private PositionerConfig BuildConfig() => new()
+    {
+        Side = Side,
+        Align = Align,
+        SideOffset = SideOffset,
+        AlignOffset = AlignOffset,
+        CollisionPadding = CollisionPadding,
+        CollisionBoundary = CollisionBoundary,
+        ArrowPadding = ArrowPadding,
+        Sticky = Sticky,
+        PositionMethod = PositionMethod,
+        DisableAnchorTracking = DisableAnchorTracking || alignItemWithTriggerActive,
+        CollisionAvoidance = ResolvedCollisionAvoidance,
+        UseCollisionAvoidanceObject = true
+    };
 
     private async Task InitializePositionerAsync()
     {
@@ -272,35 +479,18 @@
             return;
         }
 
-        try
-        {
-            var module = await ModuleTask.Value;
-            positionerId = await module.InvokeAsync<string>(
-                "initializePositioner",
-                Element.Value,
-                anchorElement.Value,
-                Side.ToDataAttributeString(),
-                Align.ToDataAttributeString(),
-                SideOffset,
-                AlignOffset,
-                CollisionPadding,
-                CollisionBoundary.ToDataAttributeString(),
-                ArrowPadding,
-                arrowElement,
-                Sticky,
-                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
-                DisableAnchorTracking,
-                CollisionAvoidance.ToDataAttributeString(),
-                AlignItemWithTrigger);
-        }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-        {
-        }
+        await positionerInterop.InitializeAsync(
+            Element.Value,
+            anchorElement.Value,
+            BuildConfig(),
+            arrowElement,
+            AlignItemWithTrigger,
+            positionerDotNetRef);
     }
 
     private async Task UpdatePositionAsync()
     {
-        if (string.IsNullOrEmpty(positionerId) || RootContext is null)
+        if (!positionerInterop.IsInitialized || RootContext is null)
         {
             return;
         }
@@ -311,28 +501,211 @@
             return;
         }
 
+        await positionerInterop.UpdateAsync(anchorElement.Value, BuildConfig(), arrowElement, AlignItemWithTrigger);
+    }
+
+    /// <summary>
+    /// CompositeList onMapChange equivalent: prunes the current selection
+    /// when the mounted item set changes (React onMapChange handler).
+    /// </summary>
+    private void OnItemMapChanged()
+    {
+        _ = HandleItemMapChangedAsync();
+    }
+
+    private async Task HandleItemMapChangedAsync()
+    {
+        if (RootContext is null)
+        {
+            return;
+        }
+
+        var values = RootContext.RegisteredValues;
+        var size = values.Count;
+
+        if (size == 0 && prevItemMapSize == 0)
+        {
+            return;
+        }
+
+        if (size == 0)
+        {
+            prevItemMapSize = 0;
+            return;
+        }
+
+        var prev = prevItemMapSize;
+        prevItemMapSize = size;
+
+        if (size == prev)
+        {
+            return;
+        }
+
+        var equal = RootContext.AreValuesEqual;
+        var multi = RootContext.Multiple;
+
+        if (prev != 0 && !multi)
+        {
+            var currentBoxed = RootContext.CurrentValueBoxed;
+            if (currentBoxed is not null)
+            {
+                var found = false;
+                for (var i = 0; i < values.Count; i++)
+                {
+                    if (equal(values[i], currentBoxed))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    var initial = RootContext.InitialValueBoxed;
+                    var hasInitial = false;
+                    if (initial is not null)
+                    {
+                        for (var i = 0; i < values.Count; i++)
+                        {
+                            if (equal(values[i], initial))
+                            {
+                                hasInitial = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    var nextValue = hasInitial ? initial : null;
+                    await RootContext.SetValueBoxedAsync(nextValue, SelectOpenChangeReason.None);
+
+                    if (nextValue is null)
+                    {
+                        RootContext.ClearSelectedItemText();
+                    }
+                }
+            }
+        }
+
+        if (prev != 0 && multi)
+        {
+            var multiValues = RootContext.MultiValueBoxed;
+            if (multiValues.Count > 0)
+            {
+                var visible = new List<object?>();
+                for (var m = 0; m < multiValues.Count; m++)
+                {
+                    var v = multiValues[m];
+                    for (var i = 0; i < values.Count; i++)
+                    {
+                        if (equal(values[i], v))
+                        {
+                            visible.Add(v);
+                            break;
+                        }
+                    }
+                }
+
+                if (visible.Count != multiValues.Count)
+                {
+                    await RootContext.SetValueBoxedAsync(visible, SelectOpenChangeReason.None);
+
+                    if (visible.Count == 0)
+                    {
+                        RootContext.ClearSelectedItemText();
+                    }
+                }
+            }
+        }
+
+        if (RootContext.Open && alignItemWithTriggerActive)
+        {
+            RootContext.ScrollUpArrowVisible = false;
+            RootContext.ScrollDownArrowVisible = false;
+            await ClearHeightStylesAsync();
+        }
+    }
+
+    private Lazy<Task<IJSObjectReference>> FloatingModule =>
+        floatingModuleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import", "./_content/BlazorBaseUI/blazor-baseui-floating.js").AsTask());
+
+    private Lazy<Task<IJSObjectReference>> SelectModule =>
+        selectModuleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import", "./_content/BlazorBaseUI/blazor-baseui-select.js").AsTask());
+
+    private async Task ClearHeightStylesAsync()
+    {
+        if (RootContext is null)
+        {
+            return;
+        }
+
         try
         {
-            var module = await ModuleTask.Value;
-            await module.InvokeVoidAsync(
-                "updatePosition",
-                positionerId,
-                anchorElement.Value,
-                Side.ToDataAttributeString(),
-                Align.ToDataAttributeString(),
-                SideOffset,
-                AlignOffset,
-                CollisionPadding,
-                CollisionBoundary.ToDataAttributeString(),
-                ArrowPadding,
-                arrowElement,
-                Sticky,
-                PositionMethod == PositionMethod.Fixed ? "fixed" : "absolute",
-                CollisionAvoidance.ToDataAttributeString(),
-                AlignItemWithTrigger);
+            var module = await FloatingModule.Value;
+            var styles = new[] { "height" };
+
+            if (Element.HasValue)
+            {
+                await module.InvokeVoidAsync("clearStyles", Element.Value, styles);
+            }
+
+            var popup = RootContext.GetPopupElement();
+            if (popup.HasValue)
+            {
+                await module.InvokeVoidAsync("clearStyles", popup.Value, styles);
+            }
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
+            _ = ex;
+        }
+    }
+
+    private async Task ApplyScrollLockAsync()
+    {
+        if (RootContext is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await SelectModule.Value;
+            var trigger = RootContext.GetTriggerElement();
+            scrollLockToken = trigger.HasValue
+                ? await module.InvokeAsync<string>("applyScrollLock", trigger.Value)
+                : await module.InvokeAsync<string>("applyScrollLock", (object?)null);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
+    private async Task ReleaseScrollLockAsync()
+    {
+        if (scrollLockToken is null || selectModuleTask?.IsValueCreated != true)
+        {
+            scrollLockToken = null;
+            return;
+        }
+
+        try
+        {
+            var module = await selectModuleTask.Value;
+            await module.InvokeVoidAsync("releaseScrollLock", scrollLockToken);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+        finally
+        {
+            scrollLockToken = null;
         }
     }
 }

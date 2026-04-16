@@ -10,7 +10,17 @@ namespace BlazorBaseUI.Select;
 /// <typeparam name="TValue">The type of value used to identify items.</typeparam>
 internal sealed class SelectRootContext<TValue> : ISelectRootContext
 {
+    #pragma warning disable CS8714 // TValue may be nullable but Dictionary requires notnull key
     private readonly Dictionary<TValue, string> _itemLabels = new();
+    #pragma warning restore CS8714
+
+    private readonly List<object?> _registeredValues = new();
+    private readonly List<object> _registeredItems = new();
+    private readonly List<KeyValuePair<object?, Func<Task<string?>>>> _itemLabelResolvers = new();
+    private Func<object?, object?, bool>? _areValuesEqual;
+
+    private string _typeaheadBuffer = string.Empty;
+    private CancellationTokenSource? _typeaheadCts;
 
     /// <inheritdoc />
     public string RootId { get; init; } = string.Empty;
@@ -70,7 +80,31 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     public Action<ElementReference?> SetTriggerElement { get; init; } = null!;
 
     /// <inheritdoc />
+    public Func<ElementReference?> GetPopupElement { get; init; } = null!;
+
+    /// <inheritdoc />
     public Action<ElementReference?> SetPopupElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public Func<ElementReference?> GetPositionerElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public Action<ElementReference?> SetPositionerElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public Func<ElementReference?> GetValueElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public Action<ElementReference?> SetValueElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public Func<ElementReference?> GetSelectedItemTextElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public Action<ElementReference?> SetSelectedItemTextElement { get; init; } = null!;
+
+    /// <inheritdoc />
+    public bool HasSelectedItemTextElement => GetSelectedItemTextElement() is not null;
 
     /// <inheritdoc />
     public Action<ElementReference?> SetListElement { get; init; } = null!;
@@ -118,14 +152,306 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     /// </summary>
     public IReadOnlyList<SelectOption<TValue>>? Items { get; set; }
 
+    /// <summary>
+    /// Gets or sets the grouped options for pre-mount label resolution.
+    /// Mirrors React Base UI's grouped <c>{ items: [...] }</c> shape accepted by
+    /// <c>resolveSelectedLabel</c>. Scanned after <see cref="Items"/> in <see cref="GetLabel"/>.
+    /// </summary>
+    public IReadOnlyList<SelectOptionGroup<TValue>>? ItemGroups { get; set; }
+
     /// <inheritdoc />
     public string? PopupId { get; set; }
+
+    /// <inheritdoc />
+    public string? TriggerId { get; set; }
+
+    /// <inheritdoc />
+    public string? LabelId { get; set; }
 
     /// <inheritdoc />
     public Func<Task> ClearHighlightsAsync { get; init; } = null!;
 
     /// <inheritdoc />
     public FieldRootState FieldState { get; set; } = FieldRootState.Default;
+
+    /// <inheritdoc />
+    public InteractionType OpenInteractionType { get; set; }
+
+    /// <inheritdoc />
+    public int SelectedIndex { get; set; } = -1;
+
+    /// <inheritdoc />
+    public bool AllowSelectedMouseUp { get; set; }
+
+    /// <inheritdoc />
+    public bool AllowUnselectedMouseUp { get; set; }
+
+    /// <inheritdoc />
+    public int ScrollArrowsMountedCount { get; set; }
+
+    /// <inheritdoc />
+    public bool HasScrollArrows => ScrollArrowsMountedCount > 0;
+
+    /// <inheritdoc />
+    public bool KeyboardActive { get; set; }
+
+    /// <inheritdoc />
+    public bool ForceMount { get; set; }
+
+    /// <inheritdoc />
+    public bool AlignItemWithTriggerActive { get; set; }
+
+    /// <inheritdoc />
+    public bool Modal { get; set; }
+
+    /// <summary>
+    /// Gets or sets the boxed initial value captured by <see cref="SelectRoot{TValue}"/>
+    /// at first mount. Used as a fallback target by the positioner's prune logic.
+    /// </summary>
+    public object? InitialValueBoxed { get; set; }
+
+    /// <summary>
+    /// Gets or sets the delegate that dispatches a prune-time value replacement
+    /// to the root. Supplied by <see cref="SelectRoot{TValue}"/> at construction.
+    /// </summary>
+    public Func<object?, SelectOpenChangeReason, Task>? SetValueBoxedFunc { get; init; }
+
+    /// <summary>
+    /// Gets or sets the delegate that pushes a silent <c>activeIndex</c> update to JS
+    /// so keyboard navigation resumes from the hovered item. No focus or scroll side
+    /// effects — purely a state sync. Supplied by <see cref="SelectRoot{TValue}"/>.
+    /// </summary>
+    public Func<int, Task>? SyncActiveIndexSilentFunc { get; init; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<object?> RegisteredValues => _registeredValues;
+
+    /// <inheritdoc />
+    public IReadOnlyList<object?> MultiValueBoxed
+    {
+        get
+        {
+            if (!Multiple)
+            {
+                return Array.Empty<object?>();
+            }
+
+            var values = GetValues();
+            if (values.Count == 0)
+            {
+                return Array.Empty<object?>();
+            }
+
+            var boxed = new object?[values.Count];
+            for (var i = 0; i < values.Count; i++)
+            {
+                boxed[i] = values[i];
+            }
+            return boxed;
+        }
+    }
+
+    /// <inheritdoc />
+    public Func<object?, object?, bool> AreValuesEqual =>
+        _areValuesEqual ??= (a, b) =>
+        {
+            if (ReferenceEquals(a, b))
+            {
+                return true;
+            }
+
+            if (a is null || b is null)
+            {
+                return false;
+            }
+
+            if (IsItemEqualToValue is not null && a is TValue ta && b is TValue tb)
+            {
+                return IsItemEqualToValue(ta, tb);
+            }
+
+            return EqualityComparer<object>.Default.Equals(a, b);
+        };
+
+    /// <inheritdoc />
+    public Task SetValueBoxedAsync(object? nextValue, SelectOpenChangeReason reason) =>
+        SetValueBoxedFunc is null ? Task.CompletedTask : SetValueBoxedFunc(nextValue, reason);
+
+    /// <inheritdoc />
+    public void RegisterItemValue(object? value)
+    {
+        _registeredValues.Add(value);
+        ItemMapChanged?.Invoke();
+    }
+
+    /// <inheritdoc />
+    public void UnregisterItemValue(object? value)
+    {
+        var comparer = AreValuesEqual;
+        for (var i = 0; i < _registeredValues.Count; i++)
+        {
+            if (comparer(_registeredValues[i], value))
+            {
+                _registeredValues.RemoveAt(i);
+                ItemMapChanged?.Invoke();
+                return;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public int RegisterItem(object item)
+    {
+        _registeredItems.Add(item);
+        return _registeredItems.Count - 1;
+    }
+
+    /// <inheritdoc />
+    public void UnregisterItem(object item)
+    {
+        _registeredItems.Remove(item);
+    }
+
+    /// <inheritdoc />
+    public int GetItemIndex(object item)
+    {
+        return _registeredItems.IndexOf(item);
+    }
+
+    /// <inheritdoc />
+    public void RegisterItemLabelResolver(object? boxedValue, Func<Task<string?>> resolver)
+    {
+        var comparer = AreValuesEqual;
+        for (var i = 0; i < _itemLabelResolvers.Count; i++)
+        {
+            if (comparer(_itemLabelResolvers[i].Key, boxedValue))
+            {
+                _itemLabelResolvers[i] = new KeyValuePair<object?, Func<Task<string?>>>(boxedValue, resolver);
+                return;
+            }
+        }
+
+        _itemLabelResolvers.Add(new KeyValuePair<object?, Func<Task<string?>>>(boxedValue, resolver));
+    }
+
+    /// <inheritdoc />
+    public void UnregisterItemLabelResolver(object? boxedValue)
+    {
+        var comparer = AreValuesEqual;
+        for (var i = 0; i < _itemLabelResolvers.Count; i++)
+        {
+            if (comparer(_itemLabelResolvers[i].Key, boxedValue))
+            {
+                _itemLabelResolvers.RemoveAt(i);
+                return;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public int IndexOfValue(object? boxedValue)
+    {
+        var comparer = AreValuesEqual;
+        for (var i = 0; i < _registeredValues.Count; i++)
+        {
+            if (comparer(_registeredValues[i], boxedValue))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <inheritdoc />
+    public async Task SetHoverActiveIndexAsync(int index)
+    {
+        if (ActiveIndex == index)
+        {
+            return;
+        }
+
+        ActiveIndex = index;
+        NotifyStateChanged();
+
+        if (SyncActiveIndexSilentFunc is not null)
+        {
+            await SyncActiveIndexSilentFunc(index);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task ClearHoverActiveIndexAsync(int expectedIndex)
+    {
+        if (ActiveIndex != expectedIndex)
+        {
+            return;
+        }
+
+        ActiveIndex = -1;
+        NotifyStateChanged();
+
+        if (SyncActiveIndexSilentFunc is not null)
+        {
+            await SyncActiveIndexSilentFunc(-1);
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsTyping => _typeaheadBuffer.Length > 0;
+
+    /// <inheritdoc />
+    public void ClearSelectedItemText()
+    {
+        // Blazor resolves display text via GetLabel() on every render, so there is
+        // no separate ref to null out. The positioner re-renders via StateChanged
+        // after prune, which re-runs label resolution with the updated value.
+    }
+
+    /// <inheritdoc />
+    public event Action? ItemMapChanged;
+
+    /// <inheritdoc />
+    public bool HasNullItemLabel
+    {
+        get
+        {
+            if (Items is not null)
+            {
+                foreach (var item in Items)
+                {
+                    if (item.Value is null && !string.IsNullOrEmpty(item.Label))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            if (ItemGroups is not null)
+            {
+                foreach (var group in ItemGroups)
+                {
+                    foreach (var item in group.Items)
+                    {
+                        if (item.Value is null && !string.IsNullOrEmpty(item.Label))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsSelectedByFocus(int index) => SelectedIndex == index;
+
+    /// <summary>
+    /// Gets or sets the floating root context adapter for use with
+    /// <see cref="FloatingFocusManager.FloatingFocusManager"/>.
+    /// </summary>
+    public IFloatingRootContext? FloatingRootContext { get; set; }
 
     /// <summary>
     /// Gets or sets the action delegate invoked when the trigger receives focus.
@@ -170,6 +496,21 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
             }
 
             return GetValue() is null;
+        }
+    }
+
+    /// <inheritdoc />
+    public object? CurrentValueBoxed
+    {
+        get
+        {
+            if (Multiple)
+            {
+                var values = GetValues();
+                return values.Count == 0 ? null : values[0];
+            }
+
+            return GetValue();
         }
     }
 
@@ -250,8 +591,16 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     }
 
     /// <summary>
-    /// Gets the label for a given value using <see cref="ItemToStringLabel"/> if available,
-    /// then the item label registry, otherwise falls back to <see cref="object.ToString"/>.
+    /// Gets the label for a given value. Resolution order mirrors the React Base UI
+    /// <c>resolveSelectedLabel</c> cascade:
+    /// <list type="number">
+    ///   <item><description><see cref="ItemToStringLabel"/> user callback</description></item>
+    ///   <item><description><see cref="ISelectItemLabel"/> on the value itself (object with explicit label)</description></item>
+    ///   <item><description>Registered live <see cref="SelectItem{TValue}"/> labels</description></item>
+    ///   <item><description>Static <see cref="Items"/> scan</description></item>
+    ///   <item><description>Grouped <see cref="ItemGroups"/> scan</description></item>
+    ///   <item><description><see cref="object.ToString"/> fallback</description></item>
+    /// </list>
     /// </summary>
     public string? GetLabel(TValue? value)
     {
@@ -260,18 +609,37 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
             return ItemToStringLabel(value);
         }
 
+        if (value is ISelectItemLabel labeled && labeled.Label is not null)
+        {
+            return labeled.Label;
+        }
+
         if (value is not null && _itemLabels.TryGetValue(value, out var label))
         {
             return label;
         }
 
-        if (value is not null && Items is not null)
+        if (Items is not null)
         {
             foreach (var item in Items)
             {
                 if (AreEqual(item.Value, value))
                 {
                     return item.Label;
+                }
+            }
+        }
+
+        if (ItemGroups is not null)
+        {
+            foreach (var group in ItemGroups)
+            {
+                foreach (var item in group.Items)
+                {
+                    if (AreEqual(item.Value, value))
+                    {
+                        return item.Label;
+                    }
                 }
             }
         }
@@ -294,6 +662,38 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     }
 
     /// <summary>
+    /// Finds a value by its form submission string, matching case-insensitively
+    /// against registered items. Used for browser autofill handling.
+    /// </summary>
+    public (bool Found, TValue? Value) FindValueByFormString(string inputValue)
+    {
+        foreach (var kvp in _itemLabels)
+        {
+            var candidate = GetFormValue(kvp.Key);
+            if (candidate is not null &&
+                candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, kvp.Key);
+            }
+        }
+
+        if (Items is not null)
+        {
+            foreach (var item in Items)
+            {
+                var candidate = GetFormValue(item.Value);
+                if (candidate is not null &&
+                    candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, item.Value);
+                }
+            }
+        }
+
+        return (false, default);
+    }
+
+    /// <summary>
     /// Compares two values for equality using <see cref="IsItemEqualToValue"/> if available,
     /// otherwise falls back to <see cref="EqualityComparer{T}.Default"/>.
     /// </summary>
@@ -305,5 +705,89 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
         }
 
         return EqualityComparer<TValue>.Default.Equals(a, b);
+    }
+
+    /// <inheritdoc />
+    public async Task HandleClosedTypeaheadAsync(string character)
+    {
+        if (Multiple)
+        {
+            return;
+        }
+
+        _typeaheadCts?.Cancel();
+        _typeaheadCts = new CancellationTokenSource();
+        var token = _typeaheadCts.Token;
+
+        _typeaheadBuffer += character.ToLowerInvariant();
+
+        TValue? matchValue = default;
+        var found = false;
+        var currentValue = GetValue();
+
+        if (Items is not null && Items.Count > 0)
+        {
+            var startIndex = 0;
+            for (var i = 0; i < Items.Count; i++)
+            {
+                if (AreEqual(Items[i].Value, currentValue))
+                {
+                    startIndex = i + 1;
+                    break;
+                }
+            }
+
+            for (var offset = 0; offset < Items.Count; offset++)
+            {
+                var index = (startIndex + offset) % Items.Count;
+                var item = Items[index];
+                if (!string.IsNullOrEmpty(item.Label) &&
+                    item.Label.StartsWith(_typeaheadBuffer, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchValue = item.Value;
+                    found = true;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            foreach (var kvp in _itemLabels)
+            {
+                if (kvp.Value.StartsWith(_typeaheadBuffer, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchValue = kvp.Key;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found && _itemLabelResolvers.Count > 0)
+            {
+                foreach (var kvp in _itemLabelResolvers)
+                {
+                    var label = await kvp.Value();
+                    if (!string.IsNullOrEmpty(label) &&
+                        label.StartsWith(_typeaheadBuffer, StringComparison.OrdinalIgnoreCase) &&
+                        kvp.Key is TValue typedKey)
+                    {
+                        matchValue = typedKey;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (found)
+        {
+            await SelectValueAsync(matchValue);
+        }
+
+        _ = Task.Delay(500, token).ContinueWith(
+            _ => _typeaheadBuffer = string.Empty,
+            token,
+            TaskContinuationOptions.OnlyOnRanToCompletion,
+            TaskScheduler.Default);
     }
 }
