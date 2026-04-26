@@ -35,6 +35,7 @@
     private CancellationTokenSource? selectedDelayCts;
     private CancellationTokenSource? unselectedDelayCts;
     private (bool Open, bool Placeholder, bool HasNullItemLabel)? lastGatingKey;
+    private bool suppressFocusCloseOnce;
 
     [CascadingParameter]
     private ISelectRootContext? RootContext { get; set; }
@@ -331,6 +332,18 @@
 
         RootContext.OpenInteractionType = InteractionType.Click;
         var nextOpen = !RootContext.GetOpen();
+        if (nextOpen)
+        {
+            // Suppress the close-on-focus guard for the focus event that fires as
+            // a side effect of this click. React's onFocus reads `open` from a
+            // render-time captured store value, so on the first click the closure
+            // still observes `open === false` and skips the guard. Blazor reads
+            // live state via RootContext.GetOpen(), which is already true by the
+            // time focus runs (and AlignItemWithTriggerActive is also true once
+            // the positioner has re-rendered), so without this flag the guard
+            // would close the popup we just opened.
+            suppressFocusCloseOnce = true;
+        }
         await RootContext.SetOpenAsync(nextOpen, SelectOpenChangeReason.TriggerPress);
     }
 
@@ -368,7 +381,10 @@
 
         RootContext.OnTriggerFocus();
 
-        if (RootContext.GetOpen() && RootContext.AlignItemWithTriggerActive)
+        var skipFocusClose = suppressFocusCloseOnce;
+        suppressFocusCloseOnce = false;
+
+        if (!skipFocusClose && RootContext.GetOpen() && RootContext.AlignItemWithTriggerActive)
         {
             await RootContext.SetOpenAsync(false, SelectOpenChangeReason.None);
         }
@@ -413,6 +429,10 @@
     [JSInvokable]
     public Task NotifyRealBlur()
     {
+        // Clear the suppression flag on real blur so a later focus event that
+        // arrives via Tab navigation (rather than as a side effect of a click
+        // that just opened the popup) runs the close-on-focus guard normally.
+        suppressFocusCloseOnce = false;
         RootContext?.OnTriggerBlur();
         return Task.CompletedTask;
     }
