@@ -247,6 +247,15 @@
             {
                 RootContext.ScrollDownArrowVisible = false;
             }
+
+            // Intentionally do NOT reset `positionerContext.IsPositioned` here.
+            // Mirrors React's `useFloating`: `isPositioned` stays true across
+            // opens for a persistent positioner — only a true unmount (Dispose)
+            // resets it. Resetting here would close SelectPopup's align-item
+            // gate, and because `OnAfterRenderAsync` deliberately skips
+            // `UpdatePositionAsync` while `alignItemWithTriggerActive` is on,
+            // `OnPositionUpdated` would never re-fire to flip it back true,
+            // leaving every reopen stuck at the floating-default placement.
         }
 
         RootContext.AlignItemWithTriggerActive = alignItemWithTriggerActive;
@@ -334,6 +343,8 @@
             RootContext.AlignItemWithTriggerActive = false;
         }
 
+        positionerContext.IsPositioned = false;
+
         // Drain any pending scroll lock reconciliation so Apply has a chance
         // to publish its token before we attempt the final release.
         scrollLockDesired = false;
@@ -393,9 +404,24 @@
         var newSide = Extensions.ParseSide(side);
         var newAlign = Extensions.ParseAlign(align);
 
+        // Floating UI has run a pass — flip `IsPositioned` so SelectPopup can
+        // safely fire its align-item-with-trigger placement now that the popup
+        // has a resolved geometry (mirrors React's `isPositioned` from
+        // `useFloating`, consumed at SelectPopup.tsx:269).
+        var firstPositioned = !positionerContext.IsPositioned;
+        positionerContext.IsPositioned = true;
+
         if (newSide == computedSide && newAlign == computedAlign &&
             anchorHidden == computedAnchorHidden && arrowUncentered == computedArrowUncentered)
         {
+            if (firstPositioned)
+            {
+                _ = InvokeAsync(() =>
+                {
+                    StateHasChanged();
+                    RootContext?.NotifyStateChanged();
+                });
+            }
             return;
         }
 
@@ -506,13 +532,24 @@
             return;
         }
 
+        // Pass the runtime computed `alignItemWithTriggerActive` (not the
+        // static `AlignItemWithTrigger` prop) so the floating positioner state
+        // reflects whether the popup-level align-item commit owns placement.
+        // floating.js uses this to skip writing position styles and the
+        // `data-positioned` attribute, keeping the FOUC CSS hide active until
+        // the align-item commit runs.
+        //
+        // RootId is forwarded so select.js's onPositionUpdated wrapper can
+        // drive the align-item commit synchronously from JS (no C# round-trip
+        // dependency on slow Server circuits).
         await positionerInterop.InitializeAsync(
             Element.Value,
             anchorElement.Value,
             BuildConfig(),
             arrowElement,
-            AlignItemWithTrigger,
-            positionerDotNetRef);
+            alignItemWithTriggerActive,
+            positionerDotNetRef,
+            RootContext.RootId);
     }
 
     private async Task UpdatePositionAsync()
@@ -528,7 +565,7 @@
             return;
         }
 
-        await positionerInterop.UpdateAsync(anchorElement.Value, BuildConfig(), arrowElement, AlignItemWithTrigger);
+        await positionerInterop.UpdateAsync(anchorElement.Value, BuildConfig(), arrowElement, alignItemWithTriggerActive);
     }
 
     /// <summary>
@@ -572,7 +609,17 @@
         var equal = RootContext.AreValuesEqual;
         var multi = RootContext.Multiple;
 
-        if (prev != 0 && !multi)
+        // Only prune on a SHRINK of the registered set. Pruning on growth is
+        // mathematically incorrect: `RegisterItemValue` only adds — a value
+        // that was previously registered cannot disappear as a result. But
+        // because `RegisterItemValue` raises `ItemMapChanged` per call (no
+        // batching, unlike React's `CompositeList` which fires once with the
+        // completed map), a popup reopen can fire this handler mid-mount with
+        // a partial set ([apple] before banana/cherry have re-mounted), making
+        // the current selection (e.g. cherry) appear "missing" and triggering
+        // an incorrect `SetValueBoxedAsync(null)`. The `size < prev` guard
+        // ensures prune only runs after an actual unregister.
+        if (prev != 0 && !multi && size < prev)
         {
             var currentBoxed = RootContext.CurrentValueBoxed;
             if (currentBoxed is not null)
@@ -614,7 +661,10 @@
             }
         }
 
-        if (prev != 0 && multi)
+        // Same reasoning as the single-select branch above: only prune on
+        // shrink so partial-mount registration during reopen can't briefly
+        // erase still-valid selected values.
+        if (prev != 0 && multi && size < prev)
         {
             var multiValues = RootContext.MultiValueBoxed;
             if (multiValues.Count > 0)

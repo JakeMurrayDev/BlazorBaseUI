@@ -324,6 +324,12 @@
             return;
         }
 
+        // Match React's `useClick({ enabled: !readOnly && !disabled })`.
+        if (RootContext.ReadOnly)
+        {
+            return;
+        }
+
         // Match React's `useClick({ event: 'mousedown' })`: only primary button toggles.
         if (e.Button != 0)
         {
@@ -356,17 +362,23 @@
 
         RootContext.KeyboardActive = true;
 
-        if (e.Key == "ArrowDown" || e.Key == "ArrowUp" || e.Key == "Enter" || e.Key == " ")
+        // Match React's `useListNavigation`/`useTypeahead`/`useClick` shared
+        // `enabled: !readOnly && !disabled` guard. User-supplied onkeydown
+        // still fires below.
+        if (!RootContext.ReadOnly)
         {
-            if (!RootContext.GetOpen())
+            if (e.Key == "ArrowDown" || e.Key == "ArrowUp" || e.Key == "Enter" || e.Key == " ")
             {
-                RootContext.OpenInteractionType = InteractionType.Keyboard;
-                await RootContext.SetOpenAsync(true, SelectOpenChangeReason.TriggerPress);
+                if (!RootContext.GetOpen())
+                {
+                    RootContext.OpenInteractionType = InteractionType.Keyboard;
+                    await RootContext.SetOpenAsync(true, SelectOpenChangeReason.TriggerPress);
+                }
             }
-        }
-        else if (!RootContext.GetOpen() && e.Key.Length == 1 && !e.CtrlKey && !e.AltKey && !e.MetaKey)
-        {
-            await RootContext.HandleClosedTypeaheadAsync(e.Key);
+            else if (!RootContext.GetOpen() && e.Key.Length == 1 && !e.CtrlKey && !e.AltKey && !e.MetaKey)
+            {
+                await RootContext.HandleClosedTypeaheadAsync(e.Key);
+            }
         }
 
         await EventUtilities.InvokeOnKeyDownAsync(AdditionalAttributes, e);

@@ -664,6 +664,8 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     /// <summary>
     /// Finds a value by its form submission string, matching case-insensitively
     /// against registered items. Used for browser autofill handling.
+    /// Falls back to label matching because browsers often autofill displayed
+    /// text (e.g. "United States") rather than the underlying value ("US").
     /// </summary>
     public (bool Found, TValue? Value) FindValueByFormString(string inputValue)
     {
@@ -686,6 +688,62 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
                     candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
                 {
                     return (true, item.Value);
+                }
+            }
+        }
+
+        if (ItemGroups is not null)
+        {
+            foreach (var group in ItemGroups)
+            {
+                foreach (var item in group.Items)
+                {
+                    var candidate = GetFormValue(item.Value);
+                    if (candidate is not null &&
+                        candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (true, item.Value);
+                    }
+                }
+            }
+        }
+
+        // Label fallback for browser autofill compatibility.
+        foreach (var kvp in _itemLabels)
+        {
+            var candidate = GetLabel(kvp.Key);
+            if (candidate is not null &&
+                candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, kvp.Key);
+            }
+        }
+
+        if (Items is not null)
+        {
+            foreach (var item in Items)
+            {
+                var candidate = GetLabel(item.Value);
+                if (candidate is not null &&
+                    candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, item.Value);
+                }
+            }
+        }
+
+        if (ItemGroups is not null)
+        {
+            foreach (var group in ItemGroups)
+            {
+                foreach (var item in group.Items)
+                {
+                    var candidate = GetLabel(item.Value);
+                    if (candidate is not null &&
+                        candidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (true, item.Value);
+                    }
                 }
             }
         }

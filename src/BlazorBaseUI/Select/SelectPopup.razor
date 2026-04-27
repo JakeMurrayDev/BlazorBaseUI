@@ -187,8 +187,16 @@
             catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException) { _ = ex; }
         }
 
-        // Run alignItemWithTrigger placement on every render while active & open.
-        if (isActiveAndOpen)
+        // Run alignItemWithTrigger placement on every render while active & open,
+        // but only after Floating UI has completed its first positioning pass.
+        // Mirrors React's `(alignItemWithTriggerActive && !isPositioned)` suppression
+        // in SelectPopup.tsx:269. Without this gate the popup runs the align-item
+        // pass while the FOUC CSS in blazor-baseui-floating.js is still hiding the
+        // positioner (no `data-positioned` yet), then Floating UI's first absolute
+        // pass briefly reveals the unaligned placement before the next align-item
+        // pass corrects it.
+        var positioned = PositionerContext?.IsPositioned ?? false;
+        if (isActiveAndOpen && positioned)
         {
             try
             {

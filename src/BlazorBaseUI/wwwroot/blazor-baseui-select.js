@@ -252,6 +252,16 @@ function handleGlobalKeyDown(e) {
         return;
     }
 
+    // Match React's `enabled: !readOnly && !disabled` on useListNavigation,
+    // useTypeahead, and useClick: a readonly select that is somehow open
+    // accepts only Escape and Tab.
+    if (topmostRoot.readOnly) {
+        if (e.key === 'Tab') {
+            topmostRoot.dotNetRef.invokeMethodAsync('OnTabKey').catch(() => { });
+        }
+        return;
+    }
+
     const popupEl = topmostRoot.popupElement;
     const listEl = topmostRoot.listElement;
     const containerEl = listEl || popupEl;
@@ -296,7 +306,7 @@ function handleGlobalKeyDown(e) {
         // React parity: when a typeahead query is mid-flight, append the space
         // to the query instead of committing. This lets users search for labels
         // that contain spaces ("San Fr").
-        if (rootState.typeaheadBuffer && rootState.typeaheadBuffer.length > 0) {
+        if (topmostRoot.typeaheadBuffer && topmostRoot.typeaheadBuffer.length > 0) {
             handleTypeahead(topmostRoot, items, ' ');
         } else if (currentIndex >= 0 && currentIndex < items.length) {
             items[currentIndex].click();
@@ -556,7 +566,7 @@ function handlePopupScrollInternal(rootState, scroller) {
 
 // ─── Public API ───────────────────────────────────────────────────────
 
-export function initializeRoot(rootId, dotNetRef, loopFocus, modal, direction) {
+export function initializeRoot(rootId, dotNetRef, loopFocus, modal, direction, readOnly) {
     initGlobalListeners();
 
     state.roots.set(rootId, {
@@ -565,6 +575,7 @@ export function initializeRoot(rootId, dotNetRef, loopFocus, modal, direction) {
         loopFocus: loopFocus ?? true,
         modal: modal ?? false,
         direction: direction ?? 'ltr',
+        readOnly: !!readOnly,
         activeIndex: -1,
         keyboardActive: false,
         triggerElement: null,
@@ -852,6 +863,13 @@ export function setActiveIndex(rootId, index) {
     }
 }
 
+export function setReadOnly(rootId, readOnly) {
+    const rootState = state.roots.get(rootId);
+    if (rootState) {
+        rootState.readOnly = !!readOnly;
+    }
+}
+
 export function focusTrigger(element) {
     if (element) element.focus();
 }
@@ -1097,11 +1115,32 @@ export function disposeScrollArrow(rootId, direction) {
 
 // ─── Positioner API ───────────────────────────────────────────────────
 
-export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidance, alignItemWithTrigger, dotNetRef) {
+export async function initializePositioner(positionerElement, triggerElement, side, align, sideOffset, alignOffset, collisionPadding, collisionBoundary, arrowPadding, arrowElement, sticky, positionMethod, disableAnchorTracking, collisionAvoidance, alignItemWithTrigger, dotNetRef, rootId) {
     let onPositionUpdated = null;
     if (dotNetRef) {
         onPositionUpdated = (effectiveSide, effectiveAlign, anchorHidden, arrowUncentered) => {
             dotNetRef.invokeMethodAsync('OnPositionUpdated', effectiveSide, effectiveAlign, anchorHidden, arrowUncentered).catch(() => { });
+
+            // When align-item-with-trigger is active, immediately drive the
+            // popup-level align-item commit from JS. floating.js's
+            // updatePositionInternal deliberately skipped writing
+            // `data-positioned` (so the FOUC CSS keeps the popup invisible),
+            // so the align-item commit is the sole owner of releasing the
+            // hide. Calling it here — synchronously in the same JS frame as
+            // Floating UI's pass — ensures the popup becomes visible at the
+            // correct placement on the very next paint, without depending on
+            // the C# round-trip that flips PositionerContext.IsPositioned.
+            // On Server (InteractiveServer/SSR) that round-trip costs at least
+            // one SignalR hop and can stall on slow circuits, leaving the
+            // popup invisible indefinitely.
+            //
+            // The C# Popup-side gate at SelectPopup.razor still runs on later
+            // re-renders (e.g., once items mount and the placement should
+            // refine), so this JS-side invocation is purely the "first paint"
+            // accelerator, not a replacement for the gate.
+            if (alignItemWithTrigger && rootId) {
+                try { beginAlignItemWithTriggerPlacement(rootId, true); } catch { /* idempotent */ }
+            }
         };
     }
 
@@ -1120,6 +1159,9 @@ export async function initializePositioner(positionerElement, triggerElement, si
         positionMethod: positionMethod || 'absolute',
         disableAnchorTracking: disableAnchorTracking || false,
         collisionAvoidance: collisionAvoidance || 'flip-shift',
+        // Forward to floating so updatePositionInternal skips visual style writes
+        // and the data-positioned attribute (the align-item commit owns those).
+        alignItemWithTriggerActive: !!alignItemWithTrigger,
         onPositionUpdated,
         dotNetRef: dotNetRef || null
     });
@@ -1143,7 +1185,8 @@ export async function updatePosition(positionerId, triggerElement, side, align, 
         arrowElement,
         sticky: sticky || false,
         positionMethod: positionMethod || 'absolute',
-        collisionAvoidance: collisionAvoidance || 'flip-shift'
+        collisionAvoidance: collisionAvoidance || 'flip-shift',
+        alignItemWithTriggerActive: !!alignItemWithTrigger
     });
 
     // alignItemWithTrigger placement is invoked from SelectPopup, not here,
@@ -1333,6 +1376,7 @@ export function beginAlignItemWithTriggerPlacement(rootId, alignItemWithTriggerA
             const positionerRect = normalizeRect(positionerElement.getBoundingClientRect(), scale);
             const triggerX = triggerRect.left;
             const triggerHeight = triggerRect.height;
+            const isRtl = rootState.direction === 'rtl';
             const scroller = rootState.listElement || popupElement;
             const scrollHeight = scroller.scrollHeight;
 
@@ -1361,14 +1405,23 @@ export function beginAlignItemWithTriggerPlacement(rootId, alignItemWithTriggerA
                 const valueRect = normalizeRect(valueElement.getBoundingClientRect(), scale);
                 textRect = normalizeRect(textElement.getBoundingClientRect(), scale);
 
-                const valueLeftFromTriggerLeft = valueRect.left - triggerX;
-                const textLeftFromPositionerLeft = textRect.left - positionerRect.left;
+                if (isRtl) {
+                    // Mirror the alignment math from the right edges so the popup's
+                    // text/right anchor lines up with the trigger value's right anchor.
+                    const valueRightFromTriggerRight = triggerRect.right - valueRect.right;
+                    const textRightFromPositionerRight = positionerRect.right - textRect.right;
+                    offsetX = valueRightFromTriggerRight - textRightFromPositionerRight;
+                } else {
+                    const valueLeftFromTriggerLeft = valueRect.left - triggerX;
+                    const textLeftFromPositionerLeft = textRect.left - positionerRect.left;
+                    offsetX = valueLeftFromTriggerLeft - textLeftFromPositionerLeft;
+                }
+
                 const valueCenterFromPositionerTop =
                     valueRect.top - triggerRect.top + valueRect.height / 2;
                 const textCenterFromTriggerTop =
                     textRect.top - positionerRect.top + textRect.height / 2;
 
-                offsetX = valueLeftFromTriggerLeft - textLeftFromPositionerLeft;
                 offsetY = textCenterFromTriggerTop - valueCenterFromPositionerTop;
             }
 
@@ -1377,9 +1430,20 @@ export function beginAlignItemWithTriggerPlacement(rootId, alignItemWithTriggerA
             const maxHeight = viewportHeight - marginTop - marginBottom;
             const scrollTop = idealHeight - height;
 
-            const left = Math.max(paddingLeft, triggerX + offsetX);
             const maxRight = viewportWidth - paddingRight;
-            const rightOverflow = Math.max(0, left + positionerRect.width - maxRight);
+            let left;
+            let leftOverflow = 0;
+            let rightOverflow = 0;
+            if (isRtl) {
+                // Anchor the popup's right edge to the trigger's right edge
+                // (with the alignment offset). Clamp to viewport on both sides.
+                left = triggerRect.right - offsetX - positionerRect.width;
+                leftOverflow = Math.max(0, paddingLeft - left);
+                rightOverflow = Math.max(0, left + leftOverflow + positionerRect.width - maxRight);
+            } else {
+                left = Math.max(paddingLeft, triggerX + offsetX);
+                rightOverflow = Math.max(0, left + positionerRect.width - maxRight);
+            }
 
             // === Measurement phase: project post-commit layout without mutating the DOM ===
             // Once the mutations below are applied, the scroll container's clientHeight
@@ -1422,7 +1486,7 @@ export function beginAlignItemWithTriggerPlacement(rootId, alignItemWithTriggerA
             // Mirrors React's `FIXED = { position: 'fixed' }` branch for
             // `alignItemWithTriggerActive` in SelectPositioner.tsx.
             positionerElement.style.position = 'fixed';
-            positionerElement.style.left = `${left - rightOverflow}px`;
+            positionerElement.style.left = `${left + leftOverflow - rightOverflow}px`;
             positionerElement.style.height = `${height}px`;
             positionerElement.style.maxHeight = 'auto';
             positionerElement.style.marginTop = `${marginTop}px`;
@@ -1440,6 +1504,16 @@ export function beginAlignItemWithTriggerPlacement(rootId, alignItemWithTriggerA
                 positionerElement.style.bottom = '0';
                 scroller.scrollTop = scrollTop;
             }
+
+            // Mark the positioner as positioned now that the align-item commit
+            // has finished writing its placement styles. While
+            // `alignItemWithTriggerActive` is true on the positionerState,
+            // floating.js's updatePositionInternal deliberately skips writing
+            // `data-positioned`, so this site is the sole owner. The FOUC CSS
+            // (`[role="presentation"][data-side]:not([data-positioned])`) keeps
+            // the popup invisible until this attribute lands — eliminating the
+            // brief flash of the floating-default placement.
+            positionerElement.setAttribute('data-positioned', '');
 
             if (textRect) {
                 const popupTop = positionerRect.top;

@@ -305,6 +305,18 @@
             return;
         }
 
+        // Skip the JS reconciliation while the popup is closed (or its exit
+        // transition has completed and items are only still mounted because
+        // KeepMounted/ForceMount kept the portal alive). DOM order can't have
+        // shifted relative to the listbox while the listbox isn't visible, and
+        // running per-item JS interop on every parent re-render for closed
+        // Selects is the dominant per-render cost when multiple demos share a
+        // page (~N_items round-trips per outer render).
+        if (!RootContext.GetMounted())
+        {
+            return;
+        }
+
         try
         {
             var module = await ModuleTask.Value;

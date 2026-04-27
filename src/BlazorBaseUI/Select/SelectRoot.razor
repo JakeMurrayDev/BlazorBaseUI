@@ -60,6 +60,7 @@
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
     private bool isOpen;
+    private bool previousReadOnly;
     private readonly TransitionLifecycleManager transition = new();
     private int activeIndex = -1;
     private TValue? internalValue;
@@ -404,6 +405,25 @@
         {
             SyncSelectedIndex();
         }
+
+        if (hasRendered && previousReadOnly != ReadOnly)
+        {
+            previousReadOnly = ReadOnly;
+            _ = SyncReadOnlyAsync(ReadOnly);
+        }
+    }
+
+    private async Task SyncReadOnlyAsync(bool readOnly)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setReadOnly", rootId, readOnly);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
+        }
     }
 
     /// <inheritdoc />
@@ -412,6 +432,7 @@
         if (firstRender)
         {
             hasRendered = true;
+            previousReadOnly = ReadOnly;
             dotNetRef = DotNetObjectReference.Create(this);
             _ = InitializeJsAsync();
         }
@@ -495,6 +516,17 @@
             context.Mounted = false;
             activeIndex = -1;
             context.ActiveIndex = activeIndex;
+
+            // Reset the focus-driven force-mount latch so the portal can drop
+            // its children once the exit transition completes. SelectTrigger
+            // sets `ForceMount = true` on focus to mirror React's
+            // `timeoutFocus.start(0, …)` (so items mount before the popup
+            // formally opens), and React clears its analog when the popup
+            // closes. Without this reset, every focused-then-closed Select
+            // keeps its portal+items mounted forever — multiple selects on a
+            // page snowball into per-render JS interop in every mounted item
+            // (SelectItem.OnAfterRenderAsync calls `getOptionDomIndex`).
+            context.ForceMount = false;
         }
 
         _ = InvokeOpenChangeCompleteAsync(open);
@@ -887,7 +919,7 @@
             var module = await ModuleTask.Value;
             var modal = Modal == SelectModalMode.True;
             var directionStr = Direction.ToAttributeString() ?? "ltr";
-            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, true, modal, directionStr);
+            await module.InvokeVoidAsync("initializeRoot", rootId, dotNetRef, true, modal, directionStr, ReadOnly);
 
             if (triggerElement.HasValue)
             {

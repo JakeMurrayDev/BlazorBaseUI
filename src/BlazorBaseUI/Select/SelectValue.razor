@@ -103,7 +103,7 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        state = new SelectValueState(RootContext?.IsPlaceholder ?? true);
+        state = BuildState();
         ResolveContent();
     }
 
@@ -132,9 +132,33 @@
 
     private void OnRootStateChanged()
     {
-        state = new SelectValueState(RootContext?.IsPlaceholder ?? true);
+        state = BuildState();
         ResolveContent();
         InvokeAsync(StateHasChanged);
+    }
+
+    private SelectValueState BuildState()
+    {
+        var placeholder = RootContext?.IsPlaceholder ?? true;
+        var isMultiple = RootContext?.Multiple ?? false;
+
+        if (TypedRootContext is null)
+        {
+            return new SelectValueState(placeholder, null, null);
+        }
+
+        if (isMultiple)
+        {
+            var values = TypedRootContext.GetValues();
+            var boxed = new List<object>(values.Count);
+            foreach (var v in values)
+            {
+                if (v is not null) boxed.Add(v);
+            }
+            return new SelectValueState(placeholder, null, boxed);
+        }
+
+        return new SelectValueState(placeholder, (object?)TypedRootContext.GetValue(), null);
     }
 
     private void ResolveContent()

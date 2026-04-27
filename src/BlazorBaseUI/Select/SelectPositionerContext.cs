@@ -33,6 +33,17 @@ internal sealed class SelectPositionerContext
     public bool AlignItemWithTriggerActive { get; set; }
 
     /// <summary>
+    /// Gets or sets whether Floating UI has completed its first positioning pass.
+    /// Mirrors React's <c>isPositioned</c> from the <c>useFloating</c> hook
+    /// (consumed at <c>SelectPopup.tsx:269</c>) and is used to gate Blazor's
+    /// align-item-with-trigger pass so it doesn't run before the positioner has
+    /// resolved its initial placement (avoids the FOUC race documented in
+    /// <c>blazor-baseui-floating.js</c>'s <c>data-positioned</c> hide rule).
+    /// Resets to <see langword="false"/> on every popup close.
+    /// </summary>
+    public bool IsPositioned { get; set; }
+
+    /// <summary>
     /// Gets the delegate that returns the arrow element reference.
     /// </summary>
     public Func<ElementReference?> GetArrowElement { get; init; } = null!;

@@ -435,7 +435,8 @@ export async function initializePositioner(options) {
         sticky = false,
         positionMethod = 'absolute',
         disableAnchorTracking = false,
-        collisionAvoidance = null
+        collisionAvoidance = null,
+        hasViewport = false
     } = options;
 
     // Support virtual element as alternative to DOM trigger
@@ -464,6 +465,13 @@ export async function initializePositioner(options) {
         positionMethod,
         disableAnchorTracking,
         collisionAvoidance,
+        hasViewport,
+        // Mirrors React's `alignItemWithTriggerActive ? FIXED : positioning.positionerStyles`
+        // in SelectPositioner.tsx. When true, updatePositionInternal computes
+        // placement (so onPositionUpdated still fires) but DOES NOT write
+        // position/top/left/visibility/data-positioned. Component-specific
+        // align-item passes own those writes.
+        alignItemWithTriggerActive: !!options.alignItemWithTriggerActive,
         onPositionUpdated: options.onPositionUpdated || null,
         dotNetRef: options.dotNetRef || null,
         hasSideOffsetFn: options.hasSideOffsetFn || false,
@@ -591,8 +599,20 @@ async function updatePositionInternal(positionerState) {
 
     if (!positionerElement || !triggerElement) return;
 
+    // Skip positioning when the element is inside a display:none container (e.g. portal
+    // still has display:none during first render). autoUpdate's ResizeObserver will
+    // trigger a recomputation once the element becomes measurable.
+    if (positionerElement.getClientRects().length === 0) return;
+
     try {
         const FloatingUI = await ensureFloatingUI();
+
+        // Ensure the element's CSS position matches the strategy BEFORE computePosition
+        // reads offsetParent. The FOUC CSS rule applies position:fixed !important which
+        // causes offsetParent to be null, breaking absolute strategy calculations.
+        // Using setProperty with 'important' overrides the stylesheet !important rule.
+        const strategy = positionMethod === 'absolute' ? 'absolute' : 'fixed';
+        positionerElement.style.setProperty('position', strategy, 'important');
 
         const placement = toFloatingPlacement(side, align);
         const ca = normalizeCollisionAvoidance(collisionAvoidance);
@@ -619,6 +639,8 @@ async function updatePositionInternal(positionerState) {
                 const crossAxis = positionerState.hasAlignOffsetFn
                     ? await dotNetRef.invokeMethodAsync('ComputeAlignOffset', data)
                     : alignOffset;
+                // Store computed offset for transform-origin calculation
+                positionerState._computedSideOffset = mainAxis;
                 return { mainAxis, crossAxis };
             }));
         } else if (sideOffset !== 0 || alignOffset !== 0) {
@@ -628,9 +650,21 @@ async function updatePositionInternal(positionerState) {
             }));
         }
 
+        // Normalize collision padding into per-side object and add iOS bias
+        const rawPadding = typeof collisionPadding === 'object' && collisionPadding !== null
+            ? collisionPadding
+            : { top: collisionPadding || 0, right: collisionPadding || 0, bottom: collisionPadding || 0, left: collisionPadding || 0 };
+        const bias = 1;
+        const biasedPadding = {
+            top: (rawPadding.top || 0) + (side === 'bottom' ? bias : 0),
+            bottom: (rawPadding.bottom || 0) + (side === 'top' ? bias : 0),
+            left: (rawPadding.left || 0) + (side === 'right' ? bias : 0),
+            right: (rawPadding.right || 0) + (side === 'left' ? bias : 0)
+        };
+
         // Flip middleware (handles side collision)
         const flipMiddleware = ca.side === 'none' ? null : FloatingUI.flip({
-            padding: collisionPadding,
+            padding: biasedPadding,
             mainAxis: ca.side === 'flip',
             crossAxis: ca.align === 'flip' ? 'alignment' : false,
             fallbackAxisSideDirection: ca.fallbackAxisSide
@@ -639,12 +673,22 @@ async function updatePositionInternal(positionerState) {
         // Shift middleware (handles alignment collision)
         const shiftDisabled = ca.align === 'none' && ca.side !== 'shift';
         const crossAxisShiftEnabled = !shiftDisabled && (sticky || ca.side === 'shift');
+        const shiftCrossAxis = positionerState.shiftCrossAxis || false;
 
         const shiftMiddleware = shiftDisabled ? null : FloatingUI.shift({
-            padding: collisionPadding,
+            padding: biasedPadding,
             mainAxis: ca.align !== 'none',
             crossAxis: crossAxisShiftEnabled,
-            limiter: sticky ? undefined : FloatingUI.limitShift()
+            limiter: (sticky || shiftCrossAxis) ? undefined : FloatingUI.limitShift(arrowElement ? (limitData) => {
+                const { width, height } = arrowElement.getBoundingClientRect();
+                const placementSide = limitData.placement.split('-')[0];
+                const sideAxis = (placementSide === 'top' || placementSide === 'bottom') ? 'y' : 'x';
+                const arrowSize = sideAxis === 'y' ? width : height;
+                const offsetAmount = sideAxis === 'y'
+                    ? biasedPadding.left + biasedPadding.right
+                    : biasedPadding.top + biasedPadding.bottom;
+                return { offset: arrowSize / 2 + offsetAmount / 2 };
+            } : undefined)
         });
 
         // Order matters: shift before flip when side/align is 'shift' or align is 'center'
@@ -662,8 +706,15 @@ async function updatePositionInternal(positionerState) {
             apply({ availableWidth, availableHeight, rects }) {
                 positionerElement.style.setProperty('--available-width', `${availableWidth}px`);
                 positionerElement.style.setProperty('--available-height', `${availableHeight}px`);
-                positionerElement.style.setProperty('--anchor-width', `${rects.reference.width}px`);
-                positionerElement.style.setProperty('--anchor-height', `${rects.reference.height}px`);
+
+                // Snap anchor dimensions to device pixels to ensure the popup's visual
+                // width matches the anchor's, avoiding sub-pixel misalignment.
+                const dpr = window.devicePixelRatio || 1;
+                const ref = rects.reference;
+                const anchorWidth = (Math.round((ref.x + ref.width) * dpr) - Math.round(ref.x * dpr)) / dpr;
+                const anchorHeight = (Math.round((ref.y + ref.height) * dpr) - Math.round(ref.y * dpr)) / dpr;
+                positionerElement.style.setProperty('--anchor-width', `${anchorWidth}px`);
+                positionerElement.style.setProperty('--anchor-height', `${anchorHeight}px`);
             }
         }));
 
@@ -685,7 +736,7 @@ async function updatePositionInternal(positionerState) {
             positionerElement,
             {
                 placement,
-                strategy: positionMethod === 'absolute' ? 'absolute' : 'fixed',
+                strategy,
                 middleware
             }
         );
@@ -693,13 +744,69 @@ async function updatePositionInternal(positionerState) {
         // Parse the final placement
         const { side: effectiveSide, align: effectiveAlign } = fromFloatingPlacement(finalPlacement);
 
-        // Apply position styles
-        positionerElement.style.position = positionMethod === 'absolute' ? 'absolute' : 'fixed';
-        positionerElement.style.left = `${x}px`;
-        positionerElement.style.top = `${y}px`;
-        positionerElement.style.zIndex = '1000';
-        positionerElement.style.visibility = '';
-        positionerElement.setAttribute('data-positioned', '');
+        // When `alignItemWithTriggerActive` is set on this positioner (Select's
+        // align-item-with-trigger mode), skip writing visual placement styles and
+        // skip setting `data-positioned`. Mirrors React's
+        // `alignItemWithTriggerActive ? FIXED : positioning.positionerStyles`
+        // in SelectPositioner.tsx — the popup-level align-item pass owns those
+        // writes and is responsible for marking `data-positioned` once it has
+        // committed its placement. CSS variables, `data-side`/`data-align`, and
+        // anchor-hidden state below still apply because the align-item path
+        // also reads/relies on them.
+        if (!positionerState.alignItemWithTriggerActive) {
+            // Apply position styles (switch from !important to normal inline now that
+            // data-positioned will be set, removing the FOUC CSS override)
+            positionerElement.style.setProperty('position', strategy);
+
+            // Adaptive origin: switch CSS positioning properties when viewport transitions are active
+            let sideX = 'left';
+            let sideY = 'top';
+
+            if (positionerState.hasViewport) {
+                const computedStyle = getComputedStyle(positionerElement);
+                const hasTransition = computedStyle.transitionDuration !== '0s'
+                    && computedStyle.transitionDuration !== '';
+
+                if (hasTransition) {
+                    if (effectiveSide === 'left') {
+                        sideX = 'right';
+                    }
+                    if (effectiveSide === 'top') {
+                        sideY = 'bottom';
+                    }
+                }
+            }
+
+            // Clear opposite positioning properties when adaptive origin may switch sides
+            if (positionerState.hasViewport) {
+                positionerElement.style.left = '';
+                positionerElement.style.right = '';
+                positionerElement.style.top = '';
+                positionerElement.style.bottom = '';
+            }
+
+            if (sideX === 'right') {
+                const viewportWidth = strategy === 'fixed'
+                    ? (window.visualViewport?.width ?? window.innerWidth)
+                    : positionerElement.offsetParent?.clientWidth ?? document.documentElement.clientWidth;
+                positionerElement.style.right = `${viewportWidth - x - positionerElement.offsetWidth}px`;
+            } else {
+                positionerElement.style.left = `${x}px`;
+            }
+
+            if (sideY === 'bottom') {
+                const viewportHeight = strategy === 'fixed'
+                    ? (window.visualViewport?.height ?? window.innerHeight)
+                    : positionerElement.offsetParent?.clientHeight ?? document.documentElement.clientHeight;
+                positionerElement.style.bottom = `${viewportHeight - y - positionerElement.offsetHeight}px`;
+            } else {
+                positionerElement.style.top = `${y}px`;
+            }
+
+            positionerElement.style.zIndex = '1000';
+            positionerElement.style.visibility = '';
+            positionerElement.setAttribute('data-positioned', '');
+        }
 
         // Set CSS custom properties
         positionerElement.style.setProperty('--positioner-width', `${positionerElement.offsetWidth}px`);
@@ -716,28 +823,27 @@ async function updatePositionInternal(positionerState) {
             positionerElement.removeAttribute('data-anchor-hidden');
         }
 
-        // Calculate transform origin
-        let transformOriginX, transformOriginY;
-        if (effectiveSide === 'top' || effectiveSide === 'bottom') {
-            transformOriginX = effectiveAlign === 'start' ? '0%' : effectiveAlign === 'end' ? '100%' : '50%';
-            transformOriginY = effectiveSide === 'top' ? '100%' : '0%';
-        } else {
-            transformOriginX = effectiveSide === 'left' ? '100%' : '0%';
-            transformOriginY = effectiveAlign === 'start' ? '0%' : effectiveAlign === 'end' ? '100%' : '50%';
-        }
-        positionerElement.style.setProperty('--transform-origin', `${transformOriginX} ${transformOriginY}`);
-
-        // Update arrow position if present
+        // Update arrow position first (data needed for transform-origin)
         // Floating UI's arrow middleware returns:
         // - x (horizontal offset) ONLY for vertical placements (top/bottom)
         // - y (vertical offset) ONLY for horizontal placements (left/right)
         // The perpendicular axis positioning (how far arrow extends from popup edge)
         // is handled by CSS using the data-side attribute, matching Base UI's approach.
-        if (arrowElement && middlewareData.arrow) {
-            const { x: arrowX, y: arrowY } = middlewareData.arrow;
+        let arrowUncentered = false;
+        const arrowData = middlewareData.arrow;
+        if (arrowElement && arrowData) {
+            const { x: arrowX, y: arrowY } = arrowData;
+            arrowUncentered = arrowData.centerOffset !== 0;
 
             // Set data-side attribute for CSS-based perpendicular positioning
             arrowElement.setAttribute('data-side', effectiveSide);
+
+            // Set data-uncentered when arrow cannot be centered on the anchor
+            if (arrowUncentered) {
+                arrowElement.setAttribute('data-uncentered', '');
+            } else {
+                arrowElement.removeAttribute('data-uncentered');
+            }
 
             // Set position (matching Base UI's arrowStyles)
             arrowElement.style.position = 'absolute';
@@ -758,13 +864,42 @@ async function updatePositionInternal(positionerState) {
             }
         }
 
+        // Calculate pixel-precise transform origin using arrow position
+        const arrowXVal = arrowData?.x || 0;
+        const arrowYVal = arrowData?.y || 0;
+        const arrowWidth = arrowElement?.clientWidth || 0;
+        const arrowHeight = arrowElement?.clientHeight || 0;
+        const transformX = arrowXVal + arrowWidth / 2;
+        const transformY = arrowYVal + arrowHeight / 2;
+        const shiftY = Math.abs(middlewareData.shift?.y || 0);
+        const triggerRect = triggerElement.getBoundingClientRect();
+        const halfAnchorHeight = triggerRect.height / 2;
+        const currentSideOffset = positionerState._computedSideOffset ?? positionerState.sideOffset ?? 0;
+        const isOverlappingAnchor = shiftY > currentSideOffset;
+
+        const adjacentOrigins = {
+            top: `${transformX}px calc(100% + ${currentSideOffset}px)`,
+            bottom: `${transformX}px ${-currentSideOffset}px`,
+            left: `calc(100% + ${currentSideOffset}px) ${transformY}px`,
+            right: `${-currentSideOffset}px ${transformY}px`,
+        };
+
+        const sideAxis = (effectiveSide === 'top' || effectiveSide === 'bottom') ? 'y' : 'x';
+        const overlapOrigin = `${transformX}px ${triggerRect.y + halfAnchorHeight - y}px`;
+
+        const transformOrigin = (crossAxisShiftEnabled && sideAxis === 'y' && isOverlappingAnchor)
+            ? overlapOrigin
+            : adjacentOrigins[effectiveSide];
+
+        positionerElement.style.setProperty('--transform-origin', transformOrigin);
+
         // Store computed placement for safePolygon
         positionerState.computedSide = effectiveSide;
         positionerState.computedAlign = effectiveAlign;
 
         // Notify C# of computed position values
         if (positionerState.onPositionUpdated) {
-            positionerState.onPositionUpdated(effectiveSide, effectiveAlign, !!middlewareData.hide?.referenceHidden);
+            positionerState.onPositionUpdated(effectiveSide, effectiveAlign, !!middlewareData.hide?.referenceHidden, arrowUncentered);
         }
 
     } catch {
@@ -788,6 +923,7 @@ function updatePositionFallback(positionerState) {
 
     if (!positionerElement || !triggerElement) return;
 
+    const isRtl = positionerState.direction === 'rtl';
     const triggerRect = triggerElement.getBoundingClientRect();
     const popupWidth = positionerElement.offsetWidth || 200;
     const popupHeight = positionerElement.offsetHeight || 100;
@@ -811,7 +947,12 @@ function updatePositionFallback(positionerState) {
     }
 
     if (side === 'top' || side === 'bottom') {
-        switch (align) {
+        // `align` is logical: in RTL, 'start' anchors to the trigger's right edge
+        // and 'end' anchors to the left edge. Mirror React's `useAnchorPositioning`.
+        const physicalAlign = isRtl
+            ? (align === 'start' ? 'end' : align === 'end' ? 'start' : 'center')
+            : align;
+        switch (physicalAlign) {
             case 'start':
                 left = triggerRect.left;
                 break;
@@ -1437,8 +1578,17 @@ export function safePolygon(options = {}) {
  * @param {boolean} options.mouseOnly - Only respond to mouse events
  * @param {boolean} options.useSafePolygon - Whether to use safe polygon
  * @param {Object} options.safePolygonOptions - Options for safe polygon
+ * @param {string|null} options.treeId - Optional floating tree ID for child close coordination
+ * @param {string|null} options.nodeId - Optional floating node ID for child close coordination
  * @returns {Object} Interaction controller with cleanup method
  */
+
+const INTERACTIVE_SELECTOR = 'button,a[href],[role="button"],select,[tabindex]:not([tabindex="-1"]),input:not([type="hidden"]):not([disabled]),[contenteditable]:not([contenteditable="false"]),textarea:not([disabled])';
+
+function isInteractiveElement(element) {
+    return element?.closest(INTERACTIVE_SELECTOR) != null;
+}
+
 export function createHoverInteraction(options) {
     const {
         interactionId,
@@ -1449,7 +1599,9 @@ export function createHoverInteraction(options) {
         closeDelay = 0,
         mouseOnly = false,
         useSafePolygon = true,
-        safePolygonOptions = {}
+        safePolygonOptions = {},
+        treeId = null,
+        nodeId = null
     } = options;
 
     let floatingElement = options.floatingElement;
@@ -1462,6 +1614,15 @@ export function createHoverInteraction(options) {
     let mouseMoveHandler = null;
     let safePolygonHandler = useSafePolygon ? safePolygon(safePolygonOptions) : null;
     let placement = 'bottom';
+    let interactedInside = false;
+    let childCloseCleanup = null;
+
+    function cleanupChildCloseListener() {
+        if (childCloseCleanup) {
+            childCloseCleanup();
+            childCloseCleanup = null;
+        }
+    }
 
     function handleMouseEnter(event) {
         if (mouseOnly && pointerType && !isMouseLikePointerType(pointerType)) {
@@ -1525,14 +1686,54 @@ export function createHoverInteraction(options) {
     function handleFloatingMouseEnter() {
         closeTimeout.clear();
         cleanupMouseMove();
+        cleanupChildCloseListener();
     }
 
     function handleFloatingMouseLeave(event) {
+        // Check if any child floating elements are open in the tree first
+        if (treeId && nodeId) {
+            const tree = state.trees.get(treeId);
+            if (tree) {
+                const openChildren = tree.getNodeChildren(nodeId);
+                if (openChildren.length > 0) {
+                    // Defer close — wait for children to close
+                    cleanupChildCloseListener();
+                    const onChildClosed = () => {
+                        // Defer by one tick to allow mouseenter to fire first — if the
+                        // child closed because the mouse moved back into this parent,
+                        // the parent should stay open.
+                        setTimeout(() => {
+                            const remaining = tree.getNodeChildren(nodeId);
+                            if (remaining.length === 0) {
+                                cleanupChildCloseListener();
+                                closeWithDelay();
+                            }
+                        }, 0);
+                    };
+                    tree.events.on('node.closed', onChildClosed);
+                    childCloseCleanup = () => tree.events.off('node.closed', onChildClosed);
+                    return;
+                }
+            }
+        }
         // If moving back to trigger, don't close
         if (event.relatedTarget && contains(triggerElement, event.relatedTarget)) {
             return;
         }
+        // If user interacted with an interactive element inside, don't close on hover leave
+        if (interactedInside) {
+            return;
+        }
         closeWithDelay();
+    }
+
+    function handleFloatingPointerDown(event) {
+        const target = event.target;
+        if (!isInteractiveElement(target)) {
+            interactedInside = false;
+            return;
+        }
+        interactedInside = target?.closest('[aria-haspopup]') != null;
     }
 
     function handlePointerDown(event) {
@@ -1573,6 +1774,7 @@ export function createHoverInteraction(options) {
             if (floatingElement) {
                 floatingElement.removeEventListener('mouseenter', handleFloatingMouseEnter);
                 floatingElement.removeEventListener('mouseleave', handleFloatingMouseLeave);
+                floatingElement.removeEventListener('pointerdown', handleFloatingPointerDown, true);
             }
 
             floatingElement = element;
@@ -1581,17 +1783,30 @@ export function createHoverInteraction(options) {
             if (floatingElement) {
                 floatingElement.addEventListener('mouseenter', handleFloatingMouseEnter);
                 floatingElement.addEventListener('mouseleave', handleFloatingMouseLeave);
+                floatingElement.addEventListener('pointerdown', handleFloatingPointerDown, true);
             }
         },
 
         setOpen(open) {
             isOpen = open;
+            if (!open) {
+                interactedInside = false;
+                cleanupChildCloseListener();
+                // Notify tree that this node has closed
+                if (treeId && nodeId) {
+                    const tree = state.trees.get(treeId);
+                    if (tree) {
+                        tree.events.emit('node.closed', { nodeId });
+                    }
+                }
+            }
         },
 
         cleanup() {
             openTimeout.clear();
             closeTimeout.clear();
             cleanupMouseMove();
+            cleanupChildCloseListener();
 
             triggerElement.removeEventListener('mouseenter', handleMouseEnter);
             triggerElement.removeEventListener('mouseleave', handleMouseLeave);
@@ -1600,6 +1815,7 @@ export function createHoverInteraction(options) {
             if (floatingElement) {
                 floatingElement.removeEventListener('mouseenter', handleFloatingMouseEnter);
                 floatingElement.removeEventListener('mouseleave', handleFloatingMouseLeave);
+                floatingElement.removeEventListener('pointerdown', handleFloatingPointerDown, true);
             }
 
             state.interactions.delete(interactionId);
@@ -2933,9 +3149,12 @@ export function createFloatingFocusManager(options) {
 /**
  * Disposes a floating focus manager.
  */
-export function disposeFloatingFocusManager(managerId, shouldReturnFocus = true) {
+export function disposeFloatingFocusManager(managerId, shouldReturnFocus = true, overrideReturnFocusElement = null) {
     const manager = focusManagers.get(managerId);
     if (!manager) return;
+    if (overrideReturnFocusElement) {
+        manager.returnFocusElement = overrideReturnFocusElement;
+    }
     manager.dispose(shouldReturnFocus);
 }
 
@@ -4387,4 +4606,22 @@ function detachPortalFocusListeners(instance) {
 
 export function getFloatingState() {
     return state;
+}
+
+/**
+ * Removes the listed inline-style properties from an element. Mirrors the
+ * React `clearStyles` helper used by the Select popup to reset height/max-height
+ * inline styles applied during align-item-with-trigger sizing.
+ *
+ * @param {Element | null | undefined} element
+ * @param {string[]} styleNames
+ */
+export function clearStyles(element, styleNames) {
+    if (!element || !styleNames) {
+        return;
+    }
+
+    for (const name of styleNames) {
+        element.style.removeProperty(name);
+    }
 }
