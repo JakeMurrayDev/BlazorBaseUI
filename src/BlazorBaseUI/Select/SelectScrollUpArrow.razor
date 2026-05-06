@@ -245,6 +245,11 @@
             transitionStatus = TransitionStatus.Ending;
             ScheduleUnmount();
         }
+        else if (isRendered && wasRendered && transitionStatus == TransitionStatus.Ending)
+        {
+            transitionStatus = TransitionStatus.Starting;
+            ScheduleTransitionEnd();
+        }
     }
 
     private void ScheduleTransitionEnd()

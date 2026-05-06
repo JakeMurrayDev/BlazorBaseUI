@@ -129,7 +129,7 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        if (TypedRootContext is not null && Value is not null && !string.IsNullOrEmpty(Label))
+        if (TypedRootContext is not null && !string.IsNullOrEmpty(Label))
         {
             TypedRootContext.RegisterItemLabel(Value, Label);
         }
@@ -190,7 +190,7 @@
             }
         }
 
-        if (TypedRootContext is not null && Value is not null)
+        if (TypedRootContext is not null)
         {
             TypedRootContext.UnregisterItemLabel(Value);
         }

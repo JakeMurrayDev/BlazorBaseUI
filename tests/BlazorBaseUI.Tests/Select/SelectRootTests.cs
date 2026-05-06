@@ -464,6 +464,24 @@ public class SelectRootTests : BunitContext, ISelectRootContract
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public Task Modal_UpdatesRootContextWhenParameterChanges()
+    {
+        var cut = RenderComponent<SelectRoot<string>>(parameters => parameters
+            .Add(p => p.DefaultOpen, true)
+            .Add(p => p.Modal, BlazorBaseUI.Select.SelectModalMode.False)
+            .Add(p => p.ChildContent, CreateDefaultChildren()));
+
+        cut.Instance.typedContext.Modal.ShouldBeFalse();
+
+        cut.SetParametersAndRender(parameters => parameters
+            .Add(p => p.Modal, BlazorBaseUI.Select.SelectModalMode.True));
+
+        cut.Instance.typedContext.Modal.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
     // --- New helper for multiple-selection scenarios ---
 
     private RenderFragment CreateMultipleSelect(
@@ -1230,6 +1248,53 @@ public class SelectRootTests : BunitContext, ISelectRootContract
         await cut.InvokeAsync(async () => await root.typedContext.HandleClosedTypeaheadAsync("a"));
 
         root.typedContext.GetValue().ShouldBe("apricot");
+    }
+
+    [Fact]
+    public async Task ClosedTypeahead_WithLiveNullItemLabelSelectsNullValue()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<SelectRoot<string?>>(0);
+            builder.AddAttribute(1, "DefaultValue", "apple");
+            builder.AddAttribute(2, "DefaultOpen", true);
+            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<SelectTrigger>(0);
+                innerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Trigger")));
+                innerBuilder.CloseComponent();
+
+                innerBuilder.OpenComponent<SelectPositioner>(10);
+                innerBuilder.AddAttribute(11, "ChildContent", (RenderFragment)(posBuilder =>
+                {
+                    posBuilder.OpenComponent<SelectPopup>(0);
+                    posBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenComponent<SelectItem<string?>>(0);
+                        popupBuilder.AddAttribute(1, "Value", null);
+                        popupBuilder.AddAttribute(2, "Label", "None");
+                        popupBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "None")));
+                        popupBuilder.CloseComponent();
+
+                        popupBuilder.OpenComponent<SelectItem<string?>>(10);
+                        popupBuilder.AddAttribute(11, "Value", "apple");
+                        popupBuilder.AddAttribute(12, "Label", "Apple");
+                        popupBuilder.AddAttribute(13, "ChildContent", (RenderFragment)(b => b.AddContent(0, "Apple")));
+                        popupBuilder.CloseComponent();
+                    }));
+                    posBuilder.CloseComponent();
+                }));
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var root = cut.FindComponent<SelectRoot<string?>>().Instance;
+        root.typedContext.GetLabel(null).ShouldBe("None");
+
+        await cut.InvokeAsync(async () => await root.typedContext.HandleClosedTypeaheadAsync("n"));
+
+        root.typedContext.GetValue().ShouldBeNull();
     }
 
     // --- IsItemEqualToValue ---

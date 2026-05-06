@@ -453,6 +453,13 @@
         context.Required = Required;
         context.Multiple = Multiple;
         context.HighlightItemOnHover = HighlightItemOnHover;
+        var modal = Modal == SelectModalMode.True;
+        if (context.Modal != modal)
+        {
+            context.Modal = modal;
+            typedContext.NotifyStateChanged();
+        }
+
         typedContext.Items = Items;
         typedContext.ItemGroups = ItemGroups;
         typedContext.ItemToStringLabel = ItemToStringLabel;
@@ -568,6 +575,7 @@
         }
 
         InputRef?.Invoke(null);
+        typedContext?.Dispose();
         dotNetRef?.Dispose();
     }
 

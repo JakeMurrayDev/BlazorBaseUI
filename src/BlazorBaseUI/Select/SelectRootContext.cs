@@ -8,7 +8,7 @@ namespace BlazorBaseUI.Select;
 /// with value-based selection management.
 /// </summary>
 /// <typeparam name="TValue">The type of value used to identify items.</typeparam>
-internal sealed class SelectRootContext<TValue> : ISelectRootContext
+internal sealed class SelectRootContext<TValue> : ISelectRootContext, IDisposable
 {
     #pragma warning disable CS8714 // TValue may be nullable but Dictionary requires notnull key
     private readonly Dictionary<TValue, string> _itemLabels = new();
@@ -17,6 +17,8 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     private readonly List<object?> _registeredValues = new();
     private readonly List<object> _registeredItems = new();
     private readonly List<KeyValuePair<object?, Func<Task<string?>>>> _itemLabelResolvers = new();
+    private bool hasNullItemLabel;
+    private string? nullItemLabel;
     private Func<object?, object?, bool>? _areValuesEqual;
 
     private string _typeaheadBuffer = string.Empty;
@@ -274,6 +276,14 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
         };
 
     /// <inheritdoc />
+    public void Dispose()
+    {
+        _typeaheadCts?.Cancel();
+        _typeaheadCts?.Dispose();
+        _typeaheadCts = null;
+    }
+
+    /// <inheritdoc />
     public Task SetValueBoxedAsync(object? nextValue, SelectOpenChangeReason reason) =>
         SetValueBoxedFunc is null ? Task.CompletedTask : SetValueBoxedFunc(nextValue, reason);
 
@@ -415,6 +425,11 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     {
         get
         {
+            if (hasNullItemLabel)
+            {
+                return true;
+            }
+
             if (Items is not null)
             {
                 foreach (var item in Items)
@@ -573,14 +588,27 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     /// Only notifies subscribers when the registration would change the resolved label
     /// for a currently selected value.
     /// </summary>
-    public void RegisterItemLabel(TValue value, string label)
+    public void RegisterItemLabel(TValue? value, string label)
     {
-        if (_itemLabels.TryGetValue(value, out var existing) && existing == label)
+        if (value is null)
         {
-            return;
-        }
+            if (hasNullItemLabel && nullItemLabel == label)
+            {
+                return;
+            }
 
-        _itemLabels[value] = label;
+            hasNullItemLabel = true;
+            nullItemLabel = label;
+        }
+        else
+        {
+            if (_itemLabels.TryGetValue(value, out var existing) && existing == label)
+            {
+                return;
+            }
+
+            _itemLabels[value] = label;
+        }
 
         if (ItemToStringLabel is not null)
         {
@@ -615,7 +643,7 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     /// retained so <see cref="GetLabel"/> can resolve display text after popup close
     /// without requiring items to re-register on reopen.
     /// </summary>
-    public void UnregisterItemLabel(TValue value)
+    public void UnregisterItemLabel(TValue? value)
     {
     }
 
@@ -641,6 +669,11 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
         if (value is ISelectItemLabel labeled && labeled.Label is not null)
         {
             return labeled.Label;
+        }
+
+        if (value is null && hasNullItemLabel)
+        {
+            return nullItemLabel;
         }
 
         if (value is not null && _itemLabels.TryGetValue(value, out var label))
@@ -698,6 +731,16 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
     /// </summary>
     public (bool Found, TValue? Value) FindValueByFormString(string inputValue)
     {
+        if (hasNullItemLabel)
+        {
+            var nullCandidate = GetFormValue(default);
+            if (nullCandidate is not null &&
+                nullCandidate.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, default);
+            }
+        }
+
         foreach (var kvp in _itemLabels)
         {
             var candidate = GetFormValue(kvp.Key);
@@ -738,6 +781,13 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
         }
 
         // Label fallback for browser autofill compatibility.
+        if (hasNullItemLabel &&
+            nullItemLabel is not null &&
+            nullItemLabel.Equals(inputValue, StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, default);
+        }
+
         foreach (var kvp in _itemLabels)
         {
             var candidate = GetLabel(kvp.Key);
@@ -802,9 +852,13 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
             return;
         }
 
-        _typeaheadCts?.Cancel();
-        _typeaheadCts = new CancellationTokenSource();
-        var token = _typeaheadCts.Token;
+        var previousCts = _typeaheadCts;
+        previousCts?.Cancel();
+        previousCts?.Dispose();
+
+        var cts = new CancellationTokenSource();
+        _typeaheadCts = cts;
+        var token = cts.Token;
 
         _typeaheadBuffer += character.ToLowerInvariant();
 
@@ -814,7 +868,7 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
 
         bool TryFindMatch<TCandidate>(
             IReadOnlyList<TCandidate> candidates,
-            Func<TCandidate, TValue> getValue,
+            Func<TCandidate, TValue?> getValue,
             Func<TCandidate, string?> getLabel,
             out TValue? value)
         {
@@ -879,30 +933,40 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
 
         if (!found)
         {
-            var labels = _itemLabels.ToList();
+            var labels = new List<(TValue? Value, string? Label)>();
+            if (hasNullItemLabel)
+            {
+                labels.Add((default, nullItemLabel));
+            }
+
+            foreach (var kvp in _itemLabels)
+            {
+                labels.Add((kvp.Key, kvp.Value));
+            }
+
             found = TryFindMatch(
                 labels,
-                kvp => kvp.Key,
-                kvp => kvp.Value,
+                candidate => candidate.Value,
+                candidate => candidate.Label,
                 out matchValue);
         }
 
         if (!found && _itemLabelResolvers.Count > 0)
         {
-            var resolvedLabels = new List<KeyValuePair<TValue, string?>>();
+            var resolvedLabels = new List<(TValue? Value, string? Label)>();
             foreach (var kvp in _itemLabelResolvers)
             {
                 var label = await kvp.Value();
-                if (kvp.Key is TValue typedKey)
+                if (TryGetTypedValue(kvp.Key, out var typedKey))
                 {
-                    resolvedLabels.Add(new KeyValuePair<TValue, string?>(typedKey, label));
+                    resolvedLabels.Add((typedKey, label));
                 }
             }
 
             found = TryFindMatch(
                 resolvedLabels,
-                kvp => kvp.Key,
-                kvp => kvp.Value,
+                candidate => candidate.Value,
+                candidate => candidate.Label,
                 out matchValue);
         }
 
@@ -912,9 +976,46 @@ internal sealed class SelectRootContext<TValue> : ISelectRootContext
         }
 
         _ = Task.Delay(500, token).ContinueWith(
-            _ => _typeaheadBuffer = string.Empty,
-            token,
-            TaskContinuationOptions.OnlyOnRanToCompletion,
+            task =>
+            {
+                if (task.Status == TaskStatus.RanToCompletion)
+                {
+                    _typeaheadBuffer = string.Empty;
+                }
+
+                if (ReferenceEquals(_typeaheadCts, cts))
+                {
+                    _typeaheadCts = null;
+                }
+
+                cts.Dispose();
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    private static bool TryGetTypedValue(object? boxedValue, out TValue? value)
+    {
+        if (boxedValue is null)
+        {
+            if (default(TValue) is not null)
+            {
+                value = default;
+                return false;
+            }
+
+            value = default;
+            return true;
+        }
+
+        if (boxedValue is TValue typedValue)
+        {
+            value = typedValue;
+            return true;
+        }
+
+        value = default;
+        return false;
     }
 }

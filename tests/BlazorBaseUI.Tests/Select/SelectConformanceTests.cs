@@ -142,12 +142,11 @@ public class SelectConformanceTests : BunitContext, ISelectConformanceContract
             popupBuilder.CloseComponent();
         })));
 
-        // SelectGroupLabel has role="presentation"
-        // Find the presentation element inside the group
         var group = cut.Find("[role='group']");
-        var label = group.QuerySelector("[role='presentation']");
+        var label = group.QuerySelector("div");
         label.ShouldNotBeNull();
         label!.TagName.ShouldBe("DIV");
+        label.HasAttribute("role").ShouldBeFalse();
 
         return Task.CompletedTask;
     }
@@ -330,6 +329,50 @@ public class SelectConformanceTests : BunitContext, ISelectConformanceContract
     }
 
     [Fact]
+    public async Task SelectScrollDownArrow_ReenteringDuringExitRestartsTransition()
+    {
+        var statuses = new List<TransitionStatus>();
+        var cut = Render(CreateSelectWithPositioner(defaultOpen: true, (RenderFragment)(posBuilder =>
+        {
+            posBuilder.OpenComponent<SelectScrollDownArrow>(0);
+            posBuilder.AddAttribute(1, "ClassValue", new Func<SelectScrollDownArrowState, string?>(state =>
+            {
+                statuses.Add(state.TransitionStatus);
+                return null;
+            }));
+            posBuilder.CloseComponent();
+        })));
+
+        var root = cut.FindComponent<SelectRoot<string>>().Instance.typedContext;
+
+        await cut.InvokeAsync(() =>
+        {
+            root.ScrollDownArrowVisible = true;
+            root.NotifyStateChanged();
+        });
+        cut.WaitForAssertion(() => statuses.ShouldContain(TransitionStatus.Starting));
+
+        await Task.Delay(10);
+        statuses.Clear();
+
+        await cut.InvokeAsync(() =>
+        {
+            root.ScrollDownArrowVisible = false;
+            root.NotifyStateChanged();
+        });
+        cut.WaitForAssertion(() => statuses.ShouldContain(TransitionStatus.Ending));
+
+        statuses.Clear();
+
+        await cut.InvokeAsync(() =>
+        {
+            root.ScrollDownArrowVisible = true;
+            root.NotifyStateChanged();
+        });
+        cut.WaitForAssertion(() => statuses.ShouldContain(TransitionStatus.Starting));
+    }
+
+    [Fact]
     public Task SelectScrollUpArrow_RendersAsDiv()
     {
         var cut = Render(CreateSelectWithPositioner(defaultOpen: true, (RenderFragment)(posBuilder =>
@@ -344,6 +387,50 @@ public class SelectConformanceTests : BunitContext, ISelectConformanceContract
         arrow.TagName.ShouldBe("DIV");
 
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task SelectScrollUpArrow_ReenteringDuringExitRestartsTransition()
+    {
+        var statuses = new List<TransitionStatus>();
+        var cut = Render(CreateSelectWithPositioner(defaultOpen: true, (RenderFragment)(posBuilder =>
+        {
+            posBuilder.OpenComponent<SelectScrollUpArrow>(0);
+            posBuilder.AddAttribute(1, "ClassValue", new Func<SelectScrollUpArrowState, string?>(state =>
+            {
+                statuses.Add(state.TransitionStatus);
+                return null;
+            }));
+            posBuilder.CloseComponent();
+        })));
+
+        var root = cut.FindComponent<SelectRoot<string>>().Instance.typedContext;
+
+        await cut.InvokeAsync(() =>
+        {
+            root.ScrollUpArrowVisible = true;
+            root.NotifyStateChanged();
+        });
+        cut.WaitForAssertion(() => statuses.ShouldContain(TransitionStatus.Starting));
+
+        await Task.Delay(10);
+        statuses.Clear();
+
+        await cut.InvokeAsync(() =>
+        {
+            root.ScrollUpArrowVisible = false;
+            root.NotifyStateChanged();
+        });
+        cut.WaitForAssertion(() => statuses.ShouldContain(TransitionStatus.Ending));
+
+        statuses.Clear();
+
+        await cut.InvokeAsync(() =>
+        {
+            root.ScrollUpArrowVisible = true;
+            root.NotifyStateChanged();
+        });
+        cut.WaitForAssertion(() => statuses.ShouldContain(TransitionStatus.Starting));
     }
 
     [Fact]
