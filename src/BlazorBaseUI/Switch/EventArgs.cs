@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Switch;
 /// <summary>
 /// Provides data for the <see cref="SwitchRoot.OnCheckedChange"/> event.
 /// </summary>
-public class SwitchCheckedChangeEventArgs : EventArgs
+public sealed class SwitchCheckedChangeEventArgs : EventArgs
 {
     /// <summary>
     /// Gets the new checked state of the switch.

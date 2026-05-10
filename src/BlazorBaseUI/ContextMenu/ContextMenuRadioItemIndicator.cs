@@ -6,4 +6,4 @@ using BlazorBaseUI.Menu;
 /// Displays the checked state indicator of a context menu radio item.
 /// Renders a <c>&lt;span&gt;</c> element.
 /// </summary>
-public class ContextMenuRadioItemIndicator : MenuRadioItemIndicator;
+public sealed class ContextMenuRadioItemIndicator : MenuRadioItemIndicator;

@@ -4,7 +4,7 @@ namespace BlazorBaseUI.Slider;
 /// Provides data for the slider value change event. Can be canceled to prevent the value update.
 /// </summary>
 /// <typeparam name="TValue">The type of the slider value (<see cref="double"/> or <see cref="T:double[]"/>).</typeparam>
-public class SliderValueChangeEventArgs<TValue> : EventArgs where TValue : notnull
+public sealed class SliderValueChangeEventArgs<TValue> : EventArgs where TValue : notnull
 {
     /// <summary>
     /// Gets the new slider value.
@@ -46,7 +46,7 @@ public class SliderValueChangeEventArgs<TValue> : EventArgs where TValue : notnu
 /// Provides data for the slider value committed event, fired when the user finishes an interaction (e.g., pointer up or keyboard input).
 /// </summary>
 /// <typeparam name="TValue">The type of the slider value (<see cref="double"/> or <see cref="T:double[]"/>).</typeparam>
-public class SliderValueCommittedEventArgs<TValue> : EventArgs where TValue : notnull
+public sealed class SliderValueCommittedEventArgs<TValue> : EventArgs where TValue : notnull
 {
     /// <summary>
     /// Gets the committed slider value.

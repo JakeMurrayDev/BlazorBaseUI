@@ -6,4 +6,4 @@ using BlazorBaseUI.Dialog;
 /// An accessible description for the alert dialog.
 /// Renders a <c>&lt;p&gt;</c> element.
 /// </summary>
-public class AlertDialogDescription : DialogDescription;
+public sealed class AlertDialogDescription : DialogDescription;

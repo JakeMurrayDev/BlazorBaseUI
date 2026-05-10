@@ -3,7 +3,7 @@ namespace BlazorBaseUI.Toggle;
 /// <summary>
 /// Provides data for the <see cref="Toggle.OnPressedChange"/> event.
 /// </summary>
-public class TogglePressedChangeEventArgs : EventArgs
+public sealed class TogglePressedChangeEventArgs : EventArgs
 {
     /// <summary>
     /// Gets the new pressed state of the toggle.

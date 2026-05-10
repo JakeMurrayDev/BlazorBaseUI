@@ -6,4 +6,4 @@ using BlazorBaseUI.Dialog;
 /// A button that opens the alert dialog.
 /// Renders a <c>&lt;button&gt;</c> element.
 /// </summary>
-public class AlertDialogTrigger : DialogTypedTrigger<object?>;
+public sealed class AlertDialogTrigger : DialogTypedTrigger<object?>;

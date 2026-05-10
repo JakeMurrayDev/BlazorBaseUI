@@ -6,4 +6,4 @@ using BlazorBaseUI.Menu;
 /// Displays an arrow element pointing toward the anchor.
 /// Renders a <c>&lt;div&gt;</c> element.
 /// </summary>
-public class ContextMenuArrow : MenuArrow;
+public sealed class ContextMenuArrow : MenuArrow;

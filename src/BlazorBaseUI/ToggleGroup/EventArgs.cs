@@ -3,7 +3,7 @@ namespace BlazorBaseUI.ToggleGroup;
 /// <summary>
 /// Provides data for the <see cref="ToggleGroup.OnValueChange"/> event.
 /// </summary>
-public class ToggleGroupValueChangeEventArgs : EventArgs
+public sealed class ToggleGroupValueChangeEventArgs : EventArgs
 {
     /// <summary>
     /// Gets the new group value represented by the values of all pressed toggle buttons.

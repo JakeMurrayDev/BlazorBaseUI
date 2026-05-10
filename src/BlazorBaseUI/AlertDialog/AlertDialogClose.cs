@@ -6,4 +6,4 @@ using BlazorBaseUI.Dialog;
 /// A button that closes the alert dialog.
 /// Renders a <c>&lt;button&gt;</c> element.
 /// </summary>
-public class AlertDialogClose : DialogClose;
+public sealed class AlertDialogClose : DialogClose;

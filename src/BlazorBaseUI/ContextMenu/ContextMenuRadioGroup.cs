@@ -6,4 +6,4 @@ using BlazorBaseUI.Menu;
 /// Groups radio items together within a context menu, managing single-selection state.
 /// Renders a <c>&lt;div&gt;</c> element.
 /// </summary>
-public class ContextMenuRadioGroup : MenuRadioGroup;
+public sealed class ContextMenuRadioGroup : MenuRadioGroup;

@@ -6,4 +6,4 @@ using BlazorBaseUI.Menu;
 /// An individual interactive item within the context menu.
 /// Renders a <c>&lt;div&gt;</c> element.
 /// </summary>
-public class ContextMenuItem : MenuItem;
+public sealed class ContextMenuItem : MenuItem;

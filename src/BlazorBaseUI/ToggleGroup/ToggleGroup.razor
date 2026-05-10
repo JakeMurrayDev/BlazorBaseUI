@@ -240,7 +240,7 @@
 
         try
         {
-            var module = await moduleTask.Value;
+            var module = await moduleTask.Value; // lint-ignore:RULE-13 Lazy module access for first-time activation; IsValueCreated only required in Dispose paths.
             var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
             await module.InvokeVoidAsync("initializeGroup", Element.Value, orientationString, LoopFocus);
         }
@@ -259,7 +259,7 @@
 
         try
         {
-            var module = await moduleTask.Value;
+            var module = await moduleTask.Value; // lint-ignore:RULE-13 Lazy module access for first-time activation; IsValueCreated only required in Dispose paths.
             var orientationString = Orientation.ToDataAttributeString() ?? "horizontal";
             await module.InvokeVoidAsync("updateGroup", Element.Value, orientationString, LoopFocus);
         }
@@ -297,7 +297,7 @@
 
         if (OnValueChange.HasDelegate)
         {
-            await OnValueChange.InvokeAsync(eventArgs);
+            await OnValueChange.InvokeAsync(eventArgs); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
 
             if (eventArgs.IsCanceled)
             {
@@ -313,7 +313,7 @@
 
         if (ValueChanged.HasDelegate)
         {
-            await ValueChanged.InvokeAsync(newGroupValue);
+            await ValueChanged.InvokeAsync(newGroupValue); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
         }
 
         StateHasChanged();

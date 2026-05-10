@@ -591,7 +591,7 @@
             {
                 _ = InvokeAsync(async () =>
                 {
-                    await OnValuesChange.InvokeAsync(eventArgs);
+                    await OnValuesChange.InvokeAsync(eventArgs); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
                     if (!eventArgs.IsCanceled)
                     {
                         ApplyValueChange(newValues);
@@ -607,7 +607,7 @@
             {
                 _ = InvokeAsync(async () =>
                 {
-                    await OnValueChange.InvokeAsync(eventArgs);
+                    await OnValueChange.InvokeAsync(eventArgs); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
                     if (!eventArgs.IsCanceled)
                     {
                         ApplyValueChange(newValues);
@@ -629,11 +629,11 @@
 
         if (IsRange && ValuesChanged.HasDelegate)
         {
-            _ = ValuesChanged.InvokeAsync(newValues);
+            _ = ValuesChanged.InvokeAsync(newValues); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
         }
         else if (!IsRange && ValueChanged.HasDelegate)
         {
-            _ = ValueChanged.InvokeAsync(newValues[0]);
+            _ = ValueChanged.InvokeAsync(newValues[0]); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
         }
 
         lastChangedValues = [.. newValues];
@@ -655,7 +655,7 @@
             if (OnValuesCommitted.HasDelegate)
             {
                 var eventArgs = new SliderValueCommittedEventArgs<double[]>(committedValues, reason);
-                _ = OnValuesCommitted.InvokeAsync(eventArgs);
+                _ = OnValuesCommitted.InvokeAsync(eventArgs); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
             }
         }
         else
@@ -663,7 +663,7 @@
             if (OnValueCommitted.HasDelegate)
             {
                 var eventArgs = new SliderValueCommittedEventArgs<double>(committedValues[0], reason);
-                _ = OnValueCommitted.InvokeAsync(eventArgs);
+                _ = OnValueCommitted.InvokeAsync(eventArgs); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
             }
         }
 

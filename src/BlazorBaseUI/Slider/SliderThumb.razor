@@ -474,7 +474,7 @@
 
         if (OnFocus.HasDelegate)
         {
-            await OnFocus.InvokeAsync(e);
+            await OnFocus.InvokeAsync(e); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
         }
     }
 
@@ -495,7 +495,7 @@
 
         if (OnBlur.HasDelegate)
         {
-            await OnBlur.InvokeAsync(e);
+            await OnBlur.InvokeAsync(e); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
         }
     }
 
@@ -513,7 +513,7 @@
         if (OnKeyDown.HasDelegate)
         {
             var args = new KeyboardEventArgs { Key = key, ShiftKey = shiftKey };
-            await OnKeyDown.InvokeAsync(args);
+            await OnKeyDown.InvokeAsync(args); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
         }
 
         var newValue = CalculateNewValueFromKey(key, shiftKey, capturedThumbValue);

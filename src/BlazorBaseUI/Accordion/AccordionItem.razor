@@ -1,6 +1,7 @@
 @using BlazorBaseUI.Collapsible
 
 @typeparam TValue where TValue : notnull
+@implements IDisposable
 
 <CascadingValue Value="itemContext"
                 IsFixed="true">
@@ -272,7 +273,7 @@
         var nextOpen = !IsOpen;
         var args = new CollapsibleOpenChangeEventArgs(nextOpen, CollapsibleOpenChangeReason.TriggerPress);
 
-        await OnOpenChange.InvokeAsync(args);
+        await OnOpenChange.InvokeAsync(args); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
 
         if (args.IsCanceled)
         {
@@ -291,7 +292,7 @@
 
         var args = new CollapsibleOpenChangeEventArgs(true, CollapsibleOpenChangeReason.None);
 
-        await OnOpenChange.InvokeAsync(args);
+        await OnOpenChange.InvokeAsync(args); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
 
         if (args.IsCanceled)
         {
@@ -312,5 +313,11 @@
         attrs["data-disabled"] = state?.Disabled ?? false;
 
         componentAttributes = attrs;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        RootContext?.UnregisterItem(itemKey);
     }
 }

@@ -6,4 +6,4 @@ using BlazorBaseUI.Dialog;
 /// An overlay displayed beneath the alert dialog popup.
 /// Renders a <c>&lt;div&gt;</c> element.
 /// </summary>
-public class AlertDialogBackdrop : DialogBackdrop;
+public sealed class AlertDialogBackdrop : DialogBackdrop;

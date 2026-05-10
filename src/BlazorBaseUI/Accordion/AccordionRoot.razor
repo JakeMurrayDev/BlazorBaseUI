@@ -212,7 +212,7 @@
         }
 
         var args = new AccordionValueChangeEventArgs<TValue>(nextValue);
-        _ = OnValueChange.InvokeAsync(args);
+        _ = OnValueChange.InvokeAsync(args); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
 
         if (args.IsCanceled)
         {
@@ -224,7 +224,7 @@
             currentValue = nextValue;
         }
 
-        _ = ValueChanged.InvokeAsync(nextValue);
+        _ = ValueChanged.InvokeAsync(nextValue); // lint-ignore:RULE-09 Either EventCallback.InvokeAsync (not JS interop) or JS interop wrapped in try/catch outside the lint's 20-line lookback window.
 
         context.Value = nextValue;
         state = state with { Value = nextValue };

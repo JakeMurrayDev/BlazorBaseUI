@@ -4,7 +4,7 @@ namespace BlazorBaseUI.RadioGroup;
 /// Provides data for the radio group value change event. Can be canceled to prevent the value update.
 /// </summary>
 /// <typeparam name="TValue">The type of the radio group value.</typeparam>
-public class RadioGroupValueChangeEventArgs<TValue> : EventArgs
+public sealed class RadioGroupValueChangeEventArgs<TValue> : EventArgs
 {
     /// <summary>
     /// Gets the new radio group value.
