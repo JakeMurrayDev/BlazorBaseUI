@@ -315,6 +315,7 @@
         var attrs = new Dictionary<string, object>();
 
         attrs["role"] = "presentation";
+        attrs["data-blazor-base-ui-positioner"] = true;
 
         if (!(RootContext?.GetMounted() ?? false))
         {
