@@ -308,7 +308,7 @@ public static class JsInteropSetup
 
     private const string NavigationMenuModule = "./_content/BlazorBaseUI/blazor-baseui-navigation-menu.js";
 
-    public static void SetupNavigationMenuModule(BunitJSInterop jsInterop)
+    public static BunitJSModuleInterop SetupNavigationMenuModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(NavigationMenuModule);
         module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
@@ -321,6 +321,7 @@ public static class JsInteropSetup
         module.Setup<string?>("initializePositioner", _ => true).SetResult("positioner-id");
         module.SetupVoid("updatePosition", _ => true).SetVoidResult();
         module.SetupVoid("disposePositioner", _ => true).SetVoidResult();
+        return module;
     }
 
     private const string ToggleModule = "./_content/BlazorBaseUI/blazor-baseui-toggle.js";

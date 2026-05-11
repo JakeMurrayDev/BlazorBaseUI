@@ -190,6 +190,11 @@
         if (context is not null && context.Value != CurrentValue)
         {
             ApplyValue(CurrentValue, NavigationMenuCloseReason.None, null);
+
+            if (hasRendered)
+            {
+                _ = SyncRootValueAsync(CurrentValue);
+            }
         }
 
         BuildComponentAttributes();
@@ -434,6 +439,19 @@
             {
                 await module.InvokeVoidAsync("setRootValue", rootId, CurrentValue);
             }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
+        }
+    }
+
+    private async Task SyncRootValueAsync(string? value)
+    {
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setRootValue", rootId, value);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
