@@ -2,10 +2,12 @@ namespace BlazorBaseUI.Tests.NavigationMenu;
 
 public class NavigationMenuRootTests : BunitContext, INavigationMenuRootContract
 {
+    private readonly BunitJSModuleInterop navigationMenuModule;
+
     public NavigationMenuRootTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JsInteropSetup.SetupNavigationMenuModule(JSInterop);
+        navigationMenuModule = JsInteropSetup.SetupNavigationMenuModule(JSInterop);
         JsInteropSetup.SetupFloatingTreeModule(JSInterop);
     }
 
@@ -249,6 +251,35 @@ public class NavigationMenuRootTests : BunitContext, INavigationMenuRootContract
 
         var trigger = cut.Find("button[id='nav-trigger-item1']");
         trigger.GetAttribute("aria-expanded").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ControlledParameterChangeSyncsJavaScriptRootValue()
+    {
+        string? value = null;
+        var valueChanged = EventCallback.Factory.Create<string?>(this, next => value = next);
+
+        var cut = Render<NavigationMenuRoot>(parameters => parameters
+            .Add(p => p.Value, value)
+            .Add(p => p.ValueChanged, valueChanged)
+            .Add(p => p.ChildContent, CreateChildContent()));
+
+        cut.Render(parameters => parameters
+            .Add(p => p.Value, "item1")
+            .Add(p => p.ValueChanged, valueChanged)
+            .Add(p => p.ChildContent, CreateChildContent()));
+
+        cut.WaitForAssertion(() =>
+        {
+            navigationMenuModule.Invocations
+                .Any(invocation =>
+                    invocation.Identifier == "setRootValue" &&
+                    invocation.Arguments.Count > 1 &&
+                    Equals(invocation.Arguments[1], "item1"))
+                .ShouldBeTrue();
+        });
 
         return Task.CompletedTask;
     }
