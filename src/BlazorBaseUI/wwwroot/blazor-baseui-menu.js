@@ -63,7 +63,6 @@ function handleGlobalKeyDown(e) {
     }
 
     if (!topmostRoot) return;
-
     // Use stored direction from the root state (passed explicitly from Blazor)
     const isRtl = topmostRoot.direction === 'rtl';
 
@@ -87,14 +86,14 @@ function handleGlobalKeyDown(e) {
     const currentItem = topmostRoot.popupElement ?
         getMenuItems(topmostRoot.popupElement)[topmostRoot.activeIndex ?? -1] : null;
     const isSubmenuTrigger = currentItem?.hasAttribute('aria-haspopup');
-    const isInSubmenu = openMenuCount > 1;
+    const isInSubmenu = topmostRoot.parentType === 'menu';
 
     // Determine which arrow key opens/closes submenus based on direction
     // LTR: ArrowRight opens, ArrowLeft closes
     // RTL: ArrowLeft opens, ArrowRight closes
     const openSubmenuKey = isRtl ? 'ArrowLeft' : 'ArrowRight';
     const closeSubmenuKey = isRtl ? 'ArrowRight' : 'ArrowLeft';
-    const openNestedMenus = openMenus.filter(rootState => rootState.isNested);
+    const openNestedMenus = openMenus.filter(rootState => rootState.parentType === 'menu');
     const deepestNestedMenu = openNestedMenus[openNestedMenus.length - 1] ?? null;
     const nestedCloseKey = deepestNestedMenu?.direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
 
@@ -318,6 +317,24 @@ function navigateMenubarSibling(menubarRoot, direction) {
     // Focus the next trigger and click it to open its menu
     setTimeout(() => {
         nextTrigger.focus();
+        if (typeof PointerEvent === 'function') {
+            nextTrigger.dispatchEvent(new PointerEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                pointerId: 1,
+                pointerType: 'mouse',
+                isPrimary: true,
+                button: 0,
+                buttons: 1
+            }));
+        } else {
+            nextTrigger.dispatchEvent(new MouseEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                button: 0,
+                buttons: 1
+            }));
+        }
         nextTrigger.click();
     }, 10);
 }
