@@ -133,7 +133,8 @@ function handleGlobalKeyDown(e) {
         stopHandledKeyEvent(e);
 
         // Direction for menubar navigation (also respects RTL)
-        const navDirection = (e.key === 'ArrowRight') !== isRtl ? 1 : -1;
+        const menubarIsRtl = menubarRoot.direction === 'rtl';
+        const navDirection = (e.key === 'ArrowRight') !== menubarIsRtl ? 1 : -1;
         navigateMenubarSibling(menubarRoot, navDirection);
         return;
     }
@@ -618,6 +619,8 @@ export async function initializeHoverInteraction(rootId, triggerElement, openDel
     const configuredOpenDelay = openDelay || 0;
     const configuredCloseDelay = closeDelay || 0;
     rootState.allowMouseEnter = false;
+    rootState.openDelay = configuredOpenDelay;
+    rootState.closeDelay = configuredCloseDelay;
 
     rootState.hoverInteraction = createHoverInteraction({
         interactionId: `menu-hover-${rootId}`,
@@ -757,7 +760,7 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast, interac
         rootState.hoverInteraction.setOpen(isOpen);
         if (!isOpen) {
             rootState.allowMouseEnter = false;
-            rootState.hoverInteraction.setDelays(0, 0);
+            rootState.hoverInteraction.setDelays(rootState.openDelay ?? 0, rootState.closeDelay ?? 0);
         }
     }
 

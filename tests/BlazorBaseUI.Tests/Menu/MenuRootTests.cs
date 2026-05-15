@@ -374,6 +374,48 @@ public class MenuRootTests : BunitContext, IMenuRootContract
     }
 
     [Fact]
+    public Task ControlledTriggerIdChangeClearsPayloadWhenTriggerIsMissing()
+    {
+        MenuRootPayloadContext? capturedContext = null;
+        RenderFragment<MenuRootPayloadContext> childContent = ctx =>
+        {
+            capturedContext = ctx;
+            return innerBuilder =>
+            {
+                innerBuilder.OpenComponent<MenuTrigger>(0);
+                innerBuilder.AddAttribute(1, "id", "trigger-1");
+                innerBuilder.AddAttribute(2, "Payload", "one");
+                innerBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "One")));
+                innerBuilder.CloseComponent();
+            };
+        };
+
+        var cut = Render<MenuRoot>(parameters => parameters
+            .Add(p => p.Open, true)
+            .Add(p => p.TriggerId, "trigger-1")
+            .Add(p => p.ChildContent, childContent));
+
+        cut.WaitForAssertion(() =>
+        {
+            capturedContext.ShouldNotBeNull();
+            capturedContext.Value.Payload.ShouldBe("one");
+        });
+
+        cut.Render(parameters => parameters
+            .Add(p => p.Open, true)
+            .Add(p => p.TriggerId, "missing-trigger")
+            .Add(p => p.ChildContent, childContent));
+
+        cut.WaitForAssertion(() =>
+        {
+            capturedContext.ShouldNotBeNull();
+            capturedContext.Value.Payload.ShouldBeNull();
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task HandleControlledTriggerIdChangeClearsPayloadWhenTriggerPayloadIsNull()
     {
         var handle = new MenuHandle<string?>();

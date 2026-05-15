@@ -148,28 +148,39 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        var previousTriggerId = triggerId;
         var resolvedId = ResolvedId;
-        if (resolvedId != triggerId)
-        {
-            registeredHandle?.UnregisterTrigger(triggerId);
-            RootContext?.UnregisterTrigger(triggerId);
-            triggerId = resolvedId;
-        }
+        var idChanged = resolvedId != previousTriggerId;
+        var ownerChanged = Handle != registeredHandle;
 
-        if (Handle != registeredHandle)
+        if (idChanged || ownerChanged)
         {
-            registeredHandle?.Unsubscribe(this);
-            registeredHandle?.UnregisterTrigger(triggerId);
-            registeredHandle = Handle;
-            if (Handle is not null)
+            if (registeredHandle is not null)
             {
-                Handle.Subscribe(this);
-                Handle.RegisterTrigger(triggerId, Element, Payload);
+                registeredHandle.Unsubscribe(this);
+                registeredHandle.UnregisterTrigger(previousTriggerId);
+            }
+            else
+            {
+                RootContext?.UnregisterTrigger(previousTriggerId);
+            }
+
+            triggerId = resolvedId;
+            registeredHandle = Handle;
+
+            if (registeredHandle is not null)
+            {
+                registeredHandle.Subscribe(this);
+                registeredHandle.RegisterTrigger(triggerId, Element, Payload);
+            }
+            else
+            {
+                RootContext?.RegisterTrigger(triggerId, Element, Payload);
             }
         }
-        else if (Handle is not null)
+        else if (registeredHandle is not null)
         {
-            Handle.UpdateTriggerPayload(triggerId, Payload);
+            registeredHandle.UpdateTriggerPayload(triggerId, Payload);
         }
         else
         {

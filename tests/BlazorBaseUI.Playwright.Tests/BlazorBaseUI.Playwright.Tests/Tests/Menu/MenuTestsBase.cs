@@ -609,6 +609,43 @@ public abstract class MenuTestsBase : TestBase
         });
     }
 
+    [Fact]
+    public virtual async Task OpenOnHover_RespectsOpenDelayAfterHoverClose()
+    {
+        await NavigateAsync(CreateUrl("/tests/menu")
+            .WithOpenOnHover(true)
+            .WithOpenDelay(700)
+            .WithCloseDelay(100));
+
+        await WaitForDelayAsync(500);
+
+        var trigger = GetByTestId("menu-trigger");
+        var outsideButton = GetByTestId("outside-button");
+        var openState = GetByTestId("open-state");
+
+        await trigger.HoverAsync();
+        await Assertions.Expect(openState).ToHaveTextAsync("true", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 3000 * TimeoutMultiplier
+        });
+
+        await outsideButton.HoverAsync();
+        await Assertions.Expect(openState).ToHaveTextAsync("false", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 2000 * TimeoutMultiplier
+        });
+
+        await trigger.HoverAsync();
+        await WaitForDelayAsync(200);
+
+        Assert.Equal("false", await openState.TextContentAsync());
+
+        await Assertions.Expect(openState).ToHaveTextAsync("true", new LocatorAssertionsToHaveTextOptions
+        {
+            Timeout = 3000 * TimeoutMultiplier
+        });
+    }
+
     #endregion
 
     #region Outside Click Tests

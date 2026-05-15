@@ -377,6 +377,33 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
     }
 
     [Fact]
+    public Task HandleBasedTriggerReregistersWhenIdChanges()
+    {
+        var handle = new MenuHandle();
+
+        var cut = Render<MenuTrigger>(parameters => parameters
+            .Add(p => p.Handle, (IMenuHandle)handle)
+            .Add(p => p.Payload, "Payload A")
+            .Add(p => p.AdditionalAttributes, new Dictionary<string, object> { { "id", "detached-a" } })
+            .Add(p => p.ChildContent, builder => builder.AddContent(0, "External Trigger")));
+
+        handle.Open("detached-a");
+        handle.Payload.ShouldBe("Payload A");
+
+        cut.Render(parameters => parameters
+            .Add(p => p.Handle, (IMenuHandle)handle)
+            .Add(p => p.Payload, "Payload B")
+            .Add(p => p.AdditionalAttributes, new Dictionary<string, object> { { "id", "detached-b" } })
+            .Add(p => p.ChildContent, builder => builder.AddContent(0, "External Trigger")));
+
+        Should.Throw<InvalidOperationException>(() => handle.Open("detached-a"));
+        handle.Open("detached-b");
+        handle.Payload.ShouldBe("Payload B");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task TypedHandleOpenUsesExplicitTriggerIdAndPayload()
     {
         var handle = new MenuHandle<string>();
@@ -433,6 +460,33 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
             capturedPayloadContext.ShouldNotBeNull();
             capturedPayloadContext.Value.Payload.ShouldBe("Profile payload");
         });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task TypedHandleBasedTriggerReregistersWhenIdChanges()
+    {
+        var handle = new MenuHandle<string>();
+
+        var cut = Render<MenuTypedTrigger<string>>(parameters => parameters
+            .Add(p => p.Handle, handle)
+            .Add(p => p.Payload, "Payload A")
+            .Add(p => p.AdditionalAttributes, new Dictionary<string, object> { { "id", "detached-a" } })
+            .Add(p => p.ChildContent, builder => builder.AddContent(0, "External Trigger")));
+
+        handle.Open("detached-a");
+        handle.Payload.ShouldBe("Payload A");
+
+        cut.Render(parameters => parameters
+            .Add(p => p.Handle, handle)
+            .Add(p => p.Payload, "Payload B")
+            .Add(p => p.AdditionalAttributes, new Dictionary<string, object> { { "id", "detached-b" } })
+            .Add(p => p.ChildContent, builder => builder.AddContent(0, "External Trigger")));
+
+        Should.Throw<InvalidOperationException>(() => handle.Open("detached-a"));
+        handle.Open("detached-b");
+        handle.Payload.ShouldBe("Payload B");
 
         return Task.CompletedTask;
     }

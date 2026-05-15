@@ -282,6 +282,10 @@
             {
                 activePayload = data.Payload;
             }
+            else
+            {
+                activePayload = null;
+            }
 
             var element = GetTriggerElementById(activeTriggerId);
             if (element.HasValue)
@@ -801,6 +805,10 @@
         else if (registeredTriggers.TryGetValue(newTriggerId, out var data))
         {
             activePayload = data.Payload;
+        }
+        else
+        {
+            activePayload = null;
         }
 
         var activeElement = GetTriggerElementById(newTriggerId);
