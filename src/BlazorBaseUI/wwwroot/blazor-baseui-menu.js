@@ -44,7 +44,7 @@ function handleGlobalKeyDown(e) {
     const openMenus = [];
 
     for (const [id, rootState] of state.roots) {
-        if (rootState.isOpen && rootState.dotNetRef) {
+        if (isRootEffectivelyOpen(rootState) && rootState.dotNetRef) {
             openMenus.push(rootState);
             openMenuCount++;
 
@@ -63,23 +63,21 @@ function handleGlobalKeyDown(e) {
     }
 
     if (!topmostRoot) return;
-
     // Use stored direction from the root state (passed explicitly from Blazor)
     const isRtl = topmostRoot.direction === 'rtl';
 
     if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
+        stopHandledKeyEvent(e);
 
         // If closeParentOnEsc is true on the topmost (submenu), close all menus in the chain
         if (topmostRoot.closeParentOnEsc && openMenuCount > 1) {
             // Close all open menus
             for (const rootState of openMenus) {
-                rootState.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+                invokeMenuMethodAsync(rootState.dotNetRef, 'OnEscapeKey');
             }
         } else {
             // Just close the topmost menu (the submenu)
-            topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+            invokeMenuMethodAsync(topmostRoot.dotNetRef, 'OnEscapeKey');
         }
         return;
     }
@@ -88,27 +86,36 @@ function handleGlobalKeyDown(e) {
     const currentItem = topmostRoot.popupElement ?
         getMenuItems(topmostRoot.popupElement)[topmostRoot.activeIndex ?? -1] : null;
     const isSubmenuTrigger = currentItem?.hasAttribute('aria-haspopup');
-    const isInSubmenu = openMenuCount > 1;
+    const isInSubmenu = topmostRoot.parentType === 'menu';
 
     // Determine which arrow key opens/closes submenus based on direction
     // LTR: ArrowRight opens, ArrowLeft closes
     // RTL: ArrowLeft opens, ArrowRight closes
     const openSubmenuKey = isRtl ? 'ArrowLeft' : 'ArrowRight';
     const closeSubmenuKey = isRtl ? 'ArrowRight' : 'ArrowLeft';
+    const openNestedMenus = openMenus.filter(rootState => rootState.parentType === 'menu');
+    const deepestNestedMenu = openNestedMenus[openNestedMenus.length - 1] ?? null;
+    const nestedCloseKey = deepestNestedMenu?.direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
+
+    if (deepestNestedMenu &&
+        e.key === nestedCloseKey &&
+        deepestNestedMenu.orientation !== 'horizontal') {
+        stopHandledKeyEvent(e);
+        invokeMenuMethodAsync(deepestNestedMenu.dotNetRef, 'OnEscapeKey');
+        return;
+    }
 
     // Handle arrow key to open submenu (for vertical menus)
     if (e.key === openSubmenuKey && topmostRoot.orientation !== 'horizontal' && isSubmenuTrigger) {
-        e.preventDefault();
-        e.stopPropagation();
-        currentItem.click();
+        stopHandledKeyEvent(e);
+        openChildSubmenu(currentItem);
         return;
     }
 
     // Handle arrow key to close submenu (for vertical menus when in a submenu)
     if (e.key === closeSubmenuKey && topmostRoot.orientation !== 'horizontal' && isInSubmenu) {
-        e.preventDefault();
-        e.stopPropagation();
-        topmostRoot.dotNetRef.invokeMethodAsync('OnEscapeKey').catch(() => { });
+        stopHandledKeyEvent(e);
+        invokeMenuMethodAsync(topmostRoot.dotNetRef, 'OnEscapeKey');
         return;
     }
 
@@ -116,18 +123,17 @@ function handleGlobalKeyDown(e) {
     if (menubarRoot && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         // For open submenu key on a submenu trigger in menubar context, open it
         if (e.key === openSubmenuKey && isSubmenuTrigger) {
-            e.preventDefault();
-            e.stopPropagation();
-            currentItem.click();
+            stopHandledKeyEvent(e);
+            openChildSubmenu(currentItem);
             return;
         }
 
         // Navigate to sibling menubar item
-        e.preventDefault();
-        e.stopPropagation();
+        stopHandledKeyEvent(e);
 
         // Direction for menubar navigation (also respects RTL)
-        const navDirection = (e.key === 'ArrowRight') !== isRtl ? 1 : -1;
+        const menubarIsRtl = menubarRoot.direction === 'rtl';
+        const navDirection = (e.key === 'ArrowRight') !== menubarIsRtl ? 1 : -1;
         navigateMenubarSibling(menubarRoot, navDirection);
         return;
     }
@@ -311,6 +317,24 @@ function navigateMenubarSibling(menubarRoot, direction) {
     // Focus the next trigger and click it to open its menu
     setTimeout(() => {
         nextTrigger.focus();
+        if (typeof PointerEvent === 'function') {
+            nextTrigger.dispatchEvent(new PointerEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                pointerId: 1,
+                pointerType: 'mouse',
+                isPrimary: true,
+                button: 0,
+                buttons: 1
+            }));
+        } else {
+            nextTrigger.dispatchEvent(new MouseEvent('pointerdown', {
+                bubbles: true,
+                cancelable: true,
+                button: 0,
+                buttons: 1
+            }));
+        }
         nextTrigger.click();
     }, 10);
 }
@@ -496,13 +520,49 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
     });
 }
 
-export function updateRoot(rootId, modal, orientation, loopFocus, highlightItemOnHover) {
+export function updateRoot(rootId, modal, orientation, loopFocus, highlightItemOnHover, direction) {
     const rootState = state.roots.get(rootId);
     if (!rootState) return;
     rootState.modal = modal ?? true;
     rootState.orientation = orientation || 'vertical';
     rootState.loopFocus = loopFocus ?? true;
     rootState.highlightItemOnHover = highlightItemOnHover ?? true;
+    rootState.direction = direction || 'ltr';
+}
+
+function isRootEffectivelyOpen(rootState) {
+    return rootState.isOpen || rootState.popupElement?.hasAttribute('data-open') === true;
+}
+
+function stopHandledKeyEvent(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+}
+
+function invokeMenuMethodAsync(dotNetRef, methodName) {
+    setTimeout(() => {
+        dotNetRef?.invokeMethodAsync(methodName).catch(() => { });
+    }, 0);
+}
+
+function openChildSubmenu(triggerElement) {
+    const childRoot = findChildRootForTrigger(triggerElement);
+    if (childRoot?.dotNetRef) {
+        childRoot.dotNetRef.invokeMethodAsync('OnHoverOpen').catch(() => { });
+    } else {
+        triggerElement.click();
+    }
+}
+
+function findChildRootForTrigger(triggerElement) {
+    for (const rootState of state.roots.values()) {
+        if (rootState.isNested && rootState.triggerElement === triggerElement) {
+            return rootState;
+        }
+    }
+
+    return null;
 }
 
 export function disposeRoot(rootId) {
@@ -576,13 +636,15 @@ export async function initializeHoverInteraction(rootId, triggerElement, openDel
     const configuredOpenDelay = openDelay || 0;
     const configuredCloseDelay = closeDelay || 0;
     rootState.allowMouseEnter = false;
+    rootState.openDelay = configuredOpenDelay;
+    rootState.closeDelay = configuredCloseDelay;
 
     rootState.hoverInteraction = createHoverInteraction({
         interactionId: `menu-hover-${rootId}`,
         triggerElement: rootState.triggerElement,
         floatingElement: rootState.popupElement,
-        openDelay: 0,
-        closeDelay: 0,
+        openDelay: configuredOpenDelay,
+        closeDelay: configuredCloseDelay,
         mouseOnly: true,
         useSafePolygon: true,
         safePolygonOptions: { blockPointerEvents: true },
@@ -605,6 +667,7 @@ export async function initializeHoverInteraction(rootId, triggerElement, openDel
             }
         }
     });
+    rootState.hoverInteraction.setOpen(!!rootState.isOpen);
 
     // Once mouse moves over trigger or popup, switch to configured delays
     function onAllowMouseEnter() {
@@ -714,7 +777,7 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast, interac
         rootState.hoverInteraction.setOpen(isOpen);
         if (!isOpen) {
             rootState.allowMouseEnter = false;
-            rootState.hoverInteraction.setDelays(0, 0);
+            rootState.hoverInteraction.setDelays(rootState.openDelay ?? 0, rootState.closeDelay ?? 0);
         }
     }
 
@@ -920,6 +983,9 @@ function waitForItemsAndHighlight(rootState, popupElement) {
 
     let attempts = 0;
     const maxAttempts = 10;
+    let postHighlightFrames = 0;
+    const maxPostHighlightFrames = 5;
+    let focusedInitialItem = false;
 
     function checkForItems() {
         attempts++;
@@ -936,7 +1002,16 @@ function waitForItemsAndHighlight(rootState, popupElement) {
                     rootState.dotNetRef.invokeMethodAsync('OnActiveIndexChange', indexToHighlight).catch(() => { });
                 }
             }
-            highlightItem(popupElement, items, indexToHighlight);
+            if (focusedInitialItem) {
+                updateItemHighlight(items, indexToHighlight);
+            } else {
+                highlightItem(popupElement, items, indexToHighlight);
+                focusedInitialItem = true;
+            }
+            if (postHighlightFrames < maxPostHighlightFrames && rootState.isOpen) {
+                postHighlightFrames++;
+                requestAnimationFrame(checkForItems);
+            }
         } else if (attempts < maxAttempts && rootState.isOpen) {
             requestAnimationFrame(checkForItems);
         }
