@@ -216,6 +216,12 @@
                 try
                 {
                     await CreateManagerAsync();
+                    if (Disabled || RootContext is null || !RootContext.GetOpen())
+                    {
+                        wasOpen = false;
+                        await DisposeManagerAsync(shouldReturnFocus: false);
+                        return;
+                    }
                 }
                 finally
                 {

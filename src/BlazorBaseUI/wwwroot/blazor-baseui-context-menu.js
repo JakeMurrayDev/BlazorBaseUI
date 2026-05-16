@@ -131,6 +131,30 @@ export function setContextMenuDisabled(rootId, disabled) {
   const root = state.roots.get(rootId);
   if (root) {
     root.disabled = disabled;
+    if (disabled) {
+      cancelPendingGesture(root);
+    }
+  }
+}
+
+function cancelPendingGesture(root) {
+  if (root.longPressTimeoutId !== null) {
+    clearTimeout(root.longPressTimeoutId);
+    root.longPressTimeoutId = null;
+  }
+
+  if (root.allowMouseUpTimeoutId !== null) {
+    clearTimeout(root.allowMouseUpTimeoutId);
+    root.allowMouseUpTimeoutId = null;
+  }
+
+  root.allowMouseUp = false;
+  root.touchPosition = null;
+  root.initialCursorPoint = null;
+
+  if (root.cleanupMouseUp) {
+    root.cleanupMouseUp();
+    root.cleanupMouseUp = null;
   }
 }
 
@@ -279,12 +303,14 @@ function handleTouchStart(rootId, event) {
 
   root.longPressTimeoutId = setTimeout(() => {
     root.longPressTimeoutId = null;
-    if (root.touchPosition) {
-      const { x, y } = root.touchPosition;
-      root.initialCursorPoint = { x, y };
-      positionVirtualAnchor(root, x, y, true);
-      root.dotNetRef.invokeMethodAsync('OnContextMenu', x, y, true);
+    if (!root.touchPosition || root.disabled) {
+      return;
     }
+
+    const { x, y } = root.touchPosition;
+    root.initialCursorPoint = { x, y };
+    positionVirtualAnchor(root, x, y, true);
+    root.dotNetRef.invokeMethodAsync('OnContextMenu', x, y, true);
   }, LONG_PRESS_DELAY);
 }
 

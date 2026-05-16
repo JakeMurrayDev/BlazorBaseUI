@@ -382,6 +382,50 @@ public abstract class ContextMenuTestsBase : TestBase
     }
 
     /// <summary>
+    /// Tests that disabling context menu interaction cancels a pending long-press gesture.
+    /// </summary>
+    [Fact]
+    public virtual async Task DisablingRoot_CancelsPendingLongPress()
+    {
+        await NavigateAsync(CreateUrl("/tests/context-menu"));
+
+        var invocationCount = await Page.EvaluateAsync<int>("""
+            async () => {
+                const module = await import('/_content/BlazorBaseUI/blazor-baseui-context-menu.js');
+                const rootId = `pending-disable-${Date.now()}`;
+                const trigger = document.createElement('div');
+                const anchor = document.createElement('div');
+                let invocations = 0;
+
+                document.body.append(trigger, anchor);
+                module.initializeContextMenu(rootId, trigger, anchor, {
+                    invokeMethodAsync: () => {
+                        invocations += 1;
+                        return Promise.resolve();
+                    }
+                }, false);
+
+                const event = new Event('touchstart', { bubbles: true, cancelable: true });
+                Object.defineProperty(event, 'touches', {
+                    value: [{ clientX: 25, clientY: 35 }]
+                });
+
+                trigger.dispatchEvent(event);
+                module.setContextMenuDisabled(rootId, true);
+
+                await new Promise(resolve => setTimeout(resolve, 650));
+                module.disposeContextMenu(rootId);
+                trigger.remove();
+                anchor.remove();
+
+                return invocations;
+            }
+            """);
+
+        Assert.Equal(0, invocationCount);
+    }
+
+    /// <summary>
     /// Tests that releasing the context-menu gesture inside popup chrome does not cancel the menu.
     /// </summary>
     [Fact]

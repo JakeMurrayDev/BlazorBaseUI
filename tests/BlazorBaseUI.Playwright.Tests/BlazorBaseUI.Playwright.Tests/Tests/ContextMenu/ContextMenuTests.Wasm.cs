@@ -1,5 +1,6 @@
 using BlazorBaseUI.Playwright.Tests.Fixtures;
 using BlazorBaseUI.Playwright.Tests.Infrastructure;
+using Microsoft.Playwright;
 
 namespace BlazorBaseUI.Playwright.Tests.Tests.ContextMenu;
 
@@ -36,7 +37,8 @@ public class ContextMenuTestsWasm : ContextMenuTestsBase, IClassFixture<Playwrig
 
     protected override async Task WaitForSubmenuPopupVisibleAsync()
     {
-        var popupVisibleTask = Page.EvaluateAsync<bool>("""
+        await Page.WaitForFunctionAsync(
+            """
             () => {
                 const popup = document.querySelector('[data-testid="submenu-popup"]');
                 if (!popup) return false;
@@ -47,9 +49,7 @@ public class ContextMenuTestsWasm : ContextMenuTestsBase, IClassFixture<Playwrig
                     && rect.width > 0
                     && rect.height > 0;
             }
-            """);
-        var completedTask = await Task.WhenAny(popupVisibleTask, Task.Delay(5000 * TimeoutMultiplier));
-        Assert.Same(popupVisibleTask, completedTask);
-        Assert.True(await popupVisibleTask);
+            """,
+            new PageWaitForFunctionOptions { Timeout = 5000 * TimeoutMultiplier });
     }
 }
