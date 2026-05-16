@@ -34,6 +34,13 @@
                     Item 5
                 </MenuItem>
 
+                @if (ShowPopupGap)
+                {
+                    <div data-testid="popup-gap" role="presentation" style="height:32px;padding:8px;">
+                        Non-item area
+                    </div>
+                }
+
                 @if (ShowSubmenu)
                 {
                     <MenuSubmenuRoot
@@ -117,6 +124,9 @@
 
     [SupplyParameterFromQuery(Name = "showNestedContextMenu")]
     public bool ShowNestedContextMenu { get; set; }
+
+    [SupplyParameterFromQuery(Name = "showPopupGap")]
+    public bool ShowPopupGap { get; set; }
 
     private bool isOpen;
     private int changeCount;

@@ -374,6 +374,8 @@ public static class JsInteropSetup
         var module = jsInterop.SetupModule(ContextMenuModule);
         module.SetupVoid("initializeContextMenu", _ => true).SetVoidResult();
         module.SetupVoid("setBackdropElement", _ => true).SetVoidResult();
+        module.SetupVoid("setPositionerElement", _ => true).SetVoidResult();
+        module.SetupVoid("setContextMenuDisabled", _ => true).SetVoidResult();
         module.SetupVoid("disposeContextMenu", _ => true).SetVoidResult();
     }
 

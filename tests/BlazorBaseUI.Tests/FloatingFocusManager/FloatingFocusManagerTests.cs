@@ -788,6 +788,41 @@ public class FloatingFocusManagerTests : BunitContext, IFloatingFocusManagerCont
     }
 
     [Fact]
+    public Task DisposesManagerWhenPopupClosesDuringManagerCreation()
+    {
+        var module = JSInterop.SetupModule(FloatingModule);
+        var createManager = module.Setup<string>("createFloatingFocusManager", _ => true);
+        module.SetupVoid("disposeFloatingFocusManager", _ => true).SetVoidResult();
+        module.SetupVoid("updateFloatingFocusManager", _ => true).SetVoidResult();
+
+        var rootContext = CreateOpenRootContext();
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<FocusManagerWrapper>(0);
+            builder.AddAttribute(1, "RootContext", rootContext);
+            builder.CloseComponent();
+        });
+
+        createManager.Invocations.Count.ShouldBe(1);
+
+        rootContext.IsOpen = false;
+        var wrapper = cut.FindComponent<FocusManagerWrapper>();
+        wrapper.Render();
+
+        createManager.SetResult("fm-1");
+
+        cut.WaitForAssertion(() =>
+        {
+            module.Invocations
+                .Count(i => i.Identifier == "disposeFloatingFocusManager")
+                .ShouldBe(1);
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task CreatesManagerWhenEnabledWhileOpen()
     {
         var module = JSInterop.SetupModule(FloatingModule);

@@ -929,6 +929,12 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithContextMenuShowPopupGap(bool value)
+    {
+        queryParams["showPopupGap"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     // Navigation Menu
 
     public TestPageUrlBuilder WithNavDefaultValue(string value)

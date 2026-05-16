@@ -23,6 +23,7 @@
     private DotNetObjectReference<FloatingFocusManager>? dotNetRef;
     private string? managerId;
     private bool wasOpen;
+    private bool creatingManager;
     private bool previousModal = true;
     private bool previousReturnFocus = true;
     private bool previousCloseOnFocusOut = true;
@@ -205,12 +206,36 @@
 
         var isOpen = RootContext.GetOpen();
 
-        if (isOpen && !wasOpen)
+        if (isOpen)
         {
-            await CreateManagerAsync();
+            wasOpen = true;
+
+            if (managerId is null && !creatingManager)
+            {
+                creatingManager = true;
+                try
+                {
+                    await CreateManagerAsync();
+                    if (Disabled || RootContext is null || !RootContext.GetOpen())
+                    {
+                        wasOpen = false;
+                        await DisposeManagerAsync(shouldReturnFocus: false);
+                        return;
+                    }
+                }
+                finally
+                {
+                    creatingManager = false;
+                }
+            }
+
+            return;
         }
-        else if (!isOpen && wasOpen)
+
+        if (wasOpen || managerId is not null)
         {
+            wasOpen = false;
+
             if (FinalFocus is { } finalFocus)
             {
                 var closeType = RootContext.CloseInteractionType;
@@ -252,8 +277,6 @@
                 await DisposeManagerAsync(shouldReturnFocus: resolvedReturnFocus);
             }
         }
-
-        wasOpen = isOpen;
     }
 
     /// <inheritdoc />
