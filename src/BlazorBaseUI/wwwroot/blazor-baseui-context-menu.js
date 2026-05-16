@@ -15,14 +15,17 @@ const TOUCH_MOVE_THRESHOLD = 10;
  * @param {HTMLElement} triggerElement - The element that responds to right-click/long-press.
  * @param {HTMLElement} virtualAnchorElement - Hidden element used as positioning anchor.
  * @param {object} dotNetRef - .NET object reference for callbacks.
+ * @param {boolean} disabled - Whether context-menu interaction is disabled.
  */
-export function initializeContextMenu(rootId, triggerElement, virtualAnchorElement, dotNetRef) {
+export function initializeContextMenu(rootId, triggerElement, virtualAnchorElement, dotNetRef, disabled = false) {
   const root = {
     triggerElement,
     virtualAnchorElement,
     dotNetRef,
+    disabled,
     isOpen: false,
     backdropElement: null,
+    positionerElement: null,
     touchPosition: null,
     longPressTimeoutId: null,
     allowMouseUpTimeoutId: null,
@@ -44,6 +47,10 @@ export function initializeContextMenu(rootId, triggerElement, virtualAnchorEleme
   triggerElement.addEventListener('touchcancel', root.touchEndHandler);
 
   root.documentContextMenuHandler = (e) => {
+    if (root.disabled) {
+      return;
+    }
+
     const target = e.target;
     if (triggerElement.contains(target)) {
       e.preventDefault();
@@ -103,6 +110,30 @@ export function setBackdropElement(rootId, element) {
   }
 }
 
+/**
+ * Stores a reference to the positioner element for mouseup handling.
+ * @param {string} rootId - Unique identifier for the context menu instance.
+ * @param {HTMLElement} element - The menu positioner DOM element.
+ */
+export function setPositionerElement(rootId, element) {
+  const root = state.roots.get(rootId);
+  if (root) {
+    root.positionerElement = element;
+  }
+}
+
+/**
+ * Updates whether context-menu interaction is disabled.
+ * @param {string} rootId - Unique identifier for the context menu instance.
+ * @param {boolean} disabled - Whether interaction should be ignored.
+ */
+export function setContextMenuDisabled(rootId, disabled) {
+  const root = state.roots.get(rootId);
+  if (root) {
+    root.disabled = disabled;
+  }
+}
+
 function positionVirtualAnchor(root, x, y, isTouchEvent) {
   const el = root.virtualAnchorElement;
   const size = isTouchEvent ? 10 : 0;
@@ -115,6 +146,10 @@ function positionVirtualAnchor(root, x, y, isTouchEvent) {
 function handleContextMenu(rootId, event) {
   const root = state.roots.get(rootId);
   if (!root) return;
+
+  if (root.disabled) {
+    return;
+  }
 
   event.preventDefault();
   event.stopPropagation();
@@ -157,35 +192,18 @@ function setupMouseUpListener(rootId) {
     }
     root.allowMouseUp = false;
 
-    // Check if mouseup is on a menu item — activate it (click-drag-release gesture)
-    const menuItem = mouseEvent.target.closest(
-      '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
-    );
+    const mouseUpTarget = mouseEvent.target instanceof Element ? mouseEvent.target : null;
 
-    if (menuItem) {
-      const initialPoint = root.initialCursorPoint;
-      root.initialCursorPoint = null;
-
-      // Don't activate if cursor barely moved from initial right-click position (1px threshold)
-      if (initialPoint) {
-        const dx = mouseEvent.clientX - initialPoint.x;
-        const dy = mouseEvent.clientY - initialPoint.y;
-        if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) return;
-      }
-
-      // On non-macOS, don't activate on right-button mouseup
-      const isMac = /mac/i.test(navigator.userAgent);
-      if (!isMac && mouseEvent.button === 2) return;
-
-      // Don't activate submenu triggers or disabled items
-      if (menuItem.hasAttribute('aria-haspopup')) return;
-      if (menuItem.getAttribute('aria-disabled') === 'true') return;
-
-      menuItem.click();
+    if (root.positionerElement && mouseUpTarget && root.positionerElement.contains(mouseUpTarget)) {
+      handlePositionerMouseUp(root, mouseEvent, mouseUpTarget);
       return;
     }
 
-    // No menu item under cursor — proceed with existing cancel behavior
+    if (mouseUpTarget && findRootOwnerId(mouseUpTarget) === rootId) {
+      return;
+    }
+
+    root.initialCursorPoint = null;
     root.dotNetRef.invokeMethodAsync('OnCancelOpen');
   };
 
@@ -193,9 +211,64 @@ function setupMouseUpListener(rootId) {
   root.cleanupMouseUp = () => document.removeEventListener('mouseup', handler);
 }
 
+function handlePositionerMouseUp(root, mouseEvent, mouseUpTarget) {
+  // Check if mouseup is on a menu item — activate it (click-drag-release gesture)
+  const menuItem = mouseUpTarget.closest(
+    '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
+  );
+
+  if (!menuItem) {
+    return;
+  }
+
+  const initialPoint = root.initialCursorPoint;
+  root.initialCursorPoint = null;
+
+  // Don't activate if cursor barely moved from initial right-click position (1px threshold)
+  if (initialPoint) {
+    const dx = mouseEvent.clientX - initialPoint.x;
+    const dy = mouseEvent.clientY - initialPoint.y;
+    if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) return;
+  }
+
+  // On non-macOS, don't activate on right-button mouseup
+  const isMac = /mac/i.test(navigator.userAgent);
+  if (!isMac && mouseEvent.button === 2) return;
+
+  // Don't activate submenu triggers or disabled items
+  if (menuItem.hasAttribute('aria-haspopup')) return;
+  if (menuItem.getAttribute('aria-disabled') === 'true') return;
+
+  menuItem.click();
+}
+
+function findRootOwnerId(node) {
+  let current = node;
+
+  while (current) {
+    if (current instanceof Element && current.hasAttribute('data-rootownerid')) {
+      return current.getAttribute('data-rootownerid') || undefined;
+    }
+
+    if (current.parentNode) {
+      current = current.parentNode;
+      continue;
+    }
+
+    const rootNode = current.getRootNode?.();
+    current = rootNode && 'host' in rootNode ? rootNode.host : null;
+  }
+
+  return undefined;
+}
+
 function handleTouchStart(rootId, event) {
   const root = state.roots.get(rootId);
   if (!root) return;
+
+  if (root.disabled) {
+    return;
+  }
 
   if (event.touches.length !== 1) return;
 
@@ -217,7 +290,7 @@ function handleTouchStart(rootId, event) {
 
 function handleTouchMove(rootId, event) {
   const root = state.roots.get(rootId);
-  if (!root || root.longPressTimeoutId === null || !root.touchPosition) return;
+  if (!root || root.disabled || root.longPressTimeoutId === null || !root.touchPosition) return;
 
   if (event.touches.length !== 1) return;
 

@@ -800,10 +800,12 @@ export async function setRootOpen(rootId, isOpen, reason, highlightLast, interac
             rootState.allowTouchToCloseAt = null;
         }
 
-        // Context menu grace period: after opening a context menu, block outside-press
-        // dismissals for 500ms to prevent long-press touch from immediately closing
-        if (rootState.parentType === 'context-menu') {
+        // Context menu grace period: after opening from touch, block outside-press
+        // dismissals for 500ms to prevent long-press touch from immediately closing.
+        if (rootState.parentType === 'context-menu' && interactionType === 'touch') {
             rootState.allowOutsidePressAt = Date.now() + 500;
+        } else {
+            rootState.allowOutsidePressAt = null;
         }
 
         // Patient click protection: when hover-opened, suppress clicks for 500ms

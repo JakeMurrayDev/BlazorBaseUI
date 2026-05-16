@@ -369,6 +369,7 @@ FodyWeavers.xsd
 .serena
 .slopwatch
 .base-ui
+.audit/
 tmpclaude-*-cwd
 nul
 .envrc

@@ -22,6 +22,7 @@
 
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hasRendered;
+    private bool previousDisabled;
     private ContextMenuTriggerState state;
     private RenderElement<ContextMenuTriggerState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
@@ -38,6 +39,8 @@
             return "-webkit-touch-callout: none";
         return $"-webkit-touch-callout: none; {userStyle}";
     };
+
+    private bool CurrentDisabled => Disabled || (RootContext?.Disabled ?? false);
 
     [CascadingParameter]
     private MenuRootContext? RootContext { get; set; }
@@ -104,9 +107,19 @@
     protected override void OnParametersSet()
     {
         var open = RootContext?.GetOpen() ?? false;
-        var disabled = Disabled || (RootContext?.Disabled ?? false);
+        var disabled = CurrentDisabled;
         state = new ContextMenuTriggerState(open);
         BuildComponentAttributes();
+
+        if (hasRendered && disabled != previousDisabled)
+        {
+            previousDisabled = disabled;
+            _ = UpdateJsDisabledAsync(disabled);
+        }
+        else
+        {
+            previousDisabled = disabled;
+        }
     }
 
     /// <inheritdoc />
@@ -152,12 +165,18 @@
     [JSInvokable]
     public async Task OnContextMenu(double x, double y, bool isTouchEvent)
     {
-        if (state.Open || Disabled || RootContext is null || RootContext.Disabled)
+        if (state.Open || CurrentDisabled || RootContext is null)
         {
             return;
         }
 
-        await RootContext.SetOpenAsync(true, MenuOpenChangeReason.TriggerPress, null);
+        await RootContext.SetOpenFromTriggerAsync(
+            true,
+            MenuOpenChangeReason.TriggerPress,
+            null,
+            null,
+            isTouchEvent ? "touch" : "mouse",
+            false);
 
         state = new ContextMenuTriggerState(RootContext.GetOpen());
         BuildComponentAttributes();
@@ -186,7 +205,7 @@
     {
         var attrs = new Dictionary<string, object>();
         var open = RootContext?.GetOpen() ?? false;
-        var disabled = Disabled || (RootContext?.Disabled ?? false);
+        var disabled = CurrentDisabled;
 
         if (Id is not null)
         {
@@ -196,6 +215,7 @@
         if (open)
         {
             attrs["data-popup-open"] = true;
+            attrs["data-pressed"] = true;
         }
 
         if (disabled)
@@ -229,7 +249,8 @@
                 ContextMenuContext.RootId,
                 element.Value,
                 virtualAnchor.Value,
-                dotNetRef);
+                dotNetRef,
+                CurrentDisabled);
 
             ContextMenuContext.RegisterBackdropElement = async (element) =>
             {
@@ -243,6 +264,42 @@
                     _ = ex2; // Expected during circuit disconnect - safe to ignore.
                 }
             };
+
+            ContextMenuContext.RegisterPositionerElement = async (element) =>
+            {
+                try
+                {
+                    var mod = await ModuleTask.Value;
+                    await mod.InvokeVoidAsync("setPositionerElement", ContextMenuContext.RootId, element);
+                }
+                catch (Exception ex2) when (ex2 is JSDisconnectedException or TaskCanceledException)
+                {
+                    _ = ex2; // Expected during circuit disconnect - safe to ignore.
+                }
+            };
+
+            if (ContextMenuContext.PositionerElement.HasValue)
+            {
+                await ContextMenuContext.RegisterPositionerElement(ContextMenuContext.PositionerElement.Value);
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
+        }
+    }
+
+    private async Task UpdateJsDisabledAsync(bool disabled)
+    {
+        if (ContextMenuContext is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var module = await ModuleTask.Value;
+            await module.InvokeVoidAsync("setContextMenuDisabled", ContextMenuContext.RootId, disabled);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {

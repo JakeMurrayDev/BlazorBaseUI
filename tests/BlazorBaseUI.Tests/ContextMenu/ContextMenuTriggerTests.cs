@@ -175,12 +175,34 @@ public class ContextMenuTriggerTests : BunitContext, IContextMenuTriggerContract
     }
 
     [Fact]
+    public Task AddsPressedDataAttributeWhenOpen()
+    {
+        var cut = Render(CreateTriggerInRoot(defaultOpen: true));
+
+        var trigger = cut.Find("[style*='touch-callout']");
+        trigger.HasAttribute("data-pressed").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task RemovesPopupOpenDataAttributeWhenClosed()
     {
         var cut = Render(CreateTriggerInRoot(defaultOpen: false));
 
         var trigger = cut.Find("[style*='touch-callout']");
         trigger.HasAttribute("data-popup-open").ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task RemovesPressedDataAttributeWhenClosed()
+    {
+        var cut = Render(CreateTriggerInRoot(defaultOpen: false));
+
+        var trigger = cut.Find("[style*='touch-callout']");
+        trigger.HasAttribute("data-pressed").ShouldBeFalse();
 
         return Task.CompletedTask;
     }

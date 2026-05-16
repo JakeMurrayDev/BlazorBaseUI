@@ -11,4 +11,45 @@ public class ContextMenuTestsWasm : ContextMenuTestsBase, IClassFixture<Playwrig
         : base(playwrightFixture)
     {
     }
+
+    protected override async Task HoverSubmenuTriggerAsync()
+    {
+        await Page.EvaluateAsync("""
+            () => {
+                const trigger = document.querySelector('[data-testid="submenu-trigger"]');
+                const rect = trigger.getBoundingClientRect();
+                const eventInit = {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.top + rect.height / 2,
+                    relatedTarget: document.body
+                };
+                trigger.dispatchEvent(new MouseEvent('mouseover', eventInit));
+                trigger.dispatchEvent(new MouseEvent('mouseenter', { ...eventInit, bubbles: false }));
+            }
+            """);
+
+        await Task.Delay(300 * TimeoutMultiplier);
+    }
+
+    protected override async Task WaitForSubmenuPopupVisibleAsync()
+    {
+        var popupVisibleTask = Page.EvaluateAsync<bool>("""
+            () => {
+                const popup = document.querySelector('[data-testid="submenu-popup"]');
+                if (!popup) return false;
+                const style = getComputedStyle(popup);
+                const rect = popup.getBoundingClientRect();
+                return style.display !== 'none'
+                    && style.visibility !== 'hidden'
+                    && rect.width > 0
+                    && rect.height > 0;
+            }
+            """);
+        var completedTask = await Task.WhenAny(popupVisibleTask, Task.Delay(5000 * TimeoutMultiplier));
+        Assert.Same(popupVisibleTask, completedTask);
+        Assert.True(await popupVisibleTask);
+    }
 }

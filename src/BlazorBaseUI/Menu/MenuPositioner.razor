@@ -20,6 +20,7 @@
 
 @code {
     private PositionerInterop positionerInterop = null!;
+    private bool positionerInitializing;
     private ElementReference? arrowElement;
     private Side computedSide;
     private Align computedAlign;
@@ -238,6 +239,10 @@
         {
             previousElement = currentElement;
             RootContext?.SetPositionerElement(currentElement);
+            if (ContextMenuContext is not null)
+            {
+                await ContextMenuContext.SetPositionerElementAsync(currentElement);
+            }
         }
 
         if (firstRender && !currentElement.HasValue)
@@ -249,7 +254,18 @@
         {
             if (!positionerInterop.IsInitialized)
             {
-                await InitializePositionerAsync();
+                if (!positionerInitializing)
+                {
+                    positionerInitializing = true;
+                    try
+                    {
+                        await InitializePositionerAsync();
+                    }
+                    finally
+                    {
+                        positionerInitializing = false;
+                    }
+                }
             }
             else if (!DisableAnchorTracking)
             {

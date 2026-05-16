@@ -478,7 +478,9 @@ export async function initializePositioner(options) {
         hasAlignOffsetFn: options.hasAlignOffsetFn || false,
         cleanup: null,
         computedSide: side,
-        computedAlign: align
+        computedAlign: align,
+        computedAnchorHidden: false,
+        computedArrowUncentered: false
     };
 
     state.positioners.set(positionerId, positionerState);
@@ -888,13 +890,21 @@ async function updatePositionInternal(positionerState) {
 
         positionerElement.style.setProperty('--transform-origin', transformOrigin);
 
+        const anchorHidden = !!middlewareData.hide?.referenceHidden;
+        const positionChanged = positionerState.computedSide !== effectiveSide ||
+            positionerState.computedAlign !== effectiveAlign ||
+            positionerState.computedAnchorHidden !== anchorHidden ||
+            positionerState.computedArrowUncentered !== arrowUncentered;
+
         // Store computed placement for safePolygon
         positionerState.computedSide = effectiveSide;
         positionerState.computedAlign = effectiveAlign;
+        positionerState.computedAnchorHidden = anchorHidden;
+        positionerState.computedArrowUncentered = arrowUncentered;
 
         // Notify C# of computed position values
-        if (positionerState.onPositionUpdated) {
-            positionerState.onPositionUpdated(effectiveSide, effectiveAlign, !!middlewareData.hide?.referenceHidden, arrowUncentered);
+        if (positionChanged && positionerState.onPositionUpdated) {
+            positionerState.onPositionUpdated(effectiveSide, effectiveAlign, anchorHidden, arrowUncentered);
         }
 
     } catch {
@@ -2800,7 +2810,7 @@ export function createFloatingFocusManager(options) {
         returnFocusFallback.setAttribute('aria-hidden', 'true');
         returnFocusFallback.setAttribute('tabindex', '-1');
         returnFocusFallback.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;pointer-events:none;';
-        triggerElement.after(returnFocusFallback);
+        doc.body.appendChild(returnFocusFallback);
     }
 
     // Document-level interaction tracking (F11)
