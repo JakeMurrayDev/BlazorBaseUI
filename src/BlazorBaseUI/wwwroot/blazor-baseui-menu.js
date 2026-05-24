@@ -550,7 +550,7 @@ export function initializeRoot(rootId, dotNetRef, closeParentOnEsc, loopFocus, m
     });
 }
 
-export function updateRoot(rootId, modal, orientation, loopFocus, highlightItemOnHover, direction) {
+export function updateRoot(rootId, modal, orientation, loopFocus, highlightItemOnHover, direction, menubarElement, parentType, isNested) {
     const rootState = state.roots.get(rootId);
     if (!rootState) return;
     rootState.modal = modal ?? true;
@@ -558,6 +558,9 @@ export function updateRoot(rootId, modal, orientation, loopFocus, highlightItemO
     rootState.loopFocus = loopFocus ?? true;
     rootState.highlightItemOnHover = highlightItemOnHover ?? true;
     rootState.direction = direction || 'ltr';
+    rootState.menubarElement = menubarElement || null;
+    rootState.parentType = parentType || null;
+    rootState.isNested = isNested || false;
 }
 
 function isRootEffectivelyOpen(rootState) {

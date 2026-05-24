@@ -41,7 +41,7 @@ public static class JsInteropSetup
 
     private const string MenuModule = "./_content/BlazorBaseUI/blazor-baseui-menu.js";
 
-    public static void SetupMenuModule(BunitJSInterop jsInterop)
+    public static BunitJSModuleInterop SetupMenuModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(MenuModule);
         module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
@@ -63,6 +63,7 @@ public static class JsInteropSetup
         module.SetupVoid("initializeAutoResize", _ => true).SetVoidResult();
         module.SetupVoid("disposeAutoResize", _ => true).SetVoidResult();
         module.SetupVoid("onViewportTriggerChange", _ => true).SetVoidResult();
+        return module;
     }
 
     private const string MenuBarModule = "./_content/BlazorBaseUI/blazor-baseui-menubar.js";

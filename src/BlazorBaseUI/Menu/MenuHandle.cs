@@ -221,7 +221,13 @@ public class MenuHandle<TPayload> : ComponentHandleBase<TPayload, MenuOpenChange
     /// </summary>
     internal void RegisterMenubarContext(string triggerId, MenuBarRootContext context)
     {
+        var previousContext = MenubarContext;
         menuBarContexts[triggerId] = context;
+
+        if (!ReferenceEquals(previousContext, MenubarContext))
+        {
+            NotifyStateChanged();
+        }
     }
 
     /// <summary>
@@ -229,7 +235,12 @@ public class MenuHandle<TPayload> : ComponentHandleBase<TPayload, MenuOpenChange
     /// </summary>
     internal void UnregisterMenubarContext(string triggerId)
     {
-        menuBarContexts.Remove(triggerId);
+        var previousContext = MenubarContext;
+
+        if (menuBarContexts.Remove(triggerId) && !ReferenceEquals(previousContext, MenubarContext))
+        {
+            NotifyStateChanged();
+        }
     }
 }
 

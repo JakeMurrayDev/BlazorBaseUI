@@ -76,9 +76,13 @@ public abstract class MenuBarTestsBase : TestBase
 
     protected async Task AssertScrollUnlockedAsync()
     {
-        await WaitForDelayAsync(300);
-        var isLocked = await Page.EvaluateAsync<bool>(ScrollLockedScript);
-        Assert.False(isLocked);
+        await Page.WaitForFunctionAsync($@"() => {{
+            const isLocked = ({ScrollLockedScript})();
+            return !isLocked;
+        }}", null, new PageWaitForFunctionOptions
+        {
+            Timeout = 5000 * TimeoutMultiplier
+        });
     }
 
     #endregion

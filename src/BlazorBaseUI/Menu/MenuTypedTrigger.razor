@@ -33,6 +33,7 @@
     private bool openedByPointerDown;
     private MenuTriggerState state;
     private MenuHandle<TPayload>? registeredHandle;
+    private MenuBarRootContext? registeredMenuBarContext;
     private RenderElement<MenuTriggerState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private ElementReference? previousElement;
@@ -153,27 +154,41 @@
         var resolvedId = ResolvedId;
         var idChanged = resolvedId != previousTriggerId;
         var ownerChanged = Handle != registeredHandle;
+        var menuBarContextChanged = registeredHandle is not null && !ReferenceEquals(MenuBarContext, registeredMenuBarContext);
 
-        if (idChanged || ownerChanged)
+        if (idChanged || ownerChanged || menuBarContextChanged)
         {
             if (registeredHandle is not null)
             {
                 registeredHandle.UnregisterMenubarContext(previousTriggerId);
-                registeredHandle.Unsubscribe(this);
-                registeredHandle.UnregisterTrigger(previousTriggerId);
+
+                if (idChanged || ownerChanged)
+                {
+                    registeredHandle.Unsubscribe(this);
+                    registeredHandle.UnregisterTrigger(previousTriggerId);
+                }
             }
-            else
+            else if (idChanged || ownerChanged)
             {
                 RootContext?.UnregisterTrigger(previousTriggerId);
             }
 
             triggerId = resolvedId;
             registeredHandle = Handle;
+            registeredMenuBarContext = MenuBarContext;
 
             if (registeredHandle is not null)
             {
-                registeredHandle.Subscribe(this);
-                registeredHandle.RegisterTrigger(triggerId, Element, Payload);
+                if (idChanged || ownerChanged)
+                {
+                    registeredHandle.Subscribe(this);
+                    registeredHandle.RegisterTrigger(triggerId, Element, Payload);
+                }
+                else
+                {
+                    registeredHandle.UpdateTriggerPayload(triggerId, Payload);
+                }
+
                 if (MenuBarContext is not null)
                 {
                     registeredHandle.RegisterMenubarContext(triggerId, MenuBarContext);
@@ -212,6 +227,7 @@
                     Handle.RegisterMenubarContext(triggerId, MenuBarContext);
                 }
                 registeredHandle = Handle;
+                registeredMenuBarContext = MenuBarContext;
             }
             else
             {
