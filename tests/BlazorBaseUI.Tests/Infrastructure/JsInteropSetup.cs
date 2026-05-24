@@ -41,17 +41,21 @@ public static class JsInteropSetup
 
     private const string MenuModule = "./_content/BlazorBaseUI/blazor-baseui-menu.js";
 
-    public static void SetupMenuModule(BunitJSInterop jsInterop)
+    public static BunitJSModuleInterop SetupMenuModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(MenuModule);
         module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
         module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
         module.SetupVoid("setRootOpen", _ => true).SetVoidResult();
+        module.SetupVoid("updateRoot", _ => true).SetVoidResult();
+        module.SetupVoid("closeMenubarSiblingRoots", _ => true).SetVoidResult();
         module.SetupVoid("setTriggerElement", _ => true).SetVoidResult();
         module.SetupVoid("setPopupElement", _ => true).SetVoidResult();
         module.SetupVoid("setActiveIndex", _ => true).SetVoidResult();
         module.SetupVoid("initializeHoverInteraction", _ => true).SetVoidResult();
         module.SetupVoid("disposeHoverInteraction", _ => true).SetVoidResult();
+        module.SetupVoid("initializeMenubarTrigger", _ => true).SetVoidResult();
+        module.SetupVoid("disposeMenubarTrigger", _ => true).SetVoidResult();
         module.SetupVoid("updateHoverInteractionFloatingElement", _ => true).SetVoidResult();
         module.SetupVoid("setHoverInteractionOpen", _ => true).SetVoidResult();
         module.SetupVoid("setInternalBackdrop", _ => true).SetVoidResult();
@@ -63,6 +67,7 @@ public static class JsInteropSetup
         module.SetupVoid("initializeAutoResize", _ => true).SetVoidResult();
         module.SetupVoid("disposeAutoResize", _ => true).SetVoidResult();
         module.SetupVoid("onViewportTriggerChange", _ => true).SetVoidResult();
+        return module;
     }
 
     private const string MenuBarModule = "./_content/BlazorBaseUI/blazor-baseui-menubar.js";

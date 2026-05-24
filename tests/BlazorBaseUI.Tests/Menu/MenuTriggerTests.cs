@@ -66,6 +66,18 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         };
     }
 
+    private static MenuBarRootContext CreateMenuBarContext()
+    {
+        return new MenuBarRootContext
+        {
+            RegisterItem = _ => { },
+            UnregisterItem = _ => { },
+            SetHasSubmenuOpen = (_, _) => { },
+            GetHasSubmenuOpen = () => false,
+            GetElement = () => null
+        };
+    }
+
     [Fact]
     public Task RendersAsButtonByDefault()
     {
@@ -404,6 +416,37 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
     }
 
     [Fact]
+    public Task HandleBasedTriggerReregistersMenubarContextWhenCascadeChanges()
+    {
+        var handle = new MenuHandle();
+        var firstContext = CreateMenuBarContext();
+        var secondContext = CreateMenuBarContext();
+
+        RenderFragment childContent = childBuilder =>
+        {
+            childBuilder.OpenComponent<MenuTrigger>(0);
+            childBuilder.AddAttribute(1, "Handle", (IMenuHandle)handle);
+            childBuilder.AddAttribute(2, "id", "detached-trigger");
+            childBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "External Trigger")));
+            childBuilder.CloseComponent();
+        };
+
+        var cut = Render<CascadingValue<MenuBarRootContext>>(parameters => parameters
+            .Add(p => p.Value, firstContext)
+            .Add(p => p.ChildContent, childContent));
+
+        handle.MenubarContext.ShouldBeSameAs(firstContext);
+
+        cut.Render(parameters => parameters
+            .Add(p => p.Value, secondContext)
+            .Add(p => p.ChildContent, childContent));
+
+        handle.MenubarContext.ShouldBeSameAs(secondContext);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task TypedHandleOpenUsesExplicitTriggerIdAndPayload()
     {
         var handle = new MenuHandle<string>();
@@ -487,6 +530,37 @@ public class MenuTriggerTests : BunitContext, IMenuTriggerContract
         Should.Throw<InvalidOperationException>(() => handle.Open("detached-a"));
         handle.Open("detached-b");
         handle.Payload.ShouldBe("Payload B");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task TypedHandleBasedTriggerReregistersMenubarContextWhenCascadeChanges()
+    {
+        var handle = new MenuHandle<string>();
+        var firstContext = CreateMenuBarContext();
+        var secondContext = CreateMenuBarContext();
+
+        RenderFragment childContent = childBuilder =>
+        {
+            childBuilder.OpenComponent<MenuTypedTrigger<string>>(0);
+            childBuilder.AddAttribute(1, "Handle", handle);
+            childBuilder.AddAttribute(2, "id", "detached-trigger");
+            childBuilder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, "External Trigger")));
+            childBuilder.CloseComponent();
+        };
+
+        var cut = Render<CascadingValue<MenuBarRootContext>>(parameters => parameters
+            .Add(p => p.Value, firstContext)
+            .Add(p => p.ChildContent, childContent));
+
+        handle.MenubarContext.ShouldBeSameAs(firstContext);
+
+        cut.Render(parameters => parameters
+            .Add(p => p.Value, secondContext)
+            .Add(p => p.ChildContent, childContent));
+
+        handle.MenubarContext.ShouldBeSameAs(secondContext);
 
         return Task.CompletedTask;
     }
