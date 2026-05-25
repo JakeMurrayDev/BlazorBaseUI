@@ -386,7 +386,7 @@ public class TabsPanelTests : BunitContext, ITabsPanelContract
     }
 
     [Fact]
-    public async Task DisposeAsync_DisposesImportedModuleAfterPanelElementUnmounts()
+    public async Task DisposeAsync_CallsDisposePanelWithCapturedElementAfterPanelElementUnmounts()
     {
         var cut = Render(CreateMultiplePanelsInRoot(defaultValue: "tab1", keepMounted: false));
 
