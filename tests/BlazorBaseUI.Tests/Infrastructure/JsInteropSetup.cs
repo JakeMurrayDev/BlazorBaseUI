@@ -273,27 +273,30 @@ public static class JsInteropSetup
 
     private const string TabsModule = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";
 
-    public static void SetupTabsModule(BunitJSInterop jsInterop)
+    public static BunitJSModuleInterop SetupTabsModule(BunitJSInterop jsInterop)
     {
         var module = jsInterop.SetupModule(TabsModule);
-        module.SetupVoid("initializeList", _ => true);
-        module.SetupVoid("updateList", _ => true);
-        module.SetupVoid("disposeList", _ => true);
-        module.SetupVoid("registerTab", _ => true);
-        module.SetupVoid("unregisterTab", _ => true);
-        module.SetupVoid("navigateToPrevious", _ => true);
-        module.SetupVoid("navigateToNext", _ => true);
-        module.SetupVoid("navigateToFirst", _ => true);
-        module.SetupVoid("navigateToLast", _ => true);
+        module.SetupVoid("initializeList", _ => true).SetVoidResult();
+        module.SetupVoid("updateList", _ => true).SetVoidResult();
+        module.SetupVoid("disposeList", _ => true).SetVoidResult();
+        module.SetupVoid("registerTab", _ => true).SetVoidResult();
+        module.SetupVoid("unregisterTab", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToPrevious", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToNext", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToFirst", _ => true).SetVoidResult();
+        module.SetupVoid("navigateToLast", _ => true).SetVoidResult();
         // getActiveElement returns IJSObjectReference? - handled by loose mode (returns null)
-        module.SetupVoid("initializeTab", _ => true);
-        module.SetupVoid("dispose", _ => true);
-        module.SetupVoid("focus", _ => true);
+        module.SetupVoid("initializeTab", _ => true).SetVoidResult();
+        module.SetupVoid("dispose", _ => true).SetVoidResult();
+        module.SetupVoid("focus", _ => true).SetVoidResult();
+        module.SetupVoid("startPanelTransition", _ => true).SetVoidResult();
+        module.SetupVoid("disposePanel", _ => true).SetVoidResult();
         module.Setup<object?>("getTabPosition", _ => true).SetResult(null);
         module.Setup<object?>("getIndicatorPosition", _ => true).SetResult(null);
-        module.SetupVoid("observeResize", _ => true);
-        module.SetupVoid("unobserveResize", _ => true);
+        module.SetupVoid("observeResize", _ => true).SetVoidResult();
+        module.SetupVoid("unobserveResize", _ => true).SetVoidResult();
         module.Setup<object?>("getFirstEnabledTab", _ => true).SetResult(null);
+        return module;
     }
 
     private const string NumberFieldModule = "./_content/BlazorBaseUI/blazor-baseui-number-field.js";

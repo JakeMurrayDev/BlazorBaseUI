@@ -26,7 +26,10 @@ public abstract class TabsTestsBase : TestBase
             if (!el) return false;
             const stateKey = Symbol.for('BlazorBaseUI.TabsList.State');
             const map = window[stateKey];
-            return map && map.has(el);
+            const state = map?.get(el);
+            if (!state) return false;
+            const tabCount = el.querySelectorAll('[role=""tab""]').length;
+            return state.tabs?.size === tabCount;
         }", new PageWaitForFunctionOptions { Timeout = 5000 * TimeoutMultiplier });
     }
 
@@ -353,11 +356,18 @@ public abstract class TabsTestsBase : TestBase
     #region Disabled Tab Navigation
 
     [Fact]
-    public virtual async Task DisabledTab_SkippedInKeyboardNavigation()
+    public virtual async Task DisabledTab_CanReceiveKeyboardFocusWithoutActivation()
     {
         await NavigateAsync(CreateUrl("/tests/tabs").WithTab2Disabled(true).Build());
         await WaitForTabsJsAsync();
-        await PerformArrowNavigationAsync("tab-1", "ArrowRight", "tab-3");
+
+        await GetTab("1").FocusAsync();
+        await WaitForDelayAsync(100);
+        await Page.Keyboard.PressAsync("ArrowRight");
+
+        await Assertions.Expect(GetTab("2")).ToBeFocusedAsync();
+        await Assertions.Expect(GetTab("1")).ToHaveAttributeAsync("aria-selected", "true");
+        await Assertions.Expect(GetTab("2")).ToHaveAttributeAsync("aria-selected", "false");
     }
 
     [Fact]
@@ -374,9 +384,10 @@ public abstract class TabsTestsBase : TestBase
         await Page.Keyboard.PressAsync("ArrowRight");
         await WaitForDelayAsync(300);
 
-        // Should skip disabled tab2 and activate tab3
-        await Assertions.Expect(GetTab("3")).ToHaveAttributeAsync("aria-selected", "true");
+        await Assertions.Expect(GetTab("2")).ToBeFocusedAsync();
+        await Assertions.Expect(GetTab("1")).ToHaveAttributeAsync("aria-selected", "true");
         await Assertions.Expect(GetTab("2")).ToHaveAttributeAsync("aria-selected", "false");
+        await Assertions.Expect(GetTab("3")).ToHaveAttributeAsync("aria-selected", "false");
     }
 
     [Fact]
@@ -435,6 +446,26 @@ public abstract class TabsTestsBase : TestBase
 
     #endregion
 
+    #region Modifier Keys
+
+    [Fact]
+    public virtual async Task ModifierArrow_DoesNotMoveFocus()
+    {
+        await NavigateAsync(CreateUrl("/tests/tabs").Build());
+        await WaitForTabsJsAsync();
+
+        var tab1 = GetTab("1");
+        await tab1.FocusAsync();
+        await WaitForDelayAsync(100);
+        await Page.Keyboard.PressAsync("Shift+ArrowRight");
+        await WaitForDelayAsync(200);
+
+        await Assertions.Expect(tab1).ToBeFocusedAsync();
+        await Assertions.Expect(GetTab("2")).ToHaveAttributeAsync("aria-selected", "false");
+    }
+
+    #endregion
+
     #region Activation Direction
 
     [Fact]
@@ -481,9 +512,12 @@ public abstract class TabsTestsBase : TestBase
         await WaitForDelayAsync(500);
 
         var indicator = GetIndicator();
-        await Assertions.Expect(indicator).ToBeVisibleAsync();
+        await Assertions.Expect(indicator).ToBeAttachedAsync();
+        await Assertions.Expect(indicator).ToHaveAttributeAsync(
+            "style",
+            new System.Text.RegularExpressions.Regex("--active-tab-left"));
         var style = await indicator.GetAttributeAsync("style");
-        Assert.NotNull(style);
+        Assert.Contains("--active-tab-width", style);
     }
 
     [Fact]
@@ -505,19 +539,15 @@ public abstract class TabsTestsBase : TestBase
     [Fact]
     public virtual async Task Indicator_HiddenWhenNoActiveTab()
     {
-        // Use a non-matching defaultValue so no tab is active.
-        // With defaultValue="tab1" the component honors it even when all tabs are disabled,
-        // so the indicator would render with a valid position.
+        // Use an explicit null default value so no tab is active.
         await NavigateAsync(CreateUrl("/tests/tabs")
             .WithShowIndicator(true)
-            .WithTabsDefaultValue("none")
+            .WithTabsDefaultValue("null")
             .Build());
         await WaitForTabsJsAsync();
         await WaitForDelayAsync(500);
 
-        // The indicator should be hidden because no tab matches "none"
-        var indicator = GetIndicator();
-        await Assertions.Expect(indicator).ToHaveAttributeAsync("hidden", "");
+        await Assertions.Expect(GetIndicator()).Not.ToBeAttachedAsync();
     }
 
     #endregion
@@ -556,6 +586,177 @@ public abstract class TabsTestsBase : TestBase
         await Assertions.Expect(GetPanel("1")).ToBeVisibleAsync();
         await Assertions.Expect(GetPanel("2")).ToBeHiddenAsync();
         await Assertions.Expect(GetPanel("3")).ToBeHiddenAsync();
+    }
+
+    [Fact]
+    public virtual async Task Panel_NoAnimationSwitch_KeepsOneVisiblePanelThroughoutSwitch()
+    {
+        await NavigateAsync(CreateUrl("/tests/tabs").Build());
+        await WaitForTabsJsAsync();
+
+        var invalidVisiblePanelCountWasObserved = await Page.EvaluateAsync<bool>(
+            @"async () => {
+                const tab = document.querySelector('[data-testid=""tab-2""]');
+                tab.click();
+
+                const isVisiblePanel = (panel) => {
+                    if (panel.hidden) return false;
+                    const style = getComputedStyle(panel);
+                    return style.display !== 'none' && style.visibility !== 'hidden';
+                };
+
+                const deadline = performance.now() + 500;
+                while (performance.now() < deadline) {
+                    const visiblePanels = Array
+                        .from(document.querySelectorAll('[role=""tabpanel""]'))
+                        .filter(isVisiblePanel);
+
+                    if (visiblePanels.length !== 1) {
+                        return true;
+                    }
+
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                }
+
+                return false;
+            }");
+
+        Assert.False(invalidVisiblePanelCountWasObserved);
+    }
+
+    [Fact]
+    public virtual async Task Panel_AnimatedSwitch_KeepsExitingPanelVisibleUntilAnimationCompletes()
+    {
+        await NavigateAsync(CreateUrl("/tests/tabs").Build());
+        await WaitForTabsJsAsync();
+
+        await Page.AddStyleTagAsync(new PageAddStyleTagOptions
+        {
+            Content = @"
+@keyframes tabs-panel-exit {
+    from { opacity: 1; }
+    to { opacity: 0.5; }
+}
+
+[data-testid=""panel-1""][data-ending-style] {
+    animation: tabs-panel-exit 500ms linear;
+}"
+        });
+
+        await GetTab("2").ClickAsync();
+
+        await Assertions.Expect(GetPanel("1")).ToHaveAttributeAsync("data-ending-style", "");
+        await Assertions.Expect(GetPanel("1")).ToBeVisibleAsync();
+
+        await WaitForDelayAsync(650);
+
+        await Assertions.Expect(GetPanel("1")).ToBeHiddenAsync();
+        await Assertions.Expect(GetPanel("2")).ToBeVisibleAsync();
+    }
+
+    [Fact]
+    public virtual async Task Panel_StaleExitAnimationCompletion_DoesNotHideReopenedPanel()
+    {
+        await NavigateAsync(CreateUrl("/tests/tabs").Build());
+
+        var staleCompletionHidReopenedPanel = await Page.EvaluateAsync<bool>(
+            @"async () => {
+                const module = await import('/_content/BlazorBaseUI/blazor-baseui-tabs.js');
+                const panel = document.createElement('div');
+                document.body.appendChild(panel);
+
+                let resolveFirstAnimation;
+                let animationReadCount = 0;
+                panel.getAnimations = () => {
+                    animationReadCount += 1;
+                    if (animationReadCount <= 2) {
+                        return [{
+                            finished: new Promise((resolve) => { resolveFirstAnimation = resolve; }),
+                            pending: false,
+                            playState: 'running',
+                        }];
+                    }
+
+                    return [];
+                };
+
+                const dotNetRef = { invokeMethodAsync: async () => {} };
+
+                module.startPanelTransition(panel, dotNetRef, false);
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+
+                module.startPanelTransition(panel, dotNetRef, true);
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+
+                resolveFirstAnimation();
+                await Promise.resolve();
+                await Promise.resolve();
+
+                const wasHiddenByStaleCompletion = panel.hidden;
+                panel.remove();
+                return wasHiddenByStaleCompletion;
+            }");
+
+        Assert.False(staleCompletionHidReopenedPanel);
+    }
+
+    [Fact]
+    public virtual async Task Panel_ExternalNoMotionSwitch_HidesOutgoingPanel()
+    {
+        await NavigateAsync(CreateUrl("/tests/tabs").Build());
+
+        var outgoingPanelWasHidden = await Page.EvaluateAsync<bool>(
+            @"async () => {
+                const module = await import('/_content/BlazorBaseUI/blazor-baseui-tabs.js');
+
+                const root = document.createElement('div');
+                const list = document.createElement('div');
+                list.setAttribute('role', 'tablist');
+
+                const tab1 = document.createElement('button');
+                tab1.setAttribute('role', 'tab');
+                tab1.setAttribute('aria-selected', 'true');
+                tab1.setAttribute('aria-controls', 'external-panel-1');
+
+                const tab2 = document.createElement('button');
+                tab2.setAttribute('role', 'tab');
+                tab2.setAttribute('aria-selected', 'false');
+                tab2.setAttribute('aria-controls', 'external-panel-2');
+
+                const panel1 = document.createElement('div');
+                panel1.id = 'external-panel-1';
+                panel1.setAttribute('role', 'tabpanel');
+
+                const panel2 = document.createElement('div');
+                panel2.id = 'external-panel-2';
+                panel2.setAttribute('role', 'tabpanel');
+                panel2.hidden = true;
+                panel2.setAttribute('hidden', '');
+                panel2.setAttribute('data-hidden', '');
+
+                list.append(tab1, tab2);
+                root.append(list, panel1, panel2);
+                document.body.append(root);
+
+                module.initializeList(list, 'horizontal', true, false, 'ltr', { invokeMethodAsync: async () => {} });
+
+                tab1.setAttribute('aria-selected', 'false');
+                tab2.setAttribute('aria-selected', 'true');
+                panel2.hidden = false;
+                panel2.removeAttribute('hidden');
+                panel2.removeAttribute('data-hidden');
+
+                await Promise.resolve();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+
+                const hidden = panel1.hidden;
+                module.disposeList(list);
+                root.remove();
+                return hidden;
+            }");
+
+        Assert.True(outgoingPanelWasHidden);
     }
 
     #endregion
