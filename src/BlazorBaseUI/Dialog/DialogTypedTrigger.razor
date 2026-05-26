@@ -3,6 +3,7 @@
 @typeparam TPayload
 
 @implements IAsyncDisposable
+@implements IComponentHandleSubscriberBase<DialogOpenChangeReason>
 
 <RenderElement TState="DialogTriggerState"
                Tag="button"
@@ -134,23 +135,48 @@
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        var triggerIdChanged = false;
         if (Id is not null && Id != triggerId)
         {
             UnregisterFromCurrentStore(triggerId);
             triggerId = Id;
+            triggerIdChanged = true;
         }
 
         // Handle change of handle parameter
         if (Handle != registeredHandle)
         {
-            registeredHandle?.UnregisterTrigger(triggerId);
+            if (!triggerIdChanged)
+            {
+                UnregisterFromCurrentStore(triggerId);
+            }
+
             registeredHandle = Handle;
-            Handle?.RegisterTrigger(triggerId, Element, Payload);
+            if (Handle is not null)
+            {
+                Handle.Subscribe(this);
+                Handle.RegisterTrigger(triggerId, Element, Payload);
+            }
+            else
+            {
+                RootContext?.RegisterTriggerElement(triggerId, Element);
+            }
         }
         else if (HasHandle)
         {
-            // Update payload on existing handle
-            Handle!.UpdateTriggerPayload(triggerId, Payload);
+            if (triggerIdChanged)
+            {
+                Handle!.RegisterTrigger(triggerId, Element, Payload);
+            }
+            else
+            {
+                // Update payload on existing handle
+                Handle!.UpdateTriggerPayload(triggerId, Payload);
+            }
+        }
+        else if (triggerIdChanged)
+        {
+            RootContext?.RegisterTriggerElement(triggerId, Element);
         }
 
         var open = IsOpenedByThisTrigger();
@@ -200,7 +226,8 @@
 
             if (HasHandle)
             {
-                Handle!.RegisterTrigger(triggerId, Element, Payload);
+                Handle!.Subscribe(this);
+                Handle.RegisterTrigger(triggerId, Element, Payload);
                 registeredHandle = Handle;
             }
             else
@@ -242,6 +269,36 @@
         }
     }
 
+    void IComponentHandleSubscriberBase<DialogOpenChangeReason>.OnTriggerRegistered(string triggerId, ElementReference? element)
+    {
+    }
+
+    void IComponentHandleSubscriberBase<DialogOpenChangeReason>.OnTriggerUnregistered(string triggerId)
+    {
+    }
+
+    void IComponentHandleSubscriberBase<DialogOpenChangeReason>.OnTriggerElementUpdated(string triggerId, ElementReference? element)
+    {
+    }
+
+    void IComponentHandleSubscriberBase<DialogOpenChangeReason>.OnOpenChangeRequested(
+        bool open,
+        DialogOpenChangeReason reason,
+        string? triggerId,
+        string? interactionType)
+    {
+    }
+
+    void IComponentHandleSubscriberBase<DialogOpenChangeReason>.OnStateChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            state = new DialogTriggerState(Disabled, IsOpenedByThisTrigger());
+            BuildComponentAttributes();
+            StateHasChanged();
+        });
+    }
+
     private void BuildComponentAttributes()
     {
         var attrs = new Dictionary<string, object>();
@@ -264,6 +321,10 @@
         if (open && RootContext?.PopupId is not null)
         {
             attrs["aria-controls"] = RootContext.PopupId;
+        }
+        else if (open && Handle?.PopupId is not null)
+        {
+            attrs["aria-controls"] = Handle.PopupId;
         }
 
         attrs["data-popup-open"] = open;
@@ -294,6 +355,7 @@
         if (registeredHandle is not null)
         {
             registeredHandle.UnregisterTrigger(id);
+            registeredHandle.Unsubscribe(this);
         }
         else
         {

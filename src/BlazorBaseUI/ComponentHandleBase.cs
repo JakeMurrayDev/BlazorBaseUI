@@ -49,6 +49,7 @@ public abstract class ComponentHandleBase<TPayload, TReason>
     private bool isOpen;
     private string? activeTriggerId;
     private TPayload? payload;
+    private string? popupId;
 
     /// <summary>
     /// Gets the list of subscribers for derived classes that need direct access.
@@ -69,6 +70,11 @@ public abstract class ComponentHandleBase<TPayload, TReason>
     /// Gets the current payload value.
     /// </summary>
     public TPayload? Payload => payload;
+
+    /// <summary>
+    /// Gets the ID of the popup controlled by this handle.
+    /// </summary>
+    internal string? HandledPopupId => popupId;
 
     /// <summary>
     /// Gets the imperative action reason value for this component's reason enum.
@@ -270,6 +276,20 @@ public abstract class ComponentHandleBase<TPayload, TReason>
     }
 
     /// <summary>
+    /// Called by the root to sync the popup ID to detached triggers.
+    /// </summary>
+    internal void SyncPopupId(string? id)
+    {
+        if (popupId == id)
+        {
+            return;
+        }
+
+        popupId = id;
+        NotifyStateChanged();
+    }
+
+    /// <summary>
     /// Core state change method. Validates, updates active trigger, and notifies subscribers.
     /// </summary>
     protected virtual void SetOpenInternal(bool nextOpen, TReason reason, string? triggerId, string? interactionType = null)
@@ -279,7 +299,7 @@ public abstract class ComponentHandleBase<TPayload, TReason>
             return;
         }
 
-        if (nextOpen && triggerId is not null)
+        if (nextOpen)
         {
             activeTriggerId = triggerId;
             payload = GetTriggerPayload(triggerId);

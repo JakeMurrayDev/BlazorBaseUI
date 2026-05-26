@@ -31,10 +31,12 @@
     private int nestedCount;
     private string? titleId;
     private string? descriptionId;
+    private string? popupId;
     private string? activeTriggerId;
     private ElementReference? popupElement;
     private DialogOpenChangeReason openChangeReason = DialogOpenChangeReason.None;
     private object? payload;
+    private bool pendingPayloadRerender;
     private DialogRootState state;
     private DialogRootContext context = null!;
     private DotNetObjectReference<DialogRoot>? dotNetRef;
@@ -164,6 +166,7 @@
             TransitionStatus = transition.TransitionStatus,
             TitleId = titleId,
             DescriptionId = descriptionId,
+            PopupId = popupId,
             ActiveTriggerId = activeTriggerId,
             Payload = payload,
             GetOpen = () => CurrentOpen,
@@ -173,6 +176,7 @@
             GetPopupElement = () => popupElement,
             SetTitleId = SetTitleId,
             SetDescriptionId = SetDescriptionId,
+            SetPopupId = SetPopupId,
             RegisterTriggerElement = RegisterTriggerElement,
             UnregisterTriggerElement = UnregisterTriggerElement,
             SetPopupElement = SetPopupElement,
@@ -239,6 +243,7 @@
         {
             activeTriggerId = TriggerId;
             context.ActiveTriggerId = activeTriggerId;
+            UpdatePayloadFromActiveTrigger();
         }
 
         context.Modal = Modal;
@@ -254,6 +259,7 @@
         {
             UnsubscribeFromHandle();
             SubscribeToHandle();
+            SyncHandlePopupId();
         }
     }
 
@@ -277,6 +283,12 @@
                 {
                     _ = ex; // Expected during circuit disconnect - safe to ignore.
                 }
+            }
+
+            if (pendingPayloadRerender)
+            {
+                pendingPayloadRerender = false;
+                StateHasChanged();
             }
         }
         else if (pendingOpenChange)
@@ -485,8 +497,7 @@
 
         if (activeTriggerId == triggerId && CurrentOpen)
         {
-            payload = triggerPayload;
-            context.Payload = payload;
+            UpdatePayload(triggerPayload, rerender: true);
         }
     }
 
@@ -532,6 +543,13 @@
     {
         descriptionId = id;
         context.DescriptionId = id;
+    }
+
+    private void SetPopupId(string? id)
+    {
+        popupId = id;
+        context.PopupId = id;
+        SyncHandlePopupId();
     }
 
     private async Task SetTriggerElementJsAsync(ElementReference element)
@@ -681,8 +699,15 @@
 
     private async Task SetOpenWithPayloadAsync(object? newPayload, DialogOpenChangeReason reason)
     {
-        payload = newPayload;
-        context.Payload = newPayload;
+        UpdatePayload(newPayload, rerender: false);
+
+        if (CurrentOpen)
+        {
+            SyncHandleState(true, activeTriggerId);
+            StateHasChanged();
+            return;
+        }
+
         await SetOpenAsync(true, reason);
     }
 
@@ -707,8 +732,25 @@
             }
         }
 
-        payload = newPayload;
-        context.Payload = newPayload;
+        UpdatePayload(newPayload, rerender: false);
+
+        if (CurrentOpen)
+        {
+            SyncHandleState(true, activeTriggerId);
+
+            if (hasRendered && activeTriggerId is not null)
+            {
+                var triggerElement = GetTriggerElement();
+                if (triggerElement.HasValue)
+                {
+                    _ = SetTriggerElementJsAsync(triggerElement.Value);
+                }
+            }
+
+            StateHasChanged();
+            return;
+        }
+
         await SetOpenAsync(true, reason);
     }
 
@@ -787,6 +829,11 @@
         Handle?.SyncState(open, triggerId, payload);
     }
 
+    private void SyncHandlePopupId()
+    {
+        Handle?.SyncPopupId(popupId);
+    }
+
     private object? GetPayloadFromHandle(string triggerId)
     {
         return Handle?.GetTriggerPayloadAsObject(triggerId);
@@ -795,5 +842,50 @@
     private ElementReference? GetTriggerElementFromHandle(string triggerId)
     {
         return Handle?.GetTriggerElement(triggerId);
+    }
+
+    private void UpdatePayloadFromActiveTrigger()
+    {
+        if (!CurrentOpen || activeTriggerId is null)
+        {
+            return;
+        }
+
+        var handlePayload = GetPayloadFromHandle(activeTriggerId);
+        if (handlePayload is not null)
+        {
+            UpdatePayload(handlePayload, rerender: true);
+            return;
+        }
+
+        if (triggerPayloads.TryGetValue(activeTriggerId, out var triggerPayload))
+        {
+            UpdatePayload(triggerPayload, rerender: true);
+        }
+    }
+
+    private void UpdatePayload(object? nextPayload, bool rerender)
+    {
+        if (Equals(payload, nextPayload))
+        {
+            return;
+        }
+
+        payload = nextPayload;
+        context.Payload = nextPayload;
+
+        if (!rerender)
+        {
+            return;
+        }
+
+        if (hasRendered)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else
+        {
+            pendingPayloadRerender = true;
+        }
     }
 }

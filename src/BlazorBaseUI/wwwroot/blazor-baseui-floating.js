@@ -2669,6 +2669,9 @@ function createFocusOutHandler(mgr, interactionCtx) {
         queueMicrotask(() => {
             // Suppress during pointer interactions
             if (interactionCtx?.isPointerDown) return;
+            if (mgr.floatingElement?.__blazorBaseUISuppressFocusOutOnce) {
+                return;
+            }
 
             const relatedTarget = event.relatedTarget;
 

@@ -346,6 +346,224 @@ public class DialogRootTests : BunitContext, IDialogRootContract
     }
 
     [Fact]
+    public async Task HandleOpenAllowsMissingTriggerIdAndOpensWithoutAssociation()
+    {
+        var handle = new DialogHandle<string>();
+
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogRoot>(0);
+            builder.AddAttribute(1, "Handle", (IDialogHandle)handle);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => b =>
+            {
+                b.OpenComponent<DialogPortal>(0);
+                b.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "data-testid", "dialog-popup");
+                    portalBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.AddContent(0, "Dialog content");
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                b.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
+
+        await cut.InvokeAsync(() => handle.Open("missing-trigger"));
+
+        cut.WaitForAssertion(() => cut.Find("[data-testid='dialog-popup']").ShouldNotBeNull());
+        handle.ActiveTriggerId.ShouldBe("missing-trigger");
+    }
+
+    [Fact]
+    public async Task HandleOpenNullOpensWithoutTriggerAssociation()
+    {
+        var handle = new DialogHandle<string>();
+
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogRoot>(0);
+            builder.AddAttribute(1, "Handle", (IDialogHandle)handle);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => b =>
+            {
+                b.OpenComponent<DialogPortal>(0);
+                b.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "data-testid", "dialog-popup");
+                    portalBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.AddContent(0, "Dialog content");
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                b.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
+
+        await cut.InvokeAsync(() => handle.Open(null));
+
+        cut.WaitForAssertion(() => cut.Find("[data-testid='dialog-popup']").ShouldNotBeNull());
+        handle.ActiveTriggerId.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task HandleOpenWithPayloadUpdatesPayloadWhileAlreadyOpen()
+    {
+        var handle = new DialogHandle<string>();
+
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogRoot>(0);
+            builder.AddAttribute(1, "Handle", (IDialogHandle)handle);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(ctx => b =>
+            {
+                b.OpenComponent<DialogPortal>(0);
+                b.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "data-testid", "dialog-popup");
+                    portalBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenElement(0, "span");
+                        popupBuilder.AddAttribute(1, "data-testid", "payload");
+                        popupBuilder.AddContent(2, ctx.Payload);
+                        popupBuilder.CloseElement();
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                b.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
+
+        await cut.InvokeAsync(() => handle.OpenWithPayload("first"));
+        cut.WaitForAssertion(() => cut.Find("[data-testid='payload']").TextContent.ShouldBe("first"));
+
+        await cut.InvokeAsync(() => handle.OpenWithPayload("second"));
+
+        cut.WaitForAssertion(() => cut.Find("[data-testid='payload']").TextContent.ShouldBe("second"));
+    }
+
+    [Fact]
+    public Task ClickingDifferentTriggerWhileOpenSwitchesActivePayloadWithoutClosing()
+    {
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogRoot>(0);
+            builder.AddAttribute(1, "Modal", BlazorBaseUI.Dialog.DialogModalMode.False);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(ctx => b =>
+            {
+                b.OpenComponent<DialogTypedTrigger<int>>(0);
+                b.AddAttribute(1, "Id", "trigger-1");
+                b.AddAttribute(2, "Payload", 1);
+                b.AddAttribute(3, "data-testid", "trigger-1");
+                b.AddAttribute(4, "ChildContent", (RenderFragment)(triggerBuilder => triggerBuilder.AddContent(0, "One")));
+                b.CloseComponent();
+
+                b.OpenComponent<DialogTypedTrigger<int>>(10);
+                b.AddAttribute(11, "Id", "trigger-2");
+                b.AddAttribute(12, "Payload", 2);
+                b.AddAttribute(13, "data-testid", "trigger-2");
+                b.AddAttribute(14, "ChildContent", (RenderFragment)(triggerBuilder => triggerBuilder.AddContent(0, "Two")));
+                b.CloseComponent();
+
+                b.OpenComponent<DialogPortal>(20);
+                b.AddAttribute(21, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "data-testid", "dialog-popup");
+                    portalBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenElement(0, "span");
+                        popupBuilder.AddAttribute(1, "data-testid", "payload");
+                        popupBuilder.AddContent(2, ctx.Payload);
+                        popupBuilder.CloseElement();
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                b.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
+
+        cut.Find("[data-testid='trigger-1']").Click();
+        cut.Find("[data-testid='payload']").TextContent.ShouldBe("1");
+
+        var popupId = cut.Find("[data-testid='dialog-popup']").GetAttribute("id");
+        popupId.ShouldNotBeNullOrEmpty();
+
+        cut.Find("[data-testid='trigger-2']").Click();
+
+        cut.Find("[data-testid='payload']").TextContent.ShouldBe("2");
+        cut.Find("[data-testid='dialog-popup']").GetAttribute("id").ShouldBe(popupId);
+        cut.Find("[data-testid='trigger-1']").GetAttribute("aria-expanded").ShouldBe("false");
+        cut.Find("[data-testid='trigger-2']").GetAttribute("aria-expanded").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ControlledTriggerIdSelectsPayloadOnInitialOpen()
+    {
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogRoot>(0);
+            builder.AddAttribute(1, "Open", true);
+            builder.AddAttribute(2, "TriggerId", "trigger-2");
+            builder.AddAttribute(3, "Modal", BlazorBaseUI.Dialog.DialogModalMode.False);
+            builder.AddAttribute(4, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(ctx => b =>
+            {
+                b.OpenComponent<DialogTypedTrigger<int>>(0);
+                b.AddAttribute(1, "Id", "trigger-1");
+                b.AddAttribute(2, "Payload", 1);
+                b.AddAttribute(3, "ChildContent", (RenderFragment)(triggerBuilder => triggerBuilder.AddContent(0, "One")));
+                b.CloseComponent();
+
+                b.OpenComponent<DialogTypedTrigger<int>>(10);
+                b.AddAttribute(11, "Id", "trigger-2");
+                b.AddAttribute(12, "Payload", 2);
+                b.AddAttribute(13, "ChildContent", (RenderFragment)(triggerBuilder => triggerBuilder.AddContent(0, "Two")));
+                b.CloseComponent();
+
+                b.OpenComponent<DialogPortal>(20);
+                b.AddAttribute(21, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(popupBuilder =>
+                    {
+                        popupBuilder.OpenElement(0, "span");
+                        popupBuilder.AddAttribute(1, "data-testid", "payload");
+                        popupBuilder.AddContent(2, ctx.Payload);
+                        popupBuilder.CloseElement();
+                    }));
+                    portalBuilder.CloseComponent();
+                }));
+                b.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
+
+        cut.Find("[data-testid='payload']").TextContent.ShouldBe("2");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task OnFocusOutClosesNonModalDialog()
     {
         BlazorBaseUI.Dialog.DialogOpenChangeReason? capturedReason = null;

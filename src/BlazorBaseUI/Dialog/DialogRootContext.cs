@@ -35,6 +35,8 @@ internal sealed class DialogRootContext
 
     public string? PopupId { get; set; }
 
+    public Action<string?> SetPopupId { get; set; } = null!;
+
     public string? ActiveTriggerId { get; set; }
 
     public bool PreventUnmountingOnClose { get; set; }

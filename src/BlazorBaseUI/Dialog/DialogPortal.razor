@@ -6,7 +6,7 @@
         <Portal Target="@Container">
             @if (Context.Mounted && Context.Modal == DialogModalMode.True)
             {
-                <InternalBackdrop Inert="@(!Context.Open)" @ref="internalBackdropRef" />
+                <InternalBackdrop Inert="@(!Context.Open)" PointerEvents="none" @ref="internalBackdropRef" />
             }
             @ChildContent
         </Portal>

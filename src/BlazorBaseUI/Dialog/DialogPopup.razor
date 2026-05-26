@@ -115,7 +115,7 @@
             throw new InvalidOperationException("DialogPopup must be used within a DialogPortal.");
         }
 
-        Context.PopupId = popupId;
+        Context.SetPopupId(popupId);
         state = new DialogPopupState(Context.Open, Context.TransitionStatus, Context.Nested, Context.NestedDialogCount > 0);
         UpdateShouldRender();
         UpdateComputedStyleValue();
@@ -212,6 +212,7 @@
             }
         }
 
+        Context?.SetPopupId(null);
     }
 
     private async Task SetInitialFocusElementAsync(string? mode, ElementReference? element)
