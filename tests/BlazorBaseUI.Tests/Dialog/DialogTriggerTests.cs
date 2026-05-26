@@ -250,4 +250,49 @@ public class DialogTriggerTests : BunitContext, IDialogTriggerContract
 
         return Task.CompletedTask;
     }
+
+    [Fact]
+    public Task DetachedTriggerSetsAriaControlsWhenItOpensHandledDialog()
+    {
+        var handle = new DialogHandle<object?>();
+
+        RenderFragment fragment = builder =>
+        {
+            builder.OpenComponent<DialogTrigger>(0);
+            builder.AddAttribute(1, "Handle", handle);
+            builder.AddAttribute(2, "Id", "detached-trigger");
+            builder.AddAttribute(3, "data-testid", "detached-trigger");
+            builder.AddAttribute(4, "ChildContent", (RenderFragment)(triggerBuilder => triggerBuilder.AddContent(0, "Open")));
+            builder.CloseComponent();
+
+            builder.OpenComponent<DialogRoot>(10);
+            builder.AddAttribute(11, "Handle", (IDialogHandle)handle);
+            builder.AddAttribute(12, "Modal", BlazorBaseUI.Dialog.DialogModalMode.False);
+            builder.AddAttribute(13, "ChildContent", (RenderFragment<DialogRootPayloadContext>)(_ => rootBuilder =>
+            {
+                rootBuilder.OpenComponent<DialogPortal>(0);
+                rootBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(portalBuilder =>
+                {
+                    portalBuilder.OpenComponent<DialogPopup>(0);
+                    portalBuilder.AddAttribute(1, "data-testid", "dialog-popup");
+                    portalBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(popupBuilder => popupBuilder.AddContent(0, "Content")));
+                    portalBuilder.CloseComponent();
+                }));
+                rootBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        };
+
+        var cut = Render(fragment);
+
+        cut.Find("[data-testid='detached-trigger']").Click();
+
+        var trigger = cut.Find("[data-testid='detached-trigger']");
+        var popup = cut.Find("[data-testid='dialog-popup']");
+
+        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+        trigger.GetAttribute("aria-controls").ShouldBe(popup.GetAttribute("id"));
+
+        return Task.CompletedTask;
+    }
 }

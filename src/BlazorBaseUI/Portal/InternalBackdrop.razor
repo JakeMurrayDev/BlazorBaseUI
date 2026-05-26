@@ -12,7 +12,7 @@
 <div role="presentation"
      data-blazor-base-ui-inert
      inert="@Inert"
-     style="@BaseStyle"
+     style="@ResolvedStyle"
      @ref="element"
      @attributes="AdditionalAttributes" />
 
@@ -25,6 +25,10 @@
     private ElementReference element;
     private string? backdropId;
     private ElementReference? previousCutout;
+
+    private string ResolvedStyle => string.IsNullOrEmpty(PointerEvents)
+        ? BaseStyle
+        : $"{BaseStyle}pointer-events:{PointerEvents};";
 
     public InternalBackdrop()
     {
@@ -46,6 +50,13 @@
     /// </summary>
     [Parameter]
     public bool Inert { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS pointer-events value for the backdrop.
+    /// Defaults to browser behavior when omitted.
+    /// </summary>
+    [Parameter]
+    public string? PointerEvents { get; set; }
 
     /// <summary>
     /// Gets or sets a collection of additional attributes that will be applied to the created element.

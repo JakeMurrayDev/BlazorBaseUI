@@ -308,18 +308,19 @@ function setupOutsideClickListener(rootState) {
         const clickedOnTrigger = triggerElement && triggerElement.contains(target);
 
         if (!clickedInsidePopup && !clickedOnTrigger && rootState.dotNetRef) {
+            suppressNextFocusOut(rootState);
             rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
         }
     };
 
     // Use a small delay to avoid catching the click that opened the dialog
     const timeoutId = setTimeout(() => {
-        document.addEventListener('pointerdown', handleOutsideClick);
+        document.addEventListener('pointerdown', handleOutsideClick, true);
     }, 0);
 
     rootState.outsideClickCleanup = () => {
         clearTimeout(timeoutId);
-        document.removeEventListener('pointerdown', handleOutsideClick);
+        document.removeEventListener('pointerdown', handleOutsideClick, true);
     };
 }
 
@@ -340,6 +341,18 @@ function isOutsideDialog(rootState, target) {
            !(triggerElement && triggerElement.contains(target));
 }
 
+function suppressNextFocusOut(rootState) {
+    const popupElement = rootState.popupElement;
+    if (!popupElement) return;
+
+    popupElement.__blazorBaseUISuppressFocusOutOnce = true;
+    setTimeout(() => {
+        if (popupElement.__blazorBaseUISuppressFocusOutOnce) {
+            popupElement.__blazorBaseUISuppressFocusOutOnce = false;
+        }
+    }, 0);
+}
+
 // Source: useDialogRoot.ts outsidePress guard — for modal dialogs, a click whose target is
 // outside the popup dismisses the dialog. Uses capture-phase 'click' event ('intentional'
 // mode in source) so that pointerdown alone does not dismiss.
@@ -354,6 +367,11 @@ function setupBackdropClickListener(rootState) {
         const target = e.composedPath ? e.composedPath()[0] : e.target;
 
         if (isOutsideDialog(rootState, target) && rootState.dotNetRef) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') {
+                e.stopImmediatePropagation();
+            }
             rootState.dotNetRef.invokeMethodAsync('OnOutsidePress').catch(() => { });
         }
     };

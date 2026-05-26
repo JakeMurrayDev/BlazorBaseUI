@@ -19,10 +19,15 @@ public interface IDialogHandle
     string? ActiveTriggerId { get; }
 
     /// <summary>
+    /// Gets the ID of the popup controlled by this handle.
+    /// </summary>
+    internal string? PopupId { get; }
+
+    /// <summary>
     /// Opens the dialog and associates it with the trigger with the given ID.
     /// </summary>
     /// <param name="triggerId">ID of the trigger to associate with the dialog.</param>
-    void Open(string triggerId);
+    void Open(string? triggerId);
 
     /// <summary>
     /// Opens the dialog with a payload without associating a trigger.
@@ -59,6 +64,11 @@ public interface IDialogHandle
     /// Called by root to sync state back to handle after processing.
     /// </summary>
     internal void SyncState(bool open, string? triggerId, object? payload);
+
+    /// <summary>
+    /// Called by root to sync the popup ID back to detached triggers.
+    /// </summary>
+    internal void SyncPopupId(string? popupId);
 }
 
 /// <summary>
@@ -75,16 +85,25 @@ public class DialogHandle<TPayload> : ComponentHandleBase<TPayload, DialogOpenCh
     protected override string ComponentName => "Dialog";
 
     /// <summary>
+    /// Gets the ID of the popup controlled by this handle.
+    /// </summary>
+    internal string? PopupId => HandledPopupId;
+
+    /// <summary>
+    /// Opens the dialog and optionally associates it with the trigger with the given ID.
+    /// </summary>
+    /// <param name="triggerId">ID of the trigger to associate with the dialog, or <see langword="null"/>.</param>
+    public new void Open(string? triggerId)
+    {
+        SetOpenInternal(true, DialogOpenChangeReason.ImperativeAction, triggerId);
+    }
+
+    /// <summary>
     /// Opens the dialog with a payload without associating a trigger.
     /// </summary>
     /// <param name="payload">The payload to pass to the dialog.</param>
     public void OpenWithPayload(TPayload? payload)
     {
-        if (IsOpen)
-        {
-            return;
-        }
-
         foreach (var subscriber in Subscribers.ToArray())
         {
             if (subscriber is IDialogHandleSubscriber dialogSubscriber)
@@ -113,6 +132,12 @@ public class DialogHandle<TPayload> : ComponentHandleBase<TPayload, DialogOpenCh
     /// <inheritdoc />
     void IDialogHandle.SyncState(bool open, string? triggerId, object? payload)
         => SyncState(open, triggerId, payload is TPayload typedPayload ? typedPayload : default);
+
+    /// <inheritdoc />
+    string? IDialogHandle.PopupId => HandledPopupId;
+
+    /// <inheritdoc />
+    void IDialogHandle.SyncPopupId(string? popupId) => SyncPopupId(popupId);
 }
 
 /// <summary>

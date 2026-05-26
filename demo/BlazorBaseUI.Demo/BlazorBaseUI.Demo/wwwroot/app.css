@@ -1,22 +1,34 @@
 :root {
     color-scheme: light;
     font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    font-size: 16px;
     --demo-radius-small: 4px;
     --demo-radius-medium: 6px;
     --demo-radius-large: 8px;
     --demo-motion: 180ms cubic-bezier(.33, 0, .67, 1);
+    --demo-command-height: 56px;
+    --demo-page-max-width: 1200px;
+    --demo-control-height: 32px;
 }
 
+:root,
 [data-theme="light"] {
     color-scheme: light;
-    --demo-bg: #f5f5f5;
+    --demo-bg: #f3f3f3;
     --demo-bg-canvas: #fafafa;
     --demo-surface: #ffffff;
+    --demo-surface-raised: rgba(255, 255, 255, .92);
+    --demo-surface-layer: #fbfbfb;
     --demo-surface-subtle: #f3f2f1;
     --demo-surface-hover: #f5f5f5;
     --demo-surface-selected: #e5f1fb;
+    --demo-control-bg: #ffffff;
+    --demo-control-bg-hover: #f5f5f5;
+    --demo-control-bg-pressed: #e5e5e5;
+    --demo-control-border: #d1d1d1;
     --demo-stroke: #d1d1d1;
     --demo-stroke-subtle: #e0e0e0;
+    --demo-stroke-strong: #bdbdbd;
     --demo-text: #242424;
     --demo-text-muted: #616161;
     --demo-text-subtle: #707070;
@@ -29,9 +41,15 @@
     --demo-focus: #0f6cbd;
     --demo-code-bg: #292827;
     --demo-code-text: #f5f5f5;
+    --demo-accent-subtle: #e5f1fb;
+    --demo-accent-muted: #b4d6fa;
+    --demo-success-bg: #e7f6e7;
+    --demo-warning-bg: #fff4ce;
+    --demo-danger-bg: #fde7e9;
     --demo-shadow-2: 0 1px 2px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
     --demo-shadow-8: 0 4px 8px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
     --demo-shadow-16: 0 8px 16px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+    --demo-shadow-64: 0 32px 64px rgba(0, 0, 0, .18), 0 2px 21px rgba(0, 0, 0, .14);
 }
 
 [data-theme="dark"] {
@@ -39,11 +57,18 @@
     --demo-bg: #11100f;
     --demo-bg-canvas: #1b1a19;
     --demo-surface: #292827;
+    --demo-surface-raised: rgba(41, 40, 39, .9);
+    --demo-surface-layer: #242323;
     --demo-surface-subtle: #242323;
     --demo-surface-hover: #323130;
     --demo-surface-selected: rgba(15, 108, 189, .32);
+    --demo-control-bg: #292827;
+    --demo-control-bg-hover: #323130;
+    --demo-control-bg-pressed: #3b3a39;
+    --demo-control-border: #3b3a39;
     --demo-stroke: #3b3a39;
     --demo-stroke-subtle: #323130;
+    --demo-stroke-strong: #484644;
     --demo-text: #f5f5f5;
     --demo-text-muted: #c8c6c4;
     --demo-text-subtle: #a19f9d;
@@ -56,9 +81,15 @@
     --demo-focus: #479ef5;
     --demo-code-bg: #11100f;
     --demo-code-text: #f5f5f5;
+    --demo-accent-subtle: rgba(71, 158, 245, .18);
+    --demo-accent-muted: rgba(71, 158, 245, .36);
+    --demo-success-bg: rgba(84, 176, 84, .14);
+    --demo-warning-bg: rgba(249, 136, 69, .16);
+    --demo-danger-bg: rgba(255, 153, 164, .16);
     --demo-shadow-2: 0 1px 2px rgba(0, 0, 0, .42), 0 0 2px rgba(0, 0, 0, .36);
     --demo-shadow-8: 0 4px 8px rgba(0, 0, 0, .36), 0 0 2px rgba(0, 0, 0, .32);
     --demo-shadow-16: 0 8px 20px rgba(0, 0, 0, .44), 0 0 2px rgba(0, 0, 0, .36);
+    --demo-shadow-64: 0 32px 64px rgba(0, 0, 0, .48), 0 2px 21px rgba(0, 0, 0, .4);
 }
 
 html,
@@ -89,12 +120,15 @@ h1:focus {
 }
 
 .demo-app-shell {
+    position: relative;
     min-height: 100vh;
     background:
-        radial-gradient(circle at 92% 0, color-mix(in srgb, var(--demo-brand) 18%, transparent), transparent 24rem),
-        linear-gradient(135deg, color-mix(in srgb, var(--demo-brand) 8%, transparent), transparent 30rem),
+        linear-gradient(180deg, color-mix(in srgb, var(--demo-brand) 5%, transparent), transparent 19rem),
         var(--demo-bg-canvas);
     color: var(--demo-text);
+    font-size: 14px;
+    line-height: 20px;
+    text-rendering: geometricPrecision;
 }
 
 .demo-mobile-scrim {
@@ -138,12 +172,12 @@ h1:focus {
     grid-template-columns: minmax(0, auto) minmax(14rem, 34rem) auto;
     gap: 16px;
     align-items: center;
-    min-height: 64px;
+    min-height: var(--demo-command-height);
     border-bottom: 1px solid var(--demo-stroke-subtle);
-    background: color-mix(in srgb, var(--demo-surface) 86%, transparent);
-    padding: 0 18px;
+    background: var(--demo-surface-raised);
+    padding: 0 16px;
     box-shadow: var(--demo-shadow-2);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(24px) saturate(1.25);
 }
 
 .demo-command-bar__left,
@@ -170,11 +204,23 @@ h1:focus {
     justify-content: center;
     width: 36px;
     height: 36px;
-    border: 1px solid var(--demo-stroke);
+    border: 1px solid var(--demo-control-border);
     border-radius: var(--demo-radius-medium);
-    background: var(--demo-surface);
+    background: var(--demo-control-bg);
     color: var(--demo-text);
     box-shadow: var(--demo-shadow-2);
+    cursor: pointer;
+    transition: background var(--demo-motion), border-color var(--demo-motion), box-shadow var(--demo-motion), transform var(--demo-motion);
+}
+
+.demo-icon-button:hover {
+    border-color: var(--demo-stroke-strong);
+    background: var(--demo-control-bg-hover);
+}
+
+.demo-icon-button:active {
+    background: var(--demo-control-bg-pressed);
+    transform: translateY(1px);
 }
 
 .demo-mobile-menu-button {
@@ -244,9 +290,9 @@ h1:focus {
     min-width: 0;
     height: 34px;
     gap: 9px;
-    border: 1px solid var(--demo-stroke);
+    border: 1px solid var(--demo-control-border);
     border-radius: var(--demo-radius-medium);
-    background: var(--demo-surface);
+    background: var(--demo-control-bg);
     color: var(--demo-text-subtle);
     padding: 0 11px;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--demo-surface) 70%, transparent);
@@ -266,9 +312,9 @@ h1:focus {
     align-items: center;
     gap: 6px;
     min-height: 26px;
-    border: 1px solid var(--demo-stroke);
+    border: 1px solid var(--demo-control-border);
     border-radius: 999px;
-    background: var(--demo-surface);
+    background: var(--demo-control-bg);
     color: var(--demo-text-muted);
     padding: 0 10px;
     font-size: 12px;
@@ -289,7 +335,7 @@ h1:focus {
     align-items: center;
     width: 42px;
     height: 24px;
-    border: 1px solid var(--demo-stroke);
+    border: 1px solid var(--demo-control-border);
     border-radius: 999px;
     background: var(--demo-surface-subtle);
     padding: 2px;
@@ -317,11 +363,11 @@ h1:focus {
 }
 
 .demo-main {
-    padding: 28px 18px 48px;
+    padding: 24px 18px 48px;
 }
 
 .demo-main__inner {
-    width: min(100%, 1180px);
+    width: min(100%, var(--demo-page-max-width));
     margin: 0 auto;
 }
 
@@ -330,9 +376,9 @@ h1:focus {
     flex-direction: column;
     height: 100%;
     border-right: 1px solid var(--demo-stroke-subtle);
-    background: color-mix(in srgb, var(--demo-surface) 88%, transparent);
+    background: var(--demo-surface-raised);
     box-shadow: var(--demo-shadow-8);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(24px) saturate(1.2);
 }
 
 .demo-nav__header {
@@ -357,7 +403,7 @@ h1:focus {
     font-size: 11px;
     line-height: 14px;
     font-weight: 600;
-    letter-spacing: .02em;
+    letter-spacing: 0;
 }
 
 .demo-nav__scroll {
@@ -378,16 +424,17 @@ h1:focus {
 }
 
 .demo-nav__link {
+    position: relative;
     display: flex;
     align-items: center;
     min-height: 32px;
     border-radius: var(--demo-radius-medium);
     color: var(--demo-text-muted);
-    padding: 0 12px;
+    padding: 0 12px 0 14px;
     text-decoration: none;
     font-size: 13px;
     line-height: 18px;
-    transition: background var(--demo-motion), color var(--demo-motion);
+    transition: background var(--demo-motion), color var(--demo-motion), box-shadow var(--demo-motion);
 }
 
 .demo-nav__link:hover {
@@ -399,6 +446,15 @@ h1:focus {
     background: var(--demo-surface-selected);
     color: var(--demo-text);
     font-weight: 600;
+}
+
+.demo-nav__link--active::before {
+    content: "";
+    position: absolute;
+    inset: 7px auto 7px 5px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--demo-brand);
 }
 
 .demo-nav__link--disabled {
@@ -418,17 +474,27 @@ h1:focus {
 .demo-home__catalog-group {
     border: 1px solid var(--demo-stroke-subtle);
     border-radius: var(--demo-radius-large);
-    background: color-mix(in srgb, var(--demo-surface) 92%, transparent);
+    background: var(--demo-surface-raised);
     box-shadow: var(--demo-shadow-8);
-    backdrop-filter: blur(18px);
+    backdrop-filter: blur(24px) saturate(1.2);
 }
 
 .demo-showcase__header {
+    position: relative;
+    overflow: hidden;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 20px;
     align-items: end;
     padding: 22px;
+}
+
+.demo-showcase__header::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, var(--demo-brand), color-mix(in srgb, var(--demo-brand) 28%, transparent));
 }
 
 .demo-showcase__title-group {
@@ -463,6 +529,13 @@ h1:focus {
     margin-top: 2px;
 }
 
+.demo-page-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
 .demo-chip__dot {
     width: 7px;
     height: 7px;
@@ -487,7 +560,7 @@ h1:focus {
     display: inline-grid;
     grid-template-columns: 1fr 1fr;
     gap: 2px;
-    border: 1px solid var(--demo-stroke);
+    border: 1px solid var(--demo-control-border);
     border-radius: var(--demo-radius-medium);
     background: var(--demo-surface-subtle);
     padding: 2px;
@@ -495,7 +568,7 @@ h1:focus {
 
 .demo-render-tab {
     min-width: 78px;
-    min-height: 30px;
+    min-height: var(--demo-control-height);
     border-radius: var(--demo-radius-small);
     color: var(--demo-text-muted);
     padding: 0 12px;
@@ -516,7 +589,7 @@ h1:focus {
 
 .demo-section {
     display: grid;
-    gap: 14px;
+    gap: 16px;
     padding: 18px;
 }
 
@@ -534,12 +607,16 @@ h1:focus {
 }
 
 .demo-section__preview {
+    position: relative;
+    overflow: hidden;
     min-height: 150px;
     border: 1px solid var(--demo-stroke);
     border-radius: var(--demo-radius-large);
     background:
-        linear-gradient(135deg, color-mix(in srgb, var(--demo-brand) 5%, transparent), transparent 18rem),
+        linear-gradient(90deg, color-mix(in srgb, var(--demo-stroke-subtle) 42%, transparent) 1px, transparent 1px),
+        linear-gradient(180deg, color-mix(in srgb, var(--demo-stroke-subtle) 42%, transparent) 1px, transparent 1px),
         var(--demo-surface);
+    background-size: 24px 24px, 24px 24px, auto;
     padding: 24px;
 }
 
@@ -612,15 +689,17 @@ h1:focus {
 }
 
 .demo-button {
-    min-height: 34px;
-    border: 1px solid var(--demo-stroke);
+    min-height: var(--demo-control-height);
+    border: 1px solid var(--demo-control-border);
     border-radius: var(--demo-radius-medium);
-    background: var(--demo-surface);
+    background: var(--demo-control-bg);
     color: var(--demo-text);
     padding: 0 14px;
     font-size: 13px;
     font-weight: 600;
     box-shadow: var(--demo-shadow-2);
+    cursor: pointer;
+    transition: background var(--demo-motion), border-color var(--demo-motion), transform var(--demo-motion);
 }
 
 .demo-button--primary {
@@ -631,6 +710,11 @@ h1:focus {
 
 .demo-button:hover {
     border-color: var(--demo-brand-hover);
+    background: var(--demo-control-bg-hover);
+}
+
+.demo-button:active {
+    transform: translateY(1px);
 }
 
 .demo-home__preview {
@@ -638,7 +722,7 @@ h1:focus {
     gap: 12px;
     border: 1px solid var(--demo-stroke);
     border-radius: var(--demo-radius-large);
-    background: var(--demo-surface);
+    background: var(--demo-surface-layer);
     box-shadow: var(--demo-shadow-2);
     padding: 14px;
 }
@@ -676,7 +760,7 @@ h1:focus {
 .demo-home__mini-card {
     border: 1px solid var(--demo-stroke-subtle);
     border-radius: var(--demo-radius-medium);
-    background: var(--demo-surface-subtle);
+    background: var(--demo-surface);
     padding: 12px;
 }
 
@@ -764,31 +848,126 @@ h1:focus {
     color: var(--demo-text);
 }
 
-[data-theme="dark"] .demo-section .bg-white,
-[data-theme="dark"] .demo-section .bg-gray-50,
-[data-theme="dark"] .demo-section .bg-gray-100 {
+:is(.demo-app-shell, body[data-theme]) :where(.bg-white, .bg-slate-50) {
     background-color: var(--demo-surface) !important;
 }
 
-[data-theme="dark"] .demo-section .text-gray-900,
-[data-theme="dark"] .demo-section .text-slate-900,
-[data-theme="dark"] .demo-section .text-gray-700,
-[data-theme="dark"] .demo-section .text-slate-700 {
+:is(.demo-app-shell, body[data-theme]) :where(.bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-gray-300, .bg-slate-100, .bg-blue-50, .bg-blue-100, .bg-indigo-50, .bg-indigo-100) {
+    background-color: var(--demo-surface-subtle) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.bg-blue-500, .bg-blue-600, .bg-indigo-500, .bg-indigo-600, .bg-gray-900, .bg-slate-700, .bg-slate-800) {
+    border-color: var(--demo-brand) !important;
+    background-color: var(--demo-brand) !important;
+    color: #fff !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.bg-green-50, .bg-green-100, .bg-emerald-100) {
+    background-color: var(--demo-success-bg) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.bg-amber-100, .bg-yellow-50, .bg-yellow-100, .bg-orange-100) {
+    background-color: var(--demo-warning-bg) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.bg-red-50, .bg-red-100, .bg-rose-100) {
+    background-color: var(--demo-danger-bg) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.bg-red-500, .bg-red-600, .bg-rose-500, .bg-rose-600) {
+    border-color: var(--demo-danger) !important;
+    background-color: var(--demo-danger) !important;
+    color: #fff !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.border-gray-200, .border-gray-300, .border-slate-200, .border-slate-300, .ring-gray-200) {
+    border-color: var(--demo-stroke) !important;
+    --tw-ring-color: var(--demo-stroke-subtle) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.border-blue-500, .border-indigo-500, .focus\:border-blue-500:focus, .focus\:border-indigo-500:focus, .focus-within\:border-indigo-500:focus-within) {
+    border-color: var(--demo-focus) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.border-green-500, .border-emerald-400) {
+    border-color: var(--demo-success) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.border-yellow-500, .border-amber-500, .border-orange-500) {
+    border-color: var(--demo-warning) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.border-red-500, .border-rose-500) {
+    border-color: var(--demo-danger) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.text-gray-900, .text-slate-900, .text-gray-800, .text-slate-800, .text-gray-700, .text-slate-700) {
     color: var(--demo-text) !important;
 }
 
-[data-theme="dark"] .demo-section .text-gray-600,
-[data-theme="dark"] .demo-section .text-slate-600,
-[data-theme="dark"] .demo-section .text-gray-500,
-[data-theme="dark"] .demo-section .text-slate-500 {
+:is(.demo-app-shell, body[data-theme]) :where(.text-gray-600, .text-slate-600, .text-gray-500, .text-slate-500, .text-gray-400, .data-\[disabled\]\:text-gray-400[data-disabled]) {
     color: var(--demo-text-muted) !important;
 }
 
-[data-theme="dark"] .demo-section .border-gray-200,
-[data-theme="dark"] .demo-section .border-gray-300,
-[data-theme="dark"] .demo-section .border-slate-200,
-[data-theme="dark"] .demo-section .border-slate-300 {
-    border-color: var(--demo-stroke) !important;
+:is(.demo-app-shell, body[data-theme]) :where(.text-blue-600, .text-blue-700, .text-indigo-600, .text-indigo-700, .hover\:text-blue-600:hover, .hover\:text-indigo-600:hover, .active\:text-indigo-700:active) {
+    color: var(--demo-brand) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.text-green-600, .text-green-700, .text-green-800, .text-emerald-700) {
+    color: var(--demo-success) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.text-amber-700, .text-orange-700, .text-yellow-600, .text-yellow-700) {
+    color: var(--demo-warning) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.text-red-600, .text-red-700, .text-rose-700) {
+    color: var(--demo-danger) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-200:hover, .hover\:bg-gray-300:hover, .active\:bg-gray-100:active, .active\:bg-gray-200:active) {
+    background-color: var(--demo-control-bg-hover) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.hover\:bg-blue-600:hover, .hover\:bg-blue-700:hover, .hover\:bg-indigo-700:hover, .active\:bg-indigo-100:active, .active\:bg-indigo-800:active, .data-\[highlighted\]\:bg-gray-900[data-highlighted], .data-\[popup-open\]\:bg-gray-100[data-popup-open], .data-\[popup-open\]\:bg-gray-200[data-popup-open]) {
+    background-color: var(--demo-brand-hover) !important;
+    color: #fff !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.hover\:bg-red-700:hover) {
+    background-color: var(--demo-danger) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.hover\:bg-green-700:hover, .hover\:bg-emerald-700:hover) {
+    background-color: var(--demo-success) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.focus\:ring-blue-500:focus, .focus\:ring-indigo-500:focus, .focus-visible\:ring-blue-500:focus-visible, .focus-visible\:ring-indigo-500:focus-visible, .focus-within\:ring-indigo-500:focus-within) {
+    --tw-ring-color: var(--demo-focus) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.focus\:ring-red-500:focus, .focus-visible\:ring-red-500:focus-visible) {
+    --tw-ring-color: var(--demo-danger) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .hover\:shadow-sm:hover) {
+    box-shadow: var(--demo-shadow-8) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.rounded, .rounded-md) {
+    border-radius: var(--demo-radius-medium) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.rounded-lg, .rounded-xl) {
+    border-radius: var(--demo-radius-large) !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.rounded-full) {
+    border-radius: 999px !important;
+}
+
+:is(.demo-app-shell, body[data-theme]) :where(.tracking-tight, .tracking-wide, .tracking-wider) {
+    letter-spacing: 0 !important;
 }
 
 @media (min-width: 1024px) {

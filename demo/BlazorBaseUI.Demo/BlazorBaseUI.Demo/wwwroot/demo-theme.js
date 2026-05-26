@@ -12,6 +12,11 @@ function getShells() {
     return document.querySelectorAll('.demo-app-shell');
 }
 
+function setDocumentTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body?.setAttribute('data-theme', theme);
+}
+
 function getCookieTheme() {
     try {
         const themeCookie = document.cookie
@@ -81,6 +86,7 @@ export function setDemoTheme(theme) {
 
     setCookieTheme(nextTheme);
     setWindowNameTheme(nextTheme);
+    setDocumentTheme(nextTheme);
 
     getShells().forEach((element) => {
         element.setAttribute('data-theme', nextTheme);
