@@ -164,6 +164,47 @@ public abstract class AutocompleteTestsBase : TestBase
     }
 
     [Fact]
+    public virtual async Task TriggerOpenFocusesInputRenderedInsidePopup()
+    {
+        await NavigateAsync(CreateUrl("/tests/autocomplete")
+            .WithAutocompleteInputInsidePopup(true));
+
+        await GetByTestId("outside-button").FocusAsync();
+        await GetByTestId("autocomplete-trigger").ClickAsync();
+        await WaitForAutocompleteOpenAsync();
+
+        var input = GetByTestId("autocomplete-input");
+        await Assertions.Expect(input).ToBeFocusedAsync(
+            new LocatorAssertionsToBeFocusedOptions { Timeout = 5000 * TimeoutMultiplier });
+
+        await input.FillAsync("Che");
+
+        await Assertions.Expect(input).ToHaveValueAsync("Che",
+            new LocatorAssertionsToHaveValueOptions { Timeout = 5000 * TimeoutMultiplier });
+        await Assertions.Expect(GetByTestId("autocomplete-item-cherry")).ToBeVisibleAsync();
+    }
+
+    [Fact]
+    public virtual async Task PopupPointerDownKeepsInputRenderedInsidePopupFocused()
+    {
+        await NavigateAsync(CreateUrl("/tests/autocomplete")
+            .WithAutocompleteInputInsidePopup(true));
+
+        await GetByTestId("autocomplete-trigger").ClickAsync();
+        await WaitForAutocompleteOpenAsync();
+
+        var input = GetByTestId("autocomplete-input");
+        await input.FocusAsync();
+        await Assertions.Expect(input).ToBeFocusedAsync();
+
+        await GetByTestId("autocomplete-panel-padding").ClickAsync();
+
+        await Assertions.Expect(input).ToBeFocusedAsync(
+            new LocatorAssertionsToBeFocusedOptions { Timeout = 5000 * TimeoutMultiplier });
+        await WaitForAutocompleteOpenAsync();
+    }
+
+    [Fact]
     public virtual async Task TabClosesPopupAndAllowsFocusNavigation()
     {
         await NavigateAsync(CreateUrl("/tests/autocomplete"));

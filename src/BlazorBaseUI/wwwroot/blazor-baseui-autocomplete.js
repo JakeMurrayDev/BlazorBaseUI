@@ -33,9 +33,11 @@ function createRootState(rootId, dotNetRef = null) {
     listElement: null,
     popupElement: null,
     positionerElement: null,
+    inputInsidePopup: false,
     inputCleanup: null,
     triggerCleanup: null,
     listCleanup: null,
+    popupCleanup: null,
   };
 }
 
@@ -123,6 +125,48 @@ function cleanupElement(root, key) {
     root[cleanupKey]();
     root[cleanupKey] = null;
   }
+}
+
+function focusInputIfNeeded(root) {
+  if (!root?.isOpen || !root.inputInsidePopup || !root.inputElement) {
+    return;
+  }
+
+  let attempts = 0;
+  const focusInput = () => {
+    requestAnimationFrame(() => {
+      if (
+        !root.isOpen ||
+        !root.inputInsidePopup ||
+        !root.inputElement ||
+        document.activeElement === root.inputElement
+      ) {
+        return;
+      }
+
+      root.inputElement.focus({ preventScroll: true });
+      attempts += 1;
+
+      if (document.activeElement !== root.inputElement && attempts < 5) {
+        window.setTimeout(focusInput, 16);
+      }
+    });
+  };
+
+  window.setTimeout(focusInput);
+}
+
+function preventInputBlur(root, event) {
+  if (!root.inputElement) {
+    return;
+  }
+
+  const target = getTarget(event);
+  if (contains(root.inputElement, target)) {
+    return;
+  }
+
+  event.preventDefault();
 }
 
 function attachKeyboardHandlers(root, element, key) {
@@ -278,10 +322,7 @@ function attachListHandlers(root, element) {
   }
 
   const onPointerDown = (event) => {
-    const target = getTarget(event);
-    if (target?.closest?.('[data-autocomplete-item]')) {
-      event.preventDefault();
-    }
+    preventInputBlur(root, event);
   };
 
   element.addEventListener('pointerdown', onPointerDown);
@@ -295,6 +336,25 @@ function attachListHandlers(root, element) {
   };
 }
 
+function attachPopupHandlers(root, element) {
+  cleanupElement(root, 'popup');
+  if (!element) {
+    return;
+  }
+
+  const onPointerDown = (event) => {
+    preventInputBlur(root, event);
+  };
+
+  element.addEventListener('pointerdown', onPointerDown);
+  element.addEventListener('mousedown', onPointerDown);
+
+  root.popupCleanup = () => {
+    element.removeEventListener('pointerdown', onPointerDown);
+    element.removeEventListener('mousedown', onPointerDown);
+  };
+}
+
 export function initializeRoot(rootId, dotNetRef) {
   initializeDocumentListeners();
   const root = ensureRoot(rootId);
@@ -302,6 +362,7 @@ export function initializeRoot(rootId, dotNetRef) {
   attachKeyboardHandlers(root, root.inputElement, 'input');
   attachTriggerHandlers(root, root.triggerElement);
   attachListHandlers(root, root.listElement);
+  attachPopupHandlers(root, root.popupElement);
 }
 
 export function disposeRoot(rootId) {
@@ -313,18 +374,22 @@ export function disposeRoot(rootId) {
   cleanupElement(root, 'input');
   cleanupElement(root, 'trigger');
   cleanupElement(root, 'list');
+  cleanupElement(root, 'popup');
   state.roots.delete(rootId);
 }
 
 export function setRootOpen(rootId, open) {
   const root = ensureRoot(rootId);
   root.isOpen = open;
+  focusInputIfNeeded(root);
 }
 
-export function setInputElement(rootId, element) {
+export function setInputElement(rootId, element, inputInsidePopup = false) {
   const root = ensureRoot(rootId);
   root.inputElement = element;
+  root.inputInsidePopup = inputInsidePopup;
   attachKeyboardHandlers(root, element, 'input');
+  focusInputIfNeeded(root);
 }
 
 export function syncInputSelection(element, typedValue, inputValue) {
@@ -381,6 +446,7 @@ export function setListElement(rootId, element) {
 export function setPopupElement(rootId, element) {
   const root = ensureRoot(rootId);
   root.popupElement = element;
+  attachPopupHandlers(root, element);
 }
 
 export function setPositionerElement(rootId, element) {

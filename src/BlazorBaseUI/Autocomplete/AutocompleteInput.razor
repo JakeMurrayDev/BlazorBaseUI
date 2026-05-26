@@ -25,6 +25,7 @@
     private Dictionary<string, object> componentAttributes = new();
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private ElementReference? previousElement;
+    private bool? previousIsInsidePopup;
     private bool subscribed;
 
     private Task<IJSObjectReference> ModuleTask => (moduleTask ??= new Lazy<Task<IJSObjectReference>>(() =>
@@ -113,9 +114,11 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         var current = Element;
-        if (RootContext is not null && !Nullable.Equals(previousElement, current))
+        var isInsidePopup = IsInsidePopup;
+        if (RootContext is not null && (!Nullable.Equals(previousElement, current) || previousIsInsidePopup != isInsidePopup))
         {
             previousElement = current;
+            previousIsInsidePopup = isInsidePopup;
             RootContext.SetInputElement(current);
 
             if (current.HasValue)
@@ -123,7 +126,7 @@
                 try
                 {
                     var module = await ModuleTask;
-                    await module.InvokeVoidAsync("setInputElement", RootContext.RootId, current.Value);
+                    await module.InvokeVoidAsync("setInputElement", RootContext.RootId, current.Value, isInsidePopup);
                 }
                 catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
                 {

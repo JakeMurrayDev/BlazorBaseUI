@@ -463,6 +463,12 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithOutsideAboveBackdrop(bool value)
+    {
+        queryParams["outsideAboveBackdrop"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public TestPageUrlBuilder WithSide(string side)
     {
         queryParams["side"] = side;
@@ -1020,6 +1026,12 @@ public sealed class TestPageUrlBuilder
     public TestPageUrlBuilder WithAutocompleteFilterDisabled(bool value)
     {
         queryParams["filterDisabled"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithAutocompleteInputInsidePopup(bool value)
+    {
+        queryParams["inputInsidePopup"] = value.ToString().ToLowerInvariant();
         return this;
     }
 

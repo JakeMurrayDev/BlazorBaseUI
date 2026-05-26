@@ -1,4 +1,5 @@
 @using System.Globalization
+@using BlazorBaseUI
 @using BlazorBaseUI.Autocomplete
 @using BlazorBaseUI.Dialog
 
@@ -440,8 +441,10 @@
                 </DialogTrigger>
                 <DialogPortal>
                     <DialogBackdrop ClassValue="@CommandPaletteBackdropClass" />
-                    <DialogViewport ClassValue="@CommandPaletteViewportClass">
+                    <DialogViewport ClassValue="@CommandPaletteViewportClass"
+                                    StyleValue="@CommandPaletteViewportStyle">
                         <DialogPopup ClassValue="@CommandPalettePopupClass"
+                                     InitialFocus="@CommandPaletteInitialFocus"
                                      aria-label="Command palette">
                             <AutocompleteRoot TValue="CommandPaletteItem"
                                               Open="true"
@@ -451,8 +454,10 @@
                                               AutoHighlight="AutocompleteAutoHighlight.Always"
                                               KeepHighlight
                                               @bind-Value="commandPaletteValue">
-                                <AutocompleteInput Placeholder="Search for apps and commands..."
-                                                   ClassValue="@CommandPaletteInputClass" />
+                                <AutocompleteInput @ref="commandPaletteInput"
+                                                   Placeholder="Search for apps and commands..."
+                                                   ClassValue="@CommandPaletteInputClass"
+                                                   StyleValue="@CommandPaletteInputStyle" />
                                 <DialogClose ClassValue="@CommandPaletteCloseClass">
                                     Close command palette
                                 </DialogClose>
@@ -1096,14 +1101,51 @@
     private string eventValueMessage = "None";
     private string eventHighlightMessage = "None";
     private bool commandPaletteOpen;
+    private AutocompleteInput? commandPaletteInput;
+    private int commandPaletteFocusRequest;
+    private int handledCommandPaletteFocusRequest;
     private string commandPaletteValue = string.Empty;
     private bool gridOpen;
     private string gridTextValue = string.Empty;
     private string gridSearchValue = string.Empty;
     private string virtualizedValue = string.Empty;
 
+    private FocusTarget CommandPaletteInitialFocus =>
+        commandPaletteInput?.Element is { } element
+            ? new FocusTarget.Element(element)
+            : new FocusTarget.Default();
+
     [Parameter]
     public bool IsWasmMode { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (handledCommandPaletteFocusRequest == commandPaletteFocusRequest)
+        {
+            return;
+        }
+
+        var focusRequest = commandPaletteFocusRequest;
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            await Task.Delay(50);
+
+            if (!commandPaletteOpen || focusRequest != commandPaletteFocusRequest)
+            {
+                return;
+            }
+
+            if (commandPaletteInput?.Element is not { } element)
+            {
+                continue;
+            }
+
+            await element.FocusAsync(preventScroll: true);
+            handledCommandPaletteFocusRequest = focusRequest;
+            return;
+        }
+    }
 
     private static string InputGroupClass(AutocompleteInputGroupState state)
     {
@@ -1217,7 +1259,12 @@
 
     private static string CommandPaletteViewportClass(DialogViewportState state)
     {
-        return "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-16 sm:py-20";
+        return "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto";
+    }
+
+    private static string CommandPaletteViewportStyle(DialogViewportState state)
+    {
+        return "box-sizing:border-box;padding:5rem 1rem;";
     }
 
     private static string CommandPalettePopupClass(DialogPopupState state)
@@ -1228,6 +1275,11 @@
     private static string CommandPaletteInputClass(AutocompleteInputState state)
     {
         return "h-11 w-full border-0 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400";
+    }
+
+    private static string CommandPaletteInputStyle(AutocompleteInputState state)
+    {
+        return "box-sizing:border-box;height:2.75rem;";
     }
 
     private static string CommandPaletteCloseClass(DialogCloseState state)
@@ -1603,6 +1655,10 @@
         if (!open)
         {
             commandPaletteValue = string.Empty;
+        }
+        else
+        {
+            commandPaletteFocusRequest++;
         }
     }
 

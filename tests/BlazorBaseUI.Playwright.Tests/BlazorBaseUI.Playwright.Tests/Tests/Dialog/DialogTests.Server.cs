@@ -11,4 +11,25 @@ public class DialogTestsServer : DialogTestsBase, IClassFixture<PlaywrightFixtur
         : base(playwrightFixture)
     {
     }
+
+    /// <summary>
+    /// Tests that a modal dialog closes when the click target is outside the popup,
+    /// even if that target is stacked above the backdrop.
+    /// </summary>
+    [Fact]
+    public async Task OutsideClick_ClosesModalDialogWhenTargetIsAboveBackdrop()
+    {
+        await NavigateAsync(CreateUrl("/tests/dialog")
+            .WithModal(true)
+            .WithShowBackdrop(true)
+            .WithOutsideAboveBackdrop(true));
+
+        await OpenDialogAsync();
+        await WaitForDelayAsync(200);
+
+        var outsideButton = GetByTestId("outside-button");
+        await outsideButton.ClickAsync();
+
+        await WaitForDialogClosedAsync();
+    }
 }

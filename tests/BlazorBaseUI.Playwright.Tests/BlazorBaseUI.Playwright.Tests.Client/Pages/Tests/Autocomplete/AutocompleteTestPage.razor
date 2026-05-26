@@ -20,10 +20,18 @@
                       Name="fruit"
                       OnValueChange="HandleValueChange"
                       OnItemHighlighted="HandleItemHighlighted">
-        <AutocompleteInput data-testid="autocomplete-input" placeholder="Search fruit" />
+        @if (!InputInsidePopup)
+        {
+            <AutocompleteInput data-testid="autocomplete-input" placeholder="Search fruit" />
+        }
         <AutocompleteTrigger data-testid="autocomplete-trigger">Toggle</AutocompleteTrigger>
         <AutocompletePositioner data-testid="autocomplete-positioner">
             <AutocompletePopup data-testid="autocomplete-popup">
+                @if (InputInsidePopup)
+                {
+                    <AutocompleteInput data-testid="autocomplete-input" placeholder="Search fruit" />
+                    <div data-testid="autocomplete-panel-padding" style="height: 12px;"></div>
+                }
                 <AutocompleteEmpty data-testid="autocomplete-empty">No matches</AutocompleteEmpty>
                 <AutocompleteList data-testid="autocomplete-list">
                     <AutocompleteCollection TValue="string" Context="entry">
@@ -76,6 +84,9 @@
 
     [SupplyParameterFromQuery(Name = "filterDisabled")]
     public bool FilterDisabled { get; set; }
+
+    [SupplyParameterFromQuery(Name = "inputInsidePopup")]
+    public bool InputInsidePopup { get; set; }
 
     private string inputValue = "";
     private bool isOpen;
