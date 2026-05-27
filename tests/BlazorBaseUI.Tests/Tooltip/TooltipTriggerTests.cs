@@ -3,6 +3,7 @@ using BlazorBaseUI.Tests.Infrastructure;
 using BlazorBaseUI.Tooltip;
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace BlazorBaseUI.Tests.Tooltip;
 
@@ -145,12 +146,34 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
     }
 
     [Fact]
+    public Task HasBaseUiTooltipTriggerIdentifierWhenEnabled()
+    {
+        var cut = Render(CreateTriggerInRoot());
+
+        var trigger = cut.Find("button");
+        trigger.HasAttribute("data-base-ui-tooltip-trigger").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task HasDisabledAttributeWhenDisabled()
     {
         var cut = Render(CreateTriggerInRoot(triggerDisabled: true));
 
         var trigger = cut.Find("button");
         trigger.HasAttribute("data-trigger-disabled").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task OmitsBaseUiTooltipTriggerIdentifierWhenDisabled()
+    {
+        var cut = Render(CreateTriggerInRoot(triggerDisabled: true));
+
+        var trigger = cut.Find("button");
+        trigger.HasAttribute("data-base-ui-tooltip-trigger").ShouldBeFalse();
 
         return Task.CompletedTask;
     }
@@ -197,6 +220,126 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
     }
 
     [Fact]
+    public Task ForwardsPointerDownHandlerAfterInternalHandling()
+    {
+        var invoked = false;
+        var cut = Render(CreateTriggerInRoot(
+            additionalAttributes: new Dictionary<string, object>
+            {
+                ["onpointerdown"] = EventCallback.Factory.Create<PointerEventArgs>(this, _ => invoked = true)
+            }
+        ));
+
+        var trigger = cut.Find("button");
+        trigger.PointerDown(new PointerEventArgs { PointerType = "mouse" });
+
+        invoked.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task RebindsJsHoverInteractionWhenIdChanges()
+    {
+        var cut = Render<TooltipTriggerIdChangeHost>();
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue());
+
+        await cut.InvokeAsync(() => cut.Instance.SetTriggerId("trigger-two"));
+        await Task.Delay(50);
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "disposeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue());
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-two")).ShouldBeTrue());
+    }
+
+    [Fact]
+    public async Task SerializesJsHoverRebindsWhenIdChangesBeforeDisposeCompletes()
+    {
+        var module = JSInterop.SetupModule("./_content/BlazorBaseUI/blazor-baseui-tooltip.min.js");
+        var delayedDispose = module.SetupVoid("disposeHoverInteraction", invocation =>
+            invocation.Arguments.Count > 1 && Equals(invocation.Arguments[1], "trigger-one"));
+
+        var cut = Render<TooltipTriggerIdChangeHost>();
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue());
+
+        await cut.InvokeAsync(() => cut.Instance.SetTriggerId("trigger-two"));
+        await cut.InvokeAsync(() => cut.Instance.SetTriggerId("trigger-three"));
+        await Task.Delay(50);
+
+        JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "disposeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-two")).ShouldBeFalse();
+
+        delayedDispose.SetVoidResult();
+        await Task.Delay(100);
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "disposeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-two")).ShouldBeTrue());
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-three")).ShouldBeTrue());
+    }
+
+    [Fact]
+    public async Task DisposesHoverInteractionWithInitializedRootIdWhenRootContextClears()
+    {
+        var cut = Render<TooltipTriggerRootContextClearHost>();
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue());
+
+        var initializeInvocation = JSInterop.Invocations.First(invocation =>
+                invocation.Identifier == "initializeHoverInteraction" &&
+                Equals(invocation.Arguments[1], "trigger-one"));
+
+        var initializedRootId = initializeInvocation.Arguments[0];
+        var triggerComponent = cut.FindComponent<TooltipTrigger>();
+
+        await cut.InvokeAsync(() => cut.Instance.ClearRootContext());
+        await triggerComponent.Instance.DisposeAsync();
+        await Task.Delay(50);
+
+        JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "disposeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue();
+
+        var disposeInvocation = JSInterop.Invocations.First(invocation =>
+            invocation.Identifier == "disposeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one"));
+        disposeInvocation.Arguments[0].ShouldBe(initializedRootId);
+    }
+
+    [Fact]
+    public async Task DoesNotReopenOnFocusAfterEscapeClose()
+    {
+        var cut = Render(CreateTriggerInRoot());
+        var trigger = cut.Find("button");
+
+        trigger.Focus();
+        cut.Find("[role='tooltip'][data-open]").ShouldNotBeNull();
+
+        var root = cut.FindComponent<TooltipRoot>();
+        await cut.InvokeAsync(root.Instance.OnEscapeKey);
+
+        cut.WaitForAssertion(() => cut.Find("[role='tooltip']").HasAttribute("data-closed").ShouldBeTrue());
+
+        trigger.Focus();
+
+        cut.Find("[role='tooltip']").HasAttribute("data-open").ShouldBeFalse();
+    }
+
+    [Fact]
     public Task RequiresContext()
     {
         var cut = Render<TooltipTrigger>(parameters => parameters
@@ -206,5 +349,74 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
         cut.Markup.ShouldBeEmpty();
 
         return Task.CompletedTask;
+    }
+}
+
+internal sealed class TooltipTriggerIdChangeHost : ComponentBase
+{
+    private string triggerId = "trigger-one";
+
+    public void SetTriggerId(string id)
+    {
+        triggerId = id;
+        StateHasChanged();
+    }
+
+    protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<TooltipRoot>(0);
+        builder.AddAttribute(1, "ChildContent", (RenderFragment)(innerBuilder =>
+        {
+            innerBuilder.OpenComponent<TooltipTrigger>(0);
+            innerBuilder.AddAttribute(1, "Id", triggerId);
+            innerBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(contentBuilder => contentBuilder.AddContent(0, "Trigger")));
+            innerBuilder.CloseComponent();
+        }));
+        builder.CloseComponent();
+    }
+}
+
+internal sealed class TooltipTriggerRootContextClearHost : ComponentBase
+{
+    private TooltipRootContext? rootContext = CreateRootContext("root-one");
+
+    public void ClearRootContext()
+    {
+        rootContext = null;
+        StateHasChanged();
+    }
+
+    protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<CascadingValue<TooltipRootContext?>>(0);
+        builder.AddAttribute(1, "Value", rootContext);
+        builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+        {
+            innerBuilder.OpenComponent<TooltipTrigger>(0);
+            innerBuilder.AddAttribute(1, "Id", "trigger-one");
+            innerBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(contentBuilder => contentBuilder.AddContent(0, "Trigger")));
+            innerBuilder.CloseComponent();
+        }));
+        builder.CloseComponent();
+    }
+
+    private static TooltipRootContext CreateRootContext(string rootId)
+    {
+        return new TooltipRootContext
+        {
+            RootId = rootId,
+            PopupId = $"{rootId}-popup",
+            GetOpen = () => false,
+            GetMounted = () => false,
+            GetPayload = () => null,
+            GetTriggerElement = () => null,
+            RegisterTriggerElement = (_, _) => { },
+            UnregisterTriggerElement = _ => { },
+            SetPositionerElement = _ => { },
+            SetPopupElement = _ => { },
+            SetOpenAsync = (_, _, _) => Task.CompletedTask,
+            SetTriggerPayload = (_, _) => { },
+            ForceUnmount = () => { }
+        };
     }
 }
