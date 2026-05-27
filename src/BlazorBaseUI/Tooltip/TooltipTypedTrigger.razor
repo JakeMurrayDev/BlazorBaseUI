@@ -23,6 +23,7 @@
 
     private Lazy<Task<IJSObjectReference>>? moduleTask;
     private bool hoverInitialized;
+    private bool hasRendered;
     private string triggerId = null!;
     private TooltipHandle<TPayload>? registeredHandle;
     private RenderElement<TooltipTriggerState>? renderElementReference;
@@ -33,6 +34,7 @@
     private bool lastUseJsHover;
     private bool recentPointerDown;
     private bool blockFocusOpen;
+    private bool wasOpen;
     private bool lastIsDisabled;
     private TooltipRootContext? subscribedRootContext;
 
@@ -160,19 +162,35 @@
             }
         }
 
-        // Handle Id change - unregister old trigger ID
+        var triggerIdChanged = false;
+
         if (Id is not null && Id != triggerId)
         {
-            UnregisterFromCurrentStore(triggerId);
+            var previousTriggerId = triggerId;
+            UnregisterFromCurrentStore(previousTriggerId);
             triggerId = Id;
+            triggerIdChanged = true;
+
+            if (hoverInitialized)
+            {
+                _ = RebindHoverInteractionAsync(previousTriggerId);
+            }
         }
 
         // Handle change of handle parameter
         if (Handle != registeredHandle)
         {
-            registeredHandle?.UnregisterTrigger(triggerId);
+            if (!triggerIdChanged)
+            {
+                registeredHandle?.UnregisterTrigger(triggerId);
+            }
+
             registeredHandle = Handle;
-            Handle?.RegisterTrigger(triggerId, Element, Payload);
+            RegisterWithCurrentStore();
+        }
+        else if (triggerIdChanged)
+        {
+            RegisterWithCurrentStore();
         }
         else if (HasHandle)
         {
@@ -180,7 +198,7 @@
             Handle!.UpdateTriggerPayload(triggerId, Payload);
         }
 
-        var previousOpen = ResolveState().Open;
+        var previousOpen = wasOpen;
         var open = IsOpenedByThisTrigger();
 
         if (previousOpen && !open)
@@ -227,6 +245,8 @@
                 _ = UpdateHoverInteractionDelaysAsync();
             }
         }
+
+        wasOpen = open;
     }
 
     /// <inheritdoc />
@@ -234,6 +254,8 @@
     {
         if (firstRender)
         {
+            hasRendered = true;
+
             if (HasHandle)
             {
                 Handle!.RegisterTrigger(triggerId, Element, Payload);
@@ -321,18 +343,7 @@
             subscribedRootContext = null;
         }
 
-        if (hoverInitialized && moduleTask?.IsValueCreated == true && RootContext is not null && Element.HasValue)
-        {
-            try
-            {
-                var module = await moduleTask.Value;
-                await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId, triggerId);
-            }
-            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
-            {
-                _ = ex; // Expected during circuit disconnect - safe to ignore.
-            }
-        }
+        await DisposeHoverInteractionAsync();
 
         if (moduleTask?.IsValueCreated == true)
         {
@@ -357,6 +368,19 @@
         else
         {
             RootContext?.RegisterTriggerElement(triggerId, Element);
+        }
+    }
+
+    private void RegisterWithCurrentStore()
+    {
+        if (HasHandle)
+        {
+            Handle!.RegisterTrigger(triggerId, Element, Payload);
+        }
+        else
+        {
+            RootContext?.RegisterTriggerElement(triggerId, Element);
+            RootContext?.SetTriggerPayload(triggerId, Payload);
         }
     }
 
@@ -684,24 +708,44 @@
         }
     }
 
-    private async Task DisposeHoverInteractionAsync()
+    private async Task DisposeHoverInteractionAsync(string? interactionTriggerId = null)
     {
-        if (!hoverInitialized || moduleTask?.IsValueCreated != true || RootContext is null)
+        var id = interactionTriggerId ?? triggerId;
+        if (!hoverInitialized ||
+            !hasRendered ||
+            moduleTask?.IsValueCreated != true ||
+            RootContext is null ||
+            string.IsNullOrEmpty(id))
         {
-            hoverInitialized = false;
+            ResetHoverInteractionState();
             return;
         }
 
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId, triggerId);
+            await module.InvokeVoidAsync("disposeHoverInteraction", RootContext.RootId, id);
         }
-        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException or ObjectDisposedException)
         {
             _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
 
+        ResetHoverInteractionState();
+    }
+
+    private async Task RebindHoverInteractionAsync(string previousTriggerId)
+    {
+        await DisposeHoverInteractionAsync(previousTriggerId);
+
+        if (UseJsHover && !IsDisabled && !HasHandle && RootContext is not null && Element.HasValue)
+        {
+            await InitializeHoverInteractionAsync();
+        }
+    }
+
+    private void ResetHoverInteractionState()
+    {
         hoverInitialized = false;
         lastEffectiveDelay = -1;
         lastEffectiveCloseDelay = -1;

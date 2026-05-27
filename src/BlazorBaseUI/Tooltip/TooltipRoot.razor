@@ -540,7 +540,7 @@
 
             if (!currentOpen && DelayGroupContext is not null)
             {
-                _ = DelayGroupContext.NotifyMemberOpenedAsync(rootId);
+                _ = SyncDelayGroupOpenStateAsync(true);
             }
         }
         else
@@ -557,7 +557,7 @@
 
             if (currentOpen && DelayGroupContext is not null)
             {
-                _ = DelayGroupContext.NotifyMemberClosedAsync(rootId);
+                _ = SyncDelayGroupOpenStateAsync(false);
             }
         }
 
@@ -918,13 +918,20 @@
             return;
         }
 
-        if (nextOpen)
+        try
         {
-            await DelayGroupContext.NotifyMemberOpenedAsync(rootId);
+            if (nextOpen)
+            {
+                await DelayGroupContext.NotifyMemberOpenedAsync(rootId);
+            }
+            else
+            {
+                await DelayGroupContext.NotifyMemberClosedAsync(rootId);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            await DelayGroupContext.NotifyMemberClosedAsync(rootId);
+            _ = ex;
         }
     }
 

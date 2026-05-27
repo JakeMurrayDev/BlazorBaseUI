@@ -239,6 +239,45 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
     }
 
     [Fact]
+    public async Task RebindsJsHoverInteractionWhenIdChanges()
+    {
+        var cut = Render<TooltipTriggerIdChangeHost>();
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue());
+
+        await cut.InvokeAsync(() => cut.Instance.SetTriggerId("trigger-two"));
+        await Task.Delay(50);
+
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "disposeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-one")).ShouldBeTrue());
+        cut.WaitForAssertion(() => JSInterop.Invocations.Any(invocation =>
+            invocation.Identifier == "initializeHoverInteraction" &&
+            Equals(invocation.Arguments[1], "trigger-two")).ShouldBeTrue());
+    }
+
+    [Fact]
+    public async Task DoesNotReopenOnFocusAfterEscapeClose()
+    {
+        var cut = Render(CreateTriggerInRoot());
+        var trigger = cut.Find("button");
+
+        trigger.Focus();
+        cut.Find("[role='tooltip'][data-open]").ShouldNotBeNull();
+
+        var root = cut.FindComponent<TooltipRoot>();
+        await cut.InvokeAsync(root.Instance.OnEscapeKey);
+
+        cut.WaitForAssertion(() => cut.Find("[role='tooltip']").HasAttribute("data-closed").ShouldBeTrue());
+
+        trigger.Focus();
+
+        cut.Find("[role='tooltip']").HasAttribute("data-open").ShouldBeFalse();
+    }
+
+    [Fact]
     public Task RequiresContext()
     {
         var cut = Render<TooltipTrigger>(parameters => parameters
@@ -248,5 +287,29 @@ public class TooltipTriggerTests : BunitContext, ITooltipTriggerContract
         cut.Markup.ShouldBeEmpty();
 
         return Task.CompletedTask;
+    }
+}
+
+internal sealed class TooltipTriggerIdChangeHost : ComponentBase
+{
+    private string triggerId = "trigger-one";
+
+    public void SetTriggerId(string id)
+    {
+        triggerId = id;
+        StateHasChanged();
+    }
+
+    protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<TooltipRoot>(0);
+        builder.AddAttribute(1, "ChildContent", (RenderFragment)(innerBuilder =>
+        {
+            innerBuilder.OpenComponent<TooltipTrigger>(0);
+            innerBuilder.AddAttribute(1, "Id", triggerId);
+            innerBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(contentBuilder => contentBuilder.AddContent(0, "Trigger")));
+            innerBuilder.CloseComponent();
+        }));
+        builder.CloseComponent();
     }
 }
