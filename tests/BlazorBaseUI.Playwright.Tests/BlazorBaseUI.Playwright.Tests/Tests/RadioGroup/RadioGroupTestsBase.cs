@@ -299,8 +299,18 @@ public abstract class RadioGroupTestsBase : TestBase
 
         var radioA = GetRadio("a");
         var radioB = GetRadio("b");
+        var radioC = GetRadio("c");
         await Assertions.Expect(radioB).ToHaveAttributeAsync("data-readonly", "");
+        await Assertions.Expect(radioA).ToHaveAttributeAsync(
+            "tabindex",
+            "0",
+            new LocatorAssertionsToHaveAttributeOptions { Timeout = 5000 * TimeoutMultiplier });
+        await Assertions.Expect(radioC).ToHaveAttributeAsync(
+            "tabindex",
+            "-1",
+            new LocatorAssertionsToHaveAttributeOptions { Timeout = 5000 * TimeoutMultiplier });
 
+        var focusedReadOnlyTarget = false;
         for (var attempt = 1; attempt <= 3; attempt++)
         {
             await radioA.PressAsync("ArrowDown");
@@ -309,14 +319,19 @@ public abstract class RadioGroupTestsBase : TestBase
             {
                 await Assertions.Expect(radioB).ToBeFocusedAsync(
                     new LocatorAssertionsToBeFocusedOptions { Timeout = 5000 * TimeoutMultiplier });
+                focusedReadOnlyTarget = true;
                 break;
             }
-            catch when (attempt < 3)
+            catch
             {
-                await WaitForDelayAsync(500);
+                if (attempt < 3)
+                {
+                    await WaitForDelayAsync(500);
+                }
             }
         }
 
+        Assert.True(focusedReadOnlyTarget, "Expected read-only radio-b to receive focus after ArrowDown.");
         await WaitForRadioStateAsync("a", true);
         await WaitForRadioStateAsync("b", false);
         await Assertions.Expect(GetByTestId("change-count")).ToHaveTextAsync("0");
