@@ -41,10 +41,15 @@ public interface IRadioRootContract
     Task HiddenInputHasCorrectAttributes();
     Task InputHasId();
     Task ExplicitIdAssociatesHiddenInputNotNonNativeRoot();
+    Task ExplicitIdLookupIsCaseInsensitive();
+    Task CombinesCaseInsensitiveAriaDescribedByWithFieldDescriptions();
+    Task StandaloneBlurValidationDoesNotBlockBlurEvent();
     Task NativeButtonUsesExplicitIdOnRootAndOmitsHiddenInputId();
     Task SetsNameOnInputOnly();
     Task SetsValueOnHiddenInput();
     Task NullValueSerializesToEmptyInputValue();
+    Task NonJsonValueUsesStringFallbackForHiddenInputValue();
+    Task GroupNavigationUsesRegisteredValueInsteadOfSerializedFormFallback();
 
     // Style hooks (data attributes)
     Task HasDataCheckedWhenChecked();

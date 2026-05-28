@@ -54,6 +54,19 @@ internal interface IRadioGroupContext<TValue>
     /// </summary>
     /// <param name="value">The value to select.</param>
     Task SetCheckedValueAsync(TValue? value);
+
+    /// <summary>
+    /// Registers the typed value represented by a child radio.
+    /// </summary>
+    /// <param name="key">The stable key used by JavaScript keyboard navigation.</param>
+    /// <param name="value">The typed radio value.</param>
+    void RegisterRadioValue(string key, TValue? value);
+
+    /// <summary>
+    /// Unregisters a child radio value.
+    /// </summary>
+    /// <param name="key">The stable key used by JavaScript keyboard navigation.</param>
+    void UnregisterRadioValue(string key);
 }
 
 /// <summary>
@@ -107,6 +120,16 @@ internal sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
     /// </summary>
     public Func<ElementReference?> GetGroupElementFunc { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the callback that registers a typed radio value.
+    /// </summary>
+    public Action<string, TValue?> RegisterRadioValueFunc { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the callback that unregisters a typed radio value.
+    /// </summary>
+    public Action<string> UnregisterRadioValueFunc { get; set; } = null!;
+
     /// <inheritdoc />
     public TValue? CheckedValue => GetCheckedValueFunc();
 
@@ -115,4 +138,10 @@ internal sealed class RadioGroupContext<TValue> : IRadioGroupContext<TValue>
 
     /// <inheritdoc />
     public Task SetCheckedValueAsync(TValue? value) => SetCheckedValueFunc(value);
+
+    /// <inheritdoc />
+    public void RegisterRadioValue(string key, TValue? value) => RegisterRadioValueFunc(key, value);
+
+    /// <inheritdoc />
+    public void UnregisterRadioValue(string key) => UnregisterRadioValueFunc(key);
 }

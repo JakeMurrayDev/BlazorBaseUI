@@ -63,6 +63,22 @@ internal static class AttributeUtilities
         return attributeValue;
     }
 
+    public static string? GetAttributeStringValueIgnoreCase(
+        IReadOnlyDictionary<string, object>? attributes,
+        string attribute
+    )
+    {
+        if (!TryGetAttributeIgnoreCase(attributes, attribute, out var value))
+            return default;
+
+        var attributeValue = Convert.ToString(
+            value,
+            CultureInfo.InvariantCulture
+        );
+
+        return attributeValue;
+    }
+
     public static bool HasAttribute(
         IReadOnlyDictionary<string, object>? attributes, 
         string attribute
@@ -76,16 +92,7 @@ internal static class AttributeUtilities
         string attribute
     )
     {
-        if (attributes is null)
-            return false;
-
-        foreach (var key in attributes.Keys)
-        {
-            if (string.Equals(key, attribute, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
+        return TryGetAttributeIgnoreCase(attributes, attribute, out _);
     }
 
     public static string? CombineIdRefs(params string?[] values)
@@ -169,13 +176,8 @@ internal static class AttributeUtilities
         Func<string> defaultId
     )
     {
-        if (
-            attributes is null
-            || !attributes.TryGetValue("id", out var idValue)
-        )
-        {
+        if (!TryGetAttributeIgnoreCase(attributes, "id", out var idValue))
             return defaultId();
-        }
 
         var idAttributeValue = Convert.ToString(
             idValue,
@@ -185,5 +187,30 @@ internal static class AttributeUtilities
         return string.IsNullOrEmpty(idAttributeValue)
             ? defaultId()
             : idAttributeValue;
+    }
+
+    private static bool TryGetAttributeIgnoreCase(
+        IReadOnlyDictionary<string, object>? attributes,
+        string attribute,
+        out object? value
+    )
+    {
+        if (attributes is null)
+        {
+            value = null;
+            return false;
+        }
+
+        foreach (var kvp in attributes)
+        {
+            if (string.Equals(kvp.Key, attribute, StringComparison.OrdinalIgnoreCase))
+            {
+                value = kvp.Value;
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
     }
 }

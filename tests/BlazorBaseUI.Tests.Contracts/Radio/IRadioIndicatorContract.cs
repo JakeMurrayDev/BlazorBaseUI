@@ -25,6 +25,7 @@ public interface IRadioIndicatorContract
     Task HasDataReadonlyWhenReadOnly();
     Task HasDataRequiredWhenRequired();
     Task InitiallyCheckedIndicatorDoesNotUseStartingStyle();
+    Task IgnoresStaleExitTransitionWhenCheckedAgain();
 
     // Context
     Task ReceivesStateFromContext();

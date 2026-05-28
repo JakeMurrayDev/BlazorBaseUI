@@ -367,6 +367,50 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public async Task IgnoresStaleExitTransitionWhenCheckedAgain()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<RadioGroup<string>>(0);
+            builder.AddAttribute(1, "DefaultValue", "a");
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(groupBuilder =>
+            {
+                groupBuilder.OpenComponent<RadioRoot<string>>(0);
+                groupBuilder.AddAttribute(1, "Value", "a");
+                groupBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+                {
+                    innerBuilder.OpenComponent<RadioIndicator>(0);
+                    innerBuilder.AddAttribute(1, "AdditionalAttributes",
+                        (IReadOnlyDictionary<string, object>)new Dictionary<string, object> { { "data-testid", "indicator-a" } });
+                    innerBuilder.CloseComponent();
+                }));
+                groupBuilder.CloseComponent();
+
+                groupBuilder.OpenComponent<RadioRoot<string>>(10);
+                groupBuilder.AddAttribute(11, "Value", "b");
+                groupBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var inputs = cut.FindAll("input[type='radio']");
+
+        await inputs[1].TriggerEventAsync("onchange", new ChangeEventArgs { Value = "b" });
+        cut.Find("[data-testid='indicator-a']").HasAttribute("data-ending-style").ShouldBeTrue();
+
+        inputs = cut.FindAll("input[type='radio']");
+        await inputs[0].TriggerEventAsync("onchange", new ChangeEventArgs { Value = "a" });
+
+        var indicator = cut.FindComponent<RadioIndicator>();
+        await cut.InvokeAsync(indicator.Instance.OnTransitionEnded);
+
+        inputs = cut.FindAll("input[type='radio']");
+        await inputs[1].TriggerEventAsync("onchange", new ChangeEventArgs { Value = "b" });
+
+        cut.Find("[data-testid='indicator-a']").HasAttribute("data-ending-style").ShouldBeTrue();
+    }
+
     // Context tests
     [Fact]
     public Task ReceivesStateFromContext()

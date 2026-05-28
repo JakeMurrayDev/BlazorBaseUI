@@ -85,6 +85,9 @@
     [SupplyParameterFromQuery(Name = "readOnly")]
     public bool ReadOnly { get; set; }
 
+    [SupplyParameterFromQuery(Name = "readOnlyB")]
+    public bool ReadOnlyB { get; set; }
+
     [SupplyParameterFromQuery(Name = "showForm")]
     public bool ShowForm { get; set; }
 
@@ -134,6 +137,7 @@
                 <RadioRoot TValue="string"
                     id="radio-b-control"
                     Value=@("b")
+                    ReadOnly="@ReadOnlyB"
                     NativeButton="@NativeButton"
                     class="radio-root"
                     data-testid="radio-b">

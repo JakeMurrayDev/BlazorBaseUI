@@ -284,6 +284,44 @@ public abstract class RadioGroupTestsBase : TestBase
         await WaitForRadioStateAsync("a", false);
     }
 
+    /// <summary>
+    /// Tests that keyboard navigation may focus a read-only radio but does not select it.
+    /// </summary>
+    [Fact]
+    public virtual async Task ArrowNavigation_FocusesReadOnlyRadioWithoutSelecting()
+    {
+        await NavigateAsync(CreateUrl("/tests/radiogroup")
+            .WithRadioDefaultValue("a")
+            .WithRadioReadOnlyB(true));
+
+        await WaitForRadioStateAsync("a", true);
+        await WaitForDelayAsync(500);
+
+        var radioA = GetRadio("a");
+        var radioB = GetRadio("b");
+        await Assertions.Expect(radioB).ToHaveAttributeAsync("data-readonly", "");
+
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            await radioA.PressAsync("ArrowDown");
+
+            try
+            {
+                await Assertions.Expect(radioB).ToBeFocusedAsync(
+                    new LocatorAssertionsToBeFocusedOptions { Timeout = 5000 * TimeoutMultiplier });
+                break;
+            }
+            catch when (attempt < 3)
+            {
+                await WaitForDelayAsync(500);
+            }
+        }
+
+        await WaitForRadioStateAsync("a", true);
+        await WaitForRadioStateAsync("b", false);
+        await Assertions.Expect(GetByTestId("change-count")).ToHaveTextAsync("0");
+    }
+
     #endregion
 
     #region OnValueChange Tests

@@ -97,7 +97,7 @@ export function initializeGroup(element, dotNetRef) {
             e.preventDefault();
 
             const currentElement = getRadioFromEventTarget(element, e.target);
-            if (!currentElement || isRadioDisabled(currentElement) || currentElement.hasAttribute('data-readonly')) {
+            if (!currentElement || isRadioDisabled(currentElement)) {
                 return;
             }
 
@@ -133,7 +133,7 @@ export function disposeGroup(element) {
     }
 }
 
-export function registerRadio(groupElement, radioElement, value, isNullValue) {
+export function registerRadio(groupElement, radioElement, value, isNullValue, serializedValue) {
     if (!groupElement || !radioElement) {
         return;
     }
@@ -147,12 +147,13 @@ export function registerRadio(groupElement, radioElement, value, isNullValue) {
         if (item.element === radioElement) {
             item.value = value;
             item.isNullValue = isNullValue;
+            item.serializedValue = serializedValue;
             updateTabIndexes(groupElement);
             return;
         }
     }
 
-    state.items.add({ element: radioElement, value, isNullValue });
+    state.items.add({ element: radioElement, value, isNullValue, serializedValue });
     updateTabIndexes(groupElement);
 }
 
@@ -220,6 +221,10 @@ function isRadioDisabled(radioElement) {
     return radioElement.hasAttribute('data-disabled');
 }
 
+function isRadioReadOnly(radioElement) {
+    return radioElement.hasAttribute('data-readonly');
+}
+
 function getRadioFromEventTarget(groupElement, target) {
     if (!(target instanceof Element)) {
         return null;
@@ -248,7 +253,9 @@ export async function navigateToPrevious(groupElement, currentElement) {
     for (let i = currentIndex - 1; i >= 0; i--) {
         if (!isRadioDisabled(items[i].element)) {
             items[i].element.focus({ preventScroll: true });
-            await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true);
+            if (!isRadioReadOnly(items[i].element)) {
+                await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true, items[i].serializedValue);
+            }
             return true;
         }
     }
@@ -256,7 +263,9 @@ export async function navigateToPrevious(groupElement, currentElement) {
     for (let i = items.length - 1; i > currentIndex; i--) {
         if (!isRadioDisabled(items[i].element)) {
             items[i].element.focus({ preventScroll: true });
-            await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true);
+            if (!isRadioReadOnly(items[i].element)) {
+                await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true, items[i].serializedValue);
+            }
             return true;
         }
     }
@@ -279,7 +288,9 @@ export async function navigateToNext(groupElement, currentElement) {
     for (let i = currentIndex + 1; i < items.length; i++) {
         if (!isRadioDisabled(items[i].element)) {
             items[i].element.focus({ preventScroll: true });
-            await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true);
+            if (!isRadioReadOnly(items[i].element)) {
+                await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true, items[i].serializedValue);
+            }
             return true;
         }
     }
@@ -287,7 +298,9 @@ export async function navigateToNext(groupElement, currentElement) {
     for (let i = 0; i < currentIndex; i++) {
         if (!isRadioDisabled(items[i].element)) {
             items[i].element.focus({ preventScroll: true });
-            await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true);
+            if (!isRadioReadOnly(items[i].element)) {
+                await state.dotNetRef.invokeMethodAsync('OnNavigateToRadio', items[i].value, items[i].isNullValue === true, items[i].serializedValue);
+            }
             return true;
         }
     }

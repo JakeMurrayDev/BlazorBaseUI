@@ -51,7 +51,7 @@
        readonly="@ResolvedReadOnly"
        form="@ResolvedForm"
        name="@ResolvedName"
-       value="@SerializeValue(Value)"
+       value="@SerializeFormValue(Value)"
        @onchange="HandleInputChangeAsync"
        @onfocus="HandleInputFocusAsync"
        @ref="inputElement" />
@@ -262,6 +262,11 @@
         var currentReadOnly = ResolvedReadOnly;
         var currentChecked = CurrentChecked;
 
+        if (IsInGroup)
+        {
+            GroupContext!.RegisterRadioValue(radioId, Value);
+        }
+
         if (hasRendered && Element.HasValue)
         {
             if (currentDisabled != previousDisabled ||
@@ -310,6 +315,7 @@
     {
         LabelableContext?.SetControlId(null);
         FieldContext?.UnsubscribeFunc(this);
+        GroupContext?.UnregisterRadioValue(radioId);
 
         if (moduleTask.IsValueCreated && Element.HasValue)
         {
@@ -420,7 +426,7 @@
         }
 
         var describedBy = AttributeUtilities.CombineIdRefs(
-            AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "aria-describedby"),
+            AttributeUtilities.GetAttributeStringValueIgnoreCase(AdditionalAttributes, "aria-describedby"),
             LabelableContext?.GetAriaDescribedBy());
         if (!string.IsNullOrEmpty(describedBy))
             attrs["aria-describedby"] = describedBy;
@@ -456,8 +462,13 @@
         try
         {
             var module = await moduleTask.Value;
-            var serializedValue = SerializeValue(Value);
-            await module.InvokeVoidAsync("registerRadio", GroupContext.GroupElement.Value, Element.Value, serializedValue, Value is null);
+            await module.InvokeVoidAsync(
+                "registerRadio",
+                GroupContext.GroupElement.Value,
+                Element.Value,
+                radioId,
+                Value is null,
+                SerializeFormValue(Value));
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -536,7 +547,7 @@
 
             if (FieldContext?.ValidationMode == ValidationMode.OnBlur)
             {
-                await (FieldContext?.Validation.CommitAsync(CurrentChecked) ?? Task.CompletedTask);
+                _ = FieldContext?.Validation.CommitAsync(CurrentChecked);
             }
         }
 
@@ -597,7 +608,7 @@
         }
     }
 
-    private static string SerializeValue(TValue? value)
+    private static string SerializeFormValue(TValue? value)
     {
         if (value is null)
             return string.Empty;

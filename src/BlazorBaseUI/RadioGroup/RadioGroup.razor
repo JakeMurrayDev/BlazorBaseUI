@@ -1,4 +1,3 @@
-@using System.Text.Json
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using BlazorBaseUI.Field
@@ -29,6 +28,7 @@
 @code {
     private const string JsModulePath = "./_content/BlazorBaseUI/blazor-baseui-radio.min.js";
 
+    private readonly Dictionary<string, TValue?> radioValues = new();
     private readonly Lazy<Task<IJSObjectReference>> moduleTask;
 
     private DotNetObjectReference<RadioGroup<TValue>>? dotNetRef;
@@ -347,7 +347,9 @@
         Validation = FieldContext?.Validation,
         GetCheckedValueFunc = () => CurrentValue,
         SetCheckedValueFunc = SetValueInternalAsync,
-        GetGroupElementFunc = () => Element
+        GetGroupElementFunc = () => Element,
+        RegisterRadioValueFunc = RegisterRadioValue,
+        UnregisterRadioValueFunc = UnregisterRadioValue
     };
 
     private void BuildComponentAttributes()
@@ -374,7 +376,7 @@
         }
 
         var describedBy = AttributeUtilities.CombineIdRefs(
-            AttributeUtilities.GetAttributeStringValue(AdditionalAttributes, "aria-describedby"),
+            AttributeUtilities.GetAttributeStringValueIgnoreCase(AdditionalAttributes, "aria-describedby"),
             LabelableContext?.GetAriaDescribedBy());
         if (!string.IsNullOrEmpty(describedBy))
             attrs["aria-describedby"] = describedBy;
@@ -416,26 +418,31 @@
     /// Invoked from JavaScript when arrow key navigation selects a radio button value.
     /// </summary>
     [JSInvokable]
-    public async Task OnNavigateToRadio(string? serializedValue, bool isNullValue)
+    public async Task OnNavigateToRadio(string? valueKey, bool isNullValue, string? serializedValue = null)
     {
         if (ResolvedDisabled || ReadOnly)
         {
             return;
         }
 
-        TValue? value = default;
-        if (!isNullValue)
+        TValue? value;
+
+        if (valueKey is not null && radioValues.TryGetValue(valueKey, out value))
         {
-            if (typeof(TValue) == typeof(string))
-            {
-                value = (TValue)(object)(serializedValue ?? string.Empty);
-            }
-            else
-            {
-                value = JsonSerializer.Deserialize<TValue>(serializedValue ?? string.Empty);
-            }
+            await SetValueInternalAsync(value);
+            return;
         }
 
+        if (isNullValue)
+        {
+            await SetValueInternalAsync(default);
+            return;
+        }
+
+        if (typeof(TValue) != typeof(string))
+            return;
+
+        value = (TValue)(object)(serializedValue ?? string.Empty);
         await SetValueInternalAsync(value);
     }
 
@@ -563,21 +570,7 @@
         }
     }
 
-    private static string SerializeValue(TValue? value)
-    {
-        if (value is null)
-            return string.Empty;
+    private void RegisterRadioValue(string key, TValue? value) => radioValues[key] = value;
 
-        if (value is string str)
-            return str;
-
-        try
-        {
-            return JsonSerializer.Serialize(value);
-        }
-        catch
-        {
-            return value.ToString() ?? string.Empty;
-        }
-    }
+    private void UnregisterRadioValue(string key) => radioValues.Remove(key);
 }

@@ -161,6 +161,16 @@
     [JSInvokable]
     public void OnTransitionEnded()
     {
+        if (Rendered)
+        {
+            endTransitionPending = false;
+            transitionStatus = TransitionStatus.Undefined;
+            UpdateStateFromContext();
+            BuildComponentAttributes();
+            _ = InvokeAsync(StateHasChanged);
+            return;
+        }
+
         isMounted = false;
         transitionStatus = TransitionStatus.Undefined;
         UpdateStateFromContext();
@@ -231,6 +241,15 @@
             else
             {
                 isMounted = false;
+                transitionStatus = TransitionStatus.Undefined;
+            }
+        }
+        else if (isRendered)
+        {
+            endTransitionPending = false;
+
+            if (transitionStatus == TransitionStatus.Ending)
+            {
                 transitionStatus = TransitionStatus.Undefined;
             }
         }
