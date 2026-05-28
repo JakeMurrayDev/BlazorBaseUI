@@ -712,6 +712,12 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithShowNestedDrawer(bool value)
+    {
+        queryParams["showNestedDrawer"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     public TestPageUrlBuilder WithShowViewport(bool value)
     {
         queryParams["showViewport"] = value.ToString().ToLowerInvariant();
@@ -727,6 +733,31 @@ public sealed class TestPageUrlBuilder
     public TestPageUrlBuilder WithUseInitialFocus(bool value)
     {
         queryParams["useInitialFocus"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    // Drawer-specific parameters
+    public TestPageUrlBuilder WithSnapPoints(bool value)
+    {
+        queryParams["snapPoints"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSnapToSequentialPoints(bool value)
+    {
+        queryParams["snapToSequentialPoints"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSwipeDirection(string value)
+    {
+        queryParams["swipeDirection"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithSwipeAreaDisabled(bool value)
+    {
+        queryParams["swipeAreaDisabled"] = value.ToString().ToLowerInvariant();
         return this;
     }
 
