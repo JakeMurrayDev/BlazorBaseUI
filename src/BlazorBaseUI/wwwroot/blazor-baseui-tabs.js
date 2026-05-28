@@ -118,6 +118,7 @@ export function registerTab(listElement, tabElement, value) {
     upsertTab(listState.tabs, tabElement, value);
     attachPreActivationHandler(listElement, tabElement);
     observeTabForIndicators(listElement, tabElement);
+    observePanelVisibility(listElement);
     updateTabIndexes(listElement);
     notifyIndicatorRefs(listElement);
 }
@@ -143,6 +144,7 @@ export function unregisterTab(listElement, tabElement) {
     if (deleteTab(listState.tabs, tabElement)) {
         detachPreActivationHandler(tabElement);
         unobserveTabForIndicators(listElement, tabElement);
+        observePanelVisibility(listElement);
         updateTabIndexes(listElement);
         notifyIndicatorRefs(listElement);
     }
@@ -245,7 +247,7 @@ function armCurrentPanelHandoffIfNoMotion(listElement, nextTabElement) {
 function armPanelHandoff(listElement, activePanel) {
     disposePanelHandoff(listElement);
 
-    const rootElement = listElement.parentElement ?? document.body;
+    const rootElement = getPanelScopeElement(listElement, activePanel);
     let disposed = false;
     let frameId = 0;
     let timeoutId = 0;
@@ -277,7 +279,7 @@ function armPanelHandoff(listElement, activePanel) {
             return true;
         }
 
-        if (!hasAlternateVisiblePanel(rootElement, activePanel)) {
+        if (!hasAlternateVisiblePanel(listElement, activePanel)) {
             return false;
         }
 
@@ -316,7 +318,7 @@ function disposePanelHandoff(listElement) {
 function observePanelVisibility(listElement) {
     disposePanelVisibilityObserver(listElement);
 
-    const rootElement = listElement.parentElement ?? document.body;
+    const rootElement = getPanelScopeElement(listElement);
     let disposed = false;
     let isChecking = false;
 
@@ -339,7 +341,7 @@ function observePanelVisibility(listElement) {
 
         isChecking = true;
         try {
-            hideInactiveNoMotionPanels(rootElement);
+            hideInactiveNoMotionPanels(listElement);
         } finally {
             isChecking = false;
         }
@@ -363,8 +365,8 @@ function disposePanelVisibilityObserver(listElement) {
     observer.dispose();
 }
 
-function hideInactiveNoMotionPanels(rootElement) {
-    const activeTab = rootElement.querySelector('[role="tab"][aria-selected="true"]');
+function hideInactiveNoMotionPanels(listElement) {
+    const activeTab = listElement.querySelector('[role="tab"][aria-selected="true"]');
     const activePanelId = activeTab?.getAttribute('aria-controls');
     const activePanel = activePanelId ? document.getElementById(activePanelId) : null;
 
@@ -376,7 +378,7 @@ function hideInactiveNoMotionPanels(rootElement) {
         return;
     }
 
-    const panels = rootElement.querySelectorAll('[role="tabpanel"]');
+    const panels = getPanelsControlledByList(listElement);
     for (const panel of panels) {
         if (panel === activePanel || !isPanelVisible(panel)) {
             continue;
@@ -388,8 +390,8 @@ function hideInactiveNoMotionPanels(rootElement) {
     }
 }
 
-function hasAlternateVisiblePanel(container, activePanel) {
-    const panels = container.querySelectorAll('[role="tabpanel"]');
+function hasAlternateVisiblePanel(listElement, activePanel) {
+    const panels = getPanelsControlledByList(listElement);
     for (const panel of panels) {
         if (panel !== activePanel && isPanelVisible(panel)) {
             return true;
@@ -397,6 +399,55 @@ function hasAlternateVisiblePanel(container, activePanel) {
     }
 
     return false;
+}
+
+function getPanelScopeElement(listElement, referencePanel = null) {
+    const ownerDocument = listElement.ownerDocument ?? document;
+    const panels = getPanelsControlledByList(listElement);
+
+    if (referencePanel && ownerDocument.contains(referencePanel) && !panels.includes(referencePanel)) {
+        panels.push(referencePanel);
+    }
+
+    return findCommonAncestor([listElement, ...panels]) ??
+        listElement.parentElement ??
+        ownerDocument.body ??
+        document.body;
+}
+
+function getPanelsControlledByList(listElement) {
+    const panels = [];
+    const ownerDocument = listElement.ownerDocument ?? document;
+    const tabs = listElement.querySelectorAll('[role="tab"][aria-controls]');
+
+    for (const tab of tabs) {
+        const panelId = tab.getAttribute('aria-controls');
+        const panel = panelId ? ownerDocument.getElementById(panelId) : null;
+
+        if (panel && !panels.includes(panel)) {
+            panels.push(panel);
+        }
+    }
+
+    return panels;
+}
+
+function findCommonAncestor(elements) {
+    const connectedElements = elements.filter(element => element?.ownerDocument?.contains(element));
+    if (connectedElements.length === 0) {
+        return null;
+    }
+
+    let ancestor = connectedElements[0];
+    while (ancestor) {
+        if (connectedElements.every(element => ancestor.contains(element))) {
+            return ancestor;
+        }
+
+        ancestor = ancestor.parentElement;
+    }
+
+    return null;
 }
 
 function isPanelVisible(panel) {

@@ -313,31 +313,38 @@ public static class JsInteropSetup
     }
 
     private const string TabsModule = "./_content/BlazorBaseUI/blazor-baseui-tabs.js";
+    private const string TabsMinModule = "./_content/BlazorBaseUI/blazor-baseui-tabs.min.js";
 
     public static BunitJSModuleInterop SetupTabsModule(BunitJSInterop jsInterop)
     {
-        var module = jsInterop.SetupModule(TabsModule);
-        module.SetupVoid("initializeList", _ => true).SetVoidResult();
-        module.SetupVoid("updateList", _ => true).SetVoidResult();
-        module.SetupVoid("disposeList", _ => true).SetVoidResult();
-        module.SetupVoid("registerTab", _ => true).SetVoidResult();
-        module.SetupVoid("unregisterTab", _ => true).SetVoidResult();
-        module.SetupVoid("navigateToPrevious", _ => true).SetVoidResult();
-        module.SetupVoid("navigateToNext", _ => true).SetVoidResult();
-        module.SetupVoid("navigateToFirst", _ => true).SetVoidResult();
-        module.SetupVoid("navigateToLast", _ => true).SetVoidResult();
-        // getActiveElement returns IJSObjectReference? - handled by loose mode (returns null)
-        module.SetupVoid("initializeTab", _ => true).SetVoidResult();
-        module.SetupVoid("dispose", _ => true).SetVoidResult();
-        module.SetupVoid("focus", _ => true).SetVoidResult();
-        module.SetupVoid("startPanelTransition", _ => true).SetVoidResult();
-        module.SetupVoid("disposePanel", _ => true).SetVoidResult();
-        module.Setup<object?>("getTabPosition", _ => true).SetResult(null);
-        module.Setup<object?>("getIndicatorPosition", _ => true).SetResult(null);
-        module.SetupVoid("observeResize", _ => true).SetVoidResult();
-        module.SetupVoid("unobserveResize", _ => true).SetVoidResult();
-        module.Setup<object?>("getFirstEnabledTab", _ => true).SetResult(null);
-        return module;
+        SetupTabsModulePath(TabsModule);
+        return SetupTabsModulePath(TabsMinModule);
+
+        BunitJSModuleInterop SetupTabsModulePath(string path)
+        {
+            var module = jsInterop.SetupModule(path);
+            module.SetupVoid("initializeList", _ => true).SetVoidResult();
+            module.SetupVoid("updateList", _ => true).SetVoidResult();
+            module.SetupVoid("disposeList", _ => true).SetVoidResult();
+            module.SetupVoid("registerTab", _ => true).SetVoidResult();
+            module.SetupVoid("unregisterTab", _ => true).SetVoidResult();
+            module.SetupVoid("navigateToPrevious", _ => true).SetVoidResult();
+            module.SetupVoid("navigateToNext", _ => true).SetVoidResult();
+            module.SetupVoid("navigateToFirst", _ => true).SetVoidResult();
+            module.SetupVoid("navigateToLast", _ => true).SetVoidResult();
+            // getActiveElement returns IJSObjectReference? - handled by loose mode (returns null)
+            module.SetupVoid("initializeTab", _ => true).SetVoidResult();
+            module.SetupVoid("dispose", _ => true).SetVoidResult();
+            module.SetupVoid("focus", _ => true).SetVoidResult();
+            module.SetupVoid("startPanelTransition", _ => true).SetVoidResult();
+            module.SetupVoid("disposePanel", _ => true).SetVoidResult();
+            module.Setup<object?>("getTabPosition", _ => true).SetResult(null);
+            module.Setup<object?>("getIndicatorPosition", _ => true).SetResult(null);
+            module.SetupVoid("observeResize", _ => true).SetVoidResult();
+            module.SetupVoid("unobserveResize", _ => true).SetVoidResult();
+            module.Setup<object?>("getFirstEnabledTab", _ => true).SetResult(null);
+            return module;
+        }
     }
 
     private const string NumberFieldModule = "./_content/BlazorBaseUI/blazor-baseui-number-field.js";
@@ -519,5 +526,32 @@ public static class JsInteropSetup
 
         var floating = jsInterop.SetupModule(FloatingModule);
         floating.SetupVoid("clearStyles", _ => true).SetVoidResult();
+    }
+
+    private const string ScrollAreaModule = "./_content/BlazorBaseUI/blazor-baseui-scroll-area.js";
+    private const string ScrollAreaMinModule = "./_content/BlazorBaseUI/blazor-baseui-scroll-area.min.js";
+
+    public static void SetupScrollAreaModule(BunitJSInterop jsInterop)
+    {
+        SetupScrollAreaModulePath(ScrollAreaModule);
+        SetupScrollAreaModulePath(ScrollAreaMinModule);
+
+        void SetupScrollAreaModulePath(string path)
+        {
+            var module = jsInterop.SetupModule(path);
+            module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
+            module.SetupVoid("updateRoot", _ => true).SetVoidResult();
+            module.SetupVoid("disposeRoot", _ => true).SetVoidResult();
+            module.SetupVoid("registerViewport", _ => true).SetVoidResult();
+            module.SetupVoid("unregisterViewport", _ => true).SetVoidResult();
+            module.SetupVoid("registerContent", _ => true).SetVoidResult();
+            module.SetupVoid("unregisterContent", _ => true).SetVoidResult();
+            module.SetupVoid("registerScrollbar", _ => true).SetVoidResult();
+            module.SetupVoid("unregisterScrollbar", _ => true).SetVoidResult();
+            module.SetupVoid("registerThumb", _ => true).SetVoidResult();
+            module.SetupVoid("unregisterThumb", _ => true).SetVoidResult();
+            module.SetupVoid("registerCorner", _ => true).SetVoidResult();
+            module.SetupVoid("unregisterCorner", _ => true).SetVoidResult();
+        }
     }
 }
