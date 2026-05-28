@@ -6,37 +6,37 @@ internal static class ScrollAreaAttributeHelper
     {
         if (state.Scrolling)
         {
-            attrs["data-scrolling"] = string.Empty;
+            attrs["data-scrolling"] = true;
         }
 
         if (state.HasOverflowX)
         {
-            attrs["data-has-overflow-x"] = string.Empty;
+            attrs["data-has-overflow-x"] = true;
         }
 
         if (state.HasOverflowY)
         {
-            attrs["data-has-overflow-y"] = string.Empty;
+            attrs["data-has-overflow-y"] = true;
         }
 
         if (state.OverflowXStart)
         {
-            attrs["data-overflow-x-start"] = string.Empty;
+            attrs["data-overflow-x-start"] = true;
         }
 
         if (state.OverflowXEnd)
         {
-            attrs["data-overflow-x-end"] = string.Empty;
+            attrs["data-overflow-x-end"] = true;
         }
 
         if (state.OverflowYStart)
         {
-            attrs["data-overflow-y-start"] = string.Empty;
+            attrs["data-overflow-y-start"] = true;
         }
 
         if (state.OverflowYEnd)
         {
-            attrs["data-overflow-y-end"] = string.Empty;
+            attrs["data-overflow-y-end"] = true;
         }
     }
 
