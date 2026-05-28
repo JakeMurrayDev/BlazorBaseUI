@@ -1,0 +1,203 @@
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<RenderElement TState="ScrollAreaThumbState"
+               Tag="div"
+               State="State"
+               Enabled="Context is not null && ScrollbarContext is not null"
+               Render="Render"
+               ClassValue="ClassValue"
+               StyleValue="StyleValue"
+               ComponentAttributes="componentAttributes"
+               ChildContent="ChildContent"
+               @attributes="AdditionalAttributes"
+               @ref="renderElementReference" />
+
+@code {
+    private const string JsModulePath = ScrollAreaConstants.JsModulePath;
+
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
+    private bool isRegistered;
+    private string? registeredRootId;
+    private string? registeredOrientation;
+    private RenderElement<ScrollAreaThumbState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private Orientation ResolvedOrientation => ScrollbarContext?.Orientation ?? Orientation.Vertical;
+
+    private ScrollAreaThumbState State => new(ResolvedOrientation);
+
+    [CascadingParameter]
+    private ScrollAreaRootContext? Context { get; set; }
+
+    [CascadingParameter]
+    private ScrollAreaScrollbarContext? ScrollbarContext { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ScrollAreaThumbState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ScrollAreaThumbState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ScrollAreaThumbState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    public ScrollAreaThumb()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Context is null || ScrollbarContext is null || !Element.HasValue)
+        {
+            await UnregisterAsync();
+            return;
+        }
+
+        var rootId = Context.RootId;
+        var orientation = ResolvedOrientation.ToDataAttributeString() ?? "vertical";
+        if (isRegistered && registeredRootId == rootId && registeredOrientation == orientation)
+        {
+            return;
+        }
+
+        if (isRegistered)
+        {
+            await UnregisterAsync();
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync(
+                "registerThumb",
+                rootId,
+                Element.Value,
+                orientation);
+            isRegistered = true;
+            registeredRootId = rootId;
+            registeredOrientation = orientation;
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        await UnregisterAsync();
+
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex;
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>
+        {
+            ["data-orientation"] = ResolvedOrientation.ToDataAttributeString() ?? "vertical",
+            ["style"] = BuildStyle()
+        };
+
+        componentAttributes = attrs;
+    }
+
+    private string BuildStyle()
+    {
+        var visibility = Context?.HasMeasuredScrollbar == true ? string.Empty : "visibility: hidden; ";
+        return ResolvedOrientation == Orientation.Vertical
+            ? $"{visibility}height: var(--scroll-area-thumb-height)"
+            : $"{visibility}width: var(--scroll-area-thumb-width)";
+    }
+
+    private async Task UnregisterAsync()
+    {
+        if (!isRegistered)
+        {
+            return;
+        }
+
+        if (!moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        {
+            ClearRegistration();
+            return;
+        }
+
+        var rootId = registeredRootId;
+        var orientation = registeredOrientation ?? "vertical";
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync(
+                "unregisterThumb",
+                rootId,
+                orientation);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+        finally
+        {
+            ClearRegistration();
+        }
+    }
+
+    private void ClearRegistration()
+    {
+        isRegistered = false;
+        registeredRootId = null;
+        registeredOrientation = null;
+    }
+}

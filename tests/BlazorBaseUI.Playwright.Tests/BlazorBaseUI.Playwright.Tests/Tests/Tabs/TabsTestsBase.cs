@@ -759,6 +759,66 @@ public abstract class TabsTestsBase : TestBase
         Assert.True(outgoingPanelWasHidden);
     }
 
+    [Fact]
+    public virtual async Task Panel_ExternalNestedListNoMotionSwitch_HidesOutgoingPanel()
+    {
+        await NavigateAsync(CreateUrl("/tests/tabs").Build());
+
+        var outgoingPanelWasHidden = await Page.EvaluateAsync<bool>(
+            @"async () => {
+                const module = await import('/_content/BlazorBaseUI/blazor-baseui-tabs.js');
+
+                const root = document.createElement('div');
+                const listWrapper = document.createElement('div');
+                const list = document.createElement('div');
+                list.setAttribute('role', 'tablist');
+
+                const tab1 = document.createElement('button');
+                tab1.setAttribute('role', 'tab');
+                tab1.setAttribute('aria-selected', 'true');
+                tab1.setAttribute('aria-controls', 'external-nested-panel-1');
+
+                const tab2 = document.createElement('button');
+                tab2.setAttribute('role', 'tab');
+                tab2.setAttribute('aria-selected', 'false');
+                tab2.setAttribute('aria-controls', 'external-nested-panel-2');
+
+                const panel1 = document.createElement('div');
+                panel1.id = 'external-nested-panel-1';
+                panel1.setAttribute('role', 'tabpanel');
+
+                const panel2 = document.createElement('div');
+                panel2.id = 'external-nested-panel-2';
+                panel2.setAttribute('role', 'tabpanel');
+                panel2.hidden = true;
+                panel2.setAttribute('hidden', '');
+                panel2.setAttribute('data-hidden', '');
+
+                list.append(tab1, tab2);
+                listWrapper.append(list);
+                root.append(listWrapper, panel1, panel2);
+                document.body.append(root);
+
+                module.initializeList(list, 'horizontal', true, false, 'ltr', { invokeMethodAsync: async () => {} });
+
+                tab1.setAttribute('aria-selected', 'false');
+                tab2.setAttribute('aria-selected', 'true');
+                panel2.hidden = false;
+                panel2.removeAttribute('hidden');
+                panel2.removeAttribute('data-hidden');
+
+                await Promise.resolve();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+
+                const hidden = panel1.hidden;
+                module.disposeList(list);
+                root.remove();
+                return hidden;
+            }");
+
+        Assert.True(outgoingPanelWasHidden);
+    }
+
     #endregion
 
     #region Tab Focus / Tab Key

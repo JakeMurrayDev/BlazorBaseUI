@@ -67,4 +67,6 @@ global using BlazorBaseUI.FloatingDelayGroup;
 global using BlazorBaseUI.Tests.Contracts.FloatingDelayGroup;
 global using BlazorBaseUI.Autocomplete;
 global using BlazorBaseUI.Tests.Contracts.Autocomplete;
+global using BlazorBaseUI.ScrollArea;
+global using BlazorBaseUI.Tests.Contracts.ScrollArea;
 global using BlazorBaseUI.Tests.Infrastructure;

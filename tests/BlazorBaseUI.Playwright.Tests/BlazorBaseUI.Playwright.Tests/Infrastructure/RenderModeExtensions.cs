@@ -1102,6 +1102,30 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithScrollAreaKeepMounted(bool value)
+    {
+        queryParams["keepMounted"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithScrollAreaSmallContent(bool value)
+    {
+        queryParams["smallContent"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
+    public TestPageUrlBuilder WithScrollAreaDirection(string value)
+    {
+        queryParams["direction"] = value;
+        return this;
+    }
+
+    public TestPageUrlBuilder WithScrollAreaThreshold(double value)
+    {
+        queryParams["threshold"] = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return this;
+    }
+
     public string Build()
     {
         var sb = new StringBuilder();

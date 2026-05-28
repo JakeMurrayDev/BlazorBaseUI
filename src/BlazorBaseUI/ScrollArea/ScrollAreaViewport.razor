@@ -1,0 +1,206 @@
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<CascadingValue Value="viewportContext">
+    <RenderElement TState="ScrollAreaRootState"
+                   Tag="div"
+                   State="State"
+                   Enabled="Context is not null"
+                   Render="Render"
+                   ClassValue="computedClassValue"
+                   StyleValue="StyleValue"
+                   ComponentAttributes="componentAttributes"
+                   ChildContent="ChildContent"
+                   @attributes="AdditionalAttributes"
+                   @ref="renderElementReference" />
+</CascadingValue>
+
+@code {
+    private const string JsModulePath = ScrollAreaConstants.JsModulePath;
+
+    private readonly Lazy<Task<IJSObjectReference>> moduleTask;
+
+    private bool isRegistered;
+    private string? registeredRootId;
+    private string? registeredDirection;
+    private Func<ScrollAreaRootState, string?>? computedClassValue;
+    private ScrollAreaViewportContext viewportContext = new();
+    private RenderElement<ScrollAreaRootState>? renderElementReference;
+    private Dictionary<string, object> componentAttributes = new();
+
+    private ScrollAreaRootState State => Context?.State ?? ScrollAreaRootState.Default;
+
+    [CascadingParameter]
+    private ScrollAreaRootContext? Context { get; set; }
+
+    /// <summary>
+    /// Allows you to replace the component's HTML element
+    /// with a different tag, or compose it with another component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<RenderProps<ScrollAreaRootState>>? Render { get; set; }
+
+    /// <summary>
+    /// Gets or sets the CSS class function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ScrollAreaRootState, string?>? ClassValue { get; set; }
+
+    /// <summary>
+    /// Gets or sets the inline style function based on the component state.
+    /// </summary>
+    [Parameter]
+    public Func<ScrollAreaRootState, string?>? StyleValue { get; set; }
+
+    /// <summary>
+    /// Defines the child components of this instance.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of additional attributes that will be applied to the created element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the associated <see cref="ElementReference"/>.
+    /// </summary>
+    public ElementReference? Element => renderElementReference?.Element;
+
+    public ScrollAreaViewport()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", JsModulePath).AsTask());
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        computedClassValue = s => ScrollAreaAttributeHelper.CombineClassNames(
+            ScrollAreaConstants.DisableScrollbarClassName,
+            ClassValue?.Invoke(s));
+
+        if (Context is not null)
+        {
+            viewportContext.RootId = Context.RootId;
+        }
+
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Context is null || !Element.HasValue)
+        {
+            await UnregisterAsync();
+            return;
+        }
+
+        var rootId = Context.RootId;
+        var direction = Context.Direction.ToAttributeString() ?? "ltr";
+        if (isRegistered && registeredRootId == rootId && registeredDirection == direction)
+        {
+            return;
+        }
+
+        if (isRegistered)
+        {
+            await UnregisterAsync();
+        }
+
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync(
+                "registerViewport",
+                rootId,
+                Element.Value,
+                direction);
+            isRegistered = true;
+            registeredRootId = rootId;
+            registeredDirection = direction;
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        await UnregisterAsync();
+
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex;
+            }
+        }
+    }
+
+    private void BuildComponentAttributes()
+    {
+        var attrs = new Dictionary<string, object>
+        {
+            ["role"] = "presentation",
+            ["tabindex"] = Context?.HiddenState is { X: true, Y: true } ? -1 : 0,
+            ["style"] = "overflow: scroll"
+        };
+
+        if (!string.IsNullOrEmpty(Context?.RootId))
+        {
+            attrs["data-id"] = $"{Context.RootId}-viewport";
+        }
+
+        ScrollAreaAttributeHelper.AddRootStateAttributes(attrs, State);
+        componentAttributes = attrs;
+    }
+
+    private async Task UnregisterAsync()
+    {
+        if (!isRegistered)
+        {
+            return;
+        }
+
+        if (!moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        {
+            ClearRegistration();
+            return;
+        }
+
+        var rootId = registeredRootId;
+        try
+        {
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("unregisterViewport", rootId);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
+        finally
+        {
+            ClearRegistration();
+        }
+    }
+
+    private void ClearRegistration()
+    {
+        isRegistered = false;
+        registeredRootId = null;
+        registeredDirection = null;
+    }
+}
