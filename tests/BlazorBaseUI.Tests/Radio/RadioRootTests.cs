@@ -15,6 +15,7 @@ public class RadioRootTests : BunitContext, IRadioRootContract
         bool disabled = false,
         bool readOnly = false,
         bool required = false,
+        bool nativeButton = false,
         string? name = null,
         Func<RadioRootState, string>? classValue = null,
         Func<RadioRootState, string>? styleValue = null,
@@ -38,6 +39,8 @@ public class RadioRootTests : BunitContext, IRadioRootContract
                     groupBuilder.AddAttribute(attrIndex++, "ReadOnly", true);
                 if (required)
                     groupBuilder.AddAttribute(attrIndex++, "Required", true);
+                if (nativeButton)
+                    groupBuilder.AddAttribute(attrIndex++, "NativeButton", true);
                 if (name is not null)
                     groupBuilder.AddAttribute(attrIndex++, "Name", name);
                 if (classValue is not null)
@@ -354,6 +357,18 @@ public class RadioRootTests : BunitContext, IRadioRootContract
     }
 
     [Fact]
+    public Task HasAriaDisabledWhenDisabled()
+    {
+        var cut = Render(CreateRadioRoot(disabled: true));
+
+        var radio = cut.Find("[role='radio']");
+        radio.GetAttribute("aria-disabled").ShouldBe("true");
+        radio.HasAttribute("disabled").ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task DoesNotHaveDataDisabledByDefault()
     {
         var cut = Render(CreateRadioRoot());
@@ -457,6 +472,22 @@ public class RadioRootTests : BunitContext, IRadioRootContract
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public Task StandaloneEmptyValueIsChecked()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<RadioRoot<string>>(0);
+            builder.AddAttribute(1, "Value", string.Empty);
+            builder.CloseComponent();
+        });
+
+        var radio = cut.Find("[role='radio']");
+        radio.GetAttribute("aria-checked").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
     // Name and hidden input tests
     [Fact]
     public Task RendersHiddenRadioInput()
@@ -466,6 +497,40 @@ public class RadioRootTests : BunitContext, IRadioRootContract
         var input = cut.Find("input[type='radio']");
         input.ShouldNotBeNull();
         input.GetAttribute("aria-hidden").ShouldBe("true");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ExplicitIdAssociatesHiddenInputNotNonNativeRoot()
+    {
+        var cut = Render(CreateRadioRoot(
+            additionalAttributes: new Dictionary<string, object> { { "id", "radio-input" } }
+        ));
+
+        var radio = cut.Find("[role='radio']");
+        var input = cut.Find("input[type='radio']");
+
+        radio.GetAttribute("id").ShouldNotBe("radio-input");
+        input.GetAttribute("id").ShouldBe("radio-input");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task NativeButtonUsesExplicitIdOnRootAndOmitsHiddenInputId()
+    {
+        var cut = Render(CreateRadioRoot(
+            nativeButton: true,
+            additionalAttributes: new Dictionary<string, object> { { "id", "myRadio" } }
+        ));
+
+        var radio = cut.Find("[role='radio']");
+        var input = cut.Find("input[type='radio']");
+
+        radio.TagName.ShouldBe("BUTTON");
+        radio.GetAttribute("id").ShouldBe("myRadio");
+        input.HasAttribute("id").ShouldBeFalse();
 
         return Task.CompletedTask;
     }
@@ -516,6 +581,27 @@ public class RadioRootTests : BunitContext, IRadioRootContract
 
         var input = cut.Find("input[type='radio']");
         input.GetAttribute("value").ShouldBe("radio-value");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task NullValueSerializesToEmptyInputValue()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<RadioGroup<string?>>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(groupBuilder =>
+            {
+                groupBuilder.OpenComponent<RadioRoot<string?>>(0);
+                groupBuilder.AddAttribute(1, "Value", (string?)null);
+                groupBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var input = cut.Find("input[type='radio']");
+        input.GetAttribute("value").ShouldBe(string.Empty);
 
         return Task.CompletedTask;
     }

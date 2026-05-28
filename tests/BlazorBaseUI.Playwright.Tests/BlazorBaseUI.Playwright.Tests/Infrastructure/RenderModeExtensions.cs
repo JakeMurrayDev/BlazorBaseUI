@@ -780,6 +780,12 @@ public sealed class TestPageUrlBuilder
         return this;
     }
 
+    public TestPageUrlBuilder WithRadioNativeButton(bool value)
+    {
+        queryParams["nativeButton"] = value.ToString().ToLowerInvariant();
+        return this;
+    }
+
     // Button-specific parameters
     public TestPageUrlBuilder WithButtonFocusableWhenDisabled(bool value)
     {

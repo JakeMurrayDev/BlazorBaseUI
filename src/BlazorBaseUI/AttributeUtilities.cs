@@ -71,6 +71,42 @@ internal static class AttributeUtilities
         return attributes is not null && attributes.TryGetValue(attribute, out var _);
     }
 
+    public static bool HasAttributeIgnoreCase(
+        IReadOnlyDictionary<string, object>? attributes,
+        string attribute
+    )
+    {
+        if (attributes is null)
+            return false;
+
+        foreach (var key in attributes.Keys)
+        {
+            if (string.Equals(key, attribute, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    public static string? CombineIdRefs(params string?[] values)
+    {
+        var ids = new List<string>();
+
+        foreach (var value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            foreach (var id in value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!ids.Contains(id, StringComparer.Ordinal))
+                    ids.Add(id);
+            }
+        }
+
+        return ids.Count > 0 ? string.Join(" ", ids) : null;
+    }
+
     public static string? CombineClassNames(
         IReadOnlyDictionary<string, object>? attributes,
         string? classNames
@@ -150,4 +186,4 @@ internal static class AttributeUtilities
             ? defaultId()
             : idAttributeValue;
     }
-}                                     
+}

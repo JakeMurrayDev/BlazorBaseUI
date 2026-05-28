@@ -354,17 +354,15 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
     }
 
     [Fact]
-    public Task TransitionStatusAttributes()
+    public Task InitiallyCheckedIndicatorDoesNotUseStartingStyle()
     {
-        // When indicator first appears (checked), it should have data-starting-style
         var cut = Render(CreateIndicatorWithContext(
             checked_: true,
             additionalAttributes: new Dictionary<string, object> { { "data-testid", "indicator" } }
         ));
 
         var indicator = cut.Find("[data-testid='indicator']");
-        // The starting style attribute is set during the initial transition
-        indicator.HasAttribute("data-starting-style").ShouldBeTrue();
+        indicator.HasAttribute("data-starting-style").ShouldBeFalse();
 
         return Task.CompletedTask;
     }
@@ -393,19 +391,18 @@ public class RadioIndicatorTests : BunitContext, IRadioIndicatorContract
     }
 
     [Fact]
-    public Task HandlesNullContext()
+    public Task ThrowsWithoutRadioRootContext()
     {
-        // RadioIndicator without RadioRootContext should not render (Rendered = false, KeepMounted = false)
-        var cut = Render(builder =>
+        var exception = Should.Throw<InvalidOperationException>(() => Render(builder =>
         {
             builder.OpenComponent<RadioIndicator>(0);
             builder.AddAttribute(1, "AdditionalAttributes",
                 (IReadOnlyDictionary<string, object>)new Dictionary<string, object> { { "data-testid", "indicator" } });
             builder.CloseComponent();
-        });
+        }));
 
-        var indicators = cut.FindAll("[data-testid='indicator']");
-        indicators.Count.ShouldBe(0);
+        exception.Message.ShouldBe(
+            "Base UI: RadioRootContext is missing. Radio parts must be placed within <Radio.Root>.");
 
         return Task.CompletedTask;
     }

@@ -91,6 +91,9 @@
     [SupplyParameterFromQuery(Name = "name")]
     public string? Name { get; set; }
 
+    [SupplyParameterFromQuery(Name = "nativeButton")]
+    public bool NativeButton { get; set; }
+
     private string? currentValue;
     private int changeCount;
     private string formData = "";
@@ -117,7 +120,9 @@
 
             <div class="radio-item">
                 <RadioRoot TValue="string"
+                    id="radio-a-control"
                     Value=@("a")
+                    NativeButton="@NativeButton"
                     class="radio-root"
                     data-testid="radio-a">
                     <RadioIndicator class="radio-indicator" data-testid="indicator-a" />
@@ -127,7 +132,9 @@
 
             <div class="radio-item">
                 <RadioRoot TValue="string"
+                    id="radio-b-control"
                     Value=@("b")
+                    NativeButton="@NativeButton"
                     class="radio-root"
                     data-testid="radio-b">
                     <RadioIndicator class="radio-indicator" data-testid="indicator-b" />
@@ -137,7 +144,9 @@
 
             <div class="radio-item">
                 <RadioRoot TValue="string"
+                    id="radio-c-control"
                     Value=@("c")
+                    NativeButton="@NativeButton"
                     class="radio-root"
                     data-testid="radio-c">
                     <RadioIndicator class="radio-indicator" data-testid="indicator-c" />
