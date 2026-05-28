@@ -167,6 +167,69 @@ public abstract class ScrollAreaTestsBase : TestBase
     }
 
     [Fact]
+    public virtual async Task ThumbDrag_WithZeroTrackTravel_DoesNotJumpViewport()
+    {
+        await NavigateAsync(CreateUrl("/tests/scroll-area"));
+        await WaitForMeasuredOverflowAsync();
+
+        var metrics = await Page.EvaluateAsync<ThumbTravelMetrics>(
+            """
+            () => {
+                const track = document.querySelector('[data-testid="vertical-scrollbar"]');
+                const thumb = document.querySelector('[data-testid="vertical-thumb"]');
+                const thumbHeight = thumb.getBoundingClientRect().height;
+
+                track.style.bottom = 'auto';
+                track.style.height = `${thumbHeight}px`;
+
+                const trackStyle = getComputedStyle(track);
+                const thumbStyle = getComputedStyle(thumb);
+                const scrollbarYOffset =
+                    (parseFloat(trackStyle.paddingBlockStart) || 0) +
+                    (parseFloat(trackStyle.paddingBlockEnd) || 0);
+                const thumbYOffset =
+                    (parseFloat(thumbStyle.marginBlockStart) || 0) +
+                    (parseFloat(thumbStyle.marginBlockEnd) || 0);
+                const thumbRect = thumb.getBoundingClientRect();
+
+                return {
+                    clientX: thumbRect.left + thumbRect.width / 2,
+                    clientY: thumbRect.top + thumbRect.height / 2,
+                    maxThumbOffset:
+                        track.offsetHeight - thumb.offsetHeight - scrollbarYOffset - thumbYOffset
+                };
+            }
+            """);
+
+        Assert.True(metrics.MaxThumbOffset <= 0);
+
+        var initialScrollTop = await GetScrollTopAsync();
+
+        await VerticalThumb.DispatchEventAsync("pointerdown", new
+        {
+            button = 0,
+            clientX = metrics.ClientX,
+            clientY = metrics.ClientY,
+            pointerId = 1
+        });
+        await VerticalThumb.DispatchEventAsync("pointermove", new
+        {
+            clientX = metrics.ClientX,
+            clientY = metrics.ClientY + 40,
+            pointerId = 1
+        });
+        await VerticalThumb.DispatchEventAsync("pointerup", new
+        {
+            clientX = metrics.ClientX,
+            clientY = metrics.ClientY + 40,
+            pointerId = 1
+        });
+
+        var scrollTopAfterDrag = await GetScrollTopAsync();
+        Assert.Equal(initialScrollTop, scrollTopAfterDrag);
+    }
+
+    [Fact]
     public virtual async Task KeepMountedWithoutOverflow_RendersTracksWithoutOverflowState()
     {
         await NavigateAsync(CreateUrl("/tests/scroll-area")
@@ -287,6 +350,15 @@ public abstract class ScrollAreaTestsBase : TestBase
         public double VerticalHeight { get; set; }
 
         public double HorizontalWidth { get; set; }
+    }
+
+    private sealed class ThumbTravelMetrics
+    {
+        public double ClientX { get; set; }
+
+        public double ClientY { get; set; }
+
+        public double MaxThumbOffset { get; set; }
     }
 
     private sealed class OverflowMetrics

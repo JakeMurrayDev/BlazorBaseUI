@@ -24,6 +24,7 @@
 
     private bool isRegistered;
     private string? registeredRootId;
+    private string? registeredDirection;
     private Func<ScrollAreaRootState, string?>? computedClassValue;
     private ScrollAreaViewportContext viewportContext = new();
     private RenderElement<ScrollAreaRootState>? renderElementReference;
@@ -100,16 +101,29 @@
             return;
         }
 
+        var rootId = Context.RootId;
+        var direction = Context.Direction.ToAttributeString() ?? "ltr";
+        if (isRegistered && registeredRootId == rootId && registeredDirection == direction)
+        {
+            return;
+        }
+
+        if (isRegistered)
+        {
+            await UnregisterAsync();
+        }
+
         try
         {
             var module = await moduleTask.Value;
             await module.InvokeVoidAsync(
                 "registerViewport",
-                Context.RootId,
+                rootId,
                 Element.Value,
-                Context.Direction.ToAttributeString() ?? "ltr");
+                direction);
             isRegistered = true;
-            registeredRootId = Context.RootId;
+            registeredRootId = rootId;
+            registeredDirection = direction;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -156,21 +170,37 @@
 
     private async Task UnregisterAsync()
     {
-        if (!isRegistered || !moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        if (!isRegistered)
         {
             return;
         }
 
+        if (!moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        {
+            ClearRegistration();
+            return;
+        }
+
+        var rootId = registeredRootId;
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("unregisterViewport", registeredRootId);
-            isRegistered = false;
-            registeredRootId = null;
+            await module.InvokeVoidAsync("unregisterViewport", rootId);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
             _ = ex;
         }
+        finally
+        {
+            ClearRegistration();
+        }
+    }
+
+    private void ClearRegistration()
+    {
+        isRegistered = false;
+        registeredRootId = null;
+        registeredDirection = null;
     }
 }

@@ -93,17 +93,29 @@
             return;
         }
 
+        var rootId = Context.RootId;
+        var orientation = ResolvedOrientation.ToDataAttributeString() ?? "vertical";
+        if (isRegistered && registeredRootId == rootId && registeredOrientation == orientation)
+        {
+            return;
+        }
+
+        if (isRegistered)
+        {
+            await UnregisterAsync();
+        }
+
         try
         {
             var module = await moduleTask.Value;
             await module.InvokeVoidAsync(
                 "registerThumb",
-                Context.RootId,
+                rootId,
                 Element.Value,
-                ResolvedOrientation.ToDataAttributeString() ?? "vertical");
+                orientation);
             isRegistered = true;
-            registeredRootId = Context.RootId;
-            registeredOrientation = ResolvedOrientation.ToDataAttributeString() ?? "vertical";
+            registeredRootId = rootId;
+            registeredOrientation = orientation;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -151,25 +163,41 @@
 
     private async Task UnregisterAsync()
     {
-        if (!isRegistered || !moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        if (!isRegistered)
         {
             return;
         }
 
+        if (!moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        {
+            ClearRegistration();
+            return;
+        }
+
+        var rootId = registeredRootId;
+        var orientation = registeredOrientation ?? "vertical";
         try
         {
             var module = await moduleTask.Value;
             await module.InvokeVoidAsync(
                 "unregisterThumb",
-                registeredRootId,
-                registeredOrientation ?? "vertical");
-            isRegistered = false;
-            registeredRootId = null;
-            registeredOrientation = null;
+                rootId,
+                orientation);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
             _ = ex;
         }
+        finally
+        {
+            ClearRegistration();
+        }
+    }
+
+    private void ClearRegistration()
+    {
+        isRegistered = false;
+        registeredRootId = null;
+        registeredOrientation = null;
     }
 }

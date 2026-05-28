@@ -89,12 +89,23 @@
             return;
         }
 
+        var rootId = Context.RootId;
+        if (isRegistered && registeredRootId == rootId)
+        {
+            return;
+        }
+
+        if (isRegistered)
+        {
+            await UnregisterAsync();
+        }
+
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("registerCorner", Context.RootId, Element.Value);
+            await module.InvokeVoidAsync("registerCorner", rootId, Element.Value);
             isRegistered = true;
-            registeredRootId = Context.RootId;
+            registeredRootId = rootId;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -135,21 +146,36 @@
 
     private async Task UnregisterAsync()
     {
-        if (!isRegistered || !moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        if (!isRegistered)
         {
             return;
         }
 
+        if (!moduleTask.IsValueCreated || string.IsNullOrEmpty(registeredRootId))
+        {
+            ClearRegistration();
+            return;
+        }
+
+        var rootId = registeredRootId;
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("unregisterCorner", registeredRootId);
-            isRegistered = false;
-            registeredRootId = null;
+            await module.InvokeVoidAsync("unregisterCorner", rootId);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
             _ = ex;
         }
+        finally
+        {
+            ClearRegistration();
+        }
+    }
+
+    private void ClearRegistration()
+    {
+        isRegistered = false;
+        registeredRootId = null;
     }
 }

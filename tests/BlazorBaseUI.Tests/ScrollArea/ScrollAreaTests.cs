@@ -2,10 +2,12 @@ namespace BlazorBaseUI.Tests.ScrollArea;
 
 public class ScrollAreaTests : BunitContext, IScrollAreaContract
 {
+    private readonly BunitJSModuleInterop module;
+
     public ScrollAreaTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JsInteropSetup.SetupScrollAreaModule(JSInterop);
+        module = JsInteropSetup.SetupScrollAreaModule(JSInterop);
     }
 
     private IRenderedComponent<ScrollAreaRoot> RenderScrollArea(
@@ -344,4 +346,34 @@ public class ScrollAreaTests : BunitContext, IScrollAreaContract
 
         return Task.CompletedTask;
     }
+
+    [Fact]
+    public async Task DescendantRegistrationsAreIdempotentAcrossRootStateRerenders()
+    {
+        var cut = RenderScrollArea();
+        await ApplyMeasuredStateAsync(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            CountModuleInvocations("registerViewport").ShouldBe(1);
+            CountModuleInvocations("registerContent").ShouldBe(1);
+            CountModuleInvocations("registerScrollbar").ShouldBe(2);
+            CountModuleInvocations("registerThumb").ShouldBe(2);
+            CountModuleInvocations("registerCorner").ShouldBe(1);
+        });
+
+        await ApplyMeasuredStateAsync(cut, scrollingY: true);
+
+        cut.WaitForAssertion(() =>
+        {
+            CountModuleInvocations("registerViewport").ShouldBe(1);
+            CountModuleInvocations("registerContent").ShouldBe(1);
+            CountModuleInvocations("registerScrollbar").ShouldBe(2);
+            CountModuleInvocations("registerThumb").ShouldBe(2);
+            CountModuleInvocations("registerCorner").ShouldBe(1);
+        });
+    }
+
+    private int CountModuleInvocations(string identifier) =>
+        module.Invocations.Count(invocation => invocation.Identifier == identifier);
 }

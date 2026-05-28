@@ -531,12 +531,12 @@ public static class JsInteropSetup
     private const string ScrollAreaModule = "./_content/BlazorBaseUI/blazor-baseui-scroll-area.js";
     private const string ScrollAreaMinModule = "./_content/BlazorBaseUI/blazor-baseui-scroll-area.min.js";
 
-    public static void SetupScrollAreaModule(BunitJSInterop jsInterop)
+    public static BunitJSModuleInterop SetupScrollAreaModule(BunitJSInterop jsInterop)
     {
         SetupScrollAreaModulePath(ScrollAreaModule);
-        SetupScrollAreaModulePath(ScrollAreaMinModule);
+        return SetupScrollAreaModulePath(ScrollAreaMinModule);
 
-        void SetupScrollAreaModulePath(string path)
+        BunitJSModuleInterop SetupScrollAreaModulePath(string path)
         {
             var module = jsInterop.SetupModule(path);
             module.SetupVoid("initializeRoot", _ => true).SetVoidResult();
@@ -552,6 +552,7 @@ public static class JsInteropSetup
             module.SetupVoid("unregisterThumb", _ => true).SetVoidResult();
             module.SetupVoid("registerCorner", _ => true).SetVoidResult();
             module.SetupVoid("unregisterCorner", _ => true).SetVoidResult();
+            return module;
         }
     }
 }

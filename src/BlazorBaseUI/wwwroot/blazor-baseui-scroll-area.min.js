@@ -812,7 +812,11 @@ function handlePointerMove(root, event) {
         const thumbHeight = root.thumbYElement.offsetHeight;
         const maxThumbOffsetY =
             root.scrollbarYElement.offsetHeight - thumbHeight - scrollbarYOffset - thumbYOffset;
-        const scrollRatioY = deltaY / maxThumbOffsetY;
+        const scrollRatioY = getThumbScrollRatio(deltaY, maxThumbOffsetY);
+        if (scrollRatioY == null) {
+            event.preventDefault();
+            return;
+        }
 
         viewportEl.scrollTop =
             root.startScrollTop + scrollRatioY * (scrollableContentHeight - viewportHeight);
@@ -828,7 +832,11 @@ function handlePointerMove(root, event) {
         const thumbWidth = root.thumbXElement.offsetWidth;
         const maxThumbOffsetX =
             root.scrollbarXElement.offsetWidth - thumbWidth - scrollbarXOffset - thumbXOffset;
-        const scrollRatioX = deltaX / maxThumbOffsetX;
+        const scrollRatioX = getThumbScrollRatio(deltaX, maxThumbOffsetX);
+        if (scrollRatioX == null) {
+            event.preventDefault();
+            return;
+        }
 
         viewportEl.scrollLeft =
             root.startScrollLeft + scrollRatioX * (scrollableContentWidth - viewportWidth);
@@ -877,10 +885,12 @@ function handleScrollbarPointerDown(root, orientation, event) {
             event.clientY - trackRectY.top - thumbHeight / 2 - scrollbarYOffset + thumbYOffset / 2;
         const maxThumbOffsetY =
             root.scrollbarYElement.offsetHeight - thumbHeight - scrollbarYOffset - thumbYOffset;
-        const scrollRatioY = clickY / maxThumbOffsetY;
+        const scrollRatioY = getThumbScrollRatio(clickY, maxThumbOffsetY);
 
-        viewportEl.scrollTop = scrollRatioY * (viewportEl.scrollHeight - viewportEl.clientHeight);
-        handleScrollPosition(root, { x: viewportEl.scrollLeft, y: viewportEl.scrollTop });
+        if (scrollRatioY != null) {
+            viewportEl.scrollTop = scrollRatioY * (viewportEl.scrollHeight - viewportEl.clientHeight);
+            handleScrollPosition(root, { x: viewportEl.scrollLeft, y: viewportEl.scrollTop });
+        }
     }
 
     if (root.thumbXElement && root.scrollbarXElement && orientation === 'horizontal') {
@@ -892,21 +902,24 @@ function handleScrollbarPointerDown(root, orientation, event) {
             event.clientX - trackRectX.left - thumbWidth / 2 - scrollbarXOffset + thumbXOffset / 2;
         const maxThumbOffsetX =
             root.scrollbarXElement.offsetWidth - thumbWidth - scrollbarXOffset - thumbXOffset;
-        const scrollRatioX = clickX / maxThumbOffsetX;
-        const scrollRange = viewportEl.scrollWidth - viewportEl.clientWidth;
+        const scrollRatioX = getThumbScrollRatio(clickX, maxThumbOffsetX);
 
-        let newScrollLeft;
-        if (root.direction === 'rtl') {
-            newScrollLeft = (1 - scrollRatioX) * scrollRange;
-            if (viewportEl.scrollLeft <= 0) {
-                newScrollLeft = -newScrollLeft;
+        if (scrollRatioX != null) {
+            const scrollRange = viewportEl.scrollWidth - viewportEl.clientWidth;
+
+            let newScrollLeft;
+            if (root.direction === 'rtl') {
+                newScrollLeft = (1 - scrollRatioX) * scrollRange;
+                if (viewportEl.scrollLeft <= 0) {
+                    newScrollLeft = -newScrollLeft;
+                }
+            } else {
+                newScrollLeft = scrollRatioX * scrollRange;
             }
-        } else {
-            newScrollLeft = scrollRatioX * scrollRange;
-        }
 
-        viewportEl.scrollLeft = newScrollLeft;
-        handleScrollPosition(root, { x: viewportEl.scrollLeft, y: viewportEl.scrollTop });
+            viewportEl.scrollLeft = newScrollLeft;
+            handleScrollPosition(root, { x: viewportEl.scrollLeft, y: viewportEl.scrollTop });
+        }
     }
 
     handlePointerDown(root, orientation, event);
@@ -1215,6 +1228,14 @@ function normalizeOrientation(orientation) {
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+}
+
+function getThumbScrollRatio(offset, maxThumbOffset) {
+    if (!Number.isFinite(maxThumbOffset) || maxThumbOffset <= 0) {
+        return null;
+    }
+
+    return offset / maxThumbOffset;
 }
 
 function parseCssFloat(value) {
