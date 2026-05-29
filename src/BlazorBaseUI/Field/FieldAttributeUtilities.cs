@@ -5,24 +5,24 @@ internal static class FieldAttributeUtilities
     public static void AddFieldStateAttributes(IDictionary<string, object> attributes, FieldRootState state)
     {
         if (state.Disabled)
-            attributes["data-disabled"] = string.Empty;
+            attributes["data-disabled"] = true;
 
         if (state.Valid == true)
-            attributes["data-valid"] = string.Empty;
+            attributes["data-valid"] = true;
         else if (state.Valid == false)
-            attributes["data-invalid"] = string.Empty;
+            attributes["data-invalid"] = true;
 
         if (state.Touched)
-            attributes["data-touched"] = string.Empty;
+            attributes["data-touched"] = true;
 
         if (state.Dirty)
-            attributes["data-dirty"] = string.Empty;
+            attributes["data-dirty"] = true;
 
         if (state.Filled)
-            attributes["data-filled"] = string.Empty;
+            attributes["data-filled"] = true;
 
         if (state.Focused)
-            attributes["data-focused"] = string.Empty;
+            attributes["data-focused"] = true;
     }
 
     public static FieldValidityData GetCombinedValidityData(FieldValidityData validityData, bool invalid)

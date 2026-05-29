@@ -195,9 +195,9 @@
         FieldAttributeUtilities.AddFieldStateAttributes(attrs, fieldState);
 
         if (transitionStatus == FieldTransitionStatus.Starting)
-            attrs["data-starting-style"] = string.Empty;
+            attrs["data-starting-style"] = true;
         else if (transitionStatus == FieldTransitionStatus.Ending)
-            attrs["data-ending-style"] = string.Empty;
+            attrs["data-ending-style"] = true;
 
         componentAttributes = attrs;
     }
