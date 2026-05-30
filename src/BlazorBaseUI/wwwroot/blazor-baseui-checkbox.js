@@ -12,6 +12,45 @@ function applyOptimisticState(element, checked, indeterminate) {
     indeterminate ? element.setAttribute('data-indeterminate', '') : element.removeAttribute('data-indeterminate');
 }
 
+function getDefaultFormSubmitter(form) {
+    if (!form) {
+        return null;
+    }
+
+    for (const candidate of form.elements) {
+        const tagName = candidate.tagName;
+
+        if ((tagName === 'BUTTON' || tagName === 'INPUT') && candidate.type === 'submit') {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function getEventModifiers(event) {
+    return {
+        bubbles: true,
+        cancelable: true,
+        shiftKey: event?.shiftKey ?? false,
+        ctrlKey: event?.ctrlKey ?? false,
+        altKey: event?.altKey ?? false,
+        metaKey: event?.metaKey ?? false
+    };
+}
+
+function dispatchInputClick(state) {
+    const inputElement = state.inputElement;
+
+    if (!inputElement) {
+        return;
+    }
+
+    const view = inputElement.ownerDocument.defaultView;
+    const ClickEvent = view.PointerEvent ?? view.MouseEvent;
+    inputElement.dispatchEvent(new ClickEvent('click', state.lastInteractionModifiers ?? getEventModifiers()));
+}
+
 /**
  * Dispatches the toggle to Blazor by clicking the hidden input element.
  * When debouncing is active, only the final resolved state is dispatched.
@@ -27,11 +66,37 @@ function dispatchToggle(state) {
     // Only click the input if the desired state differs from its current state.
     // Each click toggles the input, so we only need one click (or none).
     if (currentInputChecked !== desiredChecked) {
-        state.inputElement.click();
+        dispatchInputClick(state);
     }
 }
 
-export function initialize(element, inputElement, disabled, readOnly, indeterminate, checked) {
+function handleEnterKey(event, state) {
+    if (event.defaultPrevented) {
+        return;
+    }
+
+    const formToSubmit = state.inputElement?.form ?? null;
+    const view = event.currentTarget?.ownerDocument?.defaultView ?? window;
+    const originalPreventDefault = event.preventDefault;
+    let preventDefaultCalledAfterPropagation = false;
+
+    event.preventDefault = () => {
+        preventDefaultCalledAfterPropagation = true;
+        originalPreventDefault.call(event);
+    };
+
+    originalPreventDefault.call(event);
+
+    view.queueMicrotask(() => {
+        event.preventDefault = originalPreventDefault;
+
+        if (!preventDefaultCalledAfterPropagation) {
+            getDefaultFormSubmitter(formToSubmit)?.click();
+        }
+    });
+}
+
+export function initialize(element, inputElement, disabled, readOnly, indeterminate, checked, nativeButton, allowsOptimisticState) {
     if (!element) {
         return;
     }
@@ -41,7 +106,10 @@ export function initialize(element, inputElement, disabled, readOnly, indetermin
         disabled,
         readOnly,
         indeterminate,
+        nativeButton,
+        allowsOptimisticState: allowsOptimisticState !== false,
         optimisticChecked: checked,
+        lastInteractionModifiers: null,
         debounceTimer: null,
         keydownHandler: null,
         keyupHandler: null,
@@ -64,20 +132,20 @@ export function initialize(element, inputElement, disabled, readOnly, indetermin
             return;
         }
 
+        if (event.key === 'Enter') {
+            handleEnterKey(event, state);
+            return;
+        }
+
         if (state.readOnly) {
-            if (event.key === ' ' || event.key === 'Enter') {
+            if (event.key === ' ') {
                 event.preventDefault();
             }
             return;
         }
 
-        if (event.key === ' ') {
+        if (!state.nativeButton && event.key === ' ') {
             event.preventDefault();
-        }
-
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            toggleCheckbox(element, state);
         }
     };
 
@@ -86,9 +154,9 @@ export function initialize(element, inputElement, disabled, readOnly, indetermin
             return;
         }
 
-        if (event.key === ' ') {
+        if (!state.nativeButton && event.key === ' ') {
             event.preventDefault();
-            toggleCheckbox(element, state);
+            toggleCheckbox(element, state, event);
         }
     };
 
@@ -99,7 +167,7 @@ export function initialize(element, inputElement, disabled, readOnly, indetermin
         }
 
         event.preventDefault();
-        toggleCheckbox(element, state);
+        toggleCheckbox(element, state, event);
     };
 
     element.addEventListener('keydown', state.keydownHandler);
@@ -116,18 +184,17 @@ export function initialize(element, inputElement, disabled, readOnly, indetermin
  * 2. Debounces the actual Blazor dispatch so rapid clicks coalesce into a single
  *    server round-trip with the final resolved state.
  */
-function toggleCheckbox(element, state) {
+function toggleCheckbox(element, state, event) {
+    state.lastInteractionModifiers = getEventModifiers(event);
+
+    if (!state.allowsOptimisticState || state.indeterminate) {
+        dispatchInputClick(state);
+        return;
+    }
+
     // Flip the optimistic state
     const nextChecked = !state.optimisticChecked;
     state.optimisticChecked = nextChecked;
-
-    // If the checkbox was indeterminate, clicking always resolves to a definite state.
-    if (state.indeterminate) {
-        state.indeterminate = false;
-        if (state.inputElement) {
-            state.inputElement.indeterminate = false;
-        }
-    }
 
     // Apply visual feedback immediately (no server round-trip needed)
     applyOptimisticState(element, nextChecked, false);
@@ -144,7 +211,7 @@ function toggleCheckbox(element, state) {
     }, 60);
 }
 
-export function updateState(element, inputElement, disabled, readOnly, indeterminate, checked) {
+export function updateState(element, inputElement, disabled, readOnly, indeterminate, checked, nativeButton, allowsOptimisticState) {
     if (!element) {
         return;
     }
@@ -163,9 +230,17 @@ export function updateState(element, inputElement, disabled, readOnly, indetermi
             }
         }
 
+        const nextAllowsOptimisticState = allowsOptimisticState !== false;
+        if (!nextAllowsOptimisticState && state.debounceTimer !== null) {
+            clearTimeout(state.debounceTimer);
+            state.debounceTimer = null;
+        }
+
         state.disabled = disabled;
         state.readOnly = readOnly;
         state.indeterminate = indeterminate;
+        state.nativeButton = nativeButton;
+        state.allowsOptimisticState = nextAllowsOptimisticState;
 
         if (state.inputElement) {
             state.inputElement.indeterminate = indeterminate;
@@ -193,6 +268,30 @@ export function setInputChecked(inputElement, checked) {
     }
 
     inputElement.checked = checked;
+}
+
+export function resetState(element, inputElement, checked, indeterminate) {
+    if (inputElement) {
+        inputElement.checked = checked;
+        inputElement.indeterminate = indeterminate;
+    }
+
+    if (!element) {
+        return;
+    }
+
+    const state = element[STATE_KEY];
+    if (state) {
+        if (state.debounceTimer !== null) {
+            clearTimeout(state.debounceTimer);
+            state.debounceTimer = null;
+        }
+
+        state.optimisticChecked = checked;
+        state.indeterminate = indeterminate;
+    }
+
+    applyOptimisticState(element, checked, indeterminate);
 }
 
 export function dispose(element) {

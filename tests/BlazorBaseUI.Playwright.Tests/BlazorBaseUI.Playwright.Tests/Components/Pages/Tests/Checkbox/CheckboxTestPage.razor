@@ -49,6 +49,7 @@
         <form data-testid="test-form" @onsubmit="HandleSubmit" @onsubmit:preventDefault>
             @RenderCheckbox()
             <button type="submit" data-testid="submit-button">Submit</button>
+            <div data-testid="submit-count">@submitCount</div>
             <div data-testid="form-data">@formData</div>
         </form>
     }
@@ -101,6 +102,9 @@
     [SupplyParameterFromQuery(Name = "indeterminate")]
     public bool Indeterminate { get; set; }
 
+    [SupplyParameterFromQuery(Name = "nativeButton")]
+    public bool NativeButton { get; set; }
+
     [SupplyParameterFromQuery(Name = "name")]
     public string? Name { get; set; }
 
@@ -124,6 +128,7 @@
     private int clickCount;
     private int focusCount;
     private int blurCount;
+    private int submitCount;
     private string formData = "";
 
     protected override void OnInitialized()
@@ -140,6 +145,7 @@
             ReadOnly="@ReadOnly"
             Required="@Required"
             Indeterminate="@Indeterminate"
+            NativeButton="@NativeButton"
             Name="@Name"
             Value="@Value"
             UncheckedValue="@UncheckedValue"
@@ -172,6 +178,7 @@
             ReadOnly="@ReadOnly"
             Required="@Required"
             Indeterminate="@Indeterminate"
+            NativeButton="@NativeButton"
             Name="@Name"
             Value="@Value"
             UncheckedValue="@UncheckedValue"
@@ -221,6 +228,8 @@
 
     private void HandleSubmit()
     {
+        submitCount++;
+
         // Simulate form data collection
         var data = new System.Text.StringBuilder();
         if (!string.IsNullOrEmpty(Name))

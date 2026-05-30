@@ -421,23 +421,19 @@ public class CheckboxIndicatorTests : BunitContext, ICheckboxIndicatorContract
     }
 
     [Fact]
-    public Task HandlesNullContext()
+    public Task ThrowsWhenRenderedOutsideCheckboxRoot()
     {
-        // When rendered outside of CheckboxRoot context with keepMounted, should use default state
-        var cut = Render(builder =>
+        var exception = Should.Throw<InvalidOperationException>(() => Render(builder =>
         {
             builder.OpenComponent<CheckboxIndicator>(0);
             builder.AddAttribute(1, "KeepMounted", true);
             builder.AddAttribute(2, "AdditionalAttributes",
                 (IReadOnlyDictionary<string, object>)new Dictionary<string, object> { { "data-testid", "indicator" } });
             builder.CloseComponent();
-        });
+        }));
 
-        var indicator = cut.Find("[data-testid='indicator']");
-        indicator.ShouldNotBeNull();
-        // Should have default (unchecked) state
-        indicator.HasAttribute("data-unchecked").ShouldBeTrue();
-
+        exception.Message.ShouldBe(
+            "Base UI: CheckboxRootContext is missing. Checkbox parts must be placed within <Checkbox.Root>.");
         return Task.CompletedTask;
     }
 

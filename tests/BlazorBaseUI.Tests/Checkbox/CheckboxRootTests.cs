@@ -1,3 +1,5 @@
+using BlazorBaseUI.Field;
+
 namespace BlazorBaseUI.Tests.Checkbox;
 
 public class CheckboxRootTests : BunitContext, ICheckboxRootContract
@@ -15,7 +17,9 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         bool readOnly = false,
         bool required = false,
         bool indeterminate = false,
+        bool nativeButton = false,
         string? name = null,
+        string? form = null,
         string? value = null,
         string? uncheckedValue = null,
         Func<CheckboxRootState, string>? classValue = null,
@@ -43,8 +47,12 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
                 builder.AddAttribute(attrIndex++, "Required", true);
             if (indeterminate)
                 builder.AddAttribute(attrIndex++, "Indeterminate", true);
+            if (nativeButton)
+                builder.AddAttribute(attrIndex++, "NativeButton", true);
             if (name is not null)
                 builder.AddAttribute(attrIndex++, "Name", name);
+            if (form is not null)
+                builder.AddAttribute(attrIndex++, "Form", form);
             if (value is not null)
                 builder.AddAttribute(attrIndex++, "Value", value);
             if (uncheckedValue is not null)
@@ -212,14 +220,89 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         var cut = Render(CreateCheckboxRoot(
             additionalAttributes: new Dictionary<string, object>
             {
+                { "role", "switch" },
                 { "data-custom", "test-value" },
                 { "aria-label", "Custom label" }
             }
         ));
 
-        var checkbox = cut.Find("[role='checkbox']");
+        var checkbox = cut.Find("[role='switch']");
         checkbox.GetAttribute("data-custom").ShouldBe("test-value");
         checkbox.GetAttribute("aria-label").ShouldBe("Custom label");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ExplicitAriaLabelledByOverridesFieldLabel()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<FieldRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(fieldBuilder =>
+            {
+                fieldBuilder.OpenComponent<FieldLabel>(0);
+                fieldBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(labelBuilder =>
+                {
+                    labelBuilder.AddContent(0, "Terms");
+                }));
+                fieldBuilder.CloseComponent();
+
+                fieldBuilder.OpenComponent<CheckboxRoot>(2);
+                fieldBuilder.AddAttribute(3, "AdditionalAttributes",
+                    (IReadOnlyDictionary<string, object>)new Dictionary<string, object>
+                    {
+                        { "aria-labelledby", "external-label" },
+                        { "data-testid", "checkbox-root" }
+                    });
+                fieldBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var checkbox = cut.Find("[data-testid='checkbox-root']");
+        checkbox.GetAttribute("aria-labelledby").ShouldBe("external-label");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task CombinesExternalAriaDescribedByWithFieldDescription()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<FieldRoot>(0);
+            builder.AddAttribute(1, "ChildContent", (RenderFragment)(fieldBuilder =>
+            {
+                fieldBuilder.OpenComponent<CheckboxRoot>(0);
+                fieldBuilder.AddAttribute(1, "AdditionalAttributes",
+                    (IReadOnlyDictionary<string, object>)new Dictionary<string, object>
+                    {
+                        { "aria-describedby", "external-description" },
+                        { "data-testid", "checkbox-root" }
+                    });
+                fieldBuilder.CloseComponent();
+
+                fieldBuilder.OpenComponent<FieldDescription>(2);
+                fieldBuilder.AddAttribute(3, "AdditionalAttributes",
+                    (IReadOnlyDictionary<string, object>)new Dictionary<string, object>
+                    {
+                        { "id", "field-description" }
+                    });
+                fieldBuilder.AddAttribute(4, "ChildContent", (RenderFragment)(descriptionBuilder =>
+                {
+                    descriptionBuilder.AddContent(0, "Description");
+                }));
+                fieldBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() =>
+        {
+            var checkbox = cut.Find("[data-testid='checkbox-root']");
+            checkbox.GetAttribute("aria-describedby").ShouldBe("external-description field-description");
+        });
 
         return Task.CompletedTask;
     }
@@ -320,7 +403,7 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         var cut = Render(CreateCheckboxRoot(disabled: true));
 
         var checkbox = cut.Find("[role='checkbox']");
-        // CheckboxRoot doesn't use aria-disabled, it uses data-disabled
+        checkbox.GetAttribute("aria-disabled").ShouldBe("true");
         checkbox.HasAttribute("data-disabled").ShouldBeTrue();
 
         return Task.CompletedTask;
@@ -333,6 +416,56 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
 
         var checkbox = cut.Find("[role='checkbox']");
         checkbox.HasAttribute("data-disabled").ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task NativeButtonUsesExplicitIdOnRootAndOmitsHiddenInputId()
+    {
+        RenderFragment<RenderProps<CheckboxRootState>> renderAsButton = props => builder =>
+        {
+            builder.OpenElement(0, "button");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            if (props.ElementReferenceCallback is not null)
+                builder.AddElementReferenceCapture(2, props.ElementReferenceCallback);
+            builder.AddContent(3, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateCheckboxRoot(
+            nativeButton: true,
+            render: renderAsButton,
+            additionalAttributes: new Dictionary<string, object>
+            {
+                { "id", "native-checkbox" },
+                { "data-testid", "checkbox-root" }
+            }));
+
+        var checkbox = cut.Find("[data-testid='checkbox-root']");
+        var input = cut.Find("input[type='checkbox']");
+
+        checkbox.TagName.ShouldBe("BUTTON");
+        checkbox.GetAttribute("id").ShouldBe("native-checkbox");
+        checkbox.GetAttribute("type").ShouldBe("button");
+        input.HasAttribute("id").ShouldBeFalse();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task FormPropPassesToCheckboxInputAndUncheckedHiddenInput()
+    {
+        var cut = Render(CreateCheckboxRoot(
+            name: "terms",
+            form: "external-form",
+            uncheckedValue: "off"));
+
+        var checkboxInput = cut.Find("input[type='checkbox']");
+        var uncheckedInput = cut.Find("input[type='hidden']");
+
+        checkboxInput.GetAttribute("form").ShouldBe("external-form");
+        uncheckedInput.GetAttribute("form").ShouldBe("external-form");
 
         return Task.CompletedTask;
     }
@@ -693,6 +826,29 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
     }
 
     [Fact]
+    public Task OnCheckedChangeReceivesBaseUiChangeDetails()
+    {
+        CheckboxCheckedChangeEventArgs? receivedArgs = null;
+
+        var cut = Render(CreateCheckboxRoot(
+            onCheckedChange: EventCallback.Factory.Create<CheckboxCheckedChangeEventArgs>(this, args =>
+            {
+                args.AllowPropagation();
+                receivedArgs = args;
+            })
+        ));
+
+        var input = cut.Find("input[type='checkbox']");
+        input.Change(true);
+
+        receivedArgs.ShouldNotBeNull();
+        receivedArgs!.Reason.ShouldBe(CheckboxChangeReason.None);
+        receivedArgs.IsPropagationAllowed.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task InvokesCheckedChangedOnInputChange()
     {
         var invoked = false;
@@ -770,6 +926,115 @@ public class CheckboxRootTests : BunitContext, ICheckboxRootContract
         // State should not change because the event was cancelled
         checkbox = cut.Find("[role='checkbox']");
         checkbox.GetAttribute("aria-checked").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task OnCheckedChangeCancellationResetsOptimisticVisualState()
+    {
+        var cut = Render(CreateCheckboxRoot(
+            onCheckedChange: EventCallback.Factory.Create<CheckboxCheckedChangeEventArgs>(this, args =>
+            {
+                args.Cancel();
+            })
+        ));
+
+        var resetStateCountBeforeChange = JSInterop.Invocations.Count(invocation => invocation.Identifier == "resetState");
+
+        var input = cut.Find("input[type='checkbox']");
+        input.Change(true);
+
+        JSInterop.Invocations.Count(invocation => invocation.Identifier == "resetState")
+            .ShouldBe(resetStateCountBeforeChange + 1);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task OnCheckedChangeCancellationWithoutCapturedRootElementSkipsResetInterop()
+    {
+        RenderFragment<RenderProps<CheckboxRootState>> renderWithoutElementReference = props => builder =>
+        {
+            builder.OpenElement(0, "span");
+            builder.AddMultipleAttributes(1, props.Attributes);
+            builder.AddContent(2, props.ChildContent);
+            builder.CloseElement();
+        };
+
+        var cut = Render(CreateCheckboxRoot(
+            render: renderWithoutElementReference,
+            onCheckedChange: EventCallback.Factory.Create<CheckboxCheckedChangeEventArgs>(this, args =>
+            {
+                args.Cancel();
+            })
+        ));
+
+        var resetStateCountBeforeChange = JSInterop.Invocations.Count(invocation => invocation.Identifier == "resetState");
+
+        var input = cut.Find("input[type='checkbox']");
+        input.Change(true);
+
+        JSInterop.Invocations.Count(invocation => invocation.Identifier == "resetState")
+            .ShouldBe(resetStateCountBeforeChange);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task OnCheckedChangeCallbackDisablesOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxRoot(
+            onCheckedChange: EventCallback.Factory.Create<CheckboxCheckedChangeEventArgs>(this, _ => { })
+        ));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocation = JSInterop.Invocations.First(invocation => invocation.Identifier == "initialize");
+            initializeInvocation.Arguments[7].ShouldBe(false);
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ControlledCheckboxDisablesOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxRoot(isChecked: false));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocation = JSInterop.Invocations.First(invocation => invocation.Identifier == "initialize");
+            initializeInvocation.Arguments[7].ShouldBe(false);
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task IndeterminateCheckboxDisablesOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxRoot(indeterminate: true));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocation = JSInterop.Invocations.First(invocation => invocation.Identifier == "initialize");
+            initializeInvocation.Arguments[7].ShouldBe(false);
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task UncontrolledCheckboxWithoutCancelableCallbacksAllowsOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxRoot());
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocation = JSInterop.Invocations.First(invocation => invocation.Identifier == "initialize");
+            initializeInvocation.Arguments[7].ShouldBe(true);
+        });
 
         return Task.CompletedTask;
     }

@@ -1,4 +1,6 @@
-@implements IDisposable
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
 
 <RenderElement TState="CheckboxIndicatorState"
                Tag="span"
@@ -13,23 +15,19 @@
                @ref="renderElementReference" />
 
 @code {
+    private const string AnimationsModulePath = "./_content/BlazorBaseUI/blazor-baseui-animations.min.js";
+
     private bool isMounted;
+    private bool hasRendered;
+    private bool hasInitialized;
+    private bool startTransitionPending;
+    private bool endTransitionPending;
     private TransitionStatus transitionStatus = TransitionStatus.Undefined;
-    private CancellationTokenSource? transitionCts;
     private CheckboxIndicatorState state;
     private RenderElement<CheckboxIndicatorState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
-    private bool previousChecked;
-    private bool previousDisabled;
-    private bool previousReadOnly;
-    private bool previousRequired;
-    private bool previousIndeterminate;
-    private bool? previousValid;
-    private bool previousTouched;
-    private bool previousDirty;
-    private bool previousFilled;
-    private bool previousFocused;
-    private TransitionStatus previousTransitionStatus = TransitionStatus.Undefined;
+    private Lazy<Task<IJSObjectReference>> moduleTask = default!;
+    private DotNetObjectReference<CheckboxIndicator>? dotNetRef;
 
     private bool Rendered => CheckboxContext?.Checked == true || CheckboxContext?.Indeterminate == true;
 
@@ -82,49 +80,102 @@
     public ElementReference? Element => renderElementReference?.Element;
 
     /// <inheritdoc />
-    protected override void OnParametersSet()
+    protected override void OnInitialized()
     {
-        UpdateTransitionStatus();
-
-        var rootState = CheckboxContext?.State ?? CheckboxRootState.Default;
-
-        var stateChanged = previousChecked != rootState.Checked ||
-                           previousDisabled != rootState.Disabled ||
-                           previousReadOnly != rootState.ReadOnly ||
-                           previousRequired != rootState.Required ||
-                           previousIndeterminate != rootState.Indeterminate ||
-                           previousValid != rootState.Valid ||
-                           previousTouched != rootState.Touched ||
-                           previousDirty != rootState.Dirty ||
-                           previousFilled != rootState.Filled ||
-                           previousFocused != rootState.Focused ||
-                           previousTransitionStatus != transitionStatus;
-
-        if (stateChanged)
-        {
-            state = CheckboxIndicatorState.FromRootState(rootState, transitionStatus);
-        }
-
-        BuildComponentAttributes();
-
-        previousChecked = rootState.Checked;
-        previousDisabled = rootState.Disabled;
-        previousReadOnly = rootState.ReadOnly;
-        previousRequired = rootState.Required;
-        previousIndeterminate = rootState.Indeterminate;
-        previousValid = rootState.Valid;
-        previousTouched = rootState.Touched;
-        previousDirty = rootState.Dirty;
-        previousFilled = rootState.Filled;
-        previousFocused = rootState.Focused;
-        previousTransitionStatus = transitionStatus;
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", AnimationsModulePath).AsTask());
+        dotNetRef = DotNetObjectReference.Create(this);
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void OnParametersSet()
     {
-        transitionCts?.Cancel();
-        transitionCts?.Dispose();
+        if (CheckboxContext is null)
+        {
+            throw new InvalidOperationException(
+                "Base UI: CheckboxRootContext is missing. Checkbox parts must be placed within <Checkbox.Root>.");
+        }
+
+        UpdateTransitionStatus();
+        UpdateStateFromContext();
+
+        hasInitialized = true;
+        BuildComponentAttributes();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            hasRendered = true;
+        }
+
+        if (startTransitionPending)
+        {
+            startTransitionPending = false;
+            await StartEntryTransitionAsync();
+        }
+
+        if (endTransitionPending)
+        {
+            endTransitionPending = false;
+            await StartExitTransitionAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex; // Expected during circuit disconnect - safe to ignore.
+            }
+        }
+
+        dotNetRef?.Dispose();
+    }
+
+    /// <summary>
+    /// Called from JavaScript after the starting-style frame has been applied.
+    /// </summary>
+    [JSInvokable]
+    public void OnTransitionStarted()
+    {
+        transitionStatus = TransitionStatus.Undefined;
+        UpdateStateFromContext();
+        BuildComponentAttributes();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called from JavaScript after exit animations and transitions complete.
+    /// </summary>
+    [JSInvokable]
+    public void OnTransitionEnded()
+    {
+        if (Rendered)
+        {
+            endTransitionPending = false;
+            transitionStatus = TransitionStatus.Undefined;
+            UpdateStateFromContext();
+            BuildComponentAttributes();
+            _ = InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        isMounted = false;
+        transitionStatus = TransitionStatus.Undefined;
+        UpdateStateFromContext();
+        BuildComponentAttributes();
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void BuildComponentAttributes()
@@ -148,6 +199,14 @@
         componentAttributes = attrs;
     }
 
+    private void UpdateStateFromContext()
+    {
+        if (CheckboxContext is null)
+            return;
+
+        state = CheckboxIndicatorState.FromRootState(CheckboxContext.State, transitionStatus);
+    }
+
     private void UpdateTransitionStatus()
     {
         var wasRendered = isMounted;
@@ -156,62 +215,66 @@
         if (isRendered && !wasRendered)
         {
             isMounted = true;
-            transitionStatus = TransitionStatus.Starting;
-            ScheduleTransitionEnd();
+
+            if (hasRendered || hasInitialized)
+            {
+                transitionStatus = TransitionStatus.Starting;
+                startTransitionPending = true;
+            }
         }
         else if (!isRendered && wasRendered)
         {
-            transitionStatus = TransitionStatus.Ending;
-            ScheduleUnmount();
+            if (hasRendered)
+            {
+                transitionStatus = TransitionStatus.Ending;
+                endTransitionPending = true;
+            }
+            else
+            {
+                isMounted = false;
+                transitionStatus = TransitionStatus.Undefined;
+            }
+        }
+        else if (isRendered)
+        {
+            endTransitionPending = false;
+
+            if (transitionStatus == TransitionStatus.Ending)
+            {
+                transitionStatus = TransitionStatus.Undefined;
+            }
         }
     }
 
-    private void ScheduleTransitionEnd()
+    private async Task StartEntryTransitionAsync()
     {
-        transitionCts?.Cancel();
-        transitionCts = new CancellationTokenSource();
-        var token = transitionCts.Token;
+        if (!Element.HasValue || dotNetRef is null)
+            return;
 
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                await Task.Delay(1, token);
-                if (!token.IsCancellationRequested)
-                {
-                    transitionStatus = TransitionStatus.Undefined;
-                    await InvokeAsync(StateHasChanged);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                await DispatchExceptionAsync(ex);
-            }
-        }, token);
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("applyStartingStyle", Element.Value, dotNetRef);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
+        }
     }
 
-    private void ScheduleUnmount()
+    private async Task StartExitTransitionAsync()
     {
-        transitionCts?.Cancel();
-        transitionCts = new CancellationTokenSource();
-        var token = transitionCts.Token;
+        if (!Element.HasValue || dotNetRef is null)
+            return;
 
-        _ = Task.Run(async () =>
+        try
         {
-            try
-            {
-                await Task.Delay(150, token);
-                if (!token.IsCancellationRequested)
-                {
-                    isMounted = false;
-                    transitionStatus = TransitionStatus.Undefined;
-                    await InvokeAsync(StateHasChanged);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                await DispatchExceptionAsync(ex);
-            }
-        }, token);
+            var module = await moduleTask.Value;
+            await module.InvokeVoidAsync("waitForExitTransition", Element.Value, dotNetRef);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex; // Expected during circuit disconnect - safe to ignore.
+        }
     }
 }

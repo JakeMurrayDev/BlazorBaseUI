@@ -11,34 +11,53 @@
 @inject IJSRuntime JSRuntime
 
 <CascadingValue Value="context" IsFixed="true">
-    <RenderElement TState="CheckboxRootState"
-                   Tag="span"
-                   State="state"
-                   Render="Render"
-                   ClassValue="ClassValue"
-                   StyleValue="StyleValue"
-                   ComponentAttributes="componentAttributes"
-                   ChildContent="ChildContent"
-                   @attributes="AdditionalAttributes"
-                   @ref="renderElementReference" />
+    @if (NativeButton)
+    {
+        <RenderElement TState="CheckboxRootState"
+                       Tag="button"
+                       State="state"
+                       Render="Render"
+                       ClassValue="ClassValue"
+                       StyleValue="StyleValue"
+                       ComponentAttributes="nativeButtonAttributes"
+                       ChildContent="ChildContent"
+                       @attributes="AdditionalAttributes"
+                       @ref="renderElementReference" />
+    }
+    else
+    {
+        <RenderElement TState="CheckboxRootState"
+                       Tag="span"
+                       State="state"
+                       Render="Render"
+                       ClassValue="ClassValue"
+                       StyleValue="StyleValue"
+                       ComponentAttributes="componentAttributes"
+                       ChildContent="ChildContent"
+                       @attributes="AdditionalAttributes"
+                       @ref="renderElementReference" />
+    }
 </CascadingValue>
 
 @if (!CurrentChecked && GroupContext is null && ResolvedName is not null && !Parent && UncheckedValue is not null)
 {
-    <input type="hidden" name="@ResolvedName" value="@UncheckedValue" />
+    <input type="hidden" form="@Form" name="@ResolvedName" value="@UncheckedValue" />
 }
 
 <input type="checkbox"
-       id="@inputId"
+       id="@(NativeButton ? null : inputId)"
        checked="@CurrentChecked"
        disabled="@ResolvedDisabled"
        required="@Required"
+       form="@Form"
        aria-hidden="true"
        tabindex="-1"
-       style="position:absolute;pointer-events:none;opacity:0;margin:0;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"
+       style="@HiddenInputStyle"
        name="@((!Parent && ResolvedName is not null) ? ResolvedName : null)"
        value="@ComputedInputValue"
+       @onclick="HandleInputClick"
        @onchange="HandleInputChangeAsync"
+       @onfocus="HandleInputFocusAsync"
        @ref="inputElement" />
 
 @code {
@@ -58,20 +77,36 @@
     private CheckboxRootContext context = null!;
     private RenderElement<CheckboxRootState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
+    private Dictionary<string, object> nativeButtonAttributes = new();
     private bool previousChecked;
     private bool previousDisabled;
     private bool previousReadOnly;
     private bool previousRequired;
     private bool previousIndeterminate;
+    private bool previousNativeButton;
+    private bool previousAllowsOptimisticState;
     private bool? previousValid;
     private bool previousTouched;
     private bool previousDirty;
     private bool previousFilled;
     private bool previousFocused;
+    private MouseEventArgs? lastInputClickArgs;
 
     private bool IsControlled => Checked.HasValue;
 
+    private bool AllowsOptimisticState =>
+        !IsControlled &&
+        !CurrentIndeterminate &&
+        !OnCheckedChange.HasDelegate &&
+        !IsGroupedWithParent &&
+        (GroupContext?.AllowsOptimisticState ?? true);
+
     private bool IsGroupedWithParent => GroupContext?.Parent is not null && GroupContext.AllValues is not null;
+
+    private string RootElementId =>
+        IsGroupedWithParent && Parent && GroupContext?.Parent?.Id is not null
+            ? GroupContext.Parent.Id
+            : NativeButton ? inputId : checkboxId;
 
     private bool CurrentChecked
     {
@@ -125,6 +160,10 @@
     private string ResolvedControlId => AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
 
     private FieldRootState FieldState => FieldContext?.State ?? FieldRootState.Default;
+
+    private string HiddenInputStyle => ResolvedName is not null
+        ? "position:absolute;overflow:hidden;white-space:nowrap;border:0;padding:0;width:1px;height:1px;margin:-1px;clip-path:inset(50%);"
+        : "position:fixed;top:0;left:0;overflow:hidden;white-space:nowrap;border:0;padding:0;width:1px;height:1px;margin:-1px;clip-path:inset(50%);";
 
     [CascadingParameter]
     private FieldRootContext? FieldContext { get; set; }
@@ -193,10 +232,24 @@
     public bool Parent { get; set; }
 
     /// <summary>
+    /// Determines whether the component renders a native <c>&lt;button&gt;</c> element when replacing it
+    /// via the <see cref="Render"/> prop.
+    /// Defaults to <see langword="false"/>.
+    /// </summary>
+    [Parameter]
+    public bool NativeButton { get; set; }
+
+    /// <summary>
     /// Gets or sets the name that identifies the field when a form is submitted.
     /// </summary>
     [Parameter]
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the form that owns the hidden input when the checkbox is rendered outside the form.
+    /// </summary>
+    [Parameter]
+    public string? Form { get; set; }
 
     /// <summary>
     /// Gets or sets the value of the selected checkbox.
@@ -259,6 +312,11 @@
     /// </summary>
     public ElementReference? Element => renderElementReference?.Element;
 
+    /// <summary>
+    /// Gets the <see cref="ElementReference"/> to the hidden checkbox input element.
+    /// </summary>
+    public ElementReference InputElement => inputElement;
+
     public CheckboxRoot()
     {
         moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
@@ -270,18 +328,8 @@
     {
         checkboxId = Guid.NewGuid().ToIdString();
         resolvedControlId = ResolvedControlId;
-        LabelableContext?.SetControlId(resolvedControlId);
-
-        if (IsGroupedWithParent)
-        {
-            inputId = Parent
-                ? GroupContext!.Parent!.Id ?? Guid.NewGuid().ToIdString()
-                : $"{GroupContext!.Parent!.Id}-{ResolvedValue}";
-        }
-        else
-        {
-            inputId = resolvedControlId;
-        }
+        RefreshInputId();
+        UpdateLabelableControlId();
 
         if (!IsControlled)
         {
@@ -316,6 +364,8 @@
         previousReadOnly = ReadOnly;
         previousRequired = Required;
         previousIndeterminate = CurrentIndeterminate;
+        previousNativeButton = NativeButton;
+        previousAllowsOptimisticState = AllowsOptimisticState;
         previousValid = FieldState.Valid;
         previousTouched = FieldState.Touched;
         previousDirty = FieldState.Dirty;
@@ -350,12 +400,10 @@
         if (newResolvedId != resolvedControlId)
         {
             resolvedControlId = newResolvedId;
-            if (!IsGroupedWithParent)
-            {
-                inputId = resolvedControlId;
-            }
-            LabelableContext?.SetControlId(resolvedControlId);
         }
+
+        RefreshInputId();
+        UpdateLabelableControlId();
 
         if (IsGroupedWithParent && !Parent && ResolvedValue is not null)
         {
@@ -365,6 +413,7 @@
         var currentChecked = CurrentChecked;
         var currentDisabled = ResolvedDisabled;
         var currentIndeterminate = CurrentIndeterminate;
+        var currentAllowsOptimisticState = AllowsOptimisticState;
         var fieldState = FieldState;
 
         var stateChanged = previousChecked != currentChecked ||
@@ -408,7 +457,9 @@
             if (currentChecked != previousChecked ||
                 currentDisabled != previousDisabled ||
                 ReadOnly != previousReadOnly ||
-                currentIndeterminate != previousIndeterminate)
+                currentIndeterminate != previousIndeterminate ||
+                NativeButton != previousNativeButton ||
+                currentAllowsOptimisticState != previousAllowsOptimisticState)
             {
                 _ = InvokeAsync(async () =>
                 {
@@ -429,6 +480,8 @@
         previousReadOnly = ReadOnly;
         previousRequired = Required;
         previousIndeterminate = currentIndeterminate;
+        previousNativeButton = NativeButton;
+        previousAllowsOptimisticState = currentAllowsOptimisticState;
         previousValid = fieldState.Valid;
         previousTouched = fieldState.Touched;
         previousDirty = fieldState.Dirty;
@@ -480,35 +533,57 @@
 
     private void BuildComponentAttributes()
     {
-        var attrs = new Dictionary<string, object>();
-
-        attrs["id"] = checkboxId;
-        attrs["role"] = "checkbox";
-        attrs["aria-checked"] = CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false";
+        var attrs = CreateBaseRootAttributes();
+        attrs["id"] = RootElementId;
         attrs["tabindex"] = ResolvedDisabled ? -1 : 0;
 
-        if (ReadOnly)
+        componentAttributes = attrs;
+
+        var buttonAttrs = CreateBaseRootAttributes();
+        buttonAttrs["id"] = RootElementId;
+        buttonAttrs["type"] = "button";
+        buttonAttrs["tabindex"] = ResolvedDisabled ? -1 : 0;
+
+        if (ResolvedDisabled)
         {
+            buttonAttrs["disabled"] = true;
+        }
+
+        nativeButtonAttributes = buttonAttrs;
+    }
+
+    private Dictionary<string, object> CreateBaseRootAttributes()
+    {
+        var attrs = new Dictionary<string, object>();
+
+        if (!AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "role"))
+            attrs["role"] = "checkbox";
+
+        if (!AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-checked"))
+            attrs["aria-checked"] = CurrentIndeterminate ? "mixed" : CurrentChecked ? "true" : "false";
+
+        if (ResolvedDisabled && !NativeButton && !AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-disabled"))
+            attrs["aria-disabled"] = "true";
+
+        if (ReadOnly && !AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-readonly"))
             attrs["aria-readonly"] = "true";
-        }
 
-        if (Required)
-        {
+        if (Required && !AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-required"))
             attrs["aria-required"] = "true";
-        }
 
-        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId) &&
+            !AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-labelledby"))
         {
             attrs["aria-labelledby"] = LabelableContext.LabelId;
         }
 
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
+        var describedBy = AttributeUtilities.CombineIdRefs(
+            AttributeUtilities.GetAttributeStringValueIgnoreCase(AdditionalAttributes, "aria-describedby"),
+            LabelableContext?.GetAriaDescribedBy());
         if (!string.IsNullOrEmpty(describedBy))
-        {
             attrs["aria-describedby"] = describedBy;
-        }
 
-        if (state.Valid == false)
+        if (state.Valid == false && !AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-invalid"))
         {
             attrs["aria-invalid"] = "true";
         }
@@ -536,7 +611,7 @@
         attrs["data-filled"] = state.Filled;
         attrs["data-focused"] = state.Focused;
 
-        componentAttributes = attrs;
+        return attrs;
     }
 
     private async Task InitializeJsAsync()
@@ -549,7 +624,7 @@
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("initialize", Element.Value, inputElement, ResolvedDisabled, ReadOnly, CurrentIndeterminate, CurrentChecked);
+            await module.InvokeVoidAsync("initialize", Element.Value, inputElement, ResolvedDisabled, ReadOnly, CurrentIndeterminate, CurrentChecked, NativeButton, AllowsOptimisticState);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -567,7 +642,7 @@
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("updateState", Element.Value, inputElement, ResolvedDisabled, ReadOnly, CurrentIndeterminate, CurrentChecked);
+            await module.InvokeVoidAsync("updateState", Element.Value, inputElement, ResolvedDisabled, ReadOnly, CurrentIndeterminate, CurrentChecked, NativeButton, AllowsOptimisticState);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -626,11 +701,14 @@
             return;
         }
 
+        var inputClickArgs = lastInputClickArgs;
+        lastInputClickArgs = null;
+
         if (IsGroupedWithParent && Parent)
         {
             if (OnCheckedChange.HasDelegate)
             {
-                var eventArgs = new CheckboxCheckedChangeEventArgs(nextChecked);
+                var eventArgs = new CheckboxCheckedChangeEventArgs(nextChecked, CheckboxChangeReason.None, inputClickArgs);
                 await OnCheckedChange.InvokeAsync(eventArgs);
                 if (eventArgs.IsCanceled)
                 {
@@ -647,7 +725,7 @@
         {
             if (OnCheckedChange.HasDelegate)
             {
-                var eventArgs = new CheckboxCheckedChangeEventArgs(nextChecked);
+                var eventArgs = new CheckboxCheckedChangeEventArgs(nextChecked, CheckboxChangeReason.None, inputClickArgs);
                 await OnCheckedChange.InvokeAsync(eventArgs);
                 if (eventArgs.IsCanceled)
                 {
@@ -673,12 +751,22 @@
             return;
         }
 
-        await SetChecked(nextChecked);
+        await SetChecked(nextChecked, inputClickArgs);
     }
 
-    private async Task SetChecked(bool value)
+    private void HandleInputClick(MouseEventArgs e)
     {
-        var eventArgs = new CheckboxCheckedChangeEventArgs(value);
+        lastInputClickArgs = e;
+    }
+
+    private async Task HandleInputFocusAsync(FocusEventArgs e)
+    {
+        await FocusAsync();
+    }
+
+    private async Task SetChecked(bool value, MouseEventArgs? mouseEventArgs = null)
+    {
+        var eventArgs = new CheckboxCheckedChangeEventArgs(value, CheckboxChangeReason.None, mouseEventArgs);
 
         if (OnCheckedChange.HasDelegate)
         {
@@ -710,7 +798,7 @@
 
     private async Task ResetInputCheckedAsync()
     {
-        if (!hasRendered)
+        if (!hasRendered || !Element.HasValue)
         {
             return;
         }
@@ -718,7 +806,7 @@
         try
         {
             var module = await moduleTask.Value;
-            await module.InvokeVoidAsync("setInputChecked", inputElement, CurrentChecked);
+            await module.InvokeVoidAsync("resetState", Element.Value, inputElement, CurrentChecked, CurrentIndeterminate);
         }
         catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
         {
@@ -757,6 +845,7 @@
         var currentChecked = CurrentChecked;
         var currentDisabled = ResolvedDisabled;
         var currentIndeterminate = CurrentIndeterminate;
+        var currentAllowsOptimisticState = AllowsOptimisticState;
         var fieldState = FieldState;
 
         state = CheckboxRootState.FromFieldState(
@@ -781,6 +870,8 @@
         previousIndeterminate = currentIndeterminate;
         previousReadOnly = ReadOnly;
         previousRequired = Required;
+        previousNativeButton = NativeButton;
+        previousAllowsOptimisticState = currentAllowsOptimisticState;
         previousValid = fieldState.Valid;
         previousTouched = fieldState.Touched;
         previousDirty = fieldState.Dirty;
@@ -804,5 +895,23 @@
         {
             _ = ex; // Expected during circuit disconnect - safe to ignore.
         }
+    }
+
+    private void RefreshInputId()
+    {
+        if (IsGroupedWithParent)
+        {
+            inputId = Parent
+                ? resolvedControlId
+                : $"{GroupContext!.Parent!.Id}-{ResolvedValue}";
+            return;
+        }
+
+        inputId = resolvedControlId;
+    }
+
+    private void UpdateLabelableControlId()
+    {
+        LabelableContext?.SetControlId(NativeButton ? RootElementId : inputId);
     }
 }
