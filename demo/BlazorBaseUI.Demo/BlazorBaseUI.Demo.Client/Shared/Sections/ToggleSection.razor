@@ -203,53 +203,21 @@
 
     private static string ToggleClass(ToggleState state)
     {
-        var baseClass = "inline-flex items-center justify-center rounded-md border text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2";
-
-        if (state.Disabled)
-            return $"{baseClass} border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
-
-        if (state.Pressed)
-            return $"{baseClass} border-indigo-600 bg-indigo-600 text-white";
-
-        return $"{baseClass} border-gray-300 bg-white text-gray-700 hover:bg-gray-50";
+        return "demo-toggle";
     }
 
     private static string CustomToggleClass(ToggleState state)
     {
-        var baseClass = "inline-flex items-center justify-center rounded-lg border-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2";
-
-        if (state.Disabled)
-            return $"{baseClass} border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
-
-        if (state.Pressed)
-            return $"{baseClass} border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-200";
-
-        return $"{baseClass} border-emerald-300 bg-white text-emerald-700 hover:border-emerald-400";
+        return "demo-toggle demo-toggle--accent";
     }
 
     private static string PillToggleClass(ToggleState state)
     {
-        var baseClass = "inline-flex items-center justify-center rounded-full border text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2";
-
-        if (state.Disabled)
-            return $"{baseClass} border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
-
-        if (state.Pressed)
-            return $"{baseClass} border-purple-600 bg-purple-600 text-white";
-
-        return $"{baseClass} border-purple-300 bg-white text-purple-700 hover:bg-purple-50";
+        return "demo-toggle demo-toggle--warning";
     }
 
     private static string IconToggleClass(ToggleState state)
     {
-        var baseClass = "inline-flex items-center justify-center rounded-md border p-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2";
-
-        if (state.Disabled)
-            return $"{baseClass} border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
-
-        if (state.Pressed)
-            return $"{baseClass} border-indigo-600 bg-indigo-100 text-indigo-600";
-
-        return $"{baseClass} border-gray-300 bg-white text-gray-700 hover:bg-gray-50";
+        return "demo-toggle demo-toggle--icon";
     }
 }

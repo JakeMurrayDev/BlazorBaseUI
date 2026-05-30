@@ -31,6 +31,7 @@
     private RenderElement<CheckboxGroupState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
     private bool previousDisabled;
+    private bool previousAllowsOptimisticState;
     private bool? previousValid;
     private bool previousTouched;
     private bool previousDirty;
@@ -38,6 +39,8 @@
     private bool previousFocused;
 
     private bool IsControlled => Value is not null;
+
+    private bool AllowsOptimisticState => !IsControlled && !OnValueChange.HasDelegate;
 
     private string[]? CurrentValue => IsControlled ? Value : internalValue;
 
@@ -152,6 +155,7 @@
 
         previousValue = CurrentValue;
         previousDisabled = ResolvedDisabled;
+        previousAllowsOptimisticState = AllowsOptimisticState;
         previousValid = FieldState.Valid;
         previousTouched = FieldState.Touched;
         previousDirty = FieldState.Dirty;
@@ -166,6 +170,7 @@
             DefaultValue = DefaultValue,
             AllValues = AllValues,
             Disabled = ResolvedDisabled,
+            AllowsOptimisticState = AllowsOptimisticState,
             Parent = AllValues is not null ? new CheckboxGroupParent
             {
                 Id = groupId,
@@ -186,9 +191,11 @@
     protected override void OnParametersSet()
     {
         var currentDisabled = ResolvedDisabled;
+        var currentAllowsOptimisticState = AllowsOptimisticState;
         var fieldState = FieldState;
 
         var stateChanged = previousDisabled != currentDisabled ||
+                           previousAllowsOptimisticState != currentAllowsOptimisticState ||
                            previousValid != fieldState.Valid ||
                            previousTouched != fieldState.Touched ||
                            previousDirty != fieldState.Dirty ||
@@ -210,6 +217,7 @@
         BuildComponentAttributes();
 
         previousDisabled = currentDisabled;
+        previousAllowsOptimisticState = currentAllowsOptimisticState;
         previousValid = fieldState.Valid;
         previousTouched = fieldState.Touched;
         previousDirty = fieldState.Dirty;
@@ -250,14 +258,21 @@
         var attrs = new Dictionary<string, object>();
 
         attrs["id"] = groupId;
-        attrs["role"] = "group";
 
-        if (!string.IsNullOrEmpty(LabelableContext?.LabelId))
+        if (!AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "role"))
+        {
+            attrs["role"] = "group";
+        }
+
+        if (!string.IsNullOrEmpty(LabelableContext?.LabelId) &&
+            !AttributeUtilities.HasAttributeIgnoreCase(AdditionalAttributes, "aria-labelledby"))
         {
             attrs["aria-labelledby"] = LabelableContext.LabelId;
         }
 
-        var describedBy = LabelableContext?.GetAriaDescribedBy();
+        var describedBy = AttributeUtilities.CombineIdRefs(
+            AttributeUtilities.GetAttributeStringValueIgnoreCase(AdditionalAttributes, "aria-describedby"),
+            LabelableContext?.GetAriaDescribedBy());
         if (!string.IsNullOrEmpty(describedBy))
         {
             attrs["aria-describedby"] = describedBy;
@@ -280,6 +295,7 @@
         context.DefaultValue = DefaultValue;
         context.AllValues = AllValues;
         context.Disabled = ResolvedDisabled;
+        context.AllowsOptimisticState = AllowsOptimisticState;
         context.Validation = FieldContext?.Validation;
 
         if (AllValues is not null)

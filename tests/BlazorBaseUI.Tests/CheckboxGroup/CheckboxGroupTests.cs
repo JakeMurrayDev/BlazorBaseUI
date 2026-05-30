@@ -367,6 +367,30 @@ public class CheckboxGroupTests : BunitContext, ICheckboxGroupContract
     }
 
     [Fact]
+    public Task OnValueChange_ReceivesBaseUiChangeDetails()
+    {
+        CheckboxGroupValueChangeEventArgs? receivedArgs = null;
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: [],
+            onValueChange: args =>
+            {
+                args.AllowPropagation();
+                receivedArgs = args;
+            },
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        var inputs = cut.FindAll("input[type='checkbox']");
+        inputs[0].Change(true);
+
+        receivedArgs.ShouldNotBeNull();
+        receivedArgs!.Reason.ShouldBe(CheckboxGroupChangeReason.None);
+        receivedArgs.IsPropagationAllowed.ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task OnValueChange_CanBeCanceled()
     {
         var cut = Render(CreateCheckboxGroupWithCheckboxes(
@@ -380,6 +404,93 @@ public class CheckboxGroupTests : BunitContext, ICheckboxGroupContract
 
         var red = cut.Find("[data-testid='red']");
         red.GetAttribute("aria-checked").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task OnValueChangeCallbackDisablesChildOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: [],
+            onValueChange: _ => { },
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocations = JSInterop.Invocations
+                .Where(invocation => invocation.Identifier == "initialize")
+                .ToArray();
+
+            initializeInvocations.Length.ShouldBe(3);
+            initializeInvocations.All(invocation => Equals(invocation.Arguments[7], false)).ShouldBeTrue();
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ControlledGroupDisablesChildOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            value: [],
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocations = JSInterop.Invocations
+                .Where(invocation => invocation.Identifier == "initialize")
+                .ToArray();
+
+            initializeInvocations.Length.ShouldBe(3);
+            initializeInvocations.All(invocation => Equals(invocation.Arguments[7], false)).ShouldBeTrue();
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ParentEnabledGroupDisablesChildOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: [],
+            allValues: ["red", "green", "blue"],
+            includeParent: true,
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocations = JSInterop.Invocations
+                .Where(invocation => invocation.Identifier == "initialize")
+                .ToArray();
+
+            initializeInvocations.Length.ShouldBe(4);
+            initializeInvocations.All(invocation => Equals(invocation.Arguments[7], false)).ShouldBeTrue();
+        });
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task UncontrolledGroupWithoutCancelableCallbacksAllowsChildOptimisticJsState()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: [],
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        cut.WaitForAssertion(() =>
+        {
+            var initializeInvocations = JSInterop.Invocations
+                .Where(invocation => invocation.Identifier == "initialize")
+                .ToArray();
+
+            initializeInvocations.Length.ShouldBe(3);
+            initializeInvocations.All(invocation => Equals(invocation.Arguments[7], true)).ShouldBeTrue();
+        });
 
         return Task.CompletedTask;
     }
@@ -400,6 +511,9 @@ public class CheckboxGroupTests : BunitContext, ICheckboxGroupContract
         red.HasAttribute("data-disabled").ShouldBeTrue();
         green.HasAttribute("data-disabled").ShouldBeTrue();
         blue.HasAttribute("data-disabled").ShouldBeTrue();
+        red.GetAttribute("aria-disabled").ShouldBe("true");
+        green.GetAttribute("aria-disabled").ShouldBe("true");
+        blue.GetAttribute("aria-disabled").ShouldBe("true");
 
         return Task.CompletedTask;
     }
@@ -690,6 +804,85 @@ public class CheckboxGroupTests : BunitContext, ICheckboxGroupContract
 
         var parent = cut.Find("[data-testid='parent']");
         parent.GetAttribute("aria-checked").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ParentCheckbox_AriaControlsUsesParentRootId()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: [],
+            allValues: ["red", "green", "blue"],
+            includeParent: true,
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        var parent = cut.Find("[data-testid='parent']");
+        var parentId = parent.GetAttribute("id");
+
+        parentId.ShouldNotBeNullOrEmpty();
+        parent.GetAttribute("aria-controls").ShouldBe($"{parentId}-red {parentId}-green {parentId}-blue");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ParentCheckbox_RestoresMixedChildSnapshotOnThirdParentClick()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: [],
+            allValues: ["red", "green", "blue"],
+            includeParent: true,
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        var inputs = cut.FindAll("input[type='checkbox']");
+        inputs[1].Change(true);
+
+        cut.Find("[data-testid='parent']").GetAttribute("aria-checked").ShouldBe("mixed");
+
+        inputs = cut.FindAll("input[type='checkbox']");
+        inputs[0].Change(true);
+        cut.Find("[data-testid='parent']").GetAttribute("aria-checked").ShouldBe("true");
+
+        inputs = cut.FindAll("input[type='checkbox']");
+        inputs[0].Change(false);
+        cut.Find("[data-testid='parent']").GetAttribute("aria-checked").ShouldBe("false");
+
+        inputs = cut.FindAll("input[type='checkbox']");
+        inputs[0].Change(true);
+
+        cut.Find("[data-testid='parent']").GetAttribute("aria-checked").ShouldBe("mixed");
+        cut.Find("[data-testid='red']").GetAttribute("aria-checked").ShouldBe("true");
+        cut.Find("[data-testid='green']").GetAttribute("aria-checked").ShouldBe("false");
+        cut.Find("[data-testid='blue']").GetAttribute("aria-checked").ShouldBe("false");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task ParentCheckbox_TogglesBackOnAfterAllChildrenWereTurnedOff()
+    {
+        var cut = Render(CreateCheckboxGroupWithCheckboxes(
+            defaultValue: ["red", "green", "blue"],
+            allValues: ["red", "green", "blue"],
+            includeParent: true,
+            additionalAttributes: new Dictionary<string, object> { { "data-testid", "group" } }
+        ));
+
+        var inputs = cut.FindAll("input[type='checkbox']");
+        inputs[0].Change(false);
+
+        cut.Find("[data-testid='parent']").GetAttribute("aria-checked").ShouldBe("false");
+
+        inputs = cut.FindAll("input[type='checkbox']");
+        inputs[0].Change(true);
+
+        cut.Find("[data-testid='parent']").GetAttribute("aria-checked").ShouldBe("true");
+        cut.Find("[data-testid='red']").GetAttribute("aria-checked").ShouldBe("true");
+        cut.Find("[data-testid='green']").GetAttribute("aria-checked").ShouldBe("true");
+        cut.Find("[data-testid='blue']").GetAttribute("aria-checked").ShouldBe("true");
 
         return Task.CompletedTask;
     }

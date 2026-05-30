@@ -30,7 +30,7 @@ public interface ICheckboxIndicatorContract
 
     // Context
     Task ReceivesStateFromContext();
-    Task HandlesNullContext();
+    Task ThrowsWhenRenderedOutsideCheckboxRoot();
 
     // State
     Task ClassValueReceivesCorrectState();

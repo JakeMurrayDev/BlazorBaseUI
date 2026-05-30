@@ -133,15 +133,28 @@ public static class JsInteropSetup
     }
 
     private const string CheckboxModule = "./_content/BlazorBaseUI/blazor-baseui-checkbox.js";
+    private const string CheckboxMinModule = "./_content/BlazorBaseUI/blazor-baseui-checkbox.min.js";
+    private const string AnimationsMinModule = "./_content/BlazorBaseUI/blazor-baseui-animations.min.js";
 
     public static void SetupCheckboxModule(BunitJSInterop jsInterop)
     {
-        var module = jsInterop.SetupModule(CheckboxModule);
-        module.SetupVoid("initialize", _ => true).SetVoidResult();
-        module.SetupVoid("dispose", _ => true).SetVoidResult();
-        module.SetupVoid("updateState", _ => true).SetVoidResult();
-        module.SetupVoid("setInputChecked", _ => true).SetVoidResult();
-        module.SetupVoid("focus", _ => true).SetVoidResult();
+        SetupCheckboxModulePath(CheckboxModule);
+        SetupCheckboxModulePath(CheckboxMinModule);
+
+        var animationsModule = jsInterop.SetupModule(AnimationsMinModule);
+        animationsModule.SetupVoid("applyStartingStyle", _ => true).SetVoidResult();
+        animationsModule.SetupVoid("waitForExitTransition", _ => true).SetVoidResult();
+
+        void SetupCheckboxModulePath(string path)
+        {
+            var module = jsInterop.SetupModule(path);
+            module.SetupVoid("initialize", _ => true).SetVoidResult();
+            module.SetupVoid("dispose", _ => true).SetVoidResult();
+            module.SetupVoid("updateState", _ => true).SetVoidResult();
+            module.SetupVoid("setInputChecked", _ => true).SetVoidResult();
+            module.SetupVoid("resetState", _ => true).SetVoidResult();
+            module.SetupVoid("focus", _ => true).SetVoidResult();
+        }
     }
 
     private const string PopoverModule = "./_content/BlazorBaseUI/blazor-baseui-popover.js";

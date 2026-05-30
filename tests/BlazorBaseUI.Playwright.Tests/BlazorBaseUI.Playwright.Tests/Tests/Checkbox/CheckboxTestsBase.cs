@@ -179,10 +179,10 @@ public abstract class CheckboxTestsBase : TestBase
     }
 
     /// <summary>
-    /// Tests that pressing Enter also toggles the checkbox state.
+    /// Tests that pressing Enter does not toggle the checkbox state.
     /// </summary>
     [Fact]
-    public virtual async Task Enter_TogglesState()
+    public virtual async Task Enter_DoesNotToggleState()
     {
         await NavigateAsync(CreateUrl("/tests/checkbox"));
 
@@ -193,7 +193,60 @@ public abstract class CheckboxTestsBase : TestBase
         await Page.Keyboard.PressAsync("Enter");
         await WaitForDelayAsync(100);
 
-        await WaitForCheckedStateAsync(true);
+        await WaitForCheckedStateAsync(false);
+    }
+
+    /// <summary>
+    /// Tests that pressing Enter submits the default form submitter without toggling.
+    /// </summary>
+    [Fact]
+    public virtual async Task Enter_SubmitsFormWithoutToggling()
+    {
+        await NavigateAsync(CreateUrl("/tests/checkbox")
+            .WithShowForm(true)
+            .WithSwitchName("agree"));
+
+        var checkbox = GetCheckbox();
+        var formData = GetByTestId("form-data");
+        var submitCount = GetByTestId("submit-count");
+
+        await WaitForCheckedStateAsync(false);
+        await Assertions.Expect(submitCount).ToHaveTextAsync("0");
+        await checkbox.FocusAsync();
+        await Page.Keyboard.PressAsync("Enter");
+        await WaitForDelayAsync(100);
+
+        await WaitForCheckedStateAsync(false);
+        await Assertions.Expect(submitCount).ToHaveTextAsync("1");
+        await Assertions.Expect(formData).ToHaveTextAsync("");
+    }
+
+    /// <summary>
+    /// Tests that pressing Enter on a native button checkbox submits the default form submitter without toggling.
+    /// </summary>
+    [Fact]
+    public virtual async Task NativeButton_EnterSubmitsFormWithoutToggling()
+    {
+        await NavigateAsync(CreateUrl("/tests/checkbox")
+            .WithShowForm(true)
+            .WithSwitchName("agree")
+            .WithNativeButton(true));
+
+        var checkbox = GetCheckbox();
+        var formData = GetByTestId("form-data");
+        var submitCount = GetByTestId("submit-count");
+
+        await Assertions.Expect(checkbox).ToHaveJSPropertyAsync("tagName", "BUTTON");
+        await Assertions.Expect(checkbox).ToHaveAttributeAsync("type", "button");
+        await WaitForCheckedStateAsync(false);
+        await Assertions.Expect(submitCount).ToHaveTextAsync("0");
+        await checkbox.FocusAsync();
+        await Page.Keyboard.PressAsync("Enter");
+        await WaitForDelayAsync(100);
+
+        await WaitForCheckedStateAsync(false);
+        await Assertions.Expect(submitCount).ToHaveTextAsync("1");
+        await Assertions.Expect(formData).ToHaveTextAsync("");
     }
 
     /// <summary>
@@ -391,6 +444,31 @@ public abstract class CheckboxTestsBase : TestBase
         await NavigateAsync(CreateUrl("/tests/checkbox")
             .WithDefaultChecked(true));
 
+        await WaitForCheckedStateAsync(true);
+    }
+
+    /// <summary>
+    /// Tests that native button mode renders a button root and keeps Enter from toggling.
+    /// </summary>
+    [Fact]
+    public virtual async Task NativeButton_RendersButtonAndEnterDoesNotToggle()
+    {
+        await NavigateAsync(CreateUrl("/tests/checkbox")
+            .WithNativeButton(true));
+
+        var checkbox = GetCheckbox();
+        await Assertions.Expect(checkbox).ToHaveJSPropertyAsync("tagName", "BUTTON");
+        await Assertions.Expect(checkbox).ToHaveAttributeAsync("type", "button");
+
+        await WaitForCheckedStateAsync(false);
+        await checkbox.FocusAsync();
+        await Page.Keyboard.PressAsync("Enter");
+        await WaitForDelayAsync(100);
+
+        await WaitForCheckedStateAsync(false);
+
+        await Page.Keyboard.PressAsync("Space");
+        await WaitForDelayAsync(100);
         await WaitForCheckedStateAsync(true);
     }
 

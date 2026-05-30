@@ -29,6 +29,11 @@ internal sealed class CheckboxGroupContext
     public bool Disabled { get; set; }
 
     /// <summary>
+    /// Gets or sets whether child checkboxes may apply optimistic visual state before the group change is processed.
+    /// </summary>
+    public bool AllowsOptimisticState { get; set; }
+
+    /// <summary>
     /// Gets or sets the parent checkbox state when using the parent checkbox pattern.
     /// </summary>
     public CheckboxGroupParent? Parent { get; set; }
@@ -103,7 +108,7 @@ internal sealed class CheckboxGroupParent
         {
             if (!uncontrolledStateInitialized)
             {
-                uncontrolledState = DefaultValue ?? [];
+                uncontrolledState = GetValue() ?? DefaultValue ?? [];
                 uncontrolledStateInitialized = true;
             }
             return uncontrolledState!;
@@ -118,7 +123,7 @@ internal sealed class CheckboxGroupParent
         get
         {
             var value = GetValue() ?? [];
-            return value.Length == AllValues.Length && AllValues.Length > 0;
+            return value.Length == AllValues.Length;
         }
     }
 
@@ -149,16 +154,17 @@ internal sealed class CheckboxGroupParent
     public void OnCheckedChange(bool nextChecked)
     {
         var currentValue = GetValue() ?? [];
+        var uncontrolledStateSnapshot = UncontrolledState;
 
         var none = AllValues
-            .Where(v => disabledStates.TryGetValue(v, out var disabled) && disabled && currentValue.Contains(v))
+            .Where(v => disabledStates.TryGetValue(v, out var disabled) && disabled && uncontrolledStateSnapshot.Contains(v))
             .ToArray();
 
         var all = AllValues
-            .Where(v => !disabledStates.TryGetValue(v, out var disabled) || !disabled || currentValue.Contains(v))
+            .Where(v => !disabledStates.TryGetValue(v, out var disabled) || !disabled || uncontrolledStateSnapshot.Contains(v))
             .ToArray();
 
-        var allOnOrOff = currentValue.Length == all.Length || currentValue.Length == 0;
+        var allOnOrOff = uncontrolledStateSnapshot.Length == all.Length || uncontrolledStateSnapshot.Length == 0;
 
         if (allOnOrOff)
         {
@@ -185,7 +191,7 @@ internal sealed class CheckboxGroupParent
         }
         else if (status == ParentCheckboxStatus.Off)
         {
-            SetValue(UncontrolledState);
+            SetValue(uncontrolledStateSnapshot);
             status = ParentCheckboxStatus.Mixed;
         }
     }
@@ -209,6 +215,8 @@ internal sealed class CheckboxGroupParent
             newValue = currentValue.Where(v => v != childValue).ToArray();
         }
 
+        uncontrolledState = newValue;
+        uncontrolledStateInitialized = true;
         SetValue(newValue);
         status = ParentCheckboxStatus.Mixed;
     }

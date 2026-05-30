@@ -956,17 +956,17 @@
 
     private static string TriggerClass(SelectTriggerState state)
     {
-        return "flex h-10 min-w-40 items-center justify-between gap-3 rounded-md border border-gray-200 pr-3 pl-3.5 text-base bg-[canvas] text-gray-900 select-none hover:bg-gray-100 focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-blue-800 data-[popup-open]:bg-gray-100 font-normal";
+        return "demo-select-trigger";
     }
 
     private static string StableTriggerClass(SelectTriggerState state)
     {
-        return $"{TriggerClass(state)} w-72";
+        return $"{TriggerClass(state)} demo-select-trigger--stable";
     }
 
     private static string PopupClass(SelectPopupState state)
     {
-        return "group min-w-[var(--anchor-width)] origin-[var(--transform-origin)] bg-clip-padding rounded-md bg-[canvas] text-gray-900 shadow-lg shadow-gray-200 outline-1 outline-gray-200 transition-[transform,scale,opacity] data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[side=none]:min-w-[calc(var(--anchor-width)+1rem)] data-[side=none]:data-[ending-style]:transition-none data-[starting-style]:scale-90 data-[starting-style]:opacity-0 data-[side=none]:data-[starting-style]:scale-100 data-[side=none]:data-[starting-style]:opacity-100 data-[side=none]:data-[starting-style]:transition-none dark:shadow-none dark:outline-gray-300";
+        return "demo-select-popup";
     }
 
     private static string PopupStyle(SelectPopupState state)
@@ -991,12 +991,12 @@
 
     private static string GroupLabelStyle(SelectGroupLabelState state)
     {
-        return "letter-spacing: 0.04em;";
+        return "letter-spacing: 0;";
     }
 
     private static string ItemClass(SelectItemState state)
     {
-        return "grid cursor-default grid-cols-[0.75rem_1fr] items-center gap-2 py-2 pr-4 pl-2.5 text-sm leading-4 outline-hidden select-none group-data-[side=none]:pr-12 group-data-[side=none]:text-base group-data-[side=none]:leading-4 data-[highlighted]:relative data-[highlighted]:z-0 data-[highlighted]:text-gray-50 data-[highlighted]:before:absolute data-[highlighted]:before:inset-x-1 data-[highlighted]:before:inset-y-0 data-[highlighted]:before:z-[-1] data-[highlighted]:before:rounded-sm data-[highlighted]:before:bg-gray-900 pointer-coarse:py-2.5 pointer-coarse:text-[0.925rem]";
+        return "demo-select-item";
     }
 
     private static string ItemStyle(SelectItemState state)
@@ -1017,8 +1017,8 @@
     private static string IconClass(SelectIconState state)
     {
         return state.Open
-            ? "flex rotate-180 transition-transform"
-            : "flex transition-transform";
+            ? "demo-select-icon demo-select-icon--open"
+            : "demo-select-icon";
     }
 
     private static string IconStyle(SelectIconState state)
@@ -1029,8 +1029,8 @@
     private static string IndicatorClass(SelectItemIndicatorState state)
     {
         return state.Selected
-            ? "col-start-1 text-blue-600"
-            : "col-start-1 opacity-0";
+            ? "demo-select-indicator demo-select-indicator--selected"
+            : "demo-select-indicator";
     }
 
     private static string IndicatorStyle(SelectItemIndicatorState state)

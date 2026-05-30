@@ -466,10 +466,10 @@ public abstract class CheckboxGroupTestsBase : TestBase
     }
 
     /// <summary>
-    /// Tests that Enter key toggles checkbox in group.
+    /// Tests that Enter key does not toggle checkbox in group.
     /// </summary>
     [Fact]
-    public virtual async Task Enter_TogglesCheckboxInGroup()
+    public virtual async Task Enter_DoesNotToggleCheckboxInGroup()
     {
         await NavigateAsync(CreateUrl("/tests/checkboxgroup"));
 
@@ -478,7 +478,7 @@ public abstract class CheckboxGroupTestsBase : TestBase
         await Page.Keyboard.PressAsync("Enter");
         await WaitForDelayAsync(100);
 
-        await WaitForCheckboxStateAsync("red", true);
+        await WaitForCheckboxStateAsync("red", false);
     }
 
     #endregion

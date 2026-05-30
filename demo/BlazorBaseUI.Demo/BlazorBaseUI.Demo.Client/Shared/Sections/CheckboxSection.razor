@@ -2,6 +2,9 @@
 @using BlazorBaseUI.Demo.Client.Shared.Icons
 @using BlazorBaseUI.Field
 @using BlazorBaseUI.Form
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <ComponentShowcase ComponentName="Checkbox"
                    Description="A control that indicates whether a value is selected or not."
@@ -33,7 +36,7 @@
             </CheckboxRoot>
             <span class="text-gray-700">Checked: @(controlledChecked ? "On" : "Off")</span>
             <button type="button"
-                    class="rounded bg-indigo-600 px-3 py-1 text-sm text-white transition hover:bg-indigo-700"
+                    class="demo-button demo-button--primary"
                     @onclick="@(() => controlledChecked = !controlledChecked)">
                 Toggle Externally
             </button>
@@ -127,7 +130,7 @@
                 </CheckboxIndicator>
             </CheckboxRoot>
             <label class="flex items-center gap-2">
-                <input type="checkbox" @bind="preventChange" class="rounded" />
+                <input type="checkbox" @bind="preventChange" class="demo-checkbox-native" />
                 <span class="text-sm text-gray-700">Prevent next change (Cancel())</span>
             </label>
         </div>
@@ -225,7 +228,7 @@
                 </FieldRoot>
 
                 <button type="submit"
-                        class="rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                        class="demo-button demo-button--primary">
                     Submit
                 </button>
             </div>
@@ -233,7 +236,7 @@
 
         @if (lastSubmission is not null)
         {
-            <div class="mt-4 rounded bg-gray-100 p-3 text-sm">
+            <div class="demo-state-panel mt-4">
                 <strong>Last submission:</strong>
                 <pre class="mt-1 text-xs">@lastSubmission</pre>
             </div>
@@ -263,7 +266,7 @@
                     </FieldError>
                 </FieldRoot>
                 <button type="submit"
-                        class="mt-3 rounded bg-indigo-600 px-4 py-2 text-white transition hover:bg-indigo-700">
+                        class="demo-button demo-button--primary mt-3">
                     Submit (Required)
                 </button>
             </Form>
@@ -305,10 +308,72 @@
         </Form>
 
         <button type="button"
-                class="mt-3 rounded bg-red-600 px-3 py-1 text-sm text-white transition hover:bg-red-700"
+                class="demo-button demo-button--danger mt-3"
                 @onclick="@SetExternalError">
             Set External Error
         </button>
+    </DemoSection>
+
+    <DemoSection Title="Native Button and External Form Owner"
+                 Description="NativeButton renders a button root while the hidden input remains owned by the specified external form.">
+        <div class="demo-panel demo-panel--wide">
+            <form id="checkbox-external-form"
+                  class="demo-state-panel"
+                  @onsubmit="HandleExternalFormSubmit"
+                  @onsubmit:preventDefault="true">
+                <div class="demo-state-row">
+                    <span>external form id</span>
+                    <strong>checkbox-external-form</strong>
+                </div>
+                <button type="submit" class="demo-button demo-button--primary">Submit external form</button>
+            </form>
+
+            <div class="demo-grid demo-grid--2">
+                <div class="demo-scenario-card">
+                    <h3>Native button root</h3>
+                    <div class="demo-option-row">
+                        <CheckboxRoot NativeButton="true"
+                                      Name="external-consent"
+                                      Form="checkbox-external-form"
+                                      Value="accepted"
+                                      UncheckedValue="declined"
+                                      Checked="@nativeButtonChecked"
+                                      CheckedChanged="@(value => nativeButtonChecked = value)"
+                                      OnCheckedChange="@HandleNativeButtonChange"
+                                      ClassValue="@(state => CheckboxRootClass(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <span>Consent stored outside the form element</span>
+                    </div>
+                    <div class="demo-state-panel">
+                        <div class="demo-state-row"><span>checked</span><strong>@nativeButtonChecked</strong></div>
+                        <div class="demo-state-row"><span>change count</span><strong>@nativeButtonChangeCount</strong></div>
+                        <div class="demo-state-row"><span>submitted value</span><strong>@nativeButtonSubmittedValue</strong></div>
+                    </div>
+                </div>
+
+                <div class="demo-scenario-card">
+                    <h3>Readonly + required attributes</h3>
+                    <div class="demo-option-row">
+                        <CheckboxRoot NativeButton="true"
+                                      ReadOnly="true"
+                                      Required="true"
+                                      DefaultChecked="true"
+                                      ClassValue="@(state => CheckboxRootClass(state))">
+                            <CheckboxIndicator ClassValue="@(CheckboxIndicatorClass)">
+                                <CheckIcon />
+                            </CheckboxIndicator>
+                        </CheckboxRoot>
+                        <span>Focusable, required, and readonly without value drift</span>
+                    </div>
+                    <p class="demo-muted">
+                        This catches regressions where native button mode loses ARIA or form attributes.
+                    </p>
+                </div>
+            </div>
+        </div>
     </DemoSection>
 
     <DemoSection Title="Keyboard Navigation"
@@ -333,12 +398,22 @@
     [Parameter]
     public bool IsWasmMode { get; set; }
 
+    private Lazy<Task<IJSObjectReference>> moduleTask = null!;
     private bool controlledChecked;
     private int changeCount;
     private bool preventChange;
+    private bool nativeButtonChecked;
+    private int nativeButtonChangeCount;
     private object formModel = new();
     private string? lastSubmission;
+    private string nativeButtonSubmittedValue = "(not submitted)";
     private Dictionary<string, string[]> externalErrors = new();
+
+    protected override void OnInitialized()
+    {
+        moduleTask = new Lazy<Task<IJSObjectReference>>(() =>
+            JSRuntime.InvokeAsync<IJSObjectReference>("import", "./demo-utilities.js").AsTask());
+    }
 
     private void HandleCheckedChange(CheckboxCheckedChangeEventArgs e)
     {
@@ -353,6 +428,26 @@
             preventChange = false;
         }
         StateHasChanged();
+    }
+
+    private void HandleNativeButtonChange(CheckboxCheckedChangeEventArgs e)
+    {
+        nativeButtonChangeCount++;
+    }
+
+    private async Task HandleExternalFormSubmit()
+    {
+        try
+        {
+            var module = await moduleTask.Value;
+            nativeButtonSubmittedValue =
+                await module.InvokeAsync<string?>("getFormValue", "checkbox-external-form", "external-consent")
+                ?? "(not submitted)";
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+        {
+            _ = ex;
+        }
     }
 
     private void HandleFormSubmit(FormSubmitEventArgs e)
@@ -376,31 +471,32 @@
 
     private static string CheckboxRootClass(CheckboxRootState state)
     {
-        var baseClass = "relative inline-flex h-5 w-5 items-center justify-center rounded border-2 transition-all outline-none";
-        if (state.Disabled) return $"{baseClass} border-gray-200 bg-gray-50 opacity-50";
-        if (state.Valid == false) return $"{baseClass} border-red-500 bg-red-50";
-        if (state.Checked || state.Indeterminate) return $"{baseClass} border-indigo-600 bg-indigo-600";
-        return $"{baseClass} border-gray-300 bg-white hover:border-gray-400";
+        return "demo-checkbox-control";
     }
 
     private static string CheckboxRootClassWithStates(CheckboxRootState state)
     {
-        var baseClass = CheckboxRootClass(state);
-
-        if (state.Touched)
-            baseClass += " ring-2 ring-amber-300";
-
-        if (state.Focused)
-            baseClass += " ring-2 ring-blue-400";
-
-        if (state.Valid == false)
-            baseClass += " ring-2 ring-red-500";
-
-        return baseClass;
+        return CheckboxRootClass(state);
     }
 
     private static string CheckboxIndicatorClass(CheckboxIndicatorState state)
     {
-        return "flex items-center justify-center text-white";
+        return "demo-checkbox-indicator";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (moduleTask.IsValueCreated)
+        {
+            try
+            {
+                var module = await moduleTask.Value;
+                await module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                _ = ex;
+            }
+        }
     }
 }
