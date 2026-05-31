@@ -662,8 +662,13 @@ public class SliderRootTests : BunitContext, ISliderRootContract
             builder.CloseComponent();
         });
 
-        var root = cut.Find("[role='group']");
-        root.ShouldNotBeNull();
+        var inputs = cut.FindAll("input[type='range']");
+        inputs[0].Change("0.9");
+
+        var first = double.Parse(inputs[0].GetAttribute("aria-valuenow")!, System.Globalization.CultureInfo.InvariantCulture);
+        var second = double.Parse(inputs[1].GetAttribute("aria-valuenow")!, System.Globalization.CultureInfo.InvariantCulture);
+
+        (second - first).ShouldBeGreaterThanOrEqualTo(0.4);
 
         return Task.CompletedTask;
     }

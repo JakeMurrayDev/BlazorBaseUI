@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 
 namespace BlazorBaseUI.Slider;
@@ -8,6 +9,8 @@ namespace BlazorBaseUI.Slider;
 /// </summary>
 internal static class SliderUtilities
 {
+    private static readonly ConcurrentDictionary<string, string> CurrencySymbolCache = new(StringComparer.OrdinalIgnoreCase);
+
     public static double Clamp(double value, double min, double max) =>
         Math.Max(min, Math.Min(max, value));
 
@@ -522,6 +525,12 @@ internal static class SliderUtilities
     }
 
     private static string ResolveCurrencySymbol(string currency, CultureInfo culture)
+    {
+        var cacheKey = $"{culture.Name}|{currency}";
+        return CurrencySymbolCache.GetOrAdd(cacheKey, _ => ResolveCurrencySymbolUncached(currency, culture));
+    }
+
+    private static string ResolveCurrencySymbolUncached(string currency, CultureInfo culture)
     {
         try
         {
