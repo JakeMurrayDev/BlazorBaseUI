@@ -120,6 +120,11 @@ internal sealed class NumberFieldRootContext
     public Action<double?, NumberFieldChangeReason, int?> SetValue { get; set; } = null!;
 
     /// <summary>
+    /// Returns the validated numeric value for the specified reason and optional direction.
+    /// </summary>
+    public Func<double?, NumberFieldChangeReason, int?, double?> GetValidatedValue { get; set; } = null!;
+
+    /// <summary>
     /// Increments the value by the specified amount in the given direction.
     /// </summary>
     public Action<double, int, NumberFieldChangeReason> IncrementValue { get; set; } = null!;

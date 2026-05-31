@@ -335,13 +335,20 @@ public class NumberFieldInputTests : BunitContext, INumberFieldInputContract
     [Fact]
     public Task CommitsValidatedNumberOnBlur_Max()
     {
-        var cut = Render(CreateNumberField(defaultValue: 5, max: 10));
+        NumberFieldValueCommittedEventArgs? receivedArgs = null;
+        var onValueCommitted = EventCallback.Factory.Create<NumberFieldValueCommittedEventArgs>(
+            this, args => receivedArgs = args);
+
+        var cut = Render(CreateNumberField(defaultValue: 5, max: 10, onValueCommitted: onValueCommitted));
         var input = cut.Find("input[type='text']");
         input.Input(new ChangeEventArgs { Value = "20" });
         input.Blur();
         // Should clamp to max on blur
         var hiddenInput = cut.Find("input[type='number']");
         hiddenInput.GetAttribute("value").ShouldBe("10");
+        input.GetAttribute("value").ShouldBe("10");
+        receivedArgs.ShouldNotBeNull();
+        receivedArgs!.Value.ShouldBe(10);
         return Task.CompletedTask;
     }
 

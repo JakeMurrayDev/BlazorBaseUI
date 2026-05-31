@@ -306,6 +306,7 @@
         context = new NumberFieldRootContext
         {
             SetValue = SetValueInternal,
+            GetValidatedValue = GetValidatedValue,
             IncrementValue = IncrementValueInternal,
             GetStepAmount = GetStepAmount,
             StartAutoChange = StartAutoChangeInternal,
@@ -490,6 +491,11 @@
     private void SetValueInternal(double? unvalidatedValue, NumberFieldChangeReason reason, int? direction)
     {
         SetValueInternal(unvalidatedValue, reason, direction, null);
+    }
+
+    private double? GetValidatedValue(double? unvalidatedValue, NumberFieldChangeReason reason, int? direction)
+    {
+        return ValidateNumber(unvalidatedValue, reason, direction, null);
     }
 
     private void SetValueInternal(double? unvalidatedValue, NumberFieldChangeReason reason, int? direction, double? stepAmount)

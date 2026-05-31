@@ -178,6 +178,7 @@
                 ? Math.Round(parsedValue.Value, maxFrac.Value, MidpointRounding.AwayFromZero)
                 : parsedValue.Value;
 
+            var validatedValue = RootContext?.GetValidatedValue(committed, NumberFieldChangeReason.InputBlur, null) ?? committed;
             var currentValue = RootContext?.Value;
             if (currentValue != committed)
             {
@@ -185,10 +186,10 @@
             }
             if (hadManualInput || currentValue != committed || hadPendingProgrammaticChange)
             {
-                RootContext?.OnValueCommitted(committed, NumberFieldChangeReason.InputBlur);
+                RootContext?.OnValueCommitted(validatedValue, NumberFieldChangeReason.InputBlur);
             }
 
-            var formattedValue = FormatNumber(committed);
+            var formattedValue = FormatNumber(validatedValue);
             if (inputValue != formattedValue)
             {
                 RootContext?.SetInputValue(formattedValue);
