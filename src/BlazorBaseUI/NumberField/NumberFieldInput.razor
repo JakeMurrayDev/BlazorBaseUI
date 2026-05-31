@@ -154,7 +154,7 @@
         FieldContext?.SetFocused(false);
 
         var inputValue = RootContext?.InputValue ?? string.Empty;
-        var hadManualInput = true;
+        var hadManualInput = RootContext?.AllowInputSync == false;
         var hadPendingProgrammaticChange = RootContext?.HasPendingCommit == true;
         RootContext?.SetAllowInputSync(true);
 

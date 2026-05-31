@@ -604,6 +604,7 @@
     private void SetAllowInputSyncInternal(bool value)
     {
         allowInputSync = value;
+        context.AllowInputSync = value;
     }
 
     private void SetIsScrubbingInternal(bool value)
@@ -828,6 +829,7 @@
         context.FormatOptions = Format;
         context.AllowOutOfRange = AllowOutOfRange;
         context.HasPendingCommit = hasPendingCommit;
+        context.AllowInputSync = allowInputSync;
         context.State = state;
         context.InputElement = inputElement;
     }

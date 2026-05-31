@@ -44,7 +44,7 @@ public interface INumberFieldRootContract
     Task Typing_AllowsDeletingTrailingCurrencySymbols();
 
     // onValueCommitted
-    Task OnValueCommitted_FiresOnBlurWithNumericValue();
+    Task OnValueCommitted_FiresOnBlurAfterManualInput();
     Task OnValueCommitted_FiresNullOnBlurWhenCleared();
     Task OnValueCommitted_FiresOnKeyboardInteractions();
     Task OnValueCommitted_FiresOnIncrementDecrementButtons();

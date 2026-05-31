@@ -100,6 +100,11 @@ internal sealed class NumberFieldRootContext
     public bool HasPendingCommit { get; set; }
 
     /// <summary>
+    /// Gets or sets whether programmatic value changes may synchronize the displayed input text.
+    /// </summary>
+    public bool AllowInputSync { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the current component state exposed to style and render callbacks.
     /// </summary>
     public NumberFieldRootState State { get; set; } = NumberFieldRootState.Default;

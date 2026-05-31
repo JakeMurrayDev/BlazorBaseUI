@@ -53,7 +53,8 @@ public class NumberFieldRootTests : BunitContext, INumberFieldRootContract
                 builder.AddAttribute(attrIndex++, "Min", min.Value);
             if (max.HasValue)
                 builder.AddAttribute(attrIndex++, "Max", max.Value);
-            builder.AddAttribute(attrIndex++, "Step", step ?? 1d);
+            if (step is not null)
+                builder.AddAttribute(attrIndex++, "Step", step);
             if (disabled)
                 builder.AddAttribute(attrIndex++, "Disabled", true);
             if (readOnly)
@@ -519,7 +520,7 @@ public class NumberFieldRootTests : BunitContext, INumberFieldRootContract
     // --- onValueCommitted ---
 
     [Fact]
-    public Task OnValueCommitted_FiresOnBlurWithNumericValue()
+    public Task OnValueCommitted_FiresOnBlurAfterManualInput()
     {
         NumberFieldValueCommittedEventArgs? receivedArgs = null;
         var onValueCommitted = EventCallback.Factory.Create<NumberFieldValueCommittedEventArgs>(
@@ -527,6 +528,7 @@ public class NumberFieldRootTests : BunitContext, INumberFieldRootContract
 
         var cut = Render(CreateNumberField(defaultValue: 5, onValueCommitted: onValueCommitted));
         var input = cut.Find("input[type='text']");
+        input.Input(new ChangeEventArgs { Value = "5" });
         input.Blur();
 
         receivedArgs.ShouldNotBeNull();

@@ -100,7 +100,11 @@
     private bool IsReadOnly { get; set; }
     private bool ShowForm => QueryShowForm ?? false;
     private bool ShowScrubArea => QueryShowScrubArea ?? false;
-    private object StepParameter => StepAny == true ? "any" : Step ?? 1;
+    private bool HasExplicitStep => StepAny == true || Step.HasValue;
+    private object? StepParameter => StepAny == true ? "any" : Step;
+    private IReadOnlyDictionary<string, object>? StepAttributes => HasExplicitStep
+        ? new Dictionary<string, object> { ["Step"] = StepParameter! }
+        : null;
     private NumberFormatOptions? FormatOptions => string.IsNullOrEmpty(FormatStyle)
         ? null
         : new NumberFormatOptions(Style: FormatStyle);
@@ -135,7 +139,7 @@
                 Value="@currentValue"
                 Min="@Min"
                 Max="@Max"
-                Step="@StepParameter"
+                @attributes="StepAttributes"
                 Disabled="@IsDisabled"
                 ReadOnly="@IsReadOnly"
                 Required="@(QueryRequired ?? false)"
@@ -157,7 +161,7 @@
                 DefaultValue="@DefaultValue"
                 Min="@Min"
                 Max="@Max"
-                Step="@StepParameter"
+                @attributes="StepAttributes"
                 Disabled="@IsDisabled"
                 ReadOnly="@IsReadOnly"
                 Required="@(QueryRequired ?? false)"
