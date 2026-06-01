@@ -12,6 +12,7 @@ public interface IAccordionTriggerContract
     Task HasAriaControlsWhenOpen();
     Task HasDataPanelOpenWhenOpen();
     Task HasDataDisabledWhenDisabled();
+    Task HasDataIndexAndOrientation();
     Task HasTypeButtonWhenNativeButton();
     Task HasRoleButtonWhenNotNativeButton();
     Task TogglesOnClick();

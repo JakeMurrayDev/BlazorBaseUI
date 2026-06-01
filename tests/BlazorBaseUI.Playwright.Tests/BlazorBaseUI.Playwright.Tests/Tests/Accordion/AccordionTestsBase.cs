@@ -384,6 +384,103 @@ public abstract class AccordionTestsBase : TestBase
     }
 
     [Fact]
+    public virtual async Task AnimatedPanel_ShouldApplyStartingStyle_OnOpen_WhenNotKeepMounted()
+    {
+        await NavigateAsync(CreateUrl("/tests/accordion")
+            .WithAnimated(true)
+            .WithAnimationDuration(1000));
+
+        var trigger = GetByTestId("accordion-trigger-1");
+        var panel = GetByTestId("accordion-panel-1");
+
+        await Page.EvaluateAsync(@"
+            () => {
+                const container = document.querySelector('[data-testid=""test-container""]');
+                window.__accordionOpenRecords = [];
+
+                const record = (panel, label) => {
+                    window.__accordionOpenRecords.push({
+                        label,
+                        hasStartingStyle: panel.hasAttribute('data-starting-style'),
+                        hasEndingStyle: panel.hasAttribute('data-ending-style'),
+                        hasOpen: panel.hasAttribute('data-open'),
+                        height: panel.getBoundingClientRect().height,
+                        scrollHeight: panel.scrollHeight,
+                        style: panel.getAttribute('style'),
+                    });
+                };
+
+                const observePanel = (panel) => {
+                    record(panel, 'attached');
+
+                    const panelObserver = new MutationObserver((mutations) => {
+                        record(panel, mutations
+                            .map((mutation) => mutation.type === 'attributes' ? mutation.attributeName : mutation.type)
+                            .join(','));
+                    });
+
+                    panelObserver.observe(panel, {
+                        attributes: true,
+                        attributeFilter: ['style', 'data-open', 'data-closed', 'data-starting-style', 'data-ending-style'],
+                    });
+
+                    window.__accordionOpenPanelObserver = panelObserver;
+                    requestAnimationFrame(() => record(panel, 'raf-after-attach'));
+                };
+
+                window.__accordionOpenContainerObserver = new MutationObserver((mutations) => {
+                    for (const mutation of mutations) {
+                        for (const node of mutation.addedNodes) {
+                            if (node.nodeType !== Node.ELEMENT_NODE) {
+                                continue;
+                            }
+
+                            const panel = node.matches('[data-testid=""accordion-panel-1""]')
+                                ? node
+                                : node.querySelector('[data-testid=""accordion-panel-1""]');
+
+                            if (panel) {
+                                observePanel(panel);
+                            }
+                        }
+                    }
+                });
+
+                window.__accordionOpenContainerObserver.observe(container, { childList: true, subtree: true });
+            }
+        ");
+
+        await trigger.ClickAsync();
+        await Page.WaitForFunctionAsync(
+            "() => window.__accordionOpenRecords?.some((record) => record.label === 'attached') === true",
+            new PageWaitForFunctionOptions { Timeout = 1000 * TimeoutMultiplier });
+
+        var firstAttachedStartedCollapsed = await Page.EvaluateAsync<bool>(
+            @"() => {
+                const record = window.__accordionOpenRecords.find((item) => item.label === 'attached');
+                return record?.hasStartingStyle === true && record.height < record.scrollHeight;
+            }");
+        var recordsJson = await Page.EvaluateAsync<string>("() => JSON.stringify(window.__accordionOpenRecords)");
+
+        await WaitForDelayAsync(100);
+        var currentHeight = await panel.GetHeightAsync();
+        var scrollHeight = await panel.EvaluateAsync<double>("el => el.scrollHeight");
+
+        await Page.EvaluateAsync(@"
+            () => {
+                window.__accordionOpenPanelObserver?.disconnect();
+                window.__accordionOpenContainerObserver?.disconnect();
+            }
+        ");
+
+        Assert.True(firstAttachedStartedCollapsed, $"Animated accordion panel must attach collapsed with data-starting-style. Records: {recordsJson}");
+        Assert.True(currentHeight > 0, $"Panel should begin the open transition. Current: {currentHeight}");
+        Assert.True(
+            currentHeight < scrollHeight,
+            $"Panel should still be transitioning during open. Current: {currentHeight}, ScrollHeight: {scrollHeight}");
+    }
+
+    [Fact]
     public virtual async Task KeepsMountedWhenKeepMountedTrue()
     {
         await NavigateAsync(CreateUrl("/tests/accordion").WithKeepMounted(true));
@@ -402,6 +499,50 @@ public abstract class AccordionTestsBase : TestBase
         await WaitForAttributeValueAsync(panel, "data-closed", "");
 
         await Assertions.Expect(panel).ToBeAttachedAsync();
+    }
+
+    [Fact]
+    public virtual async Task HiddenUntilFoundKeepsClosedPanelMountedWithUntilFound()
+    {
+        await NavigateAsync(CreateUrl("/tests/accordion").WithHiddenUntilFound(true));
+
+        var panel = GetByTestId("accordion-panel-1");
+        var trigger = GetByTestId("accordion-trigger-1");
+
+        await Assertions.Expect(panel).ToBeAttachedAsync();
+        await Assertions.Expect(panel).ToHaveAttributeAsync("hidden", "until-found");
+        await Assertions.Expect(panel).ToHaveAttributeAsync("data-hidden", "");
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("data-hidden", "");
+
+        await trigger.ClickAsync();
+        await WaitForAttributeValueAsync(trigger, "aria-expanded", "true");
+
+        await Assertions.Expect(panel).ToBeVisibleAsync();
+        await Assertions.Expect(panel).Not.ToHaveAttributeAsync("hidden", "until-found");
+        await Assertions.Expect(trigger).Not.ToHaveAttributeAsync("data-hidden", "");
+    }
+
+    [Fact]
+    public virtual async Task HiddenUntilFoundBeforeMatchOpensDisabledItem()
+    {
+        await NavigateAsync(CreateUrl("/tests/accordion")
+            .WithHiddenUntilFound(true)
+            .WithItem1Disabled(true));
+
+        var panel = GetByTestId("accordion-panel-1");
+        var trigger = GetByTestId("accordion-trigger-1");
+
+        await Assertions.Expect(panel).ToHaveAttributeAsync("hidden", "until-found");
+        await Assertions.Expect(trigger).ToHaveAttributeAsync("aria-expanded", "false");
+
+        await panel.EvaluateAsync(@"(el) => {
+            const event = new Event('beforematch', { bubbles: true, cancelable: false });
+            el.dispatchEvent(event);
+        }");
+
+        await WaitForAttributeValueAsync(trigger, "aria-expanded", "true");
+        await Assertions.Expect(panel).ToBeVisibleAsync();
+        await Assertions.Expect(panel).Not.ToHaveAttributeAsync("hidden", "until-found");
     }
 
     #endregion
@@ -433,8 +574,7 @@ public abstract class AccordionTestsBase : TestBase
         await WaitForAttributeValueAsync(trigger, "aria-expanded", "false");
     }
 
-    [Fact(Skip = "WASM render mode has timing issues with keyboard focus detection; Server passes but WASM fails")]
-    [SlopwatchSuppress("SW001", "WASM render mode has timing issues with Playwright focus detection that require deeper component investigation")]
+    [Fact]
     public virtual async Task ArrowUpDownMovesFocusBetweenTriggersAndLoops()
     {
         // Use showThirdItem to ensure there are 3 items for comprehensive loop testing
@@ -444,27 +584,24 @@ public abstract class AccordionTestsBase : TestBase
         var trigger2 = GetByTestId("accordion-trigger-2");
         var trigger3 = GetByTestId("accordion-trigger-3");
 
-        // Click the first trigger to establish focus (but not toggle)
-        // Use keyboard press after click to navigate
-        await trigger1.ClickAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await Page.Keyboard.PressAsync("Tab");
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
 
-        await Page.Keyboard.PressAsync("ArrowDown");
+        await trigger1.PressAsync("ArrowDown");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger2).ToBeFocusedAsync();
 
-        await Page.Keyboard.PressAsync("ArrowDown");
+        await trigger2.PressAsync("ArrowDown");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger3).ToBeFocusedAsync();
 
         // Loop back to first
-        await Page.Keyboard.PressAsync("ArrowDown");
+        await trigger3.PressAsync("ArrowDown");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
 
         // And back up to loop to last
-        await Page.Keyboard.PressAsync("ArrowUp");
+        await trigger1.PressAsync("ArrowUp");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger3).ToBeFocusedAsync();
     }
@@ -568,8 +705,7 @@ public abstract class AccordionTestsBase : TestBase
 
     #region Horizontal Orientation Tests
 
-    [Fact(Skip = "WASM render mode has timing issues with keyboard focus detection; Server passes but WASM fails")]
-    [SlopwatchSuppress("SW001", "WASM render mode has timing issues with Playwright focus detection that require deeper component investigation")]
+    [Fact]
     public virtual async Task ArrowLeftRightMovesFocusInHorizontalOrientation()
     {
         // Use showThirdItem to ensure there are 3 items for comprehensive testing
@@ -581,26 +717,24 @@ public abstract class AccordionTestsBase : TestBase
         var trigger2 = GetByTestId("accordion-trigger-2");
         var trigger3 = GetByTestId("accordion-trigger-3");
 
-        // Click the first trigger to establish focus
-        await trigger1.ClickAsync();
-        await Page.WaitForTimeoutAsync(100);
+        await Page.Keyboard.PressAsync("Tab");
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
 
-        await Page.Keyboard.PressAsync("ArrowRight");
+        await trigger1.PressAsync("ArrowRight");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger2).ToBeFocusedAsync();
 
-        await Page.Keyboard.PressAsync("ArrowRight");
+        await trigger2.PressAsync("ArrowRight");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger3).ToBeFocusedAsync();
 
         // Loop back to first
-        await Page.Keyboard.PressAsync("ArrowRight");
+        await trigger3.PressAsync("ArrowRight");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger1).ToBeFocusedAsync();
 
         // And back left to loop to last
-        await Page.Keyboard.PressAsync("ArrowLeft");
+        await trigger1.PressAsync("ArrowLeft");
         await Page.WaitForTimeoutAsync(100);
         await Assertions.Expect(trigger3).ToBeFocusedAsync();
     }

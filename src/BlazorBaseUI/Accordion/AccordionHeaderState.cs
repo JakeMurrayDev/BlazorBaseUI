@@ -7,8 +7,10 @@ namespace BlazorBaseUI.Accordion;
 /// <param name="Orientation">The visual orientation of the accordion.</param>
 /// <param name="Disabled">Whether the item is disabled.</param>
 /// <param name="Open">Whether the item is open.</param>
+/// <param name="Hidden">Whether the accordion item's panel is hidden.</param>
 public sealed record AccordionHeaderState(
     int Index,
     Orientation Orientation,
     bool Disabled,
-    bool Open);
+    bool Open,
+    bool Hidden);

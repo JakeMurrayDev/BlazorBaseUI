@@ -151,7 +151,7 @@
             LoopFocus = LoopFocus,
             HiddenUntilFound = HiddenUntilFound,
             KeepMounted = KeepMounted,
-            OnValueChange = HandleValueChange
+            OnValueChange = HandleValueChangeAsync
         };
 
         state = new AccordionRootState<TValue>(CurrentValue, Disabled, Orientation);
@@ -192,7 +192,7 @@
         componentAttributes = attrs;
     }
 
-    private void HandleValueChange(TValue itemValue, bool nextOpen)
+    private async Task HandleValueChangeAsync(TValue itemValue, bool nextOpen)
     {
         TValue[] nextValue;
 
@@ -212,7 +212,7 @@
         }
 
         var args = new AccordionValueChangeEventArgs<TValue>(nextValue);
-        _ = OnValueChange.InvokeAsync(args);
+        await OnValueChange.InvokeAsync(args);
 
         if (args.IsCanceled)
         {
@@ -224,11 +224,11 @@
             currentValue = nextValue;
         }
 
-        _ = ValueChanged.InvokeAsync(nextValue);
+        await ValueChanged.InvokeAsync(nextValue);
 
         context.Value = nextValue;
         state = state with { Value = nextValue };
         BuildComponentAttributes();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 }

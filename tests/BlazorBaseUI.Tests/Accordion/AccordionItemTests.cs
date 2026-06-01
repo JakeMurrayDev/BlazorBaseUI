@@ -202,4 +202,48 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
 
         return Task.CompletedTask;
     }
+
+    [Fact]
+    public Task HasDataHiddenWhenClosedAndUnmounted()
+    {
+        var cut = Render(CreateAccordionWithItem());
+
+        var item = cut.Find("div[data-index]");
+        item.HasAttribute("data-hidden").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task UpdatesResolvedValueWhenValueParameterChanges()
+    {
+        var itemValue = "first";
+        var rootValue = new[] { "second" };
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AccordionRoot<string>>(0);
+            builder.AddAttribute(1, "Value", rootValue);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<AccordionItem<string>>(0);
+                innerBuilder.AddAttribute(1, "Value", itemValue);
+                innerBuilder.AddAttribute(2, "ChildContent", CreateItemContent());
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var item = cut.Find("div[data-index]");
+        item.HasAttribute("data-closed").ShouldBeTrue();
+
+        var itemComponent = cut.FindComponent<AccordionItem<string>>();
+        itemValue = "second";
+        itemComponent.Render(parameters => parameters.Add(p => p.Value, itemValue));
+
+        item = cut.Find("div[data-index]");
+        item.HasAttribute("data-open").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
 }

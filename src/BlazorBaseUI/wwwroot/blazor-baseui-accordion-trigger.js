@@ -183,13 +183,14 @@ export function initialize(element, isHorizontal, isRtl, loopFocus, isNativeButt
     element.addEventListener('mousedown', handleMouseDown);
 }
 
-export function updateConfig(element, isHorizontal, isRtl, loopFocus) {
+export function updateConfig(element, isHorizontal, isRtl, loopFocus, isNativeButton) {
     if (!element) return;
     const s = getState(element);
     if (!s) return;
     s.isHorizontal = isHorizontal;
     s.isRtl = isRtl;
     s.loopFocus = loopFocus;
+    s.isNativeButton = isNativeButton;
 }
 
 export function dispose(element) {

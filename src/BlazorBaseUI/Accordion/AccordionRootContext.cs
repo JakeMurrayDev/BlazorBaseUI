@@ -47,7 +47,7 @@ internal interface IAccordionRootContext
     /// </summary>
     /// <param name="value">The value of the item being toggled.</param>
     /// <param name="nextOpen">Whether the item should be opened.</param>
-    void HandleValueChange(object value, bool nextOpen);
+    Task HandleValueChange(object value, bool nextOpen);
 
     /// <summary>
     /// Registers an accordion item and returns its index.
@@ -100,7 +100,7 @@ internal sealed class AccordionRootContext<TValue> : IAccordionRootContext
     public bool KeepMounted { get; set; }
 
     /// <summary>The callback invoked when a value changes.</summary>
-    public Action<TValue, bool> OnValueChange { get; set; } = null!;
+    public Func<TValue, bool, Task> OnValueChange { get; set; } = null!;
 
     /// <inheritdoc />
     public bool IsValueOpen(object value)
@@ -111,10 +111,12 @@ internal sealed class AccordionRootContext<TValue> : IAccordionRootContext
     }
 
     /// <inheritdoc />
-    public void HandleValueChange(object value, bool nextOpen)
+    public Task HandleValueChange(object value, bool nextOpen)
     {
         if (value is TValue typedValue)
-            OnValueChange(typedValue, nextOpen);
+            return OnValueChange(typedValue, nextOpen);
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

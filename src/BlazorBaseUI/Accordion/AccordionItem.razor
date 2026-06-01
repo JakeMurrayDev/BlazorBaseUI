@@ -25,7 +25,9 @@
     private readonly object itemKey = new();
     private int index = -1;
     private string panelId = string.Empty;
+    private string triggerId = string.Empty;
     private TValue resolvedValue = default!;
+    private bool panelMounted;
     private AccordionItemContext<TValue>? itemContext;
     private CollapsibleRootContext? collapsibleContext;
     private AccordionItemState<TValue> state = null!;
@@ -36,6 +38,8 @@
     private bool ResolvedDisabled => Disabled || (RootContext?.Disabled ?? false);
 
     private bool IsOpen => RootContext?.IsValueOpen(resolvedValue) ?? false;
+
+    private bool Hidden => !IsOpen && !panelMounted;
 
     private AccordionRootContext<TValue>? TypedRootContext => RootContext as AccordionRootContext<TValue>;
 
@@ -102,6 +106,8 @@
     protected override void OnInitialized()
     {
         resolvedValue = ResolveValue();
+        panelId = Guid.NewGuid().ToIdString();
+        triggerId = Guid.NewGuid().ToIdString();
 
         if (RootContext is not null)
         {
@@ -111,12 +117,15 @@
         if (TypedRootContext is not null)
         {
             var currentOpen = IsOpen;
+            panelMounted = currentOpen;
+            transitionStatus = currentOpen ? TransitionStatus.Idle : TransitionStatus.Undefined;
             state = new AccordionItemState<TValue>(
                 TypedRootContext.Value,
                 ResolvedDisabled,
                 TypedRootContext.Orientation,
                 index,
-                currentOpen);
+                currentOpen,
+                Hidden);
 
             itemContext = new AccordionItemContext<TValue>
             {
@@ -125,14 +134,18 @@
                 Index = index,
                 Disabled = ResolvedDisabled,
                 TriggerHandler = HandleTrigger,
-                PanelIdSetter = SetPanelId
+                PanelIdSetter = SetPanelId,
+                PanelMountedSetter = SetPanelMounted,
+                PanelId = panelId,
+                TriggerId = triggerId,
+                Hidden = Hidden
             };
 
             collapsibleContext = new CollapsibleRootContext
             {
                 Open = currentOpen,
                 Disabled = ResolvedDisabled,
-                TransitionStatus = transitionStatus,
+                TransitionStatus = currentOpen ? TransitionStatus.Idle : transitionStatus,
                 PanelId = panelId,
                 HandleTrigger = HandleTrigger,
                 HandleBeforeMatch = HandleBeforeMatch,
@@ -152,6 +165,11 @@
             return;
         }
 
+        if (Value is not null && !EqualityComparer<TValue>.Default.Equals(resolvedValue, Value))
+        {
+            resolvedValue = Value;
+        }
+
         var currentOpen = IsOpen;
         var currentDisabled = ResolvedDisabled;
 
@@ -169,14 +187,20 @@
                 Index = index,
                 Disabled = currentDisabled,
                 TriggerHandler = HandleTrigger,
-                PanelIdSetter = SetPanelId
+                PanelIdSetter = SetPanelId,
+                PanelMountedSetter = SetPanelMounted,
+                PanelId = panelId,
+                TriggerId = triggerId,
+                Hidden = Hidden
             };
         }
         else
         {
             itemContext.RootContext = TypedRootContext;
+            itemContext.Value = resolvedValue;
             itemContext.Index = index;
             itemContext.Disabled = currentDisabled;
+            itemContext.Hidden = Hidden;
         }
 
         if (collapsibleContext is null)
@@ -207,9 +231,10 @@
                 currentDisabled,
                 TypedRootContext.Orientation,
                 index,
-                currentOpen);
+                currentOpen,
+                Hidden);
         }
-        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation || !ReferenceEquals(state.Value, TypedRootContext.Value))
+        else if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != index || state.Orientation != TypedRootContext.Orientation || state.Hidden != Hidden || !ReferenceEquals(state.Value, TypedRootContext.Value))
         {
             state = state with
             {
@@ -217,7 +242,8 @@
                 Open = currentOpen,
                 Disabled = currentDisabled,
                 Index = index,
-                Orientation = TypedRootContext.Orientation
+                Orientation = TypedRootContext.Orientation,
+                Hidden = Hidden
             };
         }
 
@@ -248,6 +274,31 @@
         {
             collapsibleContext.PanelId = id;
         }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void SetPanelMounted(bool mounted)
+    {
+        if (panelMounted == mounted)
+        {
+            return;
+        }
+
+        panelMounted = mounted;
+
+        if (itemContext is not null)
+        {
+            itemContext.Hidden = Hidden;
+        }
+
+        if (state is not null && state.Hidden != Hidden)
+        {
+            state = state with { Hidden = Hidden };
+            BuildComponentAttributes();
+        }
+
+        StateHasChanged();
     }
 
     private void SetTransitionStatus(TransitionStatus status)
@@ -280,12 +331,15 @@
             return;
         }
 
-        RootContext?.HandleValueChange(resolvedValue, nextOpen);
+        if (RootContext is not null)
+        {
+            await RootContext.HandleValueChange(resolvedValue, nextOpen);
+        }
     }
 
     private async Task HandleBeforeMatch()
     {
-        if (IsOpen || ResolvedDisabled)
+        if (IsOpen)
         {
             return;
         }
@@ -299,7 +353,10 @@
             return;
         }
 
-        RootContext?.HandleValueChange(resolvedValue, true);
+        if (RootContext is not null)
+        {
+            await RootContext.HandleValueChange(resolvedValue, true);
+        }
     }
 
     private void BuildComponentAttributes()
@@ -311,6 +368,7 @@
         attrs["data-open"] = state?.Open ?? false;
         attrs["data-closed"] = !(state?.Open ?? false);
         attrs["data-disabled"] = state?.Disabled ?? false;
+        attrs["data-hidden"] = state?.Hidden ?? false;
 
         componentAttributes = attrs;
     }

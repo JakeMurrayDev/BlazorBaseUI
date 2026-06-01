@@ -16,6 +16,11 @@ public interface IAccordionPanelContract
     Task HasDataIndexAttribute();
     Task HasDataOrientationAttribute();
     Task IsHiddenWhenClosed();
+    Task IsHiddenWhenKeptMountedAndClosed();
+    Task UsesHiddenUntilFoundWhenClosed();
     Task IsVisibleWhenOpen();
     Task KeepsMountedWhenKeepMountedTrue();
+    Task OpensFromBeforeMatchWhenItemIsDisabled();
+    Task HasIdleTransitionStateWhenInitiallyOpen();
+    Task KeepsPanelAndTriggerIdsSynchronizedWhenPanelRendersBeforeTrigger();
 }

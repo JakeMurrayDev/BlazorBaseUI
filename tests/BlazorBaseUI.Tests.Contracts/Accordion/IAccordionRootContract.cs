@@ -22,5 +22,6 @@ public interface IAccordionRootContract
     Task OnValueChangeWithDefaultItemValue();
     Task OnValueChangeWithCustomItemValue();
     Task OnValueChangeWhenMultipleFalse();
+    Task AsyncOnValueChangeCancellationPreventsStateChange();
     Task CascadesContextToChildren();
 }
