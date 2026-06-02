@@ -36,6 +36,11 @@ internal interface IAccordionItemContext
     string StringValue { get; }
 
     /// <summary>
+    /// Determines whether the accordion item panel is hidden.
+    /// </summary>
+    bool Hidden { get; }
+
+    /// <summary>
     /// Gets the visual orientation of the accordion.
     /// </summary>
     Orientation Orientation { get; }
@@ -51,6 +56,12 @@ internal interface IAccordionItemContext
     /// </summary>
     /// <param name="id">The trigger element ID.</param>
     void SetTriggerId(string? id);
+
+    /// <summary>
+    /// Sets whether the associated panel is mounted for transition purposes.
+    /// </summary>
+    /// <param name="mounted">Whether the panel is mounted.</param>
+    void SetPanelMounted(bool mounted);
 
     /// <summary>
     /// Invokes the trigger action to toggle the accordion item.
@@ -82,6 +93,9 @@ internal sealed class AccordionItemContext<TValue> : IAccordionItemContext
     /// <summary>The action invoked to set the panel ID.</summary>
     public Action<string> PanelIdSetter { get; set; } = null!;
 
+    /// <summary>The action invoked to set the panel mounted state.</summary>
+    public Action<bool> PanelMountedSetter { get; set; } = null!;
+
     /// <inheritdoc />
     public bool Open => RootContext.IsValueOpen(Value!);
 
@@ -98,6 +112,9 @@ internal sealed class AccordionItemContext<TValue> : IAccordionItemContext
     public Orientation Orientation => RootContext.Orientation;
 
     /// <inheritdoc />
+    public bool Hidden { get; set; }
+
+    /// <inheritdoc />
     public void SetPanelId(string id)
     {
         PanelId = id;
@@ -108,6 +125,12 @@ internal sealed class AccordionItemContext<TValue> : IAccordionItemContext
     public void SetTriggerId(string? id)
     {
         TriggerId = id;
+    }
+
+    /// <inheritdoc />
+    public void SetPanelMounted(bool mounted)
+    {
+        PanelMountedSetter(mounted);
     }
 
     /// <inheritdoc />

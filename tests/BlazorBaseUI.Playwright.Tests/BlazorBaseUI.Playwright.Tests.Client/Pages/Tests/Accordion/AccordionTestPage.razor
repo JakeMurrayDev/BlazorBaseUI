@@ -10,26 +10,26 @@
     <style>
         .animated-panel {
             overflow: hidden;
-            transition: height 200ms ease-out, opacity 200ms ease-out;
+            transition: @(Horizontal ? "width" : "height") @(AnimationDuration)ms ease-out, opacity @(AnimationDuration)ms ease-out;
         }
 
         .animated-panel[data-closed] {
-            height: 0;
+            @(Horizontal ? "width: 0;" : "height: 0;")
             opacity: 0;
         }
 
         .animated-panel[data-open] {
-            height: var(--accordion-panel-height);
+            @(Horizontal ? "width: var(--accordion-panel-width);" : "height: var(--accordion-panel-height);")
             opacity: 1;
         }
 
         .animated-panel[data-starting-style] {
-            height: 0;
+            @(Horizontal ? "width: 0;" : "height: 0;")
             opacity: 0;
         }
 
         .animated-panel[data-ending-style] {
-            height: 0;
+            @(Horizontal ? "width: 0;" : "height: 0;")
             opacity: 0;
         }
     </style>
@@ -43,7 +43,8 @@
             DefaultValue="@(DefaultOpen ? new[] { UseCustomValues ? "first" : "0" } : Array.Empty<string>())"
             Disabled="@RootDisabled"
             Orientation="@(Horizontal ? Orientation.Horizontal : Orientation.Vertical)"
-            LoopFocus="@LoopFocus"
+            LoopFocus="@(LoopFocus ?? true)"
+            HiddenUntilFound="@HiddenUntilFound"
             Multiple="true"
             OnValueChange="HandleValueChange"
             data-testid="accordion-root">
@@ -139,7 +140,8 @@
             DefaultValue="@(DefaultOpen ? new[] { UseCustomValues ? "first" : "0" } : Array.Empty<string>())"
             Disabled="@RootDisabled"
             Orientation="@(Horizontal ? Orientation.Horizontal : Orientation.Vertical)"
-            LoopFocus="@LoopFocus"
+            LoopFocus="@(LoopFocus ?? true)"
+            HiddenUntilFound="@HiddenUntilFound"
             Multiple="false"
             OnValueChange="HandleValueChange"
             data-testid="accordion-root">
@@ -243,6 +245,9 @@
     [SupplyParameterFromQuery(Name = "animated")]
     public bool Animated { get; set; }
 
+    [SupplyParameterFromQuery(Name = "animationDuration")]
+    public int AnimationDuration { get; set; } = 200;
+
     [SupplyParameterFromQuery(Name = "rootDisabled")]
     public bool RootDisabled { get; set; }
 
@@ -265,7 +270,10 @@
     public bool Horizontal { get; set; }
 
     [SupplyParameterFromQuery(Name = "loopFocus")]
-    public bool LoopFocus { get; set; } = true;
+    public bool? LoopFocus { get; set; }
+
+    [SupplyParameterFromQuery(Name = "hiddenUntilFound")]
+    public bool HiddenUntilFound { get; set; }
 
     [SupplyParameterFromQuery(Name = "useCustomValues")]
     public bool UseCustomValues { get; set; }

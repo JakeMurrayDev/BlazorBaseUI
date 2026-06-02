@@ -12,6 +12,7 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
         string itemValue = "test-item",
         bool itemDisabled = false,
         bool rootDisabled = false,
+        bool keepMounted = true,
         string[]? defaultValue = null,
         Orientation orientation = Orientation.Vertical,
         Func<AccordionItemState<string>, string>? classValue = null,
@@ -38,14 +39,14 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
                     innerBuilder.AddAttribute(5, "AdditionalAttributes", additionalAttributes);
                 if (render is not null)
                     innerBuilder.AddAttribute(6, "Render", render);
-                innerBuilder.AddAttribute(7, "ChildContent", CreateItemContent());
+                innerBuilder.AddAttribute(7, "ChildContent", CreateItemContent(keepMounted));
                 innerBuilder.CloseComponent();
             }));
             builder.CloseComponent();
         };
     }
 
-    private static RenderFragment CreateItemContent()
+    private static RenderFragment CreateItemContent(bool keepMounted = true)
     {
         return builder =>
         {
@@ -59,7 +60,7 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
             builder.CloseComponent();
 
             builder.OpenComponent<AccordionPanel>(2);
-            builder.AddAttribute(3, "KeepMounted", true);
+            builder.AddAttribute(3, "KeepMounted", keepMounted);
             builder.AddAttribute(4, "ChildContent", (RenderFragment)(pb => pb.AddContent(0, "Panel Content")));
             builder.CloseComponent();
         };
@@ -199,6 +200,50 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
 
         var item = cut.Find("div[data-index]");
         item.GetAttribute("data-orientation").ShouldBe("horizontal");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task HasDataHiddenWhenClosedAndUnmounted()
+    {
+        var cut = Render(CreateAccordionWithItem(keepMounted: false));
+
+        var item = cut.Find("div[data-index]");
+        item.HasAttribute("data-hidden").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task UpdatesResolvedValueWhenValueParameterChanges()
+    {
+        var itemValue = "first";
+        var rootValue = new[] { "second" };
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AccordionRoot<string>>(0);
+            builder.AddAttribute(1, "Value", rootValue);
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(innerBuilder =>
+            {
+                innerBuilder.OpenComponent<AccordionItem<string>>(0);
+                innerBuilder.AddAttribute(1, "Value", itemValue);
+                innerBuilder.AddAttribute(2, "ChildContent", CreateItemContent());
+                innerBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var item = cut.Find("div[data-index]");
+        item.HasAttribute("data-closed").ShouldBeTrue();
+
+        var itemComponent = cut.FindComponent<AccordionItem<string>>();
+        itemValue = "second";
+        itemComponent.Render(parameters => parameters.Add(p => p.Value, itemValue));
+
+        item = cut.Find("div[data-index]");
+        item.HasAttribute("data-open").ShouldBeTrue();
 
         return Task.CompletedTask;
     }

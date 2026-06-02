@@ -29,6 +29,7 @@
     private bool isMounted;
     private bool jsInitialized;
     private bool pendingJsInit;
+    private bool shouldPreventMountAnimation;
     private DotNetObjectReference<AccordionPanel>? dotNetRef;
     private AccordionPanelState state = null!;
     private bool? animationTarget;
@@ -46,7 +47,10 @@
     {
         get
         {
-            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () => defaultId ??= Guid.NewGuid().ToIdString());
+            var id = AttributeUtilities.GetIdOrDefault(AdditionalAttributes, () =>
+                string.IsNullOrEmpty(ItemContext?.PanelId)
+                    ? defaultId ??= Guid.NewGuid().ToIdString()
+                    : ItemContext.PanelId);
             if (id != ItemContext?.PanelId)
             {
                 ItemContext?.SetPanelId(id);
@@ -55,9 +59,9 @@
         }
     }
 
-    private bool IsPresent => ResolvedKeepMounted || ResolvedHiddenUntilFound || isMounted;
+    private bool IsPresent => ResolvedKeepMounted || ResolvedHiddenUntilFound || isMounted || CurrentOpen;
 
-    private bool IsHidden => !ResolvedKeepMounted && !ResolvedHiddenUntilFound && !CurrentOpen && animationTarget != false;
+    private bool IsHidden => !CurrentOpen && !isMounted;
 
     [Inject]
     private IJSRuntime JSRuntime { get; set; } = null!;
@@ -133,12 +137,14 @@
     {
         var initialOpen = CurrentOpen;
         isMounted = initialOpen;
+        shouldPreventMountAnimation = initialOpen;
         state = new AccordionPanelState(
             initialOpen,
             ItemContext?.Disabled ?? false,
             ItemContext?.Index ?? 0,
             RootContext?.Orientation ?? Orientation.Vertical,
-            TransitionStatus.Undefined);
+            initialOpen ? TransitionStatus.Idle : TransitionStatus.Undefined,
+            !initialOpen);
 
         computedStyleValue = s =>
         {
@@ -156,7 +162,14 @@
 
             var measuredCssVars =
                 $"--{CssVarPrefix}-height: {FormatCssSize(measuredHeight)}; --{CssVarPrefix}-width: {FormatCssSize(measuredWidth)}";
-            return string.IsNullOrEmpty(userStyle) ? measuredCssVars : $"{measuredCssVars}; {userStyle}";
+            var style = string.IsNullOrEmpty(userStyle) ? measuredCssVars : $"{measuredCssVars}; {userStyle}";
+
+            if (shouldPreventMountAnimation && CurrentOpen)
+            {
+                style = $"{style}; animation-name: none";
+            }
+
+            return style;
         };
 
         BuildComponentAttributes();
@@ -169,6 +182,7 @@
         var currentDisabled = ItemContext?.Disabled ?? false;
         var currentIndex = ItemContext?.Index ?? 0;
         var currentOrientation = RootContext?.Orientation ?? Orientation.Vertical;
+        var nextTransitionStatus = state.TransitionStatus;
 
         if (currentOpen != state.Open)
         {
@@ -177,10 +191,13 @@
                 isMounted = true;
                 animationTarget = true;
                 pendingJsInit = !jsInitialized;
+                nextTransitionStatus = TransitionStatus.Starting;
             }
             else
             {
                 animationTarget = false;
+                shouldPreventMountAnimation = false;
+                nextTransitionStatus = TransitionStatus.Idle;
             }
         }
         else if (currentOpen && !isMounted)
@@ -188,14 +205,18 @@
             isMounted = true;
             animationTarget = true;
             pendingJsInit = !jsInitialized;
+            nextTransitionStatus = TransitionStatus.Starting;
         }
 
-        if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != currentIndex || state.Orientation != currentOrientation)
+        var currentHidden = IsHidden;
+
+        if (state.Open != currentOpen || state.Disabled != currentDisabled || state.Index != currentIndex || state.Orientation != currentOrientation || state.Hidden != currentHidden || state.TransitionStatus != nextTransitionStatus)
         {
-            state = state with { Open = currentOpen, Disabled = currentDisabled, Index = currentIndex, Orientation = currentOrientation };
+            state = state with { Open = currentOpen, Disabled = currentDisabled, Index = currentIndex, Orientation = currentOrientation, TransitionStatus = nextTransitionStatus, Hidden = currentHidden };
         }
 
         _ = ResolvedId;
+        SyncPanelMounted();
 
         BuildComponentAttributes();
     }
@@ -279,6 +300,7 @@
             "idle" => state with { TransitionStatus = TransitionStatus.Idle },
             _ => state with { TransitionStatus = TransitionStatus.Undefined }
         };
+        BuildComponentAttributes();
         StateHasChanged();
     }
 
@@ -292,10 +314,15 @@
     {
         if (animationType == "close")
         {
-            if (completed && !ResolvedKeepMounted && !ResolvedHiddenUntilFound && !CurrentOpen)
+            if (completed && !CurrentOpen)
             {
                 isMounted = false;
-                jsInitialized = false;
+                SyncPanelMounted();
+
+                if (!ResolvedKeepMounted && !ResolvedHiddenUntilFound)
+                {
+                    jsInitialized = false;
+                }
             }
 
             if (completed && !CurrentOpen)
@@ -310,7 +337,8 @@
             measuredWidth = null;
         }
 
-        state = state with { TransitionStatus = TransitionStatus.Idle };
+        state = state with { TransitionStatus = TransitionStatus.Idle, Hidden = IsHidden };
+        BuildComponentAttributes();
         StateHasChanged();
     }
 
@@ -342,9 +370,15 @@
         attrs["data-open"] = state.Open;
         attrs["data-closed"] = !state.Open;
         attrs["data-disabled"] = state.Disabled;
+        attrs["data-hidden"] = state.Hidden;
         TransitionAttributeHelper.ApplyTransitionStyleAttributes(attrs, state.TransitionStatus);
 
         componentAttributes = attrs;
+    }
+
+    private void SyncPanelMounted()
+    {
+        ItemContext?.SetPanelMounted(isMounted);
     }
 
     private async Task OpenAsync()

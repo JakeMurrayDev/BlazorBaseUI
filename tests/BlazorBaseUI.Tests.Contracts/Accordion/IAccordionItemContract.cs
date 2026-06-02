@@ -13,4 +13,6 @@ public interface IAccordionItemContract
     Task HasDataDisabledWhenRootDisabled();
     Task HasDataIndexAttribute();
     Task HasDataOrientationAttribute();
+    Task HasDataHiddenWhenClosedAndUnmounted();
+    Task UpdatesResolvedValueWhenValueParameterChanges();
 }

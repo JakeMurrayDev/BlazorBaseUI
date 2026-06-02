@@ -11,7 +11,7 @@
                @ref="renderElementReference" />
 
 @code {
-    private AccordionHeaderState state = new(0, Orientation.Vertical, false, false);
+    private AccordionHeaderState state = new(0, Orientation.Vertical, false, false, true);
     private RenderElement<AccordionHeaderState>? renderElementReference;
     private Dictionary<string, object> componentAttributes = new();
 
@@ -62,7 +62,8 @@
             ItemContext?.Index ?? 0,
             ItemContext?.Orientation ?? Orientation.Vertical,
             ItemContext?.Disabled ?? false,
-            ItemContext?.Open ?? false);
+            ItemContext?.Open ?? false,
+            ItemContext?.Hidden ?? true);
         BuildComponentAttributes();
     }
 
@@ -73,10 +74,11 @@
         var currentOrientation = ItemContext?.Orientation ?? Orientation.Vertical;
         var currentDisabled = ItemContext?.Disabled ?? false;
         var currentOpen = ItemContext?.Open ?? false;
+        var currentHidden = ItemContext?.Hidden ?? true;
 
-        if (state.Index != currentIndex || state.Orientation != currentOrientation || state.Disabled != currentDisabled || state.Open != currentOpen)
+        if (state.Index != currentIndex || state.Orientation != currentOrientation || state.Disabled != currentDisabled || state.Open != currentOpen || state.Hidden != currentHidden)
         {
-            state = state with { Index = currentIndex, Orientation = currentOrientation, Disabled = currentDisabled, Open = currentOpen };
+            state = state with { Index = currentIndex, Orientation = currentOrientation, Disabled = currentDisabled, Open = currentOpen, Hidden = currentHidden };
         }
 
         BuildComponentAttributes();
@@ -91,6 +93,7 @@
         attrs["data-open"] = state.Open;
         attrs["data-closed"] = !state.Open;
         attrs["data-disabled"] = state.Disabled;
+        attrs["data-hidden"] = state.Hidden;
 
         componentAttributes = attrs;
     }

@@ -12,6 +12,8 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
         string itemValue = "test-item",
         bool itemDisabled = false,
         bool keepMounted = true,
+        bool rootHiddenUntilFound = false,
+        bool? panelHiddenUntilFound = null,
         string[]? defaultValue = null,
         Orientation orientation = Orientation.Vertical,
         Func<AccordionPanelState, string>? classValue = null,
@@ -24,7 +26,8 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
             builder.OpenComponent<AccordionRoot<string>>(0);
             builder.AddAttribute(1, "DefaultValue", defaultValue ?? Array.Empty<string>());
             builder.AddAttribute(2, "Orientation", orientation);
-            builder.AddAttribute(3, "ChildContent", (RenderFragment)(innerBuilder =>
+            builder.AddAttribute(3, "HiddenUntilFound", rootHiddenUntilFound);
+            builder.AddAttribute(4, "ChildContent", (RenderFragment)(innerBuilder =>
             {
                 innerBuilder.OpenComponent<AccordionItem<string>>(0);
                 innerBuilder.AddAttribute(1, "Value", itemValue);
@@ -42,15 +45,17 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
 
                     itemBuilder.OpenComponent<AccordionPanel>(2);
                     itemBuilder.AddAttribute(3, "KeepMounted", keepMounted);
+                    if (panelHiddenUntilFound.HasValue)
+                        itemBuilder.AddAttribute(4, "HiddenUntilFound", panelHiddenUntilFound.Value);
                     if (classValue is not null)
-                        itemBuilder.AddAttribute(4, "ClassValue", classValue);
+                        itemBuilder.AddAttribute(5, "ClassValue", classValue);
                     if (styleValue is not null)
-                        itemBuilder.AddAttribute(5, "StyleValue", styleValue);
+                        itemBuilder.AddAttribute(6, "StyleValue", styleValue);
                     if (additionalAttributes is not null)
-                        itemBuilder.AddAttribute(6, "AdditionalAttributes", additionalAttributes);
+                        itemBuilder.AddAttribute(7, "AdditionalAttributes", additionalAttributes);
                     if (render is not null)
-                        itemBuilder.AddAttribute(7, "Render", render);
-                    itemBuilder.AddAttribute(8, "ChildContent", (RenderFragment)(pb => pb.AddContent(0, "Panel Content")));
+                        itemBuilder.AddAttribute(8, "Render", render);
+                    itemBuilder.AddAttribute(9, "ChildContent", (RenderFragment)(pb => pb.AddContent(0, "Panel Content")));
                     itemBuilder.CloseComponent();
                 }));
                 innerBuilder.CloseComponent();
@@ -241,6 +246,30 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
     }
 
     [Fact]
+    public Task IsHiddenWhenKeptMountedAndClosed()
+    {
+        var cut = Render(CreateAccordionWithPanel(keepMounted: true));
+
+        var panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("hidden").ShouldBeTrue();
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task UsesHiddenUntilFoundWhenClosed()
+    {
+        var cut = Render(CreateAccordionWithPanel(
+            keepMounted: false,
+            rootHiddenUntilFound: true));
+
+        var panel = cut.Find("div[role='region'][id]");
+        panel.GetAttribute("hidden").ShouldBe("until-found");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
     public Task IsVisibleWhenOpen()
     {
         var cut = Render(CreateAccordionWithPanel(defaultValue: ["test-item"]));
@@ -260,6 +289,112 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
         panels.Count.ShouldBeGreaterThan(0);
 
         cut.Markup.ShouldContain("Panel Content");
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task OpensFromBeforeMatchWhenItemIsDisabled()
+    {
+        var cut = Render(CreateAccordionWithPanel(
+            itemDisabled: true,
+            keepMounted: false,
+            rootHiddenUntilFound: true));
+
+        var panelComponent = cut.FindComponent<AccordionPanel>();
+
+        await panelComponent.Instance.OnBeforeMatch();
+
+        var trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("true");
+
+        var panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-open").ShouldBeTrue();
+    }
+
+    [Fact]
+    public Task HasIdleTransitionStateWhenInitiallyOpen()
+    {
+        TransitionStatus? transitionStatus = null;
+
+        Render(CreateAccordionWithPanel(
+            defaultValue: ["test-item"],
+            render: ctx => builder =>
+            {
+                transitionStatus = ctx.State.TransitionStatus;
+                builder.OpenElement(0, "section");
+                builder.AddMultipleAttributes(1, ctx.Attributes);
+                builder.AddContent(2, ctx.ChildContent);
+                builder.CloseElement();
+            }));
+
+        transitionStatus.ShouldBe(TransitionStatus.Idle);
+
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task UpdatesTransitionStyleAttributesFromJsCallback()
+    {
+        var cut = Render(CreateAccordionWithPanel(defaultValue: ["test-item"]));
+        var panelComponent = cut.FindComponent<AccordionPanel>();
+
+        await panelComponent.InvokeAsync(() => panelComponent.Instance.OnTransitionStatusChanged("starting", 120, null));
+
+        var panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-starting-style").ShouldBeTrue();
+        panel.HasAttribute("data-ending-style").ShouldBeFalse();
+
+        await panelComponent.InvokeAsync(() => panelComponent.Instance.OnTransitionStatusChanged("ending", null, 240));
+
+        panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-ending-style").ShouldBeTrue();
+        panel.HasAttribute("data-starting-style").ShouldBeFalse();
+
+        await panelComponent.InvokeAsync(() => panelComponent.Instance.OnTransitionStatusChanged("idle", null, null));
+
+        panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-starting-style").ShouldBeFalse();
+        panel.HasAttribute("data-ending-style").ShouldBeFalse();
+    }
+
+    [Fact]
+    public Task KeepsPanelAndTriggerIdsSynchronizedWhenPanelRendersBeforeTrigger()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AccordionRoot<string>>(0);
+            builder.AddAttribute(1, "DefaultValue", new[] { "test-item" });
+            builder.AddAttribute(2, "ChildContent", (RenderFragment)(rootBuilder =>
+            {
+                rootBuilder.OpenComponent<AccordionItem<string>>(0);
+                rootBuilder.AddAttribute(1, "Value", "test-item");
+                rootBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(itemBuilder =>
+                {
+                    itemBuilder.OpenComponent<AccordionPanel>(0);
+                    itemBuilder.AddAttribute(1, "KeepMounted", true);
+                    itemBuilder.AddAttribute(2, "ChildContent", (RenderFragment)(panelBuilder => panelBuilder.AddContent(0, "Panel Content")));
+                    itemBuilder.CloseComponent();
+
+                    itemBuilder.OpenComponent<AccordionHeader>(3);
+                    itemBuilder.AddAttribute(4, "ChildContent", (RenderFragment)(headerBuilder =>
+                    {
+                        headerBuilder.OpenComponent<AccordionTrigger>(0);
+                        headerBuilder.AddAttribute(1, "ChildContent", (RenderFragment)(triggerBuilder => triggerBuilder.AddContent(0, "Trigger")));
+                        headerBuilder.CloseComponent();
+                    }));
+                    itemBuilder.CloseComponent();
+                }));
+                rootBuilder.CloseComponent();
+            }));
+            builder.CloseComponent();
+        });
+
+        var trigger = cut.Find("button");
+        var panel = cut.Find("div[role='region'][id]");
+
+        panel.GetAttribute("aria-labelledby").ShouldBe(trigger.GetAttribute("id"));
+        trigger.GetAttribute("aria-controls").ShouldBe(panel.GetAttribute("id"));
 
         return Task.CompletedTask;
     }

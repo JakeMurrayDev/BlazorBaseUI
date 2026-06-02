@@ -89,6 +89,7 @@ public static class JsInteropSetup
     {
         var module = jsInterop.SetupModule(AccordionTriggerModule);
         module.SetupVoid("initialize", _ => true);
+        module.SetupVoid("updateConfig", _ => true);
         module.SetupVoid("dispose", _ => true);
     }
 

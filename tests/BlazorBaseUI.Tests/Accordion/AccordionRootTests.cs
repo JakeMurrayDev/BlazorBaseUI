@@ -511,6 +511,27 @@ public class AccordionRootTests : BunitContext, IAccordionRootContract
     }
 
     [Fact]
+    public async Task AsyncOnValueChangeCancellationPreventsStateChange()
+    {
+        var cut = Render(CreateAccordionRoot(
+            onValueChange: EventCallback.Factory.Create<AccordionValueChangeEventArgs<string>>(this, async args =>
+            {
+                await Task.Yield();
+                args.Cancel();
+            })
+        ));
+
+        var trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+
+        await trigger.ClickAsync(new MouseEventArgs());
+
+        trigger = cut.Find("button");
+        trigger.GetAttribute("aria-expanded").ShouldBe("false");
+        trigger.HasAttribute("data-panel-open").ShouldBeFalse();
+    }
+
+    [Fact]
     public Task CascadesContextToChildren()
     {
         var cut = Render(builder =>
