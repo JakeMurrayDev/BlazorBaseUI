@@ -10,26 +10,26 @@
     <style>
         .animated-panel {
             overflow: hidden;
-            transition: height @(AnimationDuration)ms ease-out, opacity @(AnimationDuration)ms ease-out;
+            transition: @(Horizontal ? "width" : "height") @(AnimationDuration)ms ease-out, opacity @(AnimationDuration)ms ease-out;
         }
 
         .animated-panel[data-closed] {
-            height: 0;
+            @(Horizontal ? "width: 0;" : "height: 0;")
             opacity: 0;
         }
 
         .animated-panel[data-open] {
-            height: var(--accordion-panel-height);
+            @(Horizontal ? "width: var(--accordion-panel-width);" : "height: var(--accordion-panel-height);")
             opacity: 1;
         }
 
         .animated-panel[data-starting-style] {
-            height: 0;
+            @(Horizontal ? "width: 0;" : "height: 0;")
             opacity: 0;
         }
 
         .animated-panel[data-ending-style] {
-            height: 0;
+            @(Horizontal ? "width: 0;" : "height: 0;")
             opacity: 0;
         }
     </style>

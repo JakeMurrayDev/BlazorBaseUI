@@ -337,6 +337,7 @@
         }
 
         state = state with { TransitionStatus = TransitionStatus.Idle, Hidden = IsHidden };
+        BuildComponentAttributes();
         StateHasChanged();
     }
 

@@ -12,6 +12,7 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
         string itemValue = "test-item",
         bool itemDisabled = false,
         bool rootDisabled = false,
+        bool keepMounted = true,
         string[]? defaultValue = null,
         Orientation orientation = Orientation.Vertical,
         Func<AccordionItemState<string>, string>? classValue = null,
@@ -38,14 +39,14 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
                     innerBuilder.AddAttribute(5, "AdditionalAttributes", additionalAttributes);
                 if (render is not null)
                     innerBuilder.AddAttribute(6, "Render", render);
-                innerBuilder.AddAttribute(7, "ChildContent", CreateItemContent());
+                innerBuilder.AddAttribute(7, "ChildContent", CreateItemContent(keepMounted));
                 innerBuilder.CloseComponent();
             }));
             builder.CloseComponent();
         };
     }
 
-    private static RenderFragment CreateItemContent()
+    private static RenderFragment CreateItemContent(bool keepMounted = true)
     {
         return builder =>
         {
@@ -59,7 +60,7 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
             builder.CloseComponent();
 
             builder.OpenComponent<AccordionPanel>(2);
-            builder.AddAttribute(3, "KeepMounted", true);
+            builder.AddAttribute(3, "KeepMounted", keepMounted);
             builder.AddAttribute(4, "ChildContent", (RenderFragment)(pb => pb.AddContent(0, "Panel Content")));
             builder.CloseComponent();
         };
@@ -206,7 +207,7 @@ public class AccordionItemTests : BunitContext, IAccordionItemContract
     [Fact]
     public Task HasDataHiddenWhenClosedAndUnmounted()
     {
-        var cut = Render(CreateAccordionWithItem());
+        var cut = Render(CreateAccordionWithItem(keepMounted: false));
 
         var item = cut.Find("div[data-index]");
         item.HasAttribute("data-hidden").ShouldBeTrue();
