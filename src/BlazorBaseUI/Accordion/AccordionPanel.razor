@@ -300,6 +300,7 @@
             "idle" => state with { TransitionStatus = TransitionStatus.Idle },
             _ => state with { TransitionStatus = TransitionStatus.Undefined }
         };
+        BuildComponentAttributes();
         StateHasChanged();
     }
 

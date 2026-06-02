@@ -334,6 +334,31 @@ public class AccordionPanelTests : BunitContext, IAccordionPanelContract
     }
 
     [Fact]
+    public async Task UpdatesTransitionStyleAttributesFromJsCallback()
+    {
+        var cut = Render(CreateAccordionWithPanel(defaultValue: ["test-item"]));
+        var panelComponent = cut.FindComponent<AccordionPanel>();
+
+        await panelComponent.InvokeAsync(() => panelComponent.Instance.OnTransitionStatusChanged("starting", 120, null));
+
+        var panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-starting-style").ShouldBeTrue();
+        panel.HasAttribute("data-ending-style").ShouldBeFalse();
+
+        await panelComponent.InvokeAsync(() => panelComponent.Instance.OnTransitionStatusChanged("ending", null, 240));
+
+        panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-ending-style").ShouldBeTrue();
+        panel.HasAttribute("data-starting-style").ShouldBeFalse();
+
+        await panelComponent.InvokeAsync(() => panelComponent.Instance.OnTransitionStatusChanged("idle", null, null));
+
+        panel = cut.Find("div[role='region'][id]");
+        panel.HasAttribute("data-starting-style").ShouldBeFalse();
+        panel.HasAttribute("data-ending-style").ShouldBeFalse();
+    }
+
+    [Fact]
     public Task KeepsPanelAndTriggerIdsSynchronizedWhenPanelRendersBeforeTrigger()
     {
         var cut = Render(builder =>

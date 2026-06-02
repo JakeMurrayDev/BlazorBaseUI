@@ -22,5 +22,6 @@ public interface IAccordionPanelContract
     Task KeepsMountedWhenKeepMountedTrue();
     Task OpensFromBeforeMatchWhenItemIsDisabled();
     Task HasIdleTransitionStateWhenInitiallyOpen();
+    Task UpdatesTransitionStyleAttributesFromJsCallback();
     Task KeepsPanelAndTriggerIdsSynchronizedWhenPanelRendersBeforeTrigger();
 }
